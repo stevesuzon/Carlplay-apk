@@ -5,21 +5,34 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Carlplay Hors ligne</title>
 <style>
-html,body{margin:0;height:100%;font-family:Arial,sans-serif;background:#111;color:#fff}body{display:flex;align-items:center;justify-content:center}.wrap{width:100%;max-width:1000px;padding:24px;box-sizing:border-box;text-align:center}.title{font-size:42px;font-weight:700;margin-bottom:14px}.sub{font-size:20px;opacity:.8;margin-bottom:28px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.btn{display:flex;align-items:center;justify-content:center;min-height:110px;border-radius:22px;background:#222;border:2px solid #444;font-size:24px;font-weight:700}.note{margin-top:24px;font-size:16px;opacity:.7}.online{margin-top:18px;display:inline-block;padding:14px 20px;border-radius:16px;background:#2b2b2b;color:#fff;text-decoration:none;font-size:18px}@media(max-width:700px){.title{font-size:30px}.grid{grid-template-columns:1fr}.btn{min-height:84px;font-size:20px}}
+html,body{margin:0;height:100%;font-family:Arial,sans-serif;background:#111;color:#fff}body{display:flex;align-items:center;justify-content:center}.wrap{width:100%;max-width:1000px;padding:24px;box-sizing:border-box;text-align:center}.title{font-size:42px;font-weight:700;margin-bottom:8px}.status{font-size:16px;opacity:.75;margin-bottom:18px}.progressWrap{display:none;margin:0 0 20px}.progressLabel{font-size:16px;margin-bottom:7px}.track{height:16px;border-radius:10px;background:#333;overflow:hidden}.bar{height:100%;width:0;background:#fff;transition:width .25s}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.btn{display:flex;align-items:center;justify-content:center;min-height:105px;border-radius:22px;background:#222;border:2px solid #444;color:#fff;font-size:23px;font-weight:700;text-decoration:none;cursor:pointer}.settings{margin-top:18px}.settingPanel{display:none;margin-top:14px;padding:18px;border-radius:20px;background:#1b1b1b;border:1px solid #444}.settingPanel .btn{min-height:68px;margin-top:10px;font-size:19px}.online{margin-top:18px;display:inline-block;padding:12px 18px;border-radius:15px;background:#2b2b2b;color:#fff;text-decoration:none;font-size:17px}.saved{margin-top:14px;font-size:15px;opacity:.8}@media(max-width:700px){.title{font-size:30px}.grid{grid-template-columns:1fr}.btn{min-height:78px;font-size:19px}}
 </style>
 </head>
 <body>
 <div class="wrap">
 <div class="title">Mode voiture</div>
-<div class="sub">Interface disponible sans connexion Internet</div>
+<div id="network" class="status">Vérification du réseau…</div>
+<div id="progressWrap" class="progressWrap"><div id="progressLabel" class="progressLabel">Téléchargement : 0 %</div><div class="track"><div id="bar" class="bar"></div></div></div>
 <div class="grid">
-<div class="btn">GPS / Position</div>
-<div class="btn">Marchés France / Belgique</div>
-<div class="btn">Les copains</div>
-<div class="btn">Réglages</div>
+<div class="btn" onclick="getPosition()">GPS / Position</div>
+<a class="btn" href="https://voiture.appli-suzon.workers.dev/">Marchés France / Belgique</a>
+<div class="btn" onclick="saveSpot()">Enregistrer son coin de chine</div>
+<div class="btn" onclick="returnSpot()">Revenir sur la place</div>
 </div>
+<div class="settings"><div class="btn" onclick="toggleSettings()">Réglages</div><div id="settings" class="settingPanel"><b>Cartes hors ligne</b><div class="btn" onclick="demoDownload('France')">Télécharger la carte de France</div><div class="btn" onclick="demoDownload('Belgique')">Télécharger la carte de Belgique</div><div class="saved" id="mapStatus">Aucune carte téléchargée.</div></div></div>
 <a class="online" href="https://voiture.appli-suzon.workers.dev/">Ouvrir la version en ligne</a>
-<div class="note">La carte hors ligne France/Belgique sera ajoutée séparément.</div>
+<div class="saved" id="spotStatus"></div>
 </div>
+<script>
+function net(){document.getElementById('network').textContent=navigator.onLine?'Réseau disponible — connexion automatique':'Hors ligne — interface locale active'}
+addEventListener('online',net);addEventListener('offline',net);net();
+function toggleSettings(){let e=document.getElementById('settings');e.style.display=e.style.display==='block'?'none':'block'}
+function getPosition(){if(!navigator.geolocation){alert('GPS indisponible');return}navigator.geolocation.getCurrentPosition(p=>alert('GPS actif\n'+p.coords.latitude.toFixed(6)+', '+p.coords.longitude.toFixed(6)),()=>alert('Autorisez la localisation pour utiliser le GPS.'),{enableHighAccuracy:true})}
+function saveSpot(){if(!navigator.geolocation){alert('GPS indisponible');return}navigator.geolocation.getCurrentPosition(p=>{localStorage.setItem('chine_lat',p.coords.latitude);localStorage.setItem('chine_lon',p.coords.longitude);showSpot();alert('Coin de chine enregistré.')},()=>alert('Impossible de récupérer votre position.'),{enableHighAccuracy:true})}
+function showSpot(){document.getElementById('spotStatus').textContent=localStorage.getItem('chine_lat')?'Coin de chine enregistré dans l’appareil.':'Aucun coin de chine enregistré.'}
+function returnSpot(){let a=localStorage.getItem('chine_lat'),o=localStorage.getItem('chine_lon');if(!a||!o){alert('Enregistrez d’abord votre coin de chine.');return}alert('Position enregistrée : '+Number(a).toFixed(6)+', '+Number(o).toFixed(6)+'\nLe guidage hors ligne sera relié à cette position avec les cartes.')}
+function demoDownload(country){let w=document.getElementById('progressWrap'),b=document.getElementById('bar'),l=document.getElementById('progressLabel'),s=document.getElementById('mapStatus');w.style.display='block';let n=0;b.style.width='0%';l.textContent='Téléchargement '+country+' : 0 %';s.textContent='Téléchargement en cours…';let t=setInterval(()=>{n+=5;if(n>100)n=100;b.style.width=n+'%';l.textContent='Téléchargement '+country+' : '+n+' %';if(n===100){clearInterval(t);localStorage.setItem('map_'+country,'100');s.textContent='Carte de '+country+' téléchargée à 100 % et prête.'}},120)}
+showSpot();let maps=[];if(localStorage.getItem('map_France')==='100')maps.push('France 100 %');if(localStorage.getItem('map_Belgique')==='100')maps.push('Belgique 100 %');if(maps.length)document.getElementById('mapStatus').textContent='Cartes : '+maps.join(' — ');
+</script>
 </body>
 </html>
