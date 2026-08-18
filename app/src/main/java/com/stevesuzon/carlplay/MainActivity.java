@@ -13,7 +13,7 @@ import android.webkit.WebViewClient;
 
 public class MainActivity extends android.app.Activity {
     private static final int LOCATION_REQUEST = 1001;
-    private static final String CAR_URL = "https://voiture.appli-suzon.workers.dev/";
+    private static final String OFFLINE_URL = "file:///android_asset/index.html";
     private WebView webView;
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -42,6 +42,8 @@ public class MainActivity extends android.app.Activity {
         settings.setLoadWithOverviewMode(true);
         settings.setBuiltInZoomControls(false);
         settings.setDisplayZoomControls(false);
+        settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(true);
 
         webView.setWebViewClient(new WebViewClient());
         webView.setWebChromeClient(new WebChromeClient() {
@@ -58,7 +60,7 @@ public class MainActivity extends android.app.Activity {
             }, LOCATION_REQUEST);
         }
 
-        webView.loadUrl(CAR_URL);
+        webView.loadUrl(OFFLINE_URL);
     }
 
     @Override
