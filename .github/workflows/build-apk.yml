@@ -13,17 +13,112 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+
       - name: Install Android SDK 35
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
       - name: Install vehicle images and SS app icon
         run: |
           set -euo pipefail
           mkdir -p app/src/main/assets app/src/main/res/drawable
-          printf '%s' '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAkGBwgHBgkIBwgKCgkLDRYPDQwMDRsUFRAWIB
+          base64 -d assets-src/master.b64 > app/src/main/assets/master-front.jpg
+          base64 -d assets-src/tabbert.b64 > app/src/main/assets/tabbert.jpg
+          base64 -d assets-src/logo.b64 > app/src/main/res/drawable/app_icon.jpg
+          file app/src/main/assets/master-front.jpg
+          file app/src/main/assets/tabbert.jpg
+          file app/src/main/res/drawable/app_icon.jpg
+          grep -rl --include='*.html' 'master-front.png' app/src/main/assets | xargs -r sed -i 's/master-front\.png/master-front.jpg/g'
+          grep -rl --include='*.html' 'tabbert.png' app/src/main/assets | xargs -r sed -i 's/tabbert\.png/tabbert.jpg/g'
+
+      - name: Download market files
+        run: |
+          mkdir -p app/src/main/assets
+          curl -fL --retry 3 https://voiture.appli-suzon.workers.dev/carplay-marches.html -o app/src/main/assets/carplay-marches.html
+          curl -fL --retry 3 https://voiture.appli-suzon.workers.dev/marches.html -o app/src/main/assets/marches.html
+          curl -fL --retry 3 https://voiture.appli-suzon.workers.dev/belgique-marches.html -o app/src/main/assets/belgique-marches.html
+
+      - name: Department dropdown and no search
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/main/assets/marches.html')
+          s = p.read_text(encoding='utf-8')
+          inject = r'''
+          <style id="apk-department-style">
+          input[type="search"],input.search,.search,#search,[placeholder*="Rechercher" i],[placeholder*="Recherche" i]{display:none!important}
+          #apkDepartmentSelect{width:100%;max-width:760px;display:block;margin:16px auto;padding:18px 20px;border:2px solid #ffffff55;border-radius:18px;background:#18243a;color:#fff;font-size:22px;font-weight:900;box-shadow:0 7px 20px #0005}
+          </style>
+          <script id="apk-department-menu">
+          (function(){
+            function hideSearch(){
+              document.querySelectorAll('input').forEach(function(el){
+                var t=((el.id||'')+' '+(el.className||'')+' '+(el.placeholder||'')).toLowerCase();
+                if(t.indexOf('search')>=0||t.indexOf('recher')>=0) el.style.display='none';
+              });
+            }
+            function install(){
+              hideSearch();
+              var existing=document.querySelector('select[id*="dep" i],select[name*="dep" i],select[class*="dep" i]');
+              if(existing){
+                existing.style.width='100%'; existing.style.maxWidth='760px'; existing.style.padding='18px'; existing.style.fontSize='22px'; existing.style.fontWeight='900';
+                return true;
+              }
+              if(document.getElementById('apkDepartmentSelect')) return true;
+              var selectors=['#depGrid button','#depGrid a','.dep','[data-dep]','[data-department]'];
+              var nodes=[];
+              selectors.forEach(function(sel){document.querySelectorAll(sel).forEach(function(n){if(nodes.indexOf(n)<0)nodes.push(n)})});
+              nodes=nodes.filter(function(n){var t=(n.innerText||n.textContent||'').trim();return /(^|\s)(0[1-9]|[1-8][0-9]|9[0-5]|2A|2B)(\s|\-|–|—|$)/i.test(t)||n.dataset.dep||n.dataset.department});
+              if(nodes.length<2) return false;
+              var sel=document.createElement('select'); sel.id='apkDepartmentSelect';
+              var first=document.createElement('option'); first.value=''; first.textContent='CHOISIR UN DÉPARTEMENT'; first.selected=true; sel.appendChild(first);
+              nodes.forEach(function(n,i){var o=document.createElement('option');o.value=String(i);o.textContent=(n.innerText||n.textContent||'').trim().replace(/\s+/g,' ');sel.appendChild(o)});
+              sel.addEventListener('change',function(){if(this.value!==''){var n=nodes[parseInt(this.value,10)];if(n)n.click();this.value=''}});
+              var host=document.querySelector('#departements,#depGrid,.departements,.departments,main')||document.body;
+              if(host.id==='depGrid'&&host.parentNode)host.parentNode.insertBefore(sel,host);else host.insertBefore(sel,host.firstChild);
+              var grid=document.querySelector('#depGrid'); if(grid) grid.style.display='none';
+              return true;
+            }
+            var tries=0; function go(){tries++; if(!install()&&tries<30)setTimeout(go,250)}
+            if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go);else go();
+          })();
+          </script>
+          '''
+          if '</body>' in s:
+              s = s.replace('</body>', inject + '\n</body>', 1)
+          else:
+              s += inject
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build debug APK
+        run: gradle assembleDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Carlplay-APK-Tous-Marches
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: Publish latest APK in repository
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk LATEST-APK.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add LATEST-APK.apk
+          git commit -m "APK compilé avec logo SS et images véhicules [skip ci]" || exit 0
+          git push
