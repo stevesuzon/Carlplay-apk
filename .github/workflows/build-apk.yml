@@ -30,12 +30,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p app/src/main/assets app/src/main/res/drawable
-          base64 -d assets-src/master.b64 > app/src/main/assets/master-front.jpg
-          base64 -d assets-src/tabbert.b64 > app/src/main/assets/tabbert.jpg
-          base64 -d assets-src/logo.b64 > app/src/main/res/drawable/app_icon.jpg
+          tr -cd 'A-Za-z0-9+/=' < assets-src/master.b64 | base64 -d > app/src/main/assets/master-front.jpg
+          tr -cd 'A-Za-z0-9+/=' < assets-src/tabbert.b64 | base64 -d > app/src/main/assets/tabbert.jpg
+          tr -cd 'A-Za-z0-9+/=' < assets-src/logo.b64 | base64 -d > app/src/main/res/drawable/app_icon.jpg
           file app/src/main/assets/master-front.jpg
           file app/src/main/assets/tabbert.jpg
           file app/src/main/res/drawable/app_icon.jpg
+          test -s app/src/main/assets/master-front.jpg
+          test -s app/src/main/assets/tabbert.jpg
+          test -s app/src/main/res/drawable/app_icon.jpg
           grep -rl --include='*.html' 'master-front.png' app/src/main/assets | xargs -r sed -i 's/master-front\.png/master-front.jpg/g'
           grep -rl --include='*.html' 'tabbert.png' app/src/main/assets | xargs -r sed -i 's/tabbert\.png/tabbert.jpg/g'
 
