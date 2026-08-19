@@ -34,7 +34,7 @@ jobs:
           test -s app/src/main/assets/marches.html
           test -s app/src/main/assets/belgique-marches.html
           test -s app/src/main/assets/carplay-marches.html
-      - name: Install and clean market interface
+      - name: Install market interface safely
         run: |
           set -euo pipefail
           mkdir -p app/src/main/assets
@@ -42,29 +42,33 @@ jobs:
           from pathlib import Path
           import base64,re
           for src,dst in [('assets-src/master.b64','app/src/main/assets/master-front.jpg'),('assets-src/tabbert.b64','app/src/main/assets/tabbert.jpg'),('assets-src/chineur-photo.b64','app/src/main/assets/chineur.webp'),('assets-src/route66-bg.b64','app/src/main/assets/route66-bg.jpg')]:
-              raw=Path(src).read_text(encoding='utf-8',errors='ignore'); clean=''.join(re.findall(r'[A-Za-z0-9+/]',raw)); clean+='='*((4-len(clean)%4)%4); Path(dst).write_bytes(base64.b64decode(clean,validate=False))
+              raw=Path(src).read_text(encoding='utf-8',errors='ignore')
+              clean=''.join(re.findall(r'[A-Za-z0-9+/]',raw)); clean+='='*((4-len(clean)%4)%4)
+              Path(dst).write_bytes(base64.b64decode(clean,validate=False))
           PY
           cp assets-src/route66-global.css app/src/main/assets/route66-global.css
           cp assets-src/market-ui.js app/src/main/assets/market-ui.js
           python3 - <<'PY'
           from pathlib import Path
-          import re
           assets=Path('app/src/main/assets')
-          p=assets/'index.html'; s=p.read_text(encoding='utf-8'); s=s.replace('master-front.png','master-front.jpg').replace('tabbert.png','tabbert.jpg').replace('chineur.svg','chineur.webp'); p.write_text(s,encoding='utf-8')
+          p=assets/'index.html'
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('master-front.png','master-front.jpg').replace('tabbert.png','tabbert.jpg').replace('chineur.svg','chineur.webp')
+          p.write_text(s,encoding='utf-8')
           for hp in assets.glob('*.html'):
               txt=hp.read_text(encoding='utf-8')
-              if 'route66-global.css' not in txt: txt=txt.replace('</head>','<link rel="stylesheet" href="route66-global.css">\n</head>',1)
+              if 'route66-global.css' not in txt:
+                  tag='<link rel="stylesheet" href="route66-global.css">'
+                  txt=txt.replace('</head>',tag+'\n</head>',1) if '</head>' in txt else tag+txt
               if hp.name=='marches.html':
-                  # Remove the old side article button, verification/export block, old search controls and decorative ribbons from the actual packaged HTML.
-                  txt=re.sub(r'<[^>]+[^>]*(?:article|travail)[^>]*>.*?</[^>]+>','',txt,flags=re.I|re.S)
-                  txt=re.sub(r'<[^>]+[^>]*(?:verification|vérification|export|share)[^>]*>.*?</[^>]+>','',txt,flags=re.I|re.S)
-                  txt=re.sub(r'<input[^>]*(?:search|recherche)[^>]*>','',txt,flags=re.I)
-                  txt=re.sub(r'<[^>]+class=["\'][^"\']*(?:ribbon|ruban)[^"\']*["\'][^>]*>.*?</[^>]+>','',txt,flags=re.I|re.S)
+                  if 'market-ui.js' not in txt:
+                      tag='<script src="market-ui.js"></script>'
+                      txt=txt.replace('</body>',tag+'\n</body>',1) if '</body>' in txt else txt+tag
                   txt=txt.replace('Marchés • Brocantes • Antiquités','MARCHÉS DE FRANCE').replace('Marchés · Brocantes · Antiquités','MARCHÉS DE FRANCE').replace('Marchés Brocantes Antiquités','MARCHÉS DE FRANCE')
-                  if 'market-ui.js' not in txt: txt=txt.replace('</body>','<script src="market-ui.js"></script>\n</body>',1)
               hp.write_text(txt,encoding='utf-8')
           PY
-          grep -q 'market-ui.js' app/src/main/assets/marches.html
+          test -s app/src/main/assets/market-ui.js
+          test -s app/src/main/assets/marches.html
       - name: Verify market UI
         run: |
           grep -q 'Ille-et-Vilaine' assets-src/market-ui.js
@@ -93,7 +97,7 @@ jobs:
             cp /tmp/LATEST-APK.apk LATEST-APK.apk
             git add LATEST-APK.apk
             if git diff --cached --quiet; then exit 0; fi
-            git commit -m "APK marchés France nettoyé [skip ci]"
+            git commit -m "APK marchés corrigé [skip ci]"
             if git push origin HEAD:main; then exit 0; fi
             sleep 2
           done
