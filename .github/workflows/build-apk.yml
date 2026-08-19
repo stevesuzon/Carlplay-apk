@@ -16,36 +16,97 @@ jobs:
         with: { distribution: temurin, java-version: '17' }
       - uses: android-actions/setup-android@v3
       - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-      - name: Restore all market data
+
+      - name: Restore source market data
         run: |
           set -euo pipefail
           mkdir -p app/src/main/assets
-          cat assets-src/markets-zip/marches.* | base64 -d | gunzip > app/src/main/assets/marches.html
-          cat assets-src/markets-zip/belgique.* | base64 -d | gunzip > app/src/main/assets/belgique-marches.html
+          cat assets-src/markets-zip/marches.* | base64 -d | gunzip > /tmp/france-source.html
+          cat assets-src/markets-zip/belgique.* | base64 -d | gunzip > /tmp/belgique-source.html
           cat assets-src/markets-zip/carplay.* | base64 -d | gunzip > app/src/main/assets/carplay-marches.html
-      - name: Install France and Belgium interfaces
+          test -s /tmp/france-source.html
+          test -s /tmp/belgique-source.html
+
+      - name: Restore application images
         run: |
           set -euo pipefail
-          cp assets-src/market-ui.js app/src/main/assets/market-ui.js
-          cp assets-src/belgium-ui.js app/src/main/assets/belgium-ui.js
-          cp assets-src/route66-global.css app/src/main/assets/route66-global.css
           python3 - <<'PY'
           from pathlib import Path
           import base64,re
-          A=Path('app/src/main/assets')
+          A=Path('app/src/main/assets'); A.mkdir(parents=True,exist_ok=True)
           for src,dst in [('assets-src/master.b64','master-front.jpg'),('assets-src/tabbert.b64','tabbert.jpg'),('assets-src/chineur-photo.b64','chineur.webp'),('assets-src/route66-bg.b64','route66-bg.jpg')]:
-              raw=Path(src).read_text(errors='ignore'); clean=''.join(re.findall(r'[A-Za-z0-9+/]',raw)); clean+='='*((4-len(clean)%4)%4); (A/dst).write_bytes(base64.b64decode(clean,validate=False))
-          p=A/'index.html'; s=p.read_text(); s=s.replace('master-front.png','master-front.jpg').replace('tabbert.png','tabbert.jpg').replace('chineur.svg','chineur.webp'); p.write_text(s)
-          for name,js,title in [('marches.html','market-ui.js','MARCHÉS DE FRANCE'),('belgique-marches.html','belgium-ui.js','MARCHÉS DE BELGIQUE')]:
-              p=A/name; t=p.read_text()
-              if 'route66-global.css' not in t: t=t.replace('</head>','<link rel="stylesheet" href="route66-global.css">\n</head>',1)
-              if js not in t: t=t.replace('</body>',f'<script src="{js}"></script>\n</body>',1)
-              t=re.sub(r'<title>.*?</title>',f'<title>{title}</title>',t,count=1,flags=re.S|re.I)
-              p.write_text(t)
+              raw=Path(src).read_text(errors='ignore')
+              clean=''.join(re.findall(r'[A-Za-z0-9+/]',raw)); clean+='='*((4-len(clean)%4)%4)
+              (A/dst).write_bytes(base64.b64decode(clean,validate=False))
+          p=A/'index.html'
+          if p.exists():
+              s=p.read_text(errors='ignore').replace('master-front.png','master-front.jpg').replace('tabbert.png','tabbert.jpg').replace('chineur.svg','chineur.webp')
+              p.write_text(s)
           PY
-          test -s app/src/main/assets/marches.html
-          test -s app/src/main/assets/belgique-marches.html
-          grep -q 'belgium-ui.js' app/src/main/assets/belgique-marches.html
+
+      - name: Build completely clean France and Belgium market pages
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def extract(src, name):
+              t=Path(src).read_text(encoding='utf-8',errors='ignore')
+              m=re.search(r'const\s+'+re.escape(name)+r'\s*=\s*(\[.*?\]);',t,re.S)
+              if not m: raise SystemExit(f'Impossible de trouver {name} dans {src}')
+              return m.group(1)
+
+          def page(country,title,areas_name,areas,data):
+              area_word='DÉPARTEMENT' if country=='fr' else 'PROVINCE / RÉGION'
+              return f'''<!doctype html>
+          <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+          <title>{title}</title>
+          <style>
+          *{{box-sizing:border-box}} html,body{{margin:0;min-height:100%;font-family:Arial,Helvetica,sans-serif;color:#fff;background:#07101d url('route66-bg.jpg') center center/cover fixed no-repeat}} body{{min-height:100vh}} .shade{{min-height:100vh;background:rgba(2,8,18,.48);padding:18px}} .app{{width:min(1100px,96vw);margin:auto}} h1{{margin:4px 0 18px;text-align:center;font-size:clamp(30px,5vw,54px);text-shadow:0 3px 10px #000}} .picker{{background:rgba(8,19,38,.82);padding:14px;border-radius:24px;box-shadow:0 10px 30px #0008}} button{{font-family:inherit;touch-action:manipulation}} #choose,#confirm{{width:100%;min-height:76px;border-radius:22px;font-size:clamp(20px,3vw,31px);font-weight:900;color:white}} #choose{{border:3px solid #62d8ff;background:linear-gradient(135deg,#05aaff,#1739db);display:flex;justify-content:space-between;align-items:center;padding:0 24px}} #confirm{{margin-top:12px;border:2px solid #777;background:#555;color:#aaa}} #confirm.ready{{background:linear-gradient(135deg,#05aaff,#1739db);border-color:#62d8ff;color:#fff}} #panel{{display:none;position:fixed;inset:3vh 2vw;z-index:50;background:#10233aed;border:3px solid #62d8ff;border-radius:24px;padding:12px;overflow:auto}} #panel.open{{display:block}} #close{{position:sticky;top:0;width:100%;height:56px;border:0;border-radius:15px;background:#d84343;color:#fff;font-weight:900;font-size:18px;z-index:3}} .area{{width:100%;min-height:62px;margin:6px 0;border:1px solid #ffffff55;border-radius:16px;background:#1d3049;color:#fff;font-size:20px;font-weight:800;text-align:left;padding:10px 18px}} .area.sel{{background:#075dca;border:3px solid #62d8ff}} #results{{display:none;margin-top:14px}} .days{{position:sticky;top:0;z-index:20;display:flex;gap:9px;overflow-x:auto;white-space:nowrap;padding:10px 4px;background:rgba(4,13,28,.88);border-radius:18px;-webkit-overflow-scrolling:touch}} .day{{flex:0 0 auto;min-width:108px;height:52px;border:2px solid #62d8ff;border-radius:999px;background:#132a48;color:#fff;font-size:18px;font-weight:900}} .day.active{{background:#087ee5}} #heading{{font-size:24px;font-weight:900;margin:14px 4px 4px}} #count{{opacity:.85;margin:0 4px 12px}} .cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px}} .card{{background:rgba(13,28,48,.92);border:1px solid #ffffff38;border-radius:20px;padding:16px;box-shadow:0 8px 20px #0008}} .name{{font-size:23px;font-weight:950;padding-right:8px}} .city{{font-size:19px;margin-top:7px}} .meta{{margin-top:8px;font-size:17px;line-height:1.45;color:#e6efff}} .tag{{display:inline-block;margin-top:9px;padding:5px 10px;border-radius:999px;background:#ffffff18;font-weight:800}} .actions{{display:flex;gap:10px;margin-top:14px}} .actions button{{flex:1;min-height:54px;border:0;border-radius:15px;font-size:17px;font-weight:900;color:#fff}} .verify{{background:#f39b19}} .nav{{background:#087ee5}} .verified{{outline:2px solid #42d68b}} dialog{{width:min(650px,92vw);border:2px solid #62d8ff;border-radius:20px;background:#10233a;color:#fff;padding:18px}} dialog::backdrop{{background:#000a}} dialog label{{display:block;margin:12px 0 5px;font-weight:800}} dialog input,dialog select{{width:100%;min-height:48px;border-radius:12px;border:1px solid #ffffff55;padding:8px 12px;font-size:18px;background:#081727;color:#fff}} .modalBtns{{display:flex;gap:10px;margin-top:16px}} .modalBtns button{{flex:1;min-height:50px;border:0;border-radius:13px;color:white;font-weight:900;font-size:17px}} .save{{background:#087ee5}} .cancel{{background:#555}} @media(max-width:700px){{.shade{{padding:9px}}.cards{{grid-template-columns:1fr}}h1{{font-size:31px}}#choose,#confirm{{min-height:66px}}}}
+          </style></head><body><div class="shade"><main class="app">
+          <h1>{title}</h1>
+          <section class="picker"><button id="choose"><span>CHOISIR SON {area_word}</span><span>▼</span></button><button id="confirm" disabled>CONFIRMER</button></section>
+          <section id="results"><div id="days" class="days"></div><div id="heading"></div><div id="count"></div><div id="cards" class="cards"></div></section>
+          </main></div>
+          <div id="panel"><button id="close">FERMER</button><div id="areas"></div></div>
+          <dialog id="verifyDlg"><h2>VÉRIFIER CE MARCHÉ</h2><div id="verifyName"></div><label>Horaire confirmé</label><input id="vTime" placeholder="ex. 07h00–13h00"><label>Nombre de commerçants</label><input id="vCount" type="number" min="0" placeholder="ex. 45"><label>Tirage au sort</label><select id="vDraw"><option value="">À préciser</option><option>Oui</option><option>Non</option></select><div class="modalBtns"><button class="cancel" onclick="verifyDlg.close()">ANNULER</button><button class="save" id="saveVerify">ENREGISTRER</button></div></dialog>
+          <script>
+          const areas={areas};
+          const data={data};
+          const dayNames={{lundi:'LUN',mardi:'MAR',mercredi:'MER',jeudi:'JEU',vendredi:'VEN',samedi:'SAM',dimanche:'DIM'}};
+          let selected=null,currentDay='lundi',verifyIndex=null;
+          const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>\"']/g,c=>({{'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}}[c]));
+          function areaLabel(a){{return '{country}'==='fr' ? a[0]+' — '+a[1] : a[1]}}
+          function populate(){{$('areas').innerHTML=areas.map((a,i)=>`<button class="area" data-i="${{i}}">${{esc(areaLabel(a))}}</button>`).join('');document.querySelectorAll('.area').forEach(b=>b.onclick=()=>{{selected=areas[+b.dataset.i];document.querySelectorAll('.area').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');$('choose').firstElementChild.textContent=areaLabel(selected);$('confirm').disabled=false;$('confirm').classList.add('ready');$('panel').classList.remove('open')}})}}
+          $('choose').onclick=()=>$('panel').classList.add('open'); $('close').onclick=()=>$('panel').classList.remove('open');
+          function days(){{$('days').innerHTML=Object.entries(dayNames).map(([k,v])=>`<button class="day ${{k===currentDay?'active':''}}" data-day="${{k}}">${{v}}</button>`).join('');document.querySelectorAll('.day').forEach(b=>b.onclick=()=>{{currentDay=b.dataset.day;days();render()}})}}
+          function rows(){{if(!selected)return[];return data.filter(r=>r[0]===selected[0]&&r[4]===currentDay)}}
+          function key(r){{return 'marketVerify:{country}:'+r.slice(0,6).join('|')}}
+          function render(){{const rs=rows();$('heading').textContent=areaLabel(selected)+' — '+dayNames[currentDay];$('count').textContent=rs.length+' marché(s)';$('cards').innerHTML=rs.map((r,i)=>{{let saved=null;try{{saved=JSON.parse(localStorage.getItem(key(r))||'null')}}catch(e){{}};const time=saved?.time||r[5]||'Horaire à vérifier';const type=r[6]||r[1]||'Marché';return `<article class="card ${{saved?'verified':''}}"><div class="name">${{esc(r[2])}}</div><div class="city">📍 ${{esc(r[3]||'Localité à préciser')}}</div><div class="meta">🕒 ${{esc(time)}}</div><span class="tag">${{esc(type)}}</span><div class="actions"><button class="nav" onclick="navigateTo(${{i}})">ALLER AU MARCHÉ</button><button class="verify" onclick="openVerify(${{i}})">VÉRIFIER</button></div></article>`}}).join('')||'<div class="card">Aucun marché enregistré pour ce jour.</div>'}}
+          $('confirm').onclick=()=>{{if(!selected)return;currentDay='lundi';days();render();$('results').style.display='block';setTimeout(()=>$('results').scrollIntoView({{behavior:'smooth',block:'start'}}),60)}};
+          function navigateTo(i){{const r=rows()[i];const q=encodeURIComponent((r[2]||'')+' '+(r[3]||''));location.href='https://www.google.com/maps/search/?api=1&query='+q}}
+          function openVerify(i){{const r=rows()[i];verifyIndex=i;$('verifyName').textContent=r[2]+' — '+r[3];let s=null;try{{s=JSON.parse(localStorage.getItem(key(r))||'null')}}catch(e){{}};$('vTime').value=s?.time||r[5]||'';$('vCount').value=s?.count||'';$('vDraw').value=s?.draw||'';$('verifyDlg').showModal()}}
+          $('saveVerify').onclick=()=>{{const r=rows()[verifyIndex];localStorage.setItem(key(r),JSON.stringify({{time:$('vTime').value.trim(),count:$('vCount').value.trim(),draw:$('vDraw').value,updated:Date.now()}}));$('verifyDlg').close();render()}};
+          populate();
+          </script></body></html>'''
+
+          fr_areas=extract('/tmp/france-source.html','departments')
+          fr_data=extract('/tmp/france-source.html','data')
+          be_areas=extract('/tmp/belgique-source.html','regions')
+          be_data=extract('/tmp/belgique-source.html','data')
+          A=Path('app/src/main/assets')
+          (A/'marches.html').write_text(page('fr','MARCHÉS DE FRANCE','departments',fr_areas,fr_data),encoding='utf-8')
+          (A/'belgique-marches.html').write_text(page('be','MARCHÉS DE BELGIQUE','regions',be_areas,be_data),encoding='utf-8')
+          PY
+          grep -q 'MARCHÉS DE FRANCE' app/src/main/assets/marches.html
+          grep -q 'CHOISIR SON DÉPARTEMENT' app/src/main/assets/marches.html
+          grep -q 'MARCHÉS DE BELGIQUE' app/src/main/assets/belgique-marches.html
+          ! grep -qi 'article de travail' app/src/main/assets/marches.html
+          ! grep -qi 'mes vérifications' app/src/main/assets/marches.html
+          ! grep -qi 'ce site ne vous convient pas' app/src/main/assets/marches.html
+          ! grep -qi 'rechercher un département' app/src/main/assets/marches.html
+
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: '8.9' }
       - run: gradle assembleDebug
@@ -63,4 +124,4 @@ jobs:
           git fetch origin main && git reset --hard origin/main
           cp /tmp/LATEST-APK.apk LATEST-APK.apk
           git add LATEST-APK.apk
-          git diff --cached --quiet || (git commit -m "APK France Belgique [skip ci]" && git push origin HEAD:main)
+          git diff --cached --quiet || (git commit -m "APK pages marchés propres France Belgique [skip ci]" && git push origin HEAD:main)
