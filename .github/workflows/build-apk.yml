@@ -1,7 +1,7 @@
 name: Build APK
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "agent/**" ]
     paths-ignore:
       - "LATEST-APK.apk"
   workflow_dispatch:
@@ -46,6 +46,39 @@ jobs:
           curl -fL --retry 3 https://voiture.appli-suzon.workers.dev/marches.html -o app/src/main/assets/marches.html
           curl -fL --retry 3 https://voiture.appli-suzon.workers.dev/belgique-marches.html -o app/src/main/assets/belgique-marches.html
 
+      - name: Add local market files and help bubbles
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          helper = r'''<style id="apk-help-style">
+          #apkHelp{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);width:min(620px,90vw);padding:20px 22px;border-radius:22px;background:#101724f5;border:2px solid #ffffff55;box-shadow:0 12px 35px #0009;color:#fff;z-index:99999;opacity:0;pointer-events:none;transition:.22s;font-family:Arial,sans-serif}
+          #apkHelp.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+          #apkHelp b{display:block;font-size:21px;margin-bottom:7px} #apkHelp button{margin-top:12px;padding:10px 18px;border:0;border-radius:12px;font-weight:900}
+          #apkLocalMarkets{margin:18px auto;max-width:1100px;padding:18px;border-radius:22px;background:#101724ee;border:1px solid #ffffff28;color:#fff}
+          .apkLocalGroup{margin:12px 0;padding:12px;border-radius:16px;background:#1d293c}.apkLocalItem{padding:10px 0;border-bottom:1px solid #ffffff18}.apkLocalItem:last-child{border-bottom:0}.apkLocalGo{float:right;padding:7px 10px;border:0;border-radius:9px;font-weight:800}
+          </style><div id="apkHelp"><b id="apkHelpTitle">Information</b><span id="apkHelpText"></span><br><button onclick="apkHelpClose()">COMPRIS</button></div>
+          <script id="apk-help-and-local">
+          (function(){
+            const tips={"MARCHÉS":"Choisis France ou Belgique, puis ta zone et ton jour pour trouver les marchés.","TROUVER UN COIN DE CHINE":"Enregistre un bon coin pour le retrouver et y retourner facilement.","RETROUVE LA PLACE":"Enregistre ta position actuelle. Un deuxième appui lance la navigation vers cette position.","EFFACER EMPLACEMENT":"Efface la position enregistrée pour Retrouve la place.","RÉGLAGES":"Choisis ici ton GPS favori, ton véhicule et les paramètres de l'application.","GPS / NAVIGATION":"Choisis Waze ou Google Maps. Ce choix devient le GPS favori pour toutes les navigations.","VÉHICULE AFFICHÉ":"Choisis l'image du Renault Master seul ou du Master avec la caravane Tabbert.","COIN DE CHINE":"Enregistre un bon endroit pour le retrouver plus tard.","ENREGISTRER CE COIN":"Enregistre ce coin sur le téléphone pour le retrouver plus tard."};
+            function norm(s){return (s||'').replace(/\s+/g,' ').trim().toUpperCase()}
+            window.apkHelpClose=function(){document.getElementById('apkHelp').classList.remove('show')}
+            function show(title,text,key){if(localStorage.getItem('apk_tip_'+key))return;localStorage.setItem('apk_tip_'+key,'1');document.getElementById('apkHelpTitle').textContent='💡 '+title;document.getElementById('apkHelpText').textContent=text;document.getElementById('apkHelp').classList.add('show')}
+            function bind(){document.querySelectorAll('button,.card,.small,.gear,.settingHead').forEach(function(el){if(el.dataset.apkHelpBound)return;el.dataset.apkHelpBound='1';el.addEventListener('click',function(){let t=norm(el.innerText||el.textContent);for(const k in tips){if(t===k||t.includes(k)){show(k,tips[k],k);break}}})})}
+            function localMarkets(){if(!window.CarlplayFiles||!window.CarlplayFiles.readAll)return;let raw='[]';try{raw=window.CarlplayFiles.readAll()}catch(e){return}let items=[];try{items=JSON.parse(raw)}catch(e){return}if(!items.length)return;let host=document.getElementById('apkLocalMarkets');if(!host){host=document.createElement('div');host.id='apkLocalMarkets';host.innerHTML='<h2>📁 Marchés ajoutés localement</h2><div id="apkLocalGroups"></div>';document.body.appendChild(host)}let groups={};items.forEach(x=>{let c={};try{c=JSON.parse(x.content)}catch(e){return}let country=c.Pays||c.pays||c.country||(/belg/i.test(x.path)?'Belgique':'France');let zone=c.Département||c.departement||c.Province||c.province||c.Zone||c.zone||'Autre zone';let day=c.Jour||c.jour||c.Date||c.date||'Autre jour';let key=country+'|'+zone+'|'+day;(groups[key]||(groups[key]=[])).push(c)});let html='';Object.keys(groups).sort().forEach(k=>{let p=k.split('|');html+='<div class="apkLocalGroup"><b>'+p[0]+' → '+p[1]+' → '+p[2]+'</b>';groups[k].forEach(c=>{let n=c.Nom||c.nom||'Marché';let v=c.Ville||c.ville||'';let a=c.Adresse||c.adresse||'';let gps=c.GPS||c.gps||'';let dest=gps||a;html+='<div class="apkLocalItem"><b>'+n+'</b> — '+v+'<br><small>'+a+'</small>'+(dest?'<button class="apkLocalGo" onclick="apkGo(\''+String(dest).replace(/'/g,"\\'")+'\')">Y ALLER</button>':'')+'</div>'});html+='</div>'});document.getElementById('apkLocalGroups').innerHTML=html}
+            window.apkGo=function(dest){let p=localStorage.getItem('gps_pref')||'Google Maps';if(p==='Waze')location.href='https://waze.com/ul?q='+encodeURIComponent(dest)+'&navigate=yes';else location.href='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(dest)+'&travelmode=driving&dir_action=navigate'}
+            if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){bind();localMarkets()});else{bind();localMarkets()}
+            setTimeout(function(){bind();localMarkets()},700)
+          })();
+          </script>'''
+          for name in ['index.html','coin-de-chine.html','choix-marches.html','marches.html','belgique-marches.html','carplay-marches.html']:
+              p=Path('app/src/main/assets')/name
+              if not p.exists(): continue
+              s=p.read_text(encoding='utf-8')
+              if 'id="apk-help-and-local"' not in s:
+                  s=s.replace('</body>',helper+'\n</body>',1) if '</body>' in s else s+helper
+              p.write_text(s,encoding='utf-8')
+          PY
+
       - name: Department dropdown and no search
         run: |
           python3 - <<'PY'
@@ -59,44 +92,14 @@ jobs:
           </style>
           <script id="apk-department-menu">
           (function(){
-            function hideSearch(){
-              document.querySelectorAll('input').forEach(function(el){
-                var t=((el.id||'')+' '+(el.className||'')+' '+(el.placeholder||'')).toLowerCase();
-                if(t.indexOf('search')>=0||t.indexOf('recher')>=0) el.style.display='none';
-              });
-            }
-            function install(){
-              hideSearch();
-              var existing=document.querySelector('select[id*="dep" i],select[name*="dep" i],select[class*="dep" i]');
-              if(existing){
-                existing.style.width='100%'; existing.style.maxWidth='760px'; existing.style.padding='18px'; existing.style.fontSize='22px'; existing.style.fontWeight='900';
-                return true;
-              }
-              if(document.getElementById('apkDepartmentSelect')) return true;
-              var selectors=['#depGrid button','#depGrid a','.dep','[data-dep]','[data-department]'];
-              var nodes=[];
-              selectors.forEach(function(sel){document.querySelectorAll(sel).forEach(function(n){if(nodes.indexOf(n)<0)nodes.push(n)})});
-              nodes=nodes.filter(function(n){var t=(n.innerText||n.textContent||'').trim();return /(^|\s)(0[1-9]|[1-8][0-9]|9[0-5]|2A|2B)(\s|\-|–|—|$)/i.test(t)||n.dataset.dep||n.dataset.department});
-              if(nodes.length<2) return false;
-              var sel=document.createElement('select'); sel.id='apkDepartmentSelect';
-              var first=document.createElement('option'); first.value=''; first.textContent='CHOISIR UN DÉPARTEMENT'; first.selected=true; sel.appendChild(first);
-              nodes.forEach(function(n,i){var o=document.createElement('option');o.value=String(i);o.textContent=(n.innerText||n.textContent||'').trim().replace(/\s+/g,' ');sel.appendChild(o)});
-              sel.addEventListener('change',function(){if(this.value!==''){var n=nodes[parseInt(this.value,10)];if(n)n.click();this.value=''}});
-              var host=document.querySelector('#departements,#depGrid,.departements,.departments,main')||document.body;
-              if(host.id==='depGrid'&&host.parentNode)host.parentNode.insertBefore(sel,host);else host.insertBefore(sel,host.firstChild);
-              var grid=document.querySelector('#depGrid'); if(grid) grid.style.display='none';
-              return true;
-            }
-            var tries=0; function go(){tries++; if(!install()&&tries<30)setTimeout(go,250)}
-            if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go);else go();
+            function hideSearch(){document.querySelectorAll('input').forEach(function(el){var t=((el.id||'')+' '+(el.className||'')+' '+(el.placeholder||'')).toLowerCase();if(t.indexOf('search')>=0||t.indexOf('recher')>=0)el.style.display='none'})}
+            function install(){hideSearch();var existing=document.querySelector('select[id*="dep" i],select[name*="dep" i],select[class*="dep" i]');if(existing){existing.style.width='100%';existing.style.maxWidth='760px';existing.style.padding='18px';existing.style.fontSize='22px';existing.style.fontWeight='900';return true}if(document.getElementById('apkDepartmentSelect'))return true;var selectors=['#depGrid button','#depGrid a','.dep','[data-dep]','[data-department]'];var nodes=[];selectors.forEach(function(sel){document.querySelectorAll(sel).forEach(function(n){if(nodes.indexOf(n)<0)nodes.push(n)})});nodes=nodes.filter(function(n){var t=(n.innerText||n.textContent||'').trim();return /(^|\s)(0[1-9]|[1-8][0-9]|9[0-5]|2A|2B)(\s|\-|–|—|$)/i.test(t)||n.dataset.dep||n.dataset.department});if(nodes.length<2)return false;var sel=document.createElement('select');sel.id='apkDepartmentSelect';var first=document.createElement('option');first.value='';first.textContent='CHOISIR UN DÉPARTEMENT';first.selected=true;sel.appendChild(first);nodes.forEach(function(n,i){var o=document.createElement('option');o.value=String(i);o.textContent=(n.innerText||n.textContent||'').trim().replace(/\s+/g,' ');sel.appendChild(o)});sel.addEventListener('change',function(){if(this.value!==''){var n=nodes[parseInt(this.value,10)];if(n)n.click();this.value=''}});var host=document.querySelector('#departements,#depGrid,.departements,.departments,main')||document.body;if(host.id==='depGrid'&&host.parentNode)host.parentNode.insertBefore(sel,host);else host.insertBefore(sel,host.firstChild);var grid=document.querySelector('#depGrid');if(grid)grid.style.display='none';return true}
+            var tries=0;function go(){tries++;if(!install()&&tries<30)setTimeout(go,250)}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go);else go();
           })();
-          </script>
-          '''
-          if '</body>' in s:
-              s = s.replace('</body>', inject + '\n</body>', 1)
-          else:
-              s += inject
-          p.write_text(s, encoding='utf-8')
+          </script>'''
+          if '</body>' in s:s=s.replace('</body>',inject+'\n</body>',1)
+          else:s+=inject
+          p.write_text(s,encoding='utf-8')
           PY
 
       - name: Set up Gradle
@@ -120,5 +123,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add LATEST-APK.apk
-          git commit -m "APK compilé avec icône Android normale et images véhicules [skip ci]" || exit 0
+          git commit -m "APK compilé avec marchés locaux, GPS favori, bulles et images" || exit 0
           git push
