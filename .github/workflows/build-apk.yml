@@ -82,31 +82,36 @@ jobs:
           .apkDepRow{width:100%;min-height:66px;margin:6px 0;border:1px solid #ffffff35;border-radius:18px;background:linear-gradient(135deg,#263650,#1b2638);color:#fff;font-size:22px;font-weight:900;text-align:left;padding:12px 18px;box-shadow:0 4px 10px #0005}
           .apkDepRow:active{transform:scale(.99);background:linear-gradient(135deg,#ff9a19,#ff3d00)}
           #apkDepartmentClose{position:sticky;top:0;width:100%;min-height:58px;margin-bottom:8px;border:0;border-radius:16px;background:#d34343;color:#fff;font-size:20px;font-weight:900;z-index:2}
-          #deps .search,#deps #list,#deps #empty{display:none!important}
-          .weather,.meteo,[class*="weather"],[class*="meteo"]{margin-top:18px!important}
+          #deps .search,#deps #empty{display:none!important}
+          #deps #list{display:block!important}
+          .weather,.meteo,[class*="weather"],[class*="meteo"]{margin-top:24px!important}
           </style>
           <script id="apk-market-ui-script">
           (function(){
             var deps='01|Ain,02|Aisne,03|Allier,04|Alpes-de-Haute-Provence,05|Hautes-Alpes,06|Alpes-Maritimes,07|Ardèche,08|Ardennes,09|Ariège,10|Aube,11|Aude,12|Aveyron,13|Bouches-du-Rhône,14|Calvados,15|Cantal,16|Charente,17|Charente-Maritime,18|Cher,19|Corrèze,2A|Corse-du-Sud,2B|Haute-Corse,21|Côte-d’Or,22|Côtes-d’Armor,23|Creuse,24|Dordogne,25|Doubs,26|Drôme,27|Eure,28|Eure-et-Loir,29|Finistère,30|Gard,31|Haute-Garonne,32|Gers,33|Gironde,34|Hérault,35|Ille-et-Vilaine,36|Indre,37|Indre-et-Loire,38|Isère,39|Jura,40|Landes,41|Loir-et-Cher,42|Loire,43|Haute-Loire,44|Loire-Atlantique,45|Loiret,46|Lot,47|Lot-et-Garonne,48|Lozère,49|Maine-et-Loire,50|Manche,51|Marne,52|Haute-Marne,53|Mayenne,54|Meurthe-et-Moselle,55|Meuse,56|Morbihan,57|Moselle,58|Nièvre,59|Nord,60|Oise,61|Orne,62|Pas-de-Calais,63|Puy-de-Dôme,64|Pyrénées-Atlantiques,65|Hautes-Pyrénées,66|Pyrénées-Orientales,67|Bas-Rhin,68|Haut-Rhin,69|Rhône,70|Haute-Saône,71|Saône-et-Loire,72|Sarthe,73|Savoie,74|Haute-Savoie,75|Paris,76|Seine-Maritime,77|Seine-et-Marne,78|Yvelines,79|Deux-Sèvres,80|Somme,81|Tarn,82|Tarn-et-Garonne,83|Var,84|Vaucluse,85|Vendée,86|Vienne,87|Haute-Vienne,88|Vosges,89|Yonne,90|Territoire de Belfort,91|Essonne,92|Hauts-de-Seine,93|Seine-Saint-Denis,94|Val-de-Marne,95|Val-d’Oise'.split(',').map(x=>x.split('|'));
-            function hideOldTop(){
+            function hideJunk(){
               document.querySelectorAll('body *').forEach(function(el){
                 var t=(el.innerText||'').trim().toLowerCase();
-                if(!t||t.length>220)return;
                 var r=el.getBoundingClientRect();
-                if(r.top>760)return;
-                if((t.includes('vérification')&&t.includes('20'))||(t.includes('verification')&&t.includes('20'))||(t.includes('envoy')&&t.includes('fichier'))||t==='pk'){
-                  var box=el;
-                  for(var i=0;i<2&&box.parentElement;i++){
-                    var pt=(box.parentElement.innerText||'').toLowerCase();
-                    if(pt.length<650) box=box.parentElement; else break;
+                if(t && t.length<350){
+                  if(t.includes('article de travail') || t.includes('ce site ne vous convient pas') || t.includes('essayez l’autre') || t.includes("essayez l'autre") || (t.includes('vérification')&&t.includes('20')) || (t.includes('verification')&&t.includes('20')) || (t.includes('envoy')&&t.includes('fichier')) || t==='pk'){
+                    el.style.display='none';
                   }
-                  box.style.display='none';
+                }
+                if(r.top>=0 && r.top<28 && r.height>0 && r.height<=14 && r.width>80){
+                  var cs=getComputedStyle(el),bg=(cs.backgroundColor||'')+' '+(cs.background||'');
+                  if(/rgb\(.*(red|blue)/i.test(bg) || bg.includes('255, 0, 0') || bg.includes('0, 0, 255') || bg.includes('25, 70, 200') || bg.includes('200, 30, 40')) el.style.display='none';
                 }
               });
             }
+            function revealDays(){
+              var list=document.getElementById('list');if(list)list.style.setProperty('display','block','important');
+              document.querySelectorAll('#days,.days,#jours,.jours,[data-view="days"],[class*="day-list"],[class*="jours"]').forEach(function(e){e.style.removeProperty('display');e.style.removeProperty('visibility')});
+            }
             function goToDays(){
               setTimeout(function(){
-                var selectors=['#days','.days','#jours','.jours','[data-view="days"]','[class*="day-list"]'];
+                revealDays();hideJunk();
+                var selectors=['#days','.days','#jours','.jours','[data-view="days"]','[class*="day-list"]','[class*="jours"]'];
                 for(var i=0;i<selectors.length;i++){
                   var e=document.querySelector(selectors[i]);
                   if(e&&e.offsetParent!==null){e.scrollIntoView({behavior:'smooth',block:'start'});return;}
@@ -114,7 +119,6 @@ jobs:
                 var all=[].slice.call(document.querySelectorAll('button,a,div,section'));
                 var day=all.find(function(e){var t=(e.innerText||'').trim().toUpperCase();return t==='LUNDI'||(t.includes('LUNDI')&&t.includes('MARDI')&&t.includes('DIMANCHE'));});
                 if(day){day.scrollIntoView({behavior:'smooth',block:'start'});return;}
-                window.scrollTo({top:Math.min(document.body.scrollHeight,window.innerHeight*.85),behavior:'smooth'});
               },350);
             }
             function choose(code,name){
@@ -122,7 +126,7 @@ jobs:
               panel.classList.remove('open');document.body.style.overflow='';
               btn.firstChild.nodeValue=code+' — '+name+'  ';
               try{if(typeof selectDep==='function')selectDep(code);else if(window.selectDep)window.selectDep(code)}catch(e){}
-              goToDays();
+              revealDays();goToDays();
             }
             function install(){
               if(document.getElementById('apkDepartmentWrap'))return true;
@@ -136,12 +140,12 @@ jobs:
               btn.onclick=function(){panel.classList.add('open');document.body.style.overflow='hidden'};
               wrap.appendChild(btn);wrap.appendChild(panel);
               host.insertBefore(wrap,host.firstChild);
-              hideOldTop();
+              hideJunk();
               return true;
             }
             var n=0;function boot(){n++;if(!install()&&n<50)setTimeout(boot,120)}
             if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-            setTimeout(hideOldTop,600);
+            setTimeout(hideJunk,300);setTimeout(hideJunk,900);setInterval(hideJunk,2500);
           })();
           </script>
           '''
@@ -154,6 +158,7 @@ jobs:
           grep -q 'apkDepartmentButton' app/src/main/assets/marches.html
           grep -q 'CHOISIR SON DÉPARTEMENT' app/src/main/assets/marches.html
           grep -q 'Ille-et-Vilaine' app/src/main/assets/marches.html
+          grep -q '#deps #list{display:block!important}' app/src/main/assets/marches.html
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -182,7 +187,7 @@ jobs:
             cp /tmp/LATEST-APK.apk LATEST-APK.apk
             git add LATEST-APK.apk
             if git diff --cached --quiet; then exit 0; fi
-            git commit -m "APK compilé avec photo Coin de Chine et navigation marchés [skip ci]"
+            git commit -m "APK marchés corrigés après choix département [skip ci]"
             if git push origin HEAD:main; then exit 0; fi
             sleep 2
           done
