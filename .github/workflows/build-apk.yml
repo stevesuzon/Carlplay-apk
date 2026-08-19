@@ -15,19 +15,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-
       - name: Install Android SDK 35
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-
       - name: Restore markets from saved ZIP
         run: |
           set -euo pipefail
@@ -38,84 +34,53 @@ jobs:
           test -s app/src/main/assets/marches.html
           test -s app/src/main/assets/belgique-marches.html
           test -s app/src/main/assets/carplay-marches.html
-          grep -q '<html' app/src/main/assets/marches.html
-          grep -q '<html' app/src/main/assets/belgique-marches.html
-          echo "France: $(wc -c < app/src/main/assets/marches.html) bytes"
-          echo "Belgique: $(wc -c < app/src/main/assets/belgique-marches.html) bytes"
-          echo "CarPlay: $(wc -c < app/src/main/assets/carplay-marches.html) bytes"
-
-      - name: Install images and Route 66 background
+      - name: Install and clean market interface
         run: |
           set -euo pipefail
           mkdir -p app/src/main/assets
           python3 - <<'PY'
           from pathlib import Path
           import base64,re
-          pairs=[
-            ('assets-src/master.b64','app/src/main/assets/master-front.jpg'),
-            ('assets-src/tabbert.b64','app/src/main/assets/tabbert.jpg'),
-            ('assets-src/chineur-photo.b64','app/src/main/assets/chineur.webp'),
-            ('assets-src/route66-bg.b64','app/src/main/assets/route66-bg.jpg'),
-          ]
-          for src,dst in pairs:
-              raw=Path(src).read_text(encoding='utf-8',errors='ignore')
-              clean=''.join(re.findall(r'[A-Za-z0-9+/]',raw))
-              clean += '='*((4-len(clean)%4)%4)
-              data=base64.b64decode(clean,validate=False)
-              if len(data)<100:
-                  raise SystemExit(f'{src}: image decodee trop petite')
-              Path(dst).write_bytes(data)
-              print(src,'->',dst,len(data),'bytes')
+          for src,dst in [('assets-src/master.b64','app/src/main/assets/master-front.jpg'),('assets-src/tabbert.b64','app/src/main/assets/tabbert.jpg'),('assets-src/chineur-photo.b64','app/src/main/assets/chineur.webp'),('assets-src/route66-bg.b64','app/src/main/assets/route66-bg.jpg')]:
+              raw=Path(src).read_text(encoding='utf-8',errors='ignore'); clean=''.join(re.findall(r'[A-Za-z0-9+/]',raw)); clean+='='*((4-len(clean)%4)%4); Path(dst).write_bytes(base64.b64decode(clean,validate=False))
           PY
           cp assets-src/route66-global.css app/src/main/assets/route66-global.css
           cp assets-src/market-ui.js app/src/main/assets/market-ui.js
           python3 - <<'PY'
           from pathlib import Path
+          import re
           assets=Path('app/src/main/assets')
-          p=assets/'index.html'
-          s=p.read_text(encoding='utf-8')
-          s=s.replace('master-front.png','master-front.jpg')
-          s=s.replace('tabbert.png','tabbert.jpg')
-          s=s.replace('chineur.svg','chineur.webp')
-          s=s.replace('.chinaVisual{position:absolute;right:8px;bottom:4px;width:46%;height:178px;', '.chinaVisual{position:absolute;right:4px;bottom:2px;width:52%;height:205px;')
-          s=s.replace('.chinaVisual{width:42%;height:150px}', '.chinaVisual{width:48%;height:165px}')
-          p.write_text(s,encoding='utf-8')
+          p=assets/'index.html'; s=p.read_text(encoding='utf-8'); s=s.replace('master-front.png','master-front.jpg').replace('tabbert.png','tabbert.jpg').replace('chineur.svg','chineur.webp'); p.write_text(s,encoding='utf-8')
           for hp in assets.glob('*.html'):
               txt=hp.read_text(encoding='utf-8')
-              if 'route66-global.css' not in txt:
-                  tag='<link rel="stylesheet" href="route66-global.css">'
-                  txt=txt.replace('</head>',tag+'\n</head>',1) if '</head>' in txt else tag+txt
-              if hp.name=='marches.html' and 'market-ui.js' not in txt:
-                  tag='<script src="market-ui.js"></script>'
-                  txt=txt.replace('</body>',tag+'\n</body>',1) if '</body>' in txt else txt+tag
+              if 'route66-global.css' not in txt: txt=txt.replace('</head>','<link rel="stylesheet" href="route66-global.css">\n</head>',1)
+              if hp.name=='marches.html':
+                  # Remove the old side article button, verification/export block, old search controls and decorative ribbons from the actual packaged HTML.
+                  txt=re.sub(r'<[^>]+[^>]*(?:article|travail)[^>]*>.*?</[^>]+>','',txt,flags=re.I|re.S)
+                  txt=re.sub(r'<[^>]+[^>]*(?:verification|vérification|export|share)[^>]*>.*?</[^>]+>','',txt,flags=re.I|re.S)
+                  txt=re.sub(r'<input[^>]*(?:search|recherche)[^>]*>','',txt,flags=re.I)
+                  txt=re.sub(r'<[^>]+class=["\'][^"\']*(?:ribbon|ruban)[^"\']*["\'][^>]*>.*?</[^>]+>','',txt,flags=re.I|re.S)
+                  txt=txt.replace('Marchés • Brocantes • Antiquités','MARCHÉS DE FRANCE').replace('Marchés · Brocantes · Antiquités','MARCHÉS DE FRANCE').replace('Marchés Brocantes Antiquités','MARCHÉS DE FRANCE')
+                  if 'market-ui.js' not in txt: txt=txt.replace('</body>','<script src="market-ui.js"></script>\n</body>',1)
               hp.write_text(txt,encoding='utf-8')
           PY
-          test -s app/src/main/assets/route66-bg.jpg
-          grep -q 'route66-global.css' app/src/main/assets/index.html
-          grep -q 'route66-global.css' app/src/main/assets/marches.html
-          grep -q 'route66-global.css' app/src/main/assets/belgique-marches.html
           grep -q 'market-ui.js' app/src/main/assets/marches.html
-
       - name: Verify market UI
         run: |
           grep -q 'Ille-et-Vilaine' assets-src/market-ui.js
           grep -q 'CHOISIR SON DÉPARTEMENT' assets-src/market-ui.js
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-
       - name: Build debug APK
         run: gradle assembleDebug
-
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Carlplay-APK-Tous-Marches
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
-
       - name: Publish latest APK in repository
         run: |
           set -euo pipefail
@@ -128,7 +93,7 @@ jobs:
             cp /tmp/LATEST-APK.apk LATEST-APK.apk
             git add LATEST-APK.apk
             if git diff --cached --quiet; then exit 0; fi
-            git commit -m "APK Route 66 + marchés locaux [skip ci]"
+            git commit -m "APK marchés France nettoyé [skip ci]"
             if git push origin HEAD:main; then exit 0; fi
             sleep 2
           done
