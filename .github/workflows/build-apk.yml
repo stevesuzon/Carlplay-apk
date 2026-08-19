@@ -2,8 +2,7 @@ name: Build APK
 on:
   push:
     branches: [ "main" ]
-    paths-ignore:
-      - "LATEST-APK.apk"
+    paths-ignore: [ "LATEST-APK.apk" ]
   workflow_dispatch:
 permissions:
   contents: write
@@ -11,94 +10,57 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-      - name: Install Android SDK 35
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-      - name: Restore markets from saved ZIP
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-java@v5
+        with: { distribution: temurin, java-version: '17' }
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Restore all market data
         run: |
           set -euo pipefail
           mkdir -p app/src/main/assets
           cat assets-src/markets-zip/marches.* | base64 -d | gunzip > app/src/main/assets/marches.html
           cat assets-src/markets-zip/belgique.* | base64 -d | gunzip > app/src/main/assets/belgique-marches.html
           cat assets-src/markets-zip/carplay.* | base64 -d | gunzip > app/src/main/assets/carplay-marches.html
-          test -s app/src/main/assets/marches.html
-          test -s app/src/main/assets/belgique-marches.html
-          test -s app/src/main/assets/carplay-marches.html
-      - name: Install market interface safely
+      - name: Install France and Belgium interfaces
         run: |
           set -euo pipefail
-          mkdir -p app/src/main/assets
+          cp assets-src/market-ui.js app/src/main/assets/market-ui.js
+          cp assets-src/belgium-ui.js app/src/main/assets/belgium-ui.js
+          cp assets-src/route66-global.css app/src/main/assets/route66-global.css
           python3 - <<'PY'
           from pathlib import Path
           import base64,re
-          for src,dst in [('assets-src/master.b64','app/src/main/assets/master-front.jpg'),('assets-src/tabbert.b64','app/src/main/assets/tabbert.jpg'),('assets-src/chineur-photo.b64','app/src/main/assets/chineur.webp'),('assets-src/route66-bg.b64','app/src/main/assets/route66-bg.jpg')]:
-              raw=Path(src).read_text(encoding='utf-8',errors='ignore')
-              clean=''.join(re.findall(r'[A-Za-z0-9+/]',raw)); clean+='='*((4-len(clean)%4)%4)
-              Path(dst).write_bytes(base64.b64decode(clean,validate=False))
+          A=Path('app/src/main/assets')
+          for src,dst in [('assets-src/master.b64','master-front.jpg'),('assets-src/tabbert.b64','tabbert.jpg'),('assets-src/chineur-photo.b64','chineur.webp'),('assets-src/route66-bg.b64','route66-bg.jpg')]:
+              raw=Path(src).read_text(errors='ignore'); clean=''.join(re.findall(r'[A-Za-z0-9+/]',raw)); clean+='='*((4-len(clean)%4)%4); (A/dst).write_bytes(base64.b64decode(clean,validate=False))
+          p=A/'index.html'; s=p.read_text(); s=s.replace('master-front.png','master-front.jpg').replace('tabbert.png','tabbert.jpg').replace('chineur.svg','chineur.webp'); p.write_text(s)
+          for name,js,title in [('marches.html','market-ui.js','MARCHÉS DE FRANCE'),('belgique-marches.html','belgium-ui.js','MARCHÉS DE BELGIQUE')]:
+              p=A/name; t=p.read_text()
+              if 'route66-global.css' not in t: t=t.replace('</head>','<link rel="stylesheet" href="route66-global.css">\n</head>',1)
+              if js not in t: t=t.replace('</body>',f'<script src="{js}"></script>\n</body>',1)
+              t=re.sub(r'<title>.*?</title>',f'<title>{title}</title>',t,count=1,flags=re.S|re.I)
+              p.write_text(t)
           PY
-          cp assets-src/route66-global.css app/src/main/assets/route66-global.css
-          cp assets-src/market-ui.js app/src/main/assets/market-ui.js
-          python3 - <<'PY'
-          from pathlib import Path
-          assets=Path('app/src/main/assets')
-          p=assets/'index.html'
-          s=p.read_text(encoding='utf-8')
-          s=s.replace('master-front.png','master-front.jpg').replace('tabbert.png','tabbert.jpg').replace('chineur.svg','chineur.webp')
-          p.write_text(s,encoding='utf-8')
-          for hp in assets.glob('*.html'):
-              txt=hp.read_text(encoding='utf-8')
-              if 'route66-global.css' not in txt:
-                  tag='<link rel="stylesheet" href="route66-global.css">'
-                  txt=txt.replace('</head>',tag+'\n</head>',1) if '</head>' in txt else tag+txt
-              if hp.name=='marches.html':
-                  if 'market-ui.js' not in txt:
-                      tag='<script src="market-ui.js"></script>'
-                      txt=txt.replace('</body>',tag+'\n</body>',1) if '</body>' in txt else txt+tag
-                  txt=txt.replace('Marchés • Brocantes • Antiquités','MARCHÉS DE FRANCE').replace('Marchés · Brocantes · Antiquités','MARCHÉS DE FRANCE').replace('Marchés Brocantes Antiquités','MARCHÉS DE FRANCE')
-              hp.write_text(txt,encoding='utf-8')
-          PY
-          test -s app/src/main/assets/market-ui.js
           test -s app/src/main/assets/marches.html
-      - name: Verify market UI
-        run: |
-          grep -q 'Ille-et-Vilaine' assets-src/market-ui.js
-          grep -q 'CHOISIR SON DÉPARTEMENT' assets-src/market-ui.js
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
-      - name: Build debug APK
-        run: gradle assembleDebug
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+          test -s app/src/main/assets/belgique-marches.html
+          grep -q 'belgium-ui.js' app/src/main/assets/belgique-marches.html
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.9' }
+      - run: gradle assembleDebug
+      - uses: actions/upload-artifact@v4
         with:
           name: Carlplay-APK-Tous-Marches
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
-      - name: Publish latest APK in repository
+      - name: Publish latest APK
         run: |
           set -euo pipefail
           cp app/build/outputs/apk/debug/app-debug.apk /tmp/LATEST-APK.apk
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          for try in 1 2 3; do
-            git fetch origin main
-            git reset --hard origin/main
-            cp /tmp/LATEST-APK.apk LATEST-APK.apk
-            git add LATEST-APK.apk
-            if git diff --cached --quiet; then exit 0; fi
-            git commit -m "APK marchés corrigé [skip ci]"
-            if git push origin HEAD:main; then exit 0; fi
-            sleep 2
-          done
-          exit 1
+          git fetch origin main && git reset --hard origin/main
+          cp /tmp/LATEST-APK.apk LATEST-APK.apk
+          git add LATEST-APK.apk
+          git diff --cached --quiet || (git commit -m "APK France Belgique [skip ci]" && git push origin HEAD:main)
