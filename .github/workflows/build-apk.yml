@@ -66,6 +66,18 @@ jobs:
       - name: Generate clean market pages
         run: python3 assets-src/generate_markets.py
 
+      - name: Enlarge market names only
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ('marches.html','belgique-marches.html'):
+              p=Path('app/src/main/assets')/name
+              s=p.read_text(encoding='utf-8')
+              s=s.replace('.name{font-size:26px;font-weight:950}', '.name{font-size:34px;font-weight:950;line-height:1.12}')
+              p.write_text(s,encoding='utf-8')
+          PY
+
       - name: Verify clean pages
         shell: bash
         run: |
