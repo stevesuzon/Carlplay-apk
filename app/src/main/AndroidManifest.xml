@@ -6,8 +6,8 @@
     <application
         android:allowBackup="true"
         android:label="CarPlay Travaille"
-        android:icon="@drawable/ic_carplay_travaille"
-        android:roundIcon="@drawable/ic_carplay_travaille"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
         <activity
