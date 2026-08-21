@@ -83,18 +83,27 @@ jobs:
           PY
       - name: Generate clean market pages
         run: python3 assets-src/generate_markets.py
-      - name: Final lock screen keypad
+      - name: Integrated keypads renewal and lock
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p=Path('app/src/main/assets/license-ui.js'); s=p.read_text(encoding='utf-8')
-          s=s.replace('type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="11" autocomplete="off" placeholder="00.00.00.00" style="width:100%;height:58px','type="text" inputmode="none" readonly maxlength="11" autocomplete="off" placeholder="00.00.00.00" style="width:100%;height:58px',1)
+          # Lock keypad: readonly input + integrated keys.
+          s=s.replace('id="hardUnlockInput" type="tel" inputmode="numeric" pattern="[0-9]*"','id="hardUnlockInput" type="text" inputmode="none" readonly')
           marker='<button id="hardUnlockBtn"'
-          keypad='<div id="hardKeypad" style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:8px">'+''.join('<button type="button" data-k="%s" style="height:48px;border:1px solid #667080;border-radius:10px;background:#15191f;color:#fff;font-size:24px;font-weight:950">%s</button>'%(x,x) for x in ['1','2','3','4','5','6','7','8','9'])+'<button type="button" data-k="C" style="height:48px;border:1px solid #667080;border-radius:10px;background:#15191f;color:#fff;font-size:20px;font-weight:950">EFF</button><button type="button" data-k="0" style="height:48px;border:1px solid #667080;border-radius:10px;background:#15191f;color:#fff;font-size:24px;font-weight:950">0</button><button type="button" data-k="B" style="height:48px;border:1px solid #667080;border-radius:10px;background:#15191f;color:#fff;font-size:24px;font-weight:950">⌫</button></div>'
+          keypad='<div id="hardKeypad" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:7px">'+''.join('<button type="button" data-k="%s" style="height:42px;border:1px solid #667080;border-radius:9px;background:#15191f;color:#fff;font-size:22px;font-weight:950">%s</button>'%(x,x) for x in ['1','2','3','4','5','6','7','8','9'])+'<button type="button" data-k="C" style="height:42px;border:1px solid #667080;border-radius:9px;background:#15191f;color:#fff;font-size:18px;font-weight:950">EFF</button><button type="button" data-k="0" style="height:42px;border:1px solid #667080;border-radius:9px;background:#15191f;color:#fff;font-size:22px;font-weight:950">0</button><button type="button" data-k="B" style="height:42px;border:1px solid #667080;border-radius:9px;background:#15191f;color:#fff;font-size:22px;font-weight:950">⌫</button></div>'
           s=s.replace(marker,keypad+marker,1)
-          wire="if(inp){old.querySelectorAll('#hardKeypad button').forEach(function(k){k.onclick=function(){var raw=(inp.value||'').replace(/\\D/g,'');var v=this.getAttribute('data-k');if(v==='C')raw='';else if(v==='B')raw=raw.slice(0,-1);else if(raw.length<8)raw+=v;inp.value=[raw.slice(0,2),raw.slice(2,4),raw.slice(4,6),raw.slice(6,8)].filter(Boolean).join('.')}});}"
-          s=s.replace("if(inp)inp.addEventListener('input',function(){fmtInput(this)});",wire,1)
+          old="if(inp)inp.addEventListener('input',function(){fmtInput(this)});if(btn)"
+          wire="if(inp){old.querySelectorAll('#hardKeypad button').forEach(function(k){k.onclick=function(){var raw=(inp.value||'').replace(/\\D/g,'');var v=this.getAttribute('data-k');if(v==='C')raw='';else if(v==='B')raw=raw.slice(0,-1);else if(raw.length<8)raw+=v;inp.value=[raw.slice(0,2),raw.slice(2,4),raw.slice(4,6),raw.slice(6,8)].filter(Boolean).join('.')}});}if(btn)"
+          s=s.replace(old,wire,1)
+          # Renewal keypad: same integrated keypad, no Android keyboard.
+          s=s.replace('id="renewInput" type="tel" inputmode="numeric" pattern="[0-9]*"','id="renewInput" type="text" inputmode="none" readonly')
+          renewkeys='<div id="renewKeypad" style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px">'+''.join('<button type="button" data-k="%s" style="height:48px;border:1px solid #667080;border-radius:10px;background:#15191f;color:#fff;font-size:24px;font-weight:950">%s</button>'%(x,x) for x in ['1','2','3','4','5','6','7','8','9'])+'<button type="button" data-k="C" style="height:48px;border:1px solid #667080;border-radius:10px;background:#15191f;color:#fff;font-size:19px;font-weight:950">EFF</button><button type="button" data-k="0" style="height:48px;border:1px solid #667080;border-radius:10px;background:#15191f;color:#fff;font-size:24px;font-weight:950">0</button><button type="button" data-k="B" style="height:48px;border:1px solid #667080;border-radius:10px;background:#15191f;color:#fff;font-size:24px;font-weight:950">⌫</button></div>'
+          s=s.replace('<button id="renewValidate"',renewkeys+'<button id="renewValidate"',1)
+          old2="if(r){r.addEventListener('input',function(){fmtInput(this)});body.querySelector('#renewValidate').onclick=function()"
+          new2="if(r){body.querySelectorAll('#renewKeypad button').forEach(function(k){k.onclick=function(){var raw=(r.value||'').replace(/\\D/g,'');var v=this.getAttribute('data-k');if(v==='C')raw='';else if(v==='B')raw=raw.slice(0,-1);else if(raw.length<8)raw+=v;r.value=[raw.slice(0,2),raw.slice(2,4),raw.slice(4,6),raw.slice(6,8)].filter(Boolean).join('.')}});body.querySelector('#renewValidate').onclick=function()"
+          s=s.replace(old2,new2,1)
           s=s.replace("setInterval(lockOverlay,1000);","setInterval(function(){if(!document.getElementById('hardLock'))lockOverlay()},1000);")
           p.write_text(s,encoding='utf-8')
           PY
@@ -105,35 +114,36 @@ jobs:
           from pathlib import Path
           p=Path('app/src/main/java/com/stevesuzon/carlplay/MainActivity.java'); s=p.read_text()
           s=s.replace('void updateClock(){if(clock!=null)clock.setText(new SimpleDateFormat("HH:mm",Locale.FRANCE).format(new Date()));}','void updateClock(){if(clock!=null){Date d=new Date();String heure=new SimpleDateFormat("HH:mm",Locale.FRANCE).format(d);String jour=new SimpleDateFormat("EEEE",Locale.FRANCE).format(d).toUpperCase(Locale.FRANCE);clock.setText(heure+"\\n"+jour);}}')
-          s=s.replace('clock.setTextSize(34);','clock.setTextSize(25);')
-          s=s.replace('new FrameLayout.LayoutParams(-2,58*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL)','new FrameLayout.LayoutParams(-2,72*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL)')
-          s=s.replace('new FrameLayout.LayoutParams(-2,58*d,Gravity.TOP|Gravity.RIGHT);np.setMargins(0,8*d,22*d,0);root.addView(network,np);','new FrameLayout.LayoutParams(-2,58*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL);np.setMargins(0,14*d,0,0);network.setTranslationX(190*d);root.addView(network,np);')
-          p.write_text(s)
-          q=Path('app/src/main/assets/index.html'); h=q.read_text(errors='ignore')
-          css='''<style id="weatherStyle">#weatherBubble{position:fixed;z-index:999;top:8px;left:50%;transform:translateX(-50%);max-width:58vw;min-width:360px;padding:9px 18px;border-radius:18px;border:2px solid #f39b19;background:rgba(5,10,18,.92);color:#fff;text-align:center;font:900 18px Arial;box-shadow:0 5px 14px #0008;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}body{padding-top:78px!important}@media(max-width:720px){#weatherBubble{min-width:300px;max-width:70vw;font-size:15px}}</style>'''
-          js='''<script id="weatherLive">(function(){var b=document.createElement('div');b.id='weatherBubble';b.textContent=localStorage.getItem('last_weather_text')||'🌤️ MÉTÉO — EN ATTENTE INTERNET/GPS';document.body.appendChild(b);function msg(p,code){p=Math.max(0,Math.min(100,Math.round(Number(p)||0)));var icon=(code>=51&&code<=99)?'🌧️':(code<=1?'☀️':'⛅');var t=p===0?'TRÈS BON JOUR POUR TRAVAILLER':p<60?'TU PEUX ENCORE ALLER TRAVAILLER':p<80?'T’ES VAILLANT':'RESTE CHEZ TOI, C’EST MIEUX';return icon+' '+p+' % — '+t}function go(){if(!navigator.onLine||!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(function(pos){var u='https://api.open-meteo.com/v1/forecast?latitude='+pos.coords.latitude+'&longitude='+pos.coords.longitude+'&current=weather_code&hourly=precipitation_probability&forecast_days=1&timezone=auto';fetch(u).then(function(r){return r.json()}).then(function(d){var p=0,c=d.current&&d.current.weather_code||0;if(d.hourly&&d.hourly.precipitation_probability){var a=d.hourly.precipitation_probability,t=d.hourly.time||[],now=Date.now(),best=1e99;for(var i=0;i<t.length;i++){var z=Math.abs(new Date(t[i]).getTime()-now);if(z<best){best=z;p=a[i]}}}var x=msg(p,c);b.textContent=x;localStorage.setItem('last_weather_text',x)}).catch(function(){})},function(){},{enableHighAccuracy:false,timeout:8000,maximumAge:600000})}go();setInterval(go,900000);addEventListener('online',go)})();</script>'''
-          h=h.replace('</head>',css+'</head>').replace('</body>',js+'</body>'); q.write_text(h)
-          PY
-      - name: Final top bar layout and hide licence outside home
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('app/src/main/java/com/stevesuzon/carlplay/MainActivity.java')
-          s=p.read_text()
-          s=s.replace('clock.setTextSize(25);','clock.setTextSize(24);')
-          s=s.replace('FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(-2,72*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL);cp.setMargins(0,8*d,0,0);root.addView(clock,cp);','FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(-2,68*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL);cp.setMargins(0,56*d,0,0);root.addView(clock,cp);')
-          s=s.replace('network.setTextSize(18);network.setTypeface(Typeface.DEFAULT_BOLD);network.setGravity(Gravity.CENTER);network.setMinHeight(58*d);network.setMinWidth(165*d);network.setPadding(16*d,10*d,16*d,10*d);FrameLayout.LayoutParams np=new FrameLayout.LayoutParams(-2,58*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL);np.setMargins(0,14*d,0,0);network.setTranslationX(190*d);root.addView(network,np);','network.setTextSize(15);network.setTypeface(Typeface.DEFAULT_BOLD);network.setGravity(Gravity.CENTER);network.setMinHeight(48*d);network.setMinWidth(138*d);network.setPadding(12*d,7*d,12*d,7*d);FrameLayout.LayoutParams np=new FrameLayout.LayoutParams(-2,48*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL);np.setMargins(0,66*d,0,0);network.setTranslationX(225*d);root.addView(network,np);')
+          s=s.replace('clock.setTextSize(34);','clock.setTextSize(24);')
+          s=s.replace('FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(-2,58*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL);cp.setMargins(0,8*d,0,0);root.addView(clock,cp);','FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(-2,68*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL);cp.setMargins(0,56*d,0,0);root.addView(clock,cp);')
+          s=s.replace('network.setTextSize(18);network.setTypeface(Typeface.DEFAULT_BOLD);network.setGravity(Gravity.CENTER);network.setMinHeight(58*d);network.setMinWidth(165*d);network.setPadding(16*d,10*d,16*d,10*d);FrameLayout.LayoutParams np=new FrameLayout.LayoutParams(-2,58*d,Gravity.TOP|Gravity.RIGHT);np.setMargins(0,8*d,22*d,0);root.addView(network,np);','network.setTextSize(15);network.setTypeface(Typeface.DEFAULT_BOLD);network.setGravity(Gravity.CENTER);network.setMinHeight(48*d);network.setMinWidth(138*d);network.setPadding(12*d,7*d,12*d,7*d);FrameLayout.LayoutParams np=new FrameLayout.LayoutParams(-2,48*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL);np.setMargins(0,66*d,0,0);network.setTranslationX(225*d);root.addView(network,np);')
+          # Hide licence badge outside home, while preserving it on lock screen.
           old='void updateBadge(){if(badge==null)return;long n=now();'
           new='void updateBadge(){if(badge==null)return;long n=now();String u=webView==null?null:webView.getUrl();boolean home=(u==null||u.endsWith("/index.html")||u.endsWith("/"));if(!home&&!lockActive(n)){badge.setVisibility(View.GONE);return;}badge.setVisibility(View.VISIBLE);'
           s=s.replace(old,new,1)
           s=s.replace('public void onPageFinished(WebView v,String u){injectUi(v);}','public void onPageFinished(WebView v,String u){injectUi(v);updateBadge();}',1)
           p.write_text(s)
-          q=Path('app/src/main/assets/index.html')
-          h=q.read_text(errors='ignore')
-          final_css='''<style id="finalTopLayout">#network{display:none!important}#weatherBubble{top:7px!important;min-width:330px!important;max-width:42vw!important;padding:8px 14px!important;font-size:16px!important}.gear{position:fixed!important;top:8px!important;right:14px!important;width:74px!important;height:74px!important;font-size:39px!important;z-index:1600!important}.top{min-height:72px!important;margin-bottom:8px!important}</style>'''
-          h=h.replace('</head>',final_css+'</head>')
-          q.write_text(h)
+          q=Path('app/src/main/assets/index.html'); h=q.read_text(errors='ignore')
+          css='''<style id="weatherStyle">#weatherBubble{position:fixed;z-index:999;top:7px;left:50%;transform:translateX(-50%);max-width:42vw;min-width:330px;padding:8px 14px;border-radius:18px;border:2px solid #f39b19;background:rgba(5,10,18,.92);color:#fff;text-align:center;font:900 16px Arial;box-shadow:0 5px 14px #0008;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}body{padding-top:78px!important}#network{display:none!important}.gear{position:fixed!important;top:8px!important;right:14px!important;width:74px!important;height:74px!important;font-size:39px!important;z-index:1600!important}.top{min-height:72px!important;margin-bottom:8px!important}</style>'''
+          js='''<script id="weatherLive">(function(){var b=document.createElement('div');b.id='weatherBubble';b.textContent=localStorage.getItem('last_weather_text')||'🌤️ MÉTÉO — EN ATTENTE INTERNET/GPS';document.body.appendChild(b);function msg(p,code){p=Math.max(0,Math.min(100,Math.round(Number(p)||0)));var icon=(code>=51&&code<=99)?'🌧️':(code<=1?'☀️':'⛅');var t=p===0?'TRÈS BON JOUR POUR TRAVAILLER':p<60?'TU PEUX ENCORE ALLER TRAVAILLER':p<80?'T’ES VAILLANT':'RESTE CHEZ TOI, C’EST MIEUX';return icon+' '+p+' % — '+t}function go(){if(!navigator.onLine||!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(function(pos){var u='https://api.open-meteo.com/v1/forecast?latitude='+pos.coords.latitude+'&longitude='+pos.coords.longitude+'&current=weather_code&hourly=precipitation_probability&forecast_days=1&timezone=auto';fetch(u).then(function(r){return r.json()}).then(function(d){var p=0,c=d.current&&d.current.weather_code||0;if(d.hourly&&d.hourly.precipitation_probability){var a=d.hourly.precipitation_probability,t=d.hourly.time||[],now=Date.now(),best=1e99;for(var i=0;i<t.length;i++){var z=Math.abs(new Date(t[i]).getTime()-now);if(z<best){best=z;p=a[i]}}}var x=msg(p,c);b.textContent=x;localStorage.setItem('last_weather_text',x)}).catch(function(){})},function(){},{enableHighAccuracy:false,timeout:8000,maximumAge:600000})}go();setInterval(go,900000);addEventListener('online',go)})();</script>'''
+          h=h.replace('</head>',css+'</head>').replace('</body>',js+'</body>'); q.write_text(h)
+          PY
+      - name: Hide settings outside home and protect lock title
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          # On every non-home HTML page: hide any settings control but keep weather/time/network native overlays.
+          A=Path('app/src/main/assets')
+          for p in A.glob('*.html'):
+            if p.name=='index.html': continue
+            s=p.read_text(errors='ignore')
+            s=s.replace('</head>','<style id="categoryTopClean">.gear,#settings{display:none!important}</style></head>')
+            p.write_text(s)
+          # Give the lock screen enough top breathing room so remaining-days title is never hidden.
+          p=A/'license-ui.js'; s=p.read_text(encoding='utf-8')
+          s=s.replace('padding:12px 24px;text-align:center','padding:72px 24px 12px;text-align:center')
+          p.write_text(s,encoding='utf-8')
           PY
       - name: Gradle setup
         uses: gradle/actions/setup-gradle@v4
