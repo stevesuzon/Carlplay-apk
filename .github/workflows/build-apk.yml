@@ -5,10 +5,8 @@ on:
     paths-ignore:
       - "LATEST-APK-EXPIREE.apk"
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,19 +15,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Java 17
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
-
       - name: Android SDK
         uses: android-actions/setup-android@v3
-
       - name: Install Android 35
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-
       - name: Restore market sources
         shell: bash
         run: |
@@ -38,32 +32,18 @@ jobs:
           cat assets-src/markets-zip/marches.* | base64 -d | gunzip > /tmp/france-source.html
           cat assets-src/markets-zip/belgique.* | base64 -d | gunzip > /tmp/belgique-source.html
           cat assets-src/markets-zip/carplay.* | base64 -d | gunzip > app/src/main/assets/carplay-marches.html
-          test -s /tmp/france-source.html
-          test -s /tmp/belgique-source.html
-
       - name: Restore images
         shell: bash
         run: |
-          set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
           import base64,re
-          A=Path('app/src/main/assets')
-          A.mkdir(parents=True,exist_ok=True)
-          pairs=[('assets-src/master.b64','master-front.jpg'),('assets-src/tabbert.b64','tabbert.jpg'),('assets-src/chineur-photo.b64','chineur.webp'),('assets-src/route66-bg.b64','route66-bg.jpg')]
-          for src,dst in pairs:
-              raw=Path(src).read_text(errors='ignore')
-              clean=''.join(re.findall(r'[A-Za-z0-9+/]',raw))
-              clean+='='*((4-len(clean)%4)%4)
-              (A/dst).write_bytes(base64.b64decode(clean,validate=False))
-          p=A/'index.html'
-          if p.exists():
-              s=p.read_text(errors='ignore')
-              s=s.replace('master-front.png','master-front.jpg').replace('tabbert.png','tabbert.jpg').replace('chineur.svg','chineur.webp')
-              p.write_text(s)
+          A=Path('app/src/main/assets'); A.mkdir(parents=True,exist_ok=True)
+          for src,dst in [('assets-src/master.b64','master-front.jpg'),('assets-src/tabbert.b64','tabbert.jpg'),('assets-src/chineur-photo.b64','chineur.webp'),('assets-src/route66-bg.b64','route66-bg.jpg')]:
+              raw=Path(src).read_text(errors='ignore'); clean=''.join(re.findall(r'[A-Za-z0-9+/]',raw)); clean+='='*((4-len(clean)%4)%4); (A/dst).write_bytes(base64.b64decode(clean,validate=False))
+          p=A/'index.html'; s=p.read_text(errors='ignore'); s=s.replace('master-front.png','master-front.jpg').replace('tabbert.png','tabbert.jpg').replace('chineur.svg','chineur.webp'); p.write_text(s)
           PY
-
-      - name: Detourage fin Master et Tabbert
+      - name: Keep Master complete and detour Tabbert only
         shell: bash
         run: |
           python3 -m pip install --quiet pillow
@@ -71,112 +51,89 @@ jobs:
           from PIL import Image,ImageFilter
           from pathlib import Path
           from collections import deque
-          import math
           A=Path('app/src/main/assets')
-          def cut(srcname,dstname):
-              im=Image.open(A/srcname).convert('RGBA')
-              w,h=im.size; p=im.load()
-              b=max(2,min(w,h)//45)
-              samples=[]
-              for yy in list(range(b))+list(range(h-b,h)):
-                  for xx in list(range(b))+list(range(w-b,w)):
-                      if xx<b or xx>=w-b or yy<b or yy>=h-b:
-                          r,g,bb,a=p[xx,yy]; samples.append((r,g,bb))
-              ar=sum(x[0] for x in samples)/len(samples); ag=sum(x[1] for x in samples)/len(samples); ab=sum(x[2] for x in samples)/len(samples)
-              def near(x,y):
-                  r,g,bb,a=p[x,y]
-                  return ((r-ar)**2+(g-ag)**2+(bb-ab)**2) <= 30*30
-              bg=bytearray(w*h); q=deque()
-              def add(x,y):
-                  i=y*w+x
-                  if not bg[i] and near(x,y): bg[i]=1; q.append((x,y))
-              for x in range(w): add(x,0); add(x,h-1)
-              for y in range(h): add(0,y); add(w-1,y)
-              while q:
-                  x,y=q.popleft()
-                  if x: add(x-1,y)
-                  if x+1<w: add(x+1,y)
-                  if y: add(x,y-1)
-                  if y+1<h: add(x,y+1)
-              mask=Image.new('L',(w,h),255); mp=mask.load()
-              for y in range(h):
-                  for x in range(w):
-                      if bg[y*w+x]: mp[x,y]=0
-              # Preserve thin details such as mirrors and soften only the outer edge.
-              mask=mask.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(0.55))
-              im.putalpha(mask)
-              im.save(A/dstname,'PNG',optimize=True)
-          cut('master-front.jpg','master-front.png')
-          cut('tabbert.jpg','tabbert.png')
-          html=A/'index.html'
-          s=html.read_text(encoding='utf-8',errors='ignore')
-          s=s.replace('master-front.jpg','master-front.png').replace('tabbert.jpg','tabbert.png')
-          html.write_text(s,encoding='utf-8')
+          im=Image.open(A/'tabbert.jpg').convert('RGBA'); w,h=im.size; p=im.load(); b=max(2,min(w,h)//45)
+          samples=[]
+          for yy in list(range(b))+list(range(h-b,h)):
+            for xx in list(range(b))+list(range(w-b,w)):
+              if xx<b or xx>=w-b or yy<b or yy>=h-b: samples.append(p[xx,yy][:3])
+          ar=sum(x[0] for x in samples)/len(samples); ag=sum(x[1] for x in samples)/len(samples); ab=sum(x[2] for x in samples)/len(samples)
+          def near(x,y):
+            r,g,bb,a=p[x,y]; return (r-ar)**2+(g-ag)**2+(bb-ab)**2<=900
+          bg=bytearray(w*h); q=deque()
+          def add(x,y):
+            i=y*w+x
+            if not bg[i] and near(x,y): bg[i]=1; q.append((x,y))
+          for x in range(w): add(x,0); add(x,h-1)
+          for y in range(h): add(0,y); add(w-1,y)
+          while q:
+            x,y=q.popleft()
+            if x:add(x-1,y)
+            if x+1<w:add(x+1,y)
+            if y:add(x,y-1)
+            if y+1<h:add(x,y+1)
+          mask=Image.new('L',(w,h),255); mp=mask.load()
+          for y in range(h):
+            for x in range(w):
+              if bg[y*w+x]: mp[x,y]=0
+          mask=mask.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(.55)); im.putalpha(mask); im.save(A/'tabbert.png','PNG',optimize=True)
+          html=A/'index.html'; s=html.read_text(errors='ignore').replace('tabbert.jpg','tabbert.png')
+          s=s.replace('.vehicleVisual img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 10px 11px #0009)}','.vehicleVisual img{width:100%;height:100%;object-fit:cover;border-radius:22px;filter:drop-shadow(0 10px 11px #0009)}')
+          html.write_text(s)
           PY
-
       - name: Generate clean market pages
         run: python3 assets-src/generate_markets.py
-
       - name: Improve market card design
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           for name in ('marches.html','belgique-marches.html'):
-              p=Path('app/src/main/assets')/name
-              s=p.read_text(encoding='utf-8')
-              s=s.replace('.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}', '.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:stretch}')
-              s=s.replace('.card{background:rgba(8,19,38,.94);padding:18px;border:1px solid #ffffff35;border-radius:20px}', '.card{background:rgba(8,19,38,.96);padding:20px;border:4px solid #f39b19;border-radius:22px;min-height:440px;height:100%;display:flex;flex-direction:column;box-shadow:0 8px 24px rgba(0,0,0,.65)}')
-              s=s.replace('.name{font-size:26px;font-weight:950}', '.name{font-size:38px;font-weight:950;line-height:1.10;text-shadow:0 2px 6px #000;margin-bottom:6px}')
-              s=s.replace('.meta{margin-top:9px;font-size:18px;line-height:1.35}', '.meta{margin-top:10px;font-size:20px;line-height:1.38;font-weight:750}')
-              s=s.replace('.weather{margin-top:16px;padding:12px;border-radius:14px;background:rgba(2,12,25,.72);font-size:17px}', '.weather{margin-top:16px;padding:13px;border-radius:14px;background:rgba(2,12,25,.82);font-size:18px;border:1px solid #f39b1977}')
-              s=s.replace('.actions{display:flex;gap:12px;margin-top:16px}', '.actions{display:flex;gap:12px;margin-top:auto;padding-top:18px}')
-              s=s.replace('.actions button{flex:1;height:58px;border:0;border-radius:15px;color:#fff;font-size:17px;font-weight:900}', '.actions button{flex:1;height:64px;border:0;border-radius:15px;color:#fff;font-size:19px;font-weight:950}')
-              p.write_text(s,encoding='utf-8')
+            p=Path('app/src/main/assets')/name; s=p.read_text(encoding='utf-8')
+            s=s.replace('.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}', '.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:stretch}')
+            s=s.replace('.card{background:rgba(8,19,38,.94);padding:18px;border:1px solid #ffffff35;border-radius:20px}', '.card{background:rgba(8,19,38,.96);padding:20px;border:4px solid #f39b19;border-radius:22px;min-height:440px;height:100%;display:flex;flex-direction:column;box-shadow:0 8px 24px rgba(0,0,0,.65)}')
+            s=s.replace('.name{font-size:26px;font-weight:950}', '.name{font-size:38px;font-weight:950;line-height:1.10;text-shadow:0 2px 6px #000;margin-bottom:6px}')
+            p.write_text(s,encoding='utf-8')
           PY
-
-      - name: Add Snapchat contact to lock screen
+      - name: Final lock screen keypad
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('app/src/main/assets/license-ui.js')
-          s=p.read_text(encoding='utf-8')
-          target='<div style="font-size:19px;font-weight:950;color:#f0a529;margin-top:6px">CODE UNIQUE À FOURNIR</div>'
-          contact='<div style="margin:18px auto 14px;padding:16px;border:3px solid #ffd400;border-radius:20px;width:min(720px,92%);background:#090909"><div style="font-size:21px;font-weight:900;color:#fff">CONTACTEZ</div><div style="font-size:40px;font-weight:1000;color:#ffd400;line-height:1.1">STEVE SUZON</div><div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:7px"><span style="font-size:25px;font-weight:950;color:#ffd400">sur Snapchat</span><span style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;background:#fffc00;color:#000;font-size:27px">👻</span></div></div>'
-          if target in s and 'sur Snapchat</span>' not in s:
-              s=s.replace(target,contact+target,1)
+          p=Path('app/src/main/assets/license-ui.js'); s=p.read_text(encoding='utf-8')
+          s=s.replace('type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="11" autocomplete="off" placeholder="00.00.00.00" style="width:100%;height:58px','type="text" inputmode="none" readonly maxlength="11" autocomplete="off" placeholder="00.00.00.00" style="width:100%;height:58px',1)
+          marker='<button id="hardUnlockBtn"'
+          keypad='<div id="hardKeypad" style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:8px">'+''.join('<button type="button" data-k="%s" style="height:48px;border:1px solid #667080;border-radius:10px;background:#15191f;color:#fff;font-size:24px;font-weight:950">%s</button>'%(x,x) for x in ['1','2','3','4','5','6','7','8','9'])+'<button type="button" data-k="C" style="height:48px;border:1px solid #667080;border-radius:10px;background:#15191f;color:#fff;font-size:20px;font-weight:950">EFF</button><button type="button" data-k="0" style="height:48px;border:1px solid #667080;border-radius:10px;background:#15191f;color:#fff;font-size:24px;font-weight:950">0</button><button type="button" data-k="B" style="height:48px;border:1px solid #667080;border-radius:10px;background:#15191f;color:#fff;font-size:24px;font-weight:950">⌫</button></div>'
+          s=s.replace(marker,keypad+marker,1)
+          wire="if(inp){old.querySelectorAll('#hardKeypad button').forEach(function(k){k.onclick=function(){var raw=(inp.value||'').replace(/\\D/g,'');var v=this.getAttribute('data-k');if(v==='C')raw='';else if(v==='B')raw=raw.slice(0,-1);else if(raw.length<8)raw+=v;inp.value=[raw.slice(0,2),raw.slice(2,4),raw.slice(4,6),raw.slice(6,8)].filter(Boolean).join('.')}});}"
+          s=s.replace("if(inp)inp.addEventListener('input',function(){fmtInput(this)});",wire,1)
+          s=s.replace("setInterval(lockOverlay,1000);","setInterval(function(){if(!document.getElementById('hardLock'))lockOverlay()},1000);")
           p.write_text(s,encoding='utf-8')
           PY
-
-      - name: Keep unlock numeric keyboard open
+      - name: Clock day and network position
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('app/src/main/assets/license-ui.js')
-          s=p.read_text(encoding='utf-8')
-          old='setInterval(lockOverlay,1000);'
-          new="setInterval(function(){var i=document.getElementById('hardUnlockInput');if(i&&document.activeElement===i)return;lockOverlay()},1000);"
-          if old in s: s=s.replace(old,new,1)
-          p.write_text(s,encoding='utf-8')
+          p=Path('app/src/main/java/com/stevesuzon/carlplay/MainActivity.java'); s=p.read_text()
+          s=s.replace('void updateClock(){if(clock!=null)clock.setText(new SimpleDateFormat("HH:mm",Locale.FRANCE).format(new Date()));}','void updateClock(){if(clock!=null){Date d=new Date();String heure=new SimpleDateFormat("HH:mm",Locale.FRANCE).format(d);String jour=new SimpleDateFormat("EEEE",Locale.FRANCE).format(d).toUpperCase(Locale.FRANCE);clock.setText(heure+"\\n"+jour);}}')
+          s=s.replace('clock.setTextSize(34);','clock.setTextSize(25);')
+          s=s.replace('new FrameLayout.LayoutParams(-2,58*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL)','new FrameLayout.LayoutParams(-2,72*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL)')
+          s=s.replace('new FrameLayout.LayoutParams(-2,58*d,Gravity.TOP|Gravity.RIGHT);np.setMargins(0,8*d,22*d,0);root.addView(network,np);','new FrameLayout.LayoutParams(-2,58*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL);np.setMargins(0,14*d,0,0);network.setTranslationX(190*d);root.addView(network,np);')
+          p.write_text(s)
           PY
-
       - name: Gradle setup
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-
       - name: Build APK TEST expiree
         run: gradle assembleDebug
-
       - name: Upload APK TEST expiree
         uses: actions/upload-artifact@v4
         with:
           name: CarPlay-Travaille-TEST-LICENCE-EXPIREE
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
-
       - name: Publish APK expiree direct
         shell: bash
         run: |
@@ -188,7 +145,4 @@ jobs:
           git reset --hard origin/test-licence-expiree
           cp /tmp/LATEST-APK-EXPIREE.apk LATEST-APK-EXPIREE.apk
           git add LATEST-APK-EXPIREE.apk
-          if ! git diff --cached --quiet; then
-            git commit -m "Publie APK licence expirée [skip ci]"
-            git push origin HEAD:test-licence-expiree
-          fi
+          if ! git diff --cached --quiet; then git commit -m "Publie APK licence expirée [skip ci]"; git push origin HEAD:test-licence-expiree; fi
