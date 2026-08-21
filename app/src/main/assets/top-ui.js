@@ -1,0 +1,16 @@
+(function(){
+  if(window.__topUnified)return; window.__topUnified=true;
+  function removeOld(){var o=document.getElementById('weatherBubble');if(o)o.remove();}
+  removeOld();
+  var st=document.createElement('style');
+  st.textContent='#weatherBubble{display:none!important}#unifiedTop{position:fixed;z-index:1800;top:6px;left:50%;transform:translateX(-50%);width:min(500px,48vw);min-height:112px;padding:10px 18px 9px;border:3px solid #f39b19;border-radius:22px;background:rgba(5,10,18,.94);color:#fff;text-align:center;font-family:Arial,sans-serif;box-shadow:0 7px 18px #0009;box-sizing:border-box}#unifiedWeather{font-size:16px;font-weight:950;line-height:1.15;color:#ffd84a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#unifiedSep{height:2px;background:#f39b19;margin:8px 4px 5px;opacity:.9}#unifiedClock{font-size:32px;font-weight:1000;line-height:1}#unifiedDay{font-size:17px;font-weight:950;margin-top:4px}body{padding-top:132px!important}@media(max-width:760px){#unifiedTop{width:min(430px,52vw);min-height:104px;padding:8px 12px}#unifiedWeather{font-size:14px}#unifiedClock{font-size:28px}#unifiedDay{font-size:15px}}';
+  document.head.appendChild(st);
+  var box=document.createElement('div');box.id='unifiedTop';box.innerHTML='<div id="unifiedWeather">🌤️ MÉTÉO — EN ATTENTE INTERNET/GPS</div><div id="unifiedSep"></div><div id="unifiedClock">--:--</div><div id="unifiedDay">--</div>';document.body.appendChild(box);
+  var w=document.getElementById('unifiedWeather'),c=document.getElementById('unifiedClock'),d=document.getElementById('unifiedDay');
+  var cached=localStorage.getItem('last_weather_text');if(cached)w.textContent=cached;
+  function tick(){var x=new Date();c.textContent=x.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});d.textContent=x.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}).toUpperCase();}
+  tick();setInterval(tick,1000);
+  function text(p,code){p=Math.max(0,Math.min(100,Math.round(Number(p)||0)));var icon=(code>=51&&code<=99)?'🌧️':(code<=1?'☀️':'⛅');var t=p===0?'TRÈS BON JOUR POUR TRAVAILLER':p<60?'TU PEUX ENCORE ALLER TRAVAILLER':p<80?'T’ES VAILLANT':'RESTE CHEZ TOI, C’EST MIEUX';return icon+' '+p+' % — '+t;}
+  function weather(){removeOld();var online=navigator.onLine;try{if(window.AndroidStatus)online=AndroidStatus.hasInternet()}catch(e){}if(!online||!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(function(pos){var u='https://api.open-meteo.com/v1/forecast?latitude='+pos.coords.latitude+'&longitude='+pos.coords.longitude+'&current=weather_code&hourly=precipitation_probability&forecast_days=1&timezone=auto';fetch(u).then(function(r){return r.json()}).then(function(j){var p=0,code=j.current&&j.current.weather_code||0;if(j.hourly&&j.hourly.precipitation_probability){var a=j.hourly.precipitation_probability,t=j.hourly.time||[],now=Date.now(),best=1e99;for(var i=0;i<t.length;i++){var z=Math.abs(new Date(t[i]).getTime()-now);if(z<best){best=z;p=a[i]}}}var s=text(p,code);w.textContent=s;localStorage.setItem('last_weather_text',s)}).catch(function(){})},function(){},{enableHighAccuracy:false,timeout:8000,maximumAge:600000});}
+  weather();setInterval(weather,900000);addEventListener('online',weather);setInterval(removeOld,2000);
+})();
