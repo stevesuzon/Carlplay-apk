@@ -49,7 +49,12 @@ tasks.register('transparentVehicleBackgrounds') {
                 if(x>0&&!bg[i-1]){bg[i-1]=true;q.add(i-1)};if(x<w-1&&!bg[i+1]){bg[i+1]=true;q.add(i+1)}
                 if(y>0&&!bg[i-w]){bg[i-w]=true;q.add(i-w)};if(y<h-1&&!bg[i+w]){bg[i+w]=true;q.add(i+w)}
             }
-            for(int y=0;y<h;y++)for(int x=0;x<w;x++){int i=y*w+x,rgb=src.getRGB(x,y)&0xffffff;out.setRGB(x,y,bg[i]?rgb:(0xff000000|rgb))}
+            for(int y=0;y<h;y++)for(int x=0;x<w;x++){
+                int i=y*w+x
+                int rgb=src.getRGB(x,y)&0xffffff
+                int argb = bg[i] ? rgb : ((int)0xff000000 | rgb)
+                out.setRGB(x,y,argb)
+            }
             javax.imageio.ImageIO.write(out,'png',new File(assets,pair[1]))
         }
         def html=new File(assets,'index.html');if(html.exists()){def s=html.getText('UTF-8');s=s.replace('master-front.jpg','master-front.png').replace('tabbert.jpg','tabbert.png');html.setText(s,'UTF-8')}
