@@ -98,7 +98,7 @@ jobs:
           s=s.replace("setInterval(lockOverlay,1000);","setInterval(function(){if(!document.getElementById('hardLock'))lockOverlay()},1000);")
           p.write_text(s,encoding='utf-8')
           PY
-      - name: Clock day and network position
+      - name: Clock day network and live weather bubble
         shell: bash
         run: |
           python3 - <<'PY'
@@ -109,6 +109,11 @@ jobs:
           s=s.replace('new FrameLayout.LayoutParams(-2,58*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL)','new FrameLayout.LayoutParams(-2,72*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL)')
           s=s.replace('new FrameLayout.LayoutParams(-2,58*d,Gravity.TOP|Gravity.RIGHT);np.setMargins(0,8*d,22*d,0);root.addView(network,np);','new FrameLayout.LayoutParams(-2,58*d,Gravity.TOP|Gravity.CENTER_HORIZONTAL);np.setMargins(0,14*d,0,0);network.setTranslationX(190*d);root.addView(network,np);')
           p.write_text(s)
+          # Inject a weather bubble into the WebView. It uses GPS + Open-Meteo when online and caches last result.
+          q=Path('app/src/main/assets/index.html'); h=q.read_text(errors='ignore')
+          css='''<style id="weatherStyle">#weatherBubble{position:fixed;z-index:999;top:8px;left:50%;transform:translateX(-50%);max-width:58vw;min-width:360px;padding:9px 18px;border-radius:18px;border:2px solid #f39b19;background:rgba(5,10,18,.92);color:#fff;text-align:center;font:900 18px Arial;box-shadow:0 5px 14px #0008;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}body{padding-top:78px!important}@media(max-width:720px){#weatherBubble{min-width:300px;max-width:70vw;font-size:15px}}</style>'''
+          js='''<script id="weatherLive">(function(){var b=document.createElement('div');b.id='weatherBubble';b.textContent=localStorage.getItem('last_weather_text')||'🌤️ MÉTÉO — EN ATTENTE INTERNET/GPS';document.body.appendChild(b);function msg(p,code){p=Math.max(0,Math.min(100,Math.round(Number(p)||0)));var icon=(code>=51&&code<=99)?'🌧️':(code<=1?'☀️':'⛅');var t=p===0?'TRÈS BON JOUR POUR TRAVAILLER':p<60?'TU PEUX ENCORE ALLER TRAVAILLER':p<80?'T’ES VAILLANT':'RESTE CHEZ TOI, C’EST MIEUX';return icon+' '+p+' % — '+t}function go(){if(!navigator.onLine||!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(function(pos){var u='https://api.open-meteo.com/v1/forecast?latitude='+pos.coords.latitude+'&longitude='+pos.coords.longitude+'&current=weather_code&hourly=precipitation_probability&forecast_days=1&timezone=auto';fetch(u).then(function(r){return r.json()}).then(function(d){var p=0,c=d.current&&d.current.weather_code||0;if(d.hourly&&d.hourly.precipitation_probability){var a=d.hourly.precipitation_probability,t=d.hourly.time||[],now=Date.now(),best=1e99;for(var i=0;i<t.length;i++){var z=Math.abs(new Date(t[i]).getTime()-now);if(z<best){best=z;p=a[i]}}}var x=msg(p,c);b.textContent=x;localStorage.setItem('last_weather_text',x)}).catch(function(){})},function(){},{enableHighAccuracy:false,timeout:8000,maximumAge:600000})}go();setInterval(go,900000);addEventListener('online',go)})();</script>'''
+          h=h.replace('</head>',css+'</head>').replace('</body>',js+'</body>'); q.write_text(h)
           PY
       - name: Gradle setup
         uses: gradle/actions/setup-gradle@v4
@@ -134,4 +139,3 @@ jobs:
           cp /tmp/LATEST-APK-EXPIREE.apk LATEST-APK-EXPIREE.apk
           git add LATEST-APK-EXPIREE.apk
           if ! git diff --cached --quiet; then git commit -m "Publie APK licence expirée [skip ci]"; git push origin HEAD:test-licence-expiree; fi
-# compilation finale relance 2
