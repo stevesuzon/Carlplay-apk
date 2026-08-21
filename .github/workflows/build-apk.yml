@@ -66,7 +66,7 @@ jobs:
       - name: Generate clean market pages
         run: python3 assets-src/generate_markets.py
 
-      - name: Enlarge market names only
+      - name: Improve market card design
         shell: bash
         run: |
           python3 - <<'PY'
@@ -74,7 +74,13 @@ jobs:
           for name in ('marches.html','belgique-marches.html'):
               p=Path('app/src/main/assets')/name
               s=p.read_text(encoding='utf-8')
-              s=s.replace('.name{font-size:26px;font-weight:950}', '.name{font-size:34px;font-weight:950;line-height:1.12}')
+              s=s.replace('.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}', '.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:stretch}')
+              s=s.replace('.card{background:rgba(8,19,38,.94);padding:18px;border:1px solid #ffffff35;border-radius:20px}', '.card{background:rgba(8,19,38,.96);padding:20px;border:4px solid #f39b19;border-radius:22px;min-height:440px;height:100%;display:flex;flex-direction:column;box-shadow:0 8px 24px rgba(0,0,0,.65)}')
+              s=s.replace('.name{font-size:26px;font-weight:950}', '.name{font-size:38px;font-weight:950;line-height:1.10;text-shadow:0 2px 6px #000;margin-bottom:6px}')
+              s=s.replace('.meta{margin-top:9px;font-size:18px;line-height:1.35}', '.meta{margin-top:10px;font-size:20px;line-height:1.38;font-weight:750}')
+              s=s.replace('.weather{margin-top:16px;padding:12px;border-radius:14px;background:rgba(2,12,25,.72);font-size:17px}', '.weather{margin-top:16px;padding:13px;border-radius:14px;background:rgba(2,12,25,.82);font-size:18px;border:1px solid #f39b1977}')
+              s=s.replace('.actions{display:flex;gap:12px;margin-top:16px}', '.actions{display:flex;gap:12px;margin-top:auto;padding-top:18px}')
+              s=s.replace('.actions button{flex:1;height:58px;border:0;border-radius:15px;color:#fff;font-size:17px;font-weight:900}', '.actions button{flex:1;height:64px;border:0;border-radius:15px;color:#fff;font-size:19px;font-weight:950}')
               p.write_text(s,encoding='utf-8')
           PY
 
