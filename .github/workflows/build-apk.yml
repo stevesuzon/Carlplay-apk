@@ -84,6 +84,20 @@ jobs:
               p.write_text(s,encoding='utf-8')
           PY
 
+      - name: Add Snapchat contact to lock screen
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/src/main/assets/license-ui.js')
+          s=p.read_text(encoding='utf-8')
+          target='<div style="font-size:19px;font-weight:950;color:#f0a529;margin-top:6px">CODE UNIQUE À FOURNIR</div>'
+          contact='<div style="margin:18px auto 14px;padding:16px;border:3px solid #ffd400;border-radius:20px;width:min(720px,92%);background:#090909"><div style="font-size:21px;font-weight:900;color:#fff">CONTACTEZ</div><div style="font-size:40px;font-weight:1000;color:#ffd400;line-height:1.1">STEVE SUZON</div><div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:7px"><span style="font-size:25px;font-weight:950;color:#ffd400">sur Snapchat</span><span style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;background:#fffc00;color:#000;font-size:27px">👻</span></div></div>'
+          if target in s and 'sur Snapchat</span>' not in s:
+              s=s.replace(target,contact+target,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+
       - name: Gradle setup
         uses: gradle/actions/setup-gradle@v4
         with:
