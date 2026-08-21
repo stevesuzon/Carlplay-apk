@@ -2,10 +2,12 @@ name: Build APK TEST Licence Expiree
 on:
   push:
     branches: ["test-licence-expiree"]
+    paths-ignore:
+      - "LATEST-APK-EXPIREE.apk"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -91,4 +93,18 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 
-# relance compilation 2026-08-21
+      - name: Publish APK expiree direct
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp app/build/outputs/apk/debug/app-debug.apk /tmp/LATEST-APK-EXPIREE.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin test-licence-expiree
+          git reset --hard origin/test-licence-expiree
+          cp /tmp/LATEST-APK-EXPIREE.apk LATEST-APK-EXPIREE.apk
+          git add LATEST-APK-EXPIREE.apk
+          if ! git diff --cached --quiet; then
+            git commit -m "Publie APK licence expirée [skip ci]"
+            git push origin HEAD:test-licence-expiree
+          fi
