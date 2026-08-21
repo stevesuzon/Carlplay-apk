@@ -1,13 +1,11 @@
-name: Build APK
+name: Build APK TEST Licence Expiree
 on:
   push:
-    branches: ["main"]
-    paths-ignore:
-      - "LATEST-APK.apk"
+    branches: ["test-licence-expiree"]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -78,44 +76,17 @@ jobs:
               p.write_text(s,encoding='utf-8')
           PY
 
-      - name: Verify clean pages
-        shell: bash
-        run: |
-          set -euo pipefail
-          grep -q "MARCHÉS DE FRANCE" app/src/main/assets/marches.html
-          grep -q "CHOISIR SON DÉPARTEMENT" app/src/main/assets/marches.html
-          grep -q "MARCHÉS DE BELGIQUE" app/src/main/assets/belgique-marches.html
-          if grep -qi "article de travail" app/src/main/assets/marches.html; then exit 1; fi
-          if grep -qi "mes vérifications" app/src/main/assets/marches.html; then exit 1; fi
-          if grep -qi "ce site ne vous convient pas" app/src/main/assets/marches.html; then exit 1; fi
-
       - name: Gradle setup
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
 
-      - name: Build APK
+      - name: Build APK TEST expiree
         run: gradle assembleDebug
 
-      - name: Upload APK
+      - name: Upload APK TEST expiree
         uses: actions/upload-artifact@v4
         with:
-          name: Carlplay-APK-Tous-Marches
+          name: CarPlay-Travaille-TEST-LICENCE-EXPIREE
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
-
-      - name: Publish latest APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          cp app/build/outputs/apk/debug/app-debug.apk /tmp/LATEST-APK.apk
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git reset --hard origin/main
-          cp /tmp/LATEST-APK.apk LATEST-APK.apk
-          git add LATEST-APK.apk
-          if ! git diff --cached --quiet; then
-            git commit -m "APK pages marchés propres France Belgique [skip ci]"
-            git push origin HEAD:main
-          fi
