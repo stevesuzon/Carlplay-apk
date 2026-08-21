@@ -146,3 +146,4 @@ jobs:
           cp /tmp/LATEST-APK-EXPIREE.apk LATEST-APK-EXPIREE.apk
           git add LATEST-APK-EXPIREE.apk
           if ! git diff --cached --quiet; then git commit -m "Publie APK licence expirée [skip ci]"; git push origin HEAD:test-licence-expiree; fi
+# relance 2026-08-21 clavier-heure-master
