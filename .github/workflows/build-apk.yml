@@ -63,6 +63,57 @@ jobs:
               p.write_text(s)
           PY
 
+      - name: Detourage fin Master et Tabbert
+        shell: bash
+        run: |
+          python3 -m pip install --quiet pillow
+          python3 - <<'PY'
+          from PIL import Image,ImageFilter
+          from pathlib import Path
+          from collections import deque
+          import math
+          A=Path('app/src/main/assets')
+          def cut(srcname,dstname):
+              im=Image.open(A/srcname).convert('RGBA')
+              w,h=im.size; p=im.load()
+              b=max(2,min(w,h)//45)
+              samples=[]
+              for yy in list(range(b))+list(range(h-b,h)):
+                  for xx in list(range(b))+list(range(w-b,w)):
+                      if xx<b or xx>=w-b or yy<b or yy>=h-b:
+                          r,g,bb,a=p[xx,yy]; samples.append((r,g,bb))
+              ar=sum(x[0] for x in samples)/len(samples); ag=sum(x[1] for x in samples)/len(samples); ab=sum(x[2] for x in samples)/len(samples)
+              def near(x,y):
+                  r,g,bb,a=p[x,y]
+                  return ((r-ar)**2+(g-ag)**2+(bb-ab)**2) <= 30*30
+              bg=bytearray(w*h); q=deque()
+              def add(x,y):
+                  i=y*w+x
+                  if not bg[i] and near(x,y): bg[i]=1; q.append((x,y))
+              for x in range(w): add(x,0); add(x,h-1)
+              for y in range(h): add(0,y); add(w-1,y)
+              while q:
+                  x,y=q.popleft()
+                  if x: add(x-1,y)
+                  if x+1<w: add(x+1,y)
+                  if y: add(x,y-1)
+                  if y+1<h: add(x,y+1)
+              mask=Image.new('L',(w,h),255); mp=mask.load()
+              for y in range(h):
+                  for x in range(w):
+                      if bg[y*w+x]: mp[x,y]=0
+              # Preserve thin details such as mirrors and soften only the outer edge.
+              mask=mask.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(0.55))
+              im.putalpha(mask)
+              im.save(A/dstname,'PNG',optimize=True)
+          cut('master-front.jpg','master-front.png')
+          cut('tabbert.jpg','tabbert.png')
+          html=A/'index.html'
+          s=html.read_text(encoding='utf-8',errors='ignore')
+          s=s.replace('master-front.jpg','master-front.png').replace('tabbert.jpg','tabbert.png')
+          html.write_text(s,encoding='utf-8')
+          PY
+
       - name: Generate clean market pages
         run: python3 assets-src/generate_markets.py
 
@@ -95,6 +146,19 @@ jobs:
           contact='<div style="margin:18px auto 14px;padding:16px;border:3px solid #ffd400;border-radius:20px;width:min(720px,92%);background:#090909"><div style="font-size:21px;font-weight:900;color:#fff">CONTACTEZ</div><div style="font-size:40px;font-weight:1000;color:#ffd400;line-height:1.1">STEVE SUZON</div><div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:7px"><span style="font-size:25px;font-weight:950;color:#ffd400">sur Snapchat</span><span style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;background:#fffc00;color:#000;font-size:27px">👻</span></div></div>'
           if target in s and 'sur Snapchat</span>' not in s:
               s=s.replace(target,contact+target,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Keep unlock numeric keyboard open
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/src/main/assets/license-ui.js')
+          s=p.read_text(encoding='utf-8')
+          old='setInterval(lockOverlay,1000);'
+          new="setInterval(function(){var i=document.getElementById('hardUnlockInput');if(i&&document.activeElement===i)return;lockOverlay()},1000);"
+          if old in s: s=s.replace(old,new,1)
           p.write_text(s,encoding='utf-8')
           PY
 
