@@ -83,18 +83,6 @@ jobs:
           PY
       - name: Generate clean market pages
         run: python3 assets-src/generate_markets.py
-      - name: Improve market card design
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          for name in ('marches.html','belgique-marches.html'):
-            p=Path('app/src/main/assets')/name; s=p.read_text(encoding='utf-8')
-            s=s.replace('.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}', '.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:stretch}')
-            s=s.replace('.card{background:rgba(8,19,38,.94);padding:18px;border:1px solid #ffffff35;border-radius:20px}', '.card{background:rgba(8,19,38,.96);padding:20px;border:4px solid #f39b19;border-radius:22px;min-height:440px;height:100%;display:flex;flex-direction:column;box-shadow:0 8px 24px rgba(0,0,0,.65)}')
-            s=s.replace('.name{font-size:26px;font-weight:950}', '.name{font-size:38px;font-weight:950;line-height:1.10;text-shadow:0 2px 6px #000;margin-bottom:6px}')
-            p.write_text(s,encoding='utf-8')
-          PY
       - name: Final lock screen keypad
         shell: bash
         run: |
@@ -146,4 +134,4 @@ jobs:
           cp /tmp/LATEST-APK-EXPIREE.apk LATEST-APK-EXPIREE.apk
           git add LATEST-APK-EXPIREE.apk
           if ! git diff --cached --quiet; then git commit -m "Publie APK licence expirée [skip ci]"; git push origin HEAD:test-licence-expiree; fi
-# relance 2026-08-21 clavier-heure-master
+# compilation finale relance 2
