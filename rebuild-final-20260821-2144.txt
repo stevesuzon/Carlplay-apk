@@ -1,0 +1,1 @@
+Force recompilation de la version complète : persistance licence/blocage, clavier déblocage, heure centrée, Wi-Fi à droite, véhicules corrigés.
