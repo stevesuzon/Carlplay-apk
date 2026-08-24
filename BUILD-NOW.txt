@@ -1,2 +1,3 @@
-Déploiement CarPlay V5 — remise à zéro des compteurs
-Déclenchement : 2026-08-24 23:43 Europe/Paris
+Déploiement CarPlay V5 — accès gratuit automatique 3 mois
+Fin de l’accès gratuit : 25 novembre 2026 à 23h59
+Déclenchement : 2026-08-25 00:10 Europe/Paris
