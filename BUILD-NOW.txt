@@ -1,1 +1,2 @@
-Compilation propre après correction du logo Coin de Chine et de l'interface voiture.
+Déploiement CarPlay V5 — remise à zéro des compteurs
+Déclenchement : 2026-08-24 23:43 Europe/Paris
