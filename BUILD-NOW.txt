@@ -1,3 +1,2 @@
-Déploiement CarPlay V5 — accès gratuit automatique 3 mois
-Fin de l’accès gratuit : 25 novembre 2026 à 23h59
-Déclenchement : 2026-08-25 00:10 Europe/Paris
+Déploiement CarPlay V5 — recompilation Cloudflare avec dernières corrections Belgique + autoradio + Street View
+Déclenchement : 2026-08-25 13:58 Europe/Paris
