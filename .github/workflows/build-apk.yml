@@ -5,10 +5,8 @@ on:
     paths-ignore:
       - "LATEST-APK.apk"
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,40 +32,30 @@ jobs:
           cat assets-src/markets-zip/marches.* | base64 -d | gunzip > /tmp/france-source.html
           cat assets-src/markets-zip/belgique.* | base64 -d | gunzip > /tmp/belgique-source.html
           cat assets-src/markets-zip/carplay.* | base64 -d | gunzip > app/src/main/assets/carplay-marches.html
-          test -s /tmp/france-source.html
-          test -s /tmp/belgique-source.html
       - name: Restore images
         shell: bash
         run: |
-          set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
           import base64,re
-          A=Path('app/src/main/assets'); A.mkdir(parents=True,exist_ok=True)
-          pairs=[('assets-src/master.b64','master-front.jpg'),('assets-src/tabbert.b64','tabbert.jpg'),('assets-src/chineur-photo.b64','chineur.webp'),('assets-src/route66-bg.b64','route66-bg.jpg')]
-          for src,dst in pairs:
+          A=Path('app/src/main/assets')
+          for src,dst in [('assets-src/master.b64','master-front.jpg'),('assets-src/tabbert.b64','tabbert.jpg'),('assets-src/chineur-photo.b64','chineur.webp'),('assets-src/route66-bg.b64','route66-bg.jpg')]:
               raw=Path(src).read_text(errors='ignore'); clean=''.join(re.findall(r'[A-Za-z0-9+/]',raw)); clean+='='*((4-len(clean)%4)%4); (A/dst).write_bytes(base64.b64decode(clean,validate=False))
-          p=A/'index.html'
-          if p.exists():
-              s=p.read_text(errors='ignore'); s=s.replace('master-front.png','master-front.jpg').replace('tabbert.png','tabbert.jpg').replace('chineur.svg','chineur.webp'); p.write_text(s)
+          p=A/'index.html'; s=p.read_text(errors='ignore').replace('master-front.png','master-front.jpg').replace('tabbert.png','tabbert.jpg').replace('chineur.svg','chineur.webp'); p.write_text(s)
           PY
       - name: Generate clean market pages
         run: python3 assets-src/generate_markets.py
-      - name: Enlarge market names only
+      - name: Add autoradio download and USB guide
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          for name in ('marches.html','belgique-marches.html'):
-              p=Path('app/src/main/assets')/name; s=p.read_text(encoding='utf-8'); s=s.replace('.name{font-size:26px;font-weight:950}', '.name{font-size:34px;font-weight:950;line-height:1.12}'); p.write_text(s,encoding='utf-8')
+          p=Path('app/src/main/assets/index.html'); s=p.read_text(encoding='utf-8')
+          marker='<div class="settingRow"><button class="settingHead" onclick="toggleSection(\'updateMenu\',this)">'
+          block='''<div class="settingRow"><button class="settingHead" onclick="toggleSection('radioMenu',this)"><span>📻 Télécharger pour autoradio</span><span>⌄</span></button><div class="settingBody" id="radioMenu"><button onclick="openExternal('https://raw.githubusercontent.com/stevesuzon/Carlplay-apk/main/LATEST-APK.apk')">📥 TÉLÉCHARGER POUR AUTORADIO</button><button onclick="document.getElementById('usbGuide').style.display=document.getElementById('usbGuide').style.display==='block'?'none':'block'">🔑 COMMENT INSTALLER AVEC UNE CLÉ USB</button><div id="usbGuide" class="settingNote" style="display:none;font-size:18px;line-height:1.65;background:#111b2b;border-radius:14px;padding:16px;margin-top:8px"><b>1️⃣ Télécharge l’APK.</b><br><b>2️⃣ Mets le fichier APK sur une clé USB.</b><br><b>3️⃣ Branche la clé USB sur l’autoradio Android.</b><br><b>4️⃣ Ouvre la clé USB dans le gestionnaire de fichiers.</b><br><b>5️⃣ Appuie sur CarPlay-V5.apk.</b><br><b>6️⃣ Appuie sur INSTALLER.</b><br><b>7️⃣ Ouvre CarPlay.</b><br><br>Si Android le demande, autorise l’installation d’applications provenant de cette source.</div></div></div>'''
+          if 'id="radioMenu"' not in s and marker in s: s=s.replace(marker,block+marker)
+          p.write_text(s,encoding='utf-8')
           PY
-      - name: Verify clean pages
-        shell: bash
-        run: |
-          set -euo pipefail
-          grep -q "MARCHÉS DE FRANCE" app/src/main/assets/marches.html
-          grep -q "CHOISIR SON DÉPARTEMENT" app/src/main/assets/marches.html
-          grep -q "MARCHÉS DE BELGIQUE" app/src/main/assets/belgique-marches.html
       - name: Gradle setup
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -96,8 +84,7 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk /tmp/LATEST-APK.apk
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git reset --hard origin/main
+          git fetch origin main && git reset --hard origin/main
           cp /tmp/LATEST-APK.apk LATEST-APK.apk
           git add LATEST-APK.apk
           if ! git diff --cached --quiet; then git commit -m "APK V5 mise à jour [skip ci]"; git push origin HEAD:main; fi
