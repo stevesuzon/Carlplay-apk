@@ -4,6 +4,7 @@ on:
     branches: ["main"]
     paths-ignore:
       - "LATEST-APK.apk"
+      - "CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip"
   workflow_dispatch:
 permissions:
   contents: write
@@ -77,14 +78,16 @@ jobs:
           name: CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5
           path: CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
           retention-days: 30
-      - name: Publish latest APK
+      - name: Publish latest APK and replace V5 ZIP in GitHub
         shell: bash
         run: |
           set -euo pipefail
           cp app/build/outputs/apk/debug/app-debug.apk /tmp/LATEST-APK.apk
+          cp CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip /tmp/CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main && git reset --hard origin/main
           cp /tmp/LATEST-APK.apk LATEST-APK.apk
-          git add LATEST-APK.apk
-          if ! git diff --cached --quiet; then git commit -m "APK V5 mise à jour [skip ci]"; git push origin HEAD:main; fi
+          cp /tmp/CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
+          git add LATEST-APK.apk CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
+          if ! git diff --cached --quiet; then git commit -m "Remplace V5 Cloudflare et APK [skip ci]"; git push origin HEAD:main; fi
