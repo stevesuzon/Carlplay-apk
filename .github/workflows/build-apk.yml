@@ -90,4 +90,4 @@ jobs:
           cp /tmp/LATEST-APK.apk LATEST-APK.apk
           cp /tmp/CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
           git add LATEST-APK.apk CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
-          if ! git diff --cached --quiet; then git commit -m "Remplace V5 Cloudflare et APK [skip ci]"; git push origin HEAD:main; fi
+          if ! git diff --cached --quiet; then git commit -m "Remplace V5 Cloudflare et APK"; git push origin HEAD:main; fi
