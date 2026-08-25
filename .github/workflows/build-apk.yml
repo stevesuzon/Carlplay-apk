@@ -97,11 +97,19 @@ jobs:
       - name: Build APK
         run: gradle assembleDebug
 
-      - name: Upload APK
+      - name: Prepare V5 package
+        shell: bash
+        run: |
+          mkdir -p /tmp/carplay-v5
+          cp app/build/outputs/apk/debug/app-debug.apk /tmp/carplay-v5/CarPlay-V5.apk
+          cd /tmp/carplay-v5
+          zip -r "$GITHUB_WORKSPACE/CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip" .
+
+      - name: Upload V5 package
         uses: actions/upload-artifact@v4
         with:
-          name: Carlplay-APK-Tous-Marches
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5
+          path: CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
           retention-days: 30
 
       - name: Publish latest APK
@@ -116,6 +124,6 @@ jobs:
           cp /tmp/LATEST-APK.apk LATEST-APK.apk
           git add LATEST-APK.apk
           if ! git diff --cached --quiet; then
-            git commit -m "APK pages marchés propres France Belgique [skip ci]"
+            git commit -m "APK V5 mise à jour [skip ci]"
             git push origin HEAD:main
           fi
