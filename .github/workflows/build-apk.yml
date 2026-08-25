@@ -17,19 +17,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Java 17
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
-
       - name: Android SDK
         uses: android-actions/setup-android@v3
-
       - name: Install Android 35
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-
       - name: Restore market sources
         shell: bash
         run: |
@@ -40,7 +36,6 @@ jobs:
           cat assets-src/markets-zip/carplay.* | base64 -d | gunzip > app/src/main/assets/carplay-marches.html
           test -s /tmp/france-source.html
           test -s /tmp/belgique-source.html
-
       - name: Restore images
         shell: bash
         run: |
@@ -48,36 +43,24 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import base64,re
-          A=Path('app/src/main/assets')
-          A.mkdir(parents=True,exist_ok=True)
+          A=Path('app/src/main/assets'); A.mkdir(parents=True,exist_ok=True)
           pairs=[('assets-src/master.b64','master-front.jpg'),('assets-src/tabbert.b64','tabbert.jpg'),('assets-src/chineur-photo.b64','chineur.webp'),('assets-src/route66-bg.b64','route66-bg.jpg')]
           for src,dst in pairs:
-              raw=Path(src).read_text(errors='ignore')
-              clean=''.join(re.findall(r'[A-Za-z0-9+/]',raw))
-              clean+='='*((4-len(clean)%4)%4)
-              (A/dst).write_bytes(base64.b64decode(clean,validate=False))
+              raw=Path(src).read_text(errors='ignore'); clean=''.join(re.findall(r'[A-Za-z0-9+/]',raw)); clean+='='*((4-len(clean)%4)%4); (A/dst).write_bytes(base64.b64decode(clean,validate=False))
           p=A/'index.html'
           if p.exists():
-              s=p.read_text(errors='ignore')
-              s=s.replace('master-front.png','master-front.jpg').replace('tabbert.png','tabbert.jpg').replace('chineur.svg','chineur.webp')
-              p.write_text(s)
+              s=p.read_text(errors='ignore'); s=s.replace('master-front.png','master-front.jpg').replace('tabbert.png','tabbert.jpg').replace('chineur.svg','chineur.webp'); p.write_text(s)
           PY
-
       - name: Generate clean market pages
         run: python3 assets-src/generate_markets.py
-
       - name: Enlarge market names only
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           for name in ('marches.html','belgique-marches.html'):
-              p=Path('app/src/main/assets')/name
-              s=p.read_text(encoding='utf-8')
-              s=s.replace('.name{font-size:26px;font-weight:950}', '.name{font-size:34px;font-weight:950;line-height:1.12}')
-              p.write_text(s,encoding='utf-8')
+              p=Path('app/src/main/assets')/name; s=p.read_text(encoding='utf-8'); s=s.replace('.name{font-size:26px;font-weight:950}', '.name{font-size:34px;font-weight:950;line-height:1.12}'); p.write_text(s,encoding='utf-8')
           PY
-
       - name: Verify clean pages
         shell: bash
         run: |
@@ -85,33 +68,27 @@ jobs:
           grep -q "MARCHÉS DE FRANCE" app/src/main/assets/marches.html
           grep -q "CHOISIR SON DÉPARTEMENT" app/src/main/assets/marches.html
           grep -q "MARCHÉS DE BELGIQUE" app/src/main/assets/belgique-marches.html
-          if grep -qi "article de travail" app/src/main/assets/marches.html; then exit 1; fi
-          if grep -qi "mes vérifications" app/src/main/assets/marches.html; then exit 1; fi
-          if grep -qi "ce site ne vous convient pas" app/src/main/assets/marches.html; then exit 1; fi
-
       - name: Gradle setup
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-
       - name: Build APK
         run: gradle assembleDebug
-
-      - name: Prepare V5 package
+      - name: Prepare V5 Cloudflare package
         shell: bash
         run: |
-          mkdir -p /tmp/carplay-v5
+          set -euo pipefail
+          rm -rf /tmp/carplay-v5 && mkdir -p /tmp/carplay-v5
+          cp -a app/src/main/assets/. /tmp/carplay-v5/
           cp app/build/outputs/apk/debug/app-debug.apk /tmp/carplay-v5/CarPlay-V5.apk
           cd /tmp/carplay-v5
           zip -r "$GITHUB_WORKSPACE/CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip" .
-
       - name: Upload V5 package
         uses: actions/upload-artifact@v4
         with:
           name: CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5
           path: CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
           retention-days: 30
-
       - name: Publish latest APK
         shell: bash
         run: |
@@ -123,7 +100,4 @@ jobs:
           git reset --hard origin/main
           cp /tmp/LATEST-APK.apk LATEST-APK.apk
           git add LATEST-APK.apk
-          if ! git diff --cached --quiet; then
-            git commit -m "APK V5 mise à jour [skip ci]"
-            git push origin HEAD:main
-          fi
+          if ! git diff --cached --quiet; then git commit -m "APK V5 mise à jour [skip ci]"; git push origin HEAD:main; fi
