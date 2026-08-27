@@ -6,5 +6,8 @@
     "directory": "./app/src/main/assets",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application"
+  },
+  "vars": {
+    "DEPLOY_TRIGGER": "2026-08-27-2322"
   }
 }
