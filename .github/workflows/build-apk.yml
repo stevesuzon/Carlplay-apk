@@ -1,11 +1,11 @@
 name: Build APK
-# Cloudflare refresh 2026-08-27-2303
 on:
   push:
     branches: ["main"]
     paths-ignore:
       - "LATEST-APK.apk"
       - "CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip"
+      - "cloudflare-deploy-trigger.txt"
   workflow_dispatch:
 permissions:
   contents: write
@@ -83,7 +83,7 @@ jobs:
           name: CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5
           path: CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
           retention-days: 30
-      - name: Publish latest APK and replace V5 ZIP in GitHub
+      - name: Publish latest APK, replace V5 ZIP and trigger Cloudflare
         shell: bash
         run: |
           set -euo pipefail
@@ -94,5 +94,6 @@ jobs:
           git fetch origin main && git reset --hard origin/main
           cp /tmp/LATEST-APK.apk LATEST-APK.apk
           cp /tmp/CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
-          git add LATEST-APK.apk CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
-          if ! git diff --cached --quiet; then git commit -m "Remplace V5 Cloudflare et APK"; git push origin HEAD:main; fi
+          printf 'Cloudflare deploy trigger: %s\nRun: %s\nCommit: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$GITHUB_RUN_ID" "$GITHUB_SHA" > cloudflare-deploy-trigger.txt
+          git add LATEST-APK.apk CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip cloudflare-deploy-trigger.txt
+          if ! git diff --cached --quiet; then git commit -m "Remplace V5 Cloudflare et declenche deploiement"; git push origin HEAD:main; fi
