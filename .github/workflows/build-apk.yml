@@ -17,7 +17,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Java 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
       - name: Android SDK
         uses: android-actions/setup-android@v3
       - name: Install Android 35
@@ -52,8 +55,7 @@ jobs:
           s=p.read_text(encoding='utf-8',errors='ignore')
           inline=r'''<script>(function(){var ID='2026-08-27-inline-notification-1';try{if(localStorage.getItem('cp_seen_update')===ID)return}catch(e){}function run(){var css=document.createElement('style');css.textContent='.cpN{position:fixed;z-index:2147483646;top:115px;left:50%;transform:translateX(-50%);width:min(92vw,650px);background:#081421;color:white;border:3px solid #ff9818;border-radius:18px;padding:14px;text-align:center;font:bold 17px Arial;box-shadow:0 8px 25px #0009}.cpB{display:none;position:fixed;z-index:2147483647;inset:0;background:#000b;padding:20px}.cpM{margin:18vh auto 0;max-width:620px;background:#0d1b2d;color:white;border:3px solid #ff9818;border-radius:20px;padding:20px;font:17px Arial;line-height:1.5}.cpM h2{margin-top:0}';document.head.appendChild(css);var n=document.createElement('div');n.className='cpN';n.textContent='🔄 MISE À JOUR — marchés • GPS • installation';var b=document.createElement('div');b.className='cpB';b.innerHTML='<div class="cpM"><h2>Ce qui a été mis à jour</h2><p>🛒 Marchés : nouvelles informations et corrections.</p><p>📍 GPS : destination des marchés améliorée.</p><p>📲 Installation : guide iPhone et Android amélioré.</p><p>🔔 Notifications : affichage bref sur l’accueil.</p><small>Appuyez à côté pour fermer.</small></div>';document.body.appendChild(n);document.body.appendChild(b);try{localStorage.setItem('cp_seen_update',ID)}catch(e){}var t=setTimeout(function(){n.remove()},4000);n.onclick=function(e){e.stopPropagation();clearTimeout(t);n.remove();b.style.display='block'};b.onclick=function(e){if(e.target===b)b.style.display='none'}}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run()})();</script>'''
           s=s.replace('<script src="app-update.js"></script>','')
-          if ID_MARKER := "2026-08-27-inline-notification-1":
-              if ID_MARKER not in s: s=s.replace('</body>',inline+'</body>')
+          if '2026-08-27-inline-notification-1' not in s: s=s.replace('</body>',inline+'</body>')
           p.write_text(s,encoding='utf-8')
           PY
       - name: Gradle setup
