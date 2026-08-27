@@ -18,9 +18,6 @@ jobs:
           fetch-depth: 0
       - name: Java 17
         uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "17"
       - name: Android SDK
         uses: android-actions/setup-android@v3
       - name: Install Android 35
@@ -46,40 +43,17 @@ jobs:
           PY
       - name: Generate clean market pages
         run: python3 assets-src/generate_markets.py
-      - name: Add market update popup and precise navigation
+      - name: Add inline update popup
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          A=Path('app/src/main/assets')
-          # Notification de mise à jour sur la page d'accueil.
-          p=A/'index.html'
+          p=Path('app/src/main/assets/index.html')
           s=p.read_text(encoding='utf-8',errors='ignore')
-          tag='<script src="app-update.js"></script>'
-          if tag not in s:
-              s=s.replace('</body>',tag+'</body>')
-          p.write_text(s,encoding='utf-8')
-
-          # Navigation: utiliser d'abord des coordonnées éventuelles, sinon l'emplacement/adresse,
-          # sans envoyer « marché + ville » à Maps/Waze (évite les boutiques homonymes).
-          old="function goMarket(i){var r=rows()[i];var q=encodeURIComponent((r[2]||'')+' '+(r[3]||''));window.location.href='https://www.google.com/maps/search/?api=1&query='+q}"
-          new="""function goMarket(i){var r=rows()[i],town=r[1]||'',name=r[2]||'',place=r[3]||'',lat=r[10],lon=r[11],pref=localStorage.getItem('gps_pref')||'Google Maps';var text=(place&&place!=='À préciser'&&place!=='A préciser')?(place+', '+town):town;var low=(town+' '+name+' '+place).toLowerCase();if(low.indexOf('melesse')>=0)text=\"Place de l'Église, 35520 Melesse\";var hasCoord=lat!==undefined&&lon!==undefined&&!isNaN(parseFloat(lat))&&!isNaN(parseFloat(lon));if(hasCoord){var ll=parseFloat(lat)+','+parseFloat(lon);window.location.href=pref==='Waze'?'https://waze.com/ul?ll='+encodeURIComponent(ll)+'&navigate=yes':'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(ll)+'&travelmode=driving&dir_action=navigate';return}var q=encodeURIComponent(text);window.location.href=pref==='Waze'?'https://waze.com/ul?q='+q+'&navigate=yes':'https://www.google.com/maps/dir/?api=1&destination='+q+'&travelmode=driving&dir_action=navigate'}"""
-          for f in ['marches.html','belgique-marches.html']:
-              q=A/f
-              t=q.read_text(encoding='utf-8',errors='ignore')
-              if old in t:
-                  t=t.replace(old,new)
-              q.write_text(t,encoding='utf-8')
-          PY
-      - name: Add autoradio download and USB guide
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('app/src/main/assets/index.html'); s=p.read_text(encoding='utf-8')
-          marker='<div class="settingRow"><button class="settingHead" onclick="toggleSection(\'updateMenu\',this)">'
-          block='''<div class="settingRow"><button class="settingHead" onclick="toggleSection('radioMenu',this)"><span>📻 Télécharger pour autoradio</span><span>⌄</span></button><div class="settingBody" id="radioMenu"><button onclick="openExternal('https://raw.githubusercontent.com/stevesuzon/Carlplay-apk/main/LATEST-APK.apk')">📥 TÉLÉCHARGER POUR AUTORADIO</button><button onclick="document.getElementById('usbGuide').style.display=document.getElementById('usbGuide').style.display==='block'?'none':'block'">🔑 COMMENT INSTALLER AVEC UNE CLÉ USB</button><div id="usbGuide" class="settingNote" style="display:none;font-size:18px;line-height:1.65;background:#111b2b;border-radius:14px;padding:16px;margin-top:8px"><b>1️⃣ Télécharge l’APK.</b><br><b>2️⃣ Mets le fichier APK sur une clé USB.</b><br><b>3️⃣ Branche la clé USB sur l’autoradio Android.</b><br><b>4️⃣ Ouvre la clé USB dans le gestionnaire de fichiers.</b><br><b>5️⃣ Appuie sur CarPlay-V5.apk.</b><br><b>6️⃣ Appuie sur INSTALLER.</b><br><b>7️⃣ Ouvre CarPlay.</b><br><br>Si Android le demande, autorise l’installation d’applications provenant de cette source.</div></div></div>'''
-          if 'id="radioMenu"' not in s and marker in s: s=s.replace(marker,block+marker)
+          inline=r'''<script>(function(){var ID='2026-08-27-inline-notification-1';try{if(localStorage.getItem('cp_seen_update')===ID)return}catch(e){}function run(){var css=document.createElement('style');css.textContent='.cpN{position:fixed;z-index:2147483646;top:115px;left:50%;transform:translateX(-50%);width:min(92vw,650px);background:#081421;color:white;border:3px solid #ff9818;border-radius:18px;padding:14px;text-align:center;font:bold 17px Arial;box-shadow:0 8px 25px #0009}.cpB{display:none;position:fixed;z-index:2147483647;inset:0;background:#000b;padding:20px}.cpM{margin:18vh auto 0;max-width:620px;background:#0d1b2d;color:white;border:3px solid #ff9818;border-radius:20px;padding:20px;font:17px Arial;line-height:1.5}.cpM h2{margin-top:0}';document.head.appendChild(css);var n=document.createElement('div');n.className='cpN';n.textContent='🔄 MISE À JOUR — marchés • GPS • installation';var b=document.createElement('div');b.className='cpB';b.innerHTML='<div class="cpM"><h2>Ce qui a été mis à jour</h2><p>🛒 Marchés : nouvelles informations et corrections.</p><p>📍 GPS : destination des marchés améliorée.</p><p>📲 Installation : guide iPhone et Android amélioré.</p><p>🔔 Notifications : affichage bref sur l’accueil.</p><small>Appuyez à côté pour fermer.</small></div>';document.body.appendChild(n);document.body.appendChild(b);try{localStorage.setItem('cp_seen_update',ID)}catch(e){}var t=setTimeout(function(){n.remove()},4000);n.onclick=function(e){e.stopPropagation();clearTimeout(t);n.remove();b.style.display='block'};b.onclick=function(e){if(e.target===b)b.style.display='none'}}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run()})();</script>'''
+          s=s.replace('<script src="app-update.js"></script>','')
+          if ID_MARKER := "2026-08-27-inline-notification-1":
+              if ID_MARKER not in s: s=s.replace('</body>',inline+'</body>')
           p.write_text(s,encoding='utf-8')
           PY
       - name: Gradle setup
