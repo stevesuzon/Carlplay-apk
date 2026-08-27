@@ -46,6 +46,31 @@ jobs:
           PY
       - name: Generate clean market pages
         run: python3 assets-src/generate_markets.py
+      - name: Add market update popup and precise navigation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          A=Path('app/src/main/assets')
+          # Notification de mise à jour sur la page d'accueil.
+          p=A/'index.html'
+          s=p.read_text(encoding='utf-8',errors='ignore')
+          tag='<script src="app-update.js"></script>'
+          if tag not in s:
+              s=s.replace('</body>',tag+'</body>')
+          p.write_text(s,encoding='utf-8')
+
+          # Navigation: utiliser d'abord des coordonnées éventuelles, sinon l'emplacement/adresse,
+          # sans envoyer « marché + ville » à Maps/Waze (évite les boutiques homonymes).
+          old="function goMarket(i){var r=rows()[i];var q=encodeURIComponent((r[2]||'')+' '+(r[3]||''));window.location.href='https://www.google.com/maps/search/?api=1&query='+q}"
+          new="""function goMarket(i){var r=rows()[i],town=r[1]||'',name=r[2]||'',place=r[3]||'',lat=r[10],lon=r[11],pref=localStorage.getItem('gps_pref')||'Google Maps';var text=(place&&place!=='À préciser'&&place!=='A préciser')?(place+', '+town):town;var low=(town+' '+name+' '+place).toLowerCase();if(low.indexOf('melesse')>=0)text=\"Place de l'Église, 35520 Melesse\";var hasCoord=lat!==undefined&&lon!==undefined&&!isNaN(parseFloat(lat))&&!isNaN(parseFloat(lon));if(hasCoord){var ll=parseFloat(lat)+','+parseFloat(lon);window.location.href=pref==='Waze'?'https://waze.com/ul?ll='+encodeURIComponent(ll)+'&navigate=yes':'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(ll)+'&travelmode=driving&dir_action=navigate';return}var q=encodeURIComponent(text);window.location.href=pref==='Waze'?'https://waze.com/ul?q='+q+'&navigate=yes':'https://www.google.com/maps/dir/?api=1&destination='+q+'&travelmode=driving&dir_action=navigate'}"""
+          for f in ['marches.html','belgique-marches.html']:
+              q=A/f
+              t=q.read_text(encoding='utf-8',errors='ignore')
+              if old in t:
+                  t=t.replace(old,new)
+              q.write_text(t,encoding='utf-8')
+          PY
       - name: Add autoradio download and USB guide
         shell: bash
         run: |
