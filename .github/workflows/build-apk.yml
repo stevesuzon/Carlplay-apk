@@ -46,16 +46,20 @@ jobs:
           PY
       - name: Generate clean market pages
         run: python3 assets-src/generate_markets.py
-      - name: Add inline update popup
+      - name: Add visible update notification
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p=Path('app/src/main/assets/index.html')
           s=p.read_text(encoding='utf-8',errors='ignore')
-          inline=r'''<script>(function(){var ID='2026-08-27-inline-notification-1';try{if(localStorage.getItem('cp_seen_update')===ID)return}catch(e){}function run(){var css=document.createElement('style');css.textContent='.cpN{position:fixed;z-index:2147483646;top:115px;left:50%;transform:translateX(-50%);width:min(92vw,650px);background:#081421;color:white;border:3px solid #ff9818;border-radius:18px;padding:14px;text-align:center;font:bold 17px Arial;box-shadow:0 8px 25px #0009}.cpB{display:none;position:fixed;z-index:2147483647;inset:0;background:#000b;padding:20px}.cpM{margin:18vh auto 0;max-width:620px;background:#0d1b2d;color:white;border:3px solid #ff9818;border-radius:20px;padding:20px;font:17px Arial;line-height:1.5}.cpM h2{margin-top:0}';document.head.appendChild(css);var n=document.createElement('div');n.className='cpN';n.textContent='🔄 MISE À JOUR — marchés • GPS • installation';var b=document.createElement('div');b.className='cpB';b.innerHTML='<div class="cpM"><h2>Ce qui a été mis à jour</h2><p>🛒 Marchés : nouvelles informations et corrections.</p><p>📍 GPS : destination des marchés améliorée.</p><p>📲 Installation : guide iPhone et Android amélioré.</p><p>🔔 Notifications : affichage bref sur l’accueil.</p><small>Appuyez à côté pour fermer.</small></div>';document.body.appendChild(n);document.body.appendChild(b);try{localStorage.setItem('cp_seen_update',ID)}catch(e){}var t=setTimeout(function(){n.remove()},4000);n.onclick=function(e){e.stopPropagation();clearTimeout(t);n.remove();b.style.display='block'};b.onclick=function(e){if(e.target===b)b.style.display='none'}}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run()})();</script>'''
-          s=s.replace('<script src="app-update.js"></script>','')
-          if '2026-08-27-inline-notification-1' not in s: s=s.replace('</body>',inline+'</body>')
+          # Remove previous injected notification if present, then inject a fresh version id.
+          start=s.find('<!-- CP_UPDATE_START -->')
+          end=s.find('<!-- CP_UPDATE_END -->')
+          if start!=-1 and end!=-1:
+              s=s[:start]+s[end+len('<!-- CP_UPDATE_END -->'):]
+          inline=r'''<!-- CP_UPDATE_START --><style>#cpUpdateNotice{position:fixed!important;z-index:2147483647!important;top:118px!important;left:4%!important;width:92%!important;box-sizing:border-box!important;background:#07111f!important;color:#fff!important;border:3px solid #ff9818!important;border-radius:18px!important;padding:13px 10px!important;text-align:center!important;font:bold 17px Arial,sans-serif!important;box-shadow:0 8px 24px #000a!important}#cpUpdateDetail{display:none;position:fixed;z-index:2147483647;inset:0;background:#000c;padding:18px}.cpUpdateBox{margin:17vh auto 0;max-width:620px;background:#0d1b2d;color:#fff;border:3px solid #ff9818;border-radius:20px;padding:20px;font:17px Arial;line-height:1.45}</style><div id="cpUpdateNotice" onclick="cpOpenUpdate()">🔔 NOUVELLE MISE À JOUR — APPUYEZ ICI</div><div id="cpUpdateDetail" onclick="if(event.target===this)this.style.display='none'"><div class="cpUpdateBox"><h2>🔄 Mise à jour</h2><p>🛒 Marchés : informations et corrections.</p><p>📍 GPS : destinations améliorées.</p><p>📲 Installation : iPhone et Android.</p><p>🔔 Notifications : nouveau système d’affichage.</p><small>Appuyez à côté pour fermer.</small></div></div><script>window.cpOpenUpdate=function(){var n=document.getElementById('cpUpdateNotice');if(n)n.style.display='none';var d=document.getElementById('cpUpdateDetail');if(d)d.style.display='block';try{localStorage.setItem('cp_seen_update_v2','2026-08-27-notification-v2')}catch(e){}};(function(){var seen=false;try{seen=localStorage.getItem('cp_seen_update_v2')==='2026-08-27-notification-v2'}catch(e){}var n=document.getElementById('cpUpdateNotice');if(seen&&n)n.style.display='none';if(!seen&&n)setTimeout(function(){if(n&&n.parentNode)n.style.display='none';try{localStorage.setItem('cp_seen_update_v2','2026-08-27-notification-v2')}catch(e){}},4000)})();</script><!-- CP_UPDATE_END -->'''
+          s=s.replace('</body>',inline+'</body>')
           p.write_text(s,encoding='utf-8')
           PY
       - name: Gradle setup
