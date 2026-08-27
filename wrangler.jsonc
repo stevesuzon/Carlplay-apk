@@ -8,6 +8,6 @@
     "not_found_handling": "single-page-application"
   },
   "vars": {
-    "DEPLOY_TRIGGER": "2026-08-27-2322"
+    "DEPLOY_TRIGGER": "2026-08-27-2338"
   }
 }
