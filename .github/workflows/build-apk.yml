@@ -47,6 +47,20 @@ jobs:
           PY
       - name: Generate clean market pages
         run: python3 assets-src/generate_markets.py
+      - name: Apply verified market updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp assets-src/verified-market-patches.js app/src/main/assets/verified-market-patches.js
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/src/main/assets/marches.html')
+          s=p.read_text(encoding='utf-8',errors='ignore')
+          tag='<script src="verified-market-patches.js"></script>'
+          if tag not in s:
+              s=s.replace('</body>',tag+'</body>')
+          p.write_text(s,encoding='utf-8')
+          PY
       - name: Add visible update notification
         shell: bash
         run: |
