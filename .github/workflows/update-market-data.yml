@@ -1,0 +1,29 @@
+name: Update market data
+
+on:
+  push:
+    paths:
+      - 'scripts/update_market_data.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-market-zip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch market data in canonical ZIP
+        run: python3 scripts/update_market_data.py
+      - name: Commit updated ZIP
+        run: |
+          if git diff --quiet -- CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip; then
+            echo "No ZIP change needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
+          git commit -m "Marchés: ajoute Village de Noël Périgueux 2026"
+          git push
