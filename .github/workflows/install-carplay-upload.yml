@@ -1,0 +1,43 @@
+name: Install uploaded CarPlay ZIP
+on:
+  push:
+    paths:
+      - 'CarPlay-TELEPHONE-V5-CORRECTION-IMPORT-MARCHES-IPHONE.zip'
+      - '.github/workflows/install-carplay-upload.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install-site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace site with uploaded ZIP
+        shell: bash
+        run: |
+          ZIP='CarPlay-TELEPHONE-V5-CORRECTION-IMPORT-MARCHES-IPHONE.zip'
+          if [ ! -f "$ZIP" ]; then
+            echo "ZIP already installed"
+            exit 0
+          fi
+          rm -rf public src
+          unzip -o "$ZIP"
+          rm "$ZIP"
+          if find public src -type f \( -iname '*MARCHES-PRIVES*' -o -iname '*IMPORT-D1.json' \) | grep -q .; then
+            echo "Private market JSON detected: deployment stopped"
+            exit 1
+          fi
+      - name: Commit installed site
+        shell: bash
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No change"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Installe correction import marchés iPhone"
+          git push
