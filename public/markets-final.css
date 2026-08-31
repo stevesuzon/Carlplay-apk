@@ -1,0 +1,19 @@
+@import url("markets-base.css");
+@import url("markets-final-picker.css");
+.tradeLine select{width:min(380px,90vw);height:56px;border:3px solid #62d8ff;border-radius:14px;background:#081727;color:#fff;font-size:22px;font-weight:950;padding:8px 13px;text-align:center}.tradeLine input[hidden]{display:none!important}
+/* 2026-08-25: météo globale masquée sur les pages Marchés; météo propre à chaque marché conservée */
+body #weatherBubble{display:none!important}
+
+
+/* 2026-08-27 — 2 colonnes, toutes les informations visibles */
+.cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:stretch}
+.card{min-width:0!important;height:auto!important;overflow:visible!important}
+.card .name,.card .meta{overflow-wrap:anywhere}
+@media(max-width:760px){
+  .cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  .card{padding:11px!important;border-radius:16px!important}
+  .name{font-size:18px!important;line-height:1.12!important}
+  .meta{font-size:13px!important;line-height:1.28!important;margin-top:6px!important}
+  .actions{display:grid!important;grid-template-columns:1fr!important;gap:7px!important;margin-top:10px!important}
+  .actions .go,.actions .verify{min-height:45px!important;font-size:13px!important;padding:6px!important}
+}

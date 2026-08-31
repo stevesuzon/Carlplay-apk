@@ -1,0 +1,12 @@
+CORRECTION DU BUILD CLOUDFLARE
+Le build cherchait src/index.js mais ce fichier n'existait pas.
+Cette archive contient maintenant :
+- src/index.js
+- wrangler.jsonc -> main = src/index.js
+- wrangler.toml -> main = src/index.js
+
+Les corrections précédentes sont conservées :
+- codes 6 caractères lettres + chiffres
+- clavier 0=0 et 1=1
+- 1 poste + 1 téléphone
+- renouvellement après expiration

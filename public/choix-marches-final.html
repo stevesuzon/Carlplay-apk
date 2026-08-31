@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
+<title>Marchés</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:linear-gradient(135deg,#152f42,#6d4b28);color:#fff}body:before{content:"";position:fixed;inset:0;background:radial-gradient(circle at 50% 20%,rgba(255,170,35,.25),transparent 42%);pointer-events:none}.wrap{position:relative;width:min(760px,94vw);margin:auto;padding:18px 0 34px}.back{display:inline-flex;align-items:center;padding:12px 17px;border-radius:14px;background:linear-gradient(135deg,#ff9a19,#ff5b00);color:#fff;text-decoration:none;font-weight:950;box-shadow:0 6px 18px #0006}.hero{margin:14px 0;padding:18px;border-radius:22px;background:#0d1420e8;border:2px solid #ffffff20;text-align:center}.hero h1{margin:0;font-size:34px}.hero p{margin:8px 0 0;color:#e7e7e7;font-weight:750;line-height:1.35}.box{margin:14px 0;padding:18px;border-radius:24px;background:#0b111be8;border:3px solid #f39b19;box-shadow:0 8px 24px #0006}.box h2{margin:0 0 7px;font-size:27px}.box p{margin:0 0 14px;color:#ddd;font-weight:750;line-height:1.35}.flag{font-size:28px}.line{display:grid;grid-template-columns:1fr auto;gap:9px}.input{width:100%;min-height:58px;border:3px solid #62d8ff;border-radius:15px;background:#081727;color:#fff;padding:10px 13px;text-align:center;font:950 21px Arial}.go{min-width:128px;border:0;border-radius:15px;background:linear-gradient(135deg,#ffad25,#ff6500);color:#fff;padding:0 15px;font:950 16px Arial;cursor:pointer}.hint{min-height:18px;margin-top:9px;color:#ffd36d;font:850 13px Arial;text-align:center}.near{width:100%;min-height:92px;border:0;border-radius:20px;background:linear-gradient(135deg,#08b96d,#048be8);color:#fff;font:950 25px/1.1 Arial;box-shadow:0 8px 24px #0007;cursor:pointer}.near small{display:block;margin-top:7px;font-size:13px;font-weight:800;color:#eafff7}.privacy{margin-top:9px;text-align:center;color:#bfeedd;font:800 12px/1.35 Arial}.provinceList{margin-top:8px;color:#cfd8e3;font-size:12px;text-align:center;line-height:1.35}@media(max-width:520px){.wrap{width:94vw}.line{grid-template-columns:1fr}.go{min-height:54px}.hero h1{font-size:30px}.box h2{font-size:23px}.near{font-size:22px}}
+.input option{background:#081727;color:#fff}</style>
+</head>
+<body>
+<main class="wrap">
+<a class="back" href="index.html">← RETOUR</a>
+<section class="hero"><h1>🛍️ TROUVER UN MARCHÉ</h1><p>Choisis simplement comment tu veux trouver ton marché aujourd’hui.</p></section>
+<section class="box">
+<h2>🇫🇷 FRANCE — PAR DÉPARTEMENT</h2>
+<p>Tape seulement le numéro du département. Les marchés du jour s’affichent directement.</p>
+<div class="line"><input id="frInput" class="input" inputmode="text" maxlength="3" placeholder="Ex. 35, 75, 94, 2A"><button id="frGo" class="go" type="button">VOIR LES MARCHÉS</button></div>
+<div id="frMsg" class="hint"></div>
+</section>
+<section class="box">
+<h2>🇧🇪 BELGIQUE — PAR PROVINCE</h2>
+<p>Comme un département français : choisis une province pour voir tous ses marchés.</p>
+<div class="line"><select id="beInput" class="input"><option value="">— CHOISIR UNE PROVINCE —</option><option value="bruxelles">Bruxelles-Capitale</option><option value="anvers">Province d’Anvers</option><option value="limbourg">Province de Limbourg</option><option value="flandre-occidentale">Flandre-Occidentale</option><option value="flandre-orientale">Flandre-Orientale</option><option value="brabant-flamand">Brabant flamand</option><option value="brabant-wallon">Brabant wallon</option><option value="hainaut">Province de Hainaut</option><option value="liege">Province de Liège</option><option value="luxembourg">Province de Luxembourg</option><option value="namur">Province de Namur</option><option value="special:noel">🎄 Marchés de Noël</option><option value="special:brocante">🧺 Brocantes & vide-greniers</option></select><button id="beGo" class="go" type="button">VOIR LES MARCHÉS</button></div>
+<div id="beMsg" class="hint"></div>
+<div class="provinceList">Exemple : Hainaut affiche Charleroi, Mons, Tournai et les autres villes de cette province.</div>
+</section>
+
+</main>
+<script src="market-config-be.js"></script>
+<script>
+(function(){
+'use strict';
+var today=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][new Date().getDay()];
+function openFR(){var v=String(document.getElementById('frInput').value||'').toUpperCase().replace(/\s/g,'');if(!/^(?:0[1-9]|[1-8][0-9]|9[0-5]|2A|2B|97[1-6])$/.test(v)){document.getElementById('frMsg').textContent='Entre un département valide, par exemple 35 ou 94.';return}location.href='marches-final.html?area='+encodeURIComponent(v)+'&day='+encodeURIComponent(today)}
+function openBE(){var area=document.getElementById('beInput').value;if(area==='special:noel'){location.href='belgique-categorie.html?kind=noel';return}if(area==='special:brocante'){location.href='belgique-categorie.html?kind=brocante';return}if(!area){document.getElementById('beMsg').textContent='Choisis une province ou une catégorie dans le menu.';return}location.href='belgique-marches-final.html?area='+encodeURIComponent(area)+'&day='+encodeURIComponent(today)}
+document.getElementById('frGo').onclick=openFR;document.getElementById('beGo').onclick=openBE;document.getElementById('frInput').addEventListener('keydown',function(e){if(e.key==='Enter')openFR()});
+
+})();
+</script>
+</body></html>

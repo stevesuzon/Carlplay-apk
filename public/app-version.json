@@ -1,0 +1,7 @@
+{
+  "version": "V35",
+  "message": "Les marchés France et Belgique sont maintenant protégés sur le serveur.",
+  "updatedAt": "2026-08-31T12:30:00+02:00",
+  "build": "20260831-1400",
+  "note": "Aucune liste de marchés n’est stockée dans le ZIP. D1 doit être relié et rempli avec le fichier privé d’import."
+}

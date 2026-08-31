@@ -1,13 +1,20 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "carplay-telephone",
-  "compatibility_date": "2026-08-27",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-01",
+  "keep_vars": true,
   "assets": {
-    "directory": "./app/src/main/assets",
+    "directory": "./public",
     "binding": "ASSETS",
+    "run_worker_first": true,
     "not_found_handling": "single-page-application"
   },
-  "vars": {
-    "DEPLOY_TRIGGER": "2026-08-27-2341"
-  }
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "carplay-metiers",
+      "database_id": "8c139641-68af-44cc-aa8f-2a68af669c4a"
+    }
+  ]
 }

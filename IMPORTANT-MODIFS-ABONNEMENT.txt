@@ -1,0 +1,7 @@
+MODIFICATIONS AJOUTÉES
+- Dès qu'une vraie licence est activée, MODE ESSAI disparaît et ne revient plus.
+- Si la licence payante expire, l'application revient en MODE DÉSACTIVÉ, pas en essai.
+- La météo disparaît quand Réglages est ouvert afin de laisser visible la section ABONNEMENT.
+- DÉMARCHES PRO est verrouillé comme Marchés / Coin de Chine / Retourner sur la place lorsque l'abonnement est inactif ou expiré.
+- Accès direct à documents-travail.html également bloqué sans abonnement.
+- Cache incrémenté pour forcer l'iPhone à charger la nouvelle version.

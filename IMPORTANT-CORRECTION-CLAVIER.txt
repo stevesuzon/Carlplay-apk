@@ -1,0 +1,5 @@
+Correction clavier abonnement :
+- touche 1 = 1
+- touche 0 = 0
+- aucun chiffre n'est remplacé automatiquement
+- les codes restent sur 6 caractères lettres + chiffres

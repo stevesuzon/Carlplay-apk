@@ -1,0 +1,9 @@
+V25 BELGIQUE - BRUXELLES MAX - 31/08/2026
+
+- Reprise de la V24 Flandre MAX.
+- Ajout d'un gros lot Bruxelles-Capitale vérifié prioritairement sur sources communales officielles.
+- Ajouts notamment: Anderlecht, Berchem-Sainte-Agathe, Etterbeek, Evere, Forest, Ganshoren, Ixelles, Jette, Molenbeek-Saint-Jean, Saint-Josse-ten-Noode, Watermael-Boitsfort, Woluwe-Saint-Pierre.
+- Marchés réguliers, brocantes, marchés annuels/saisonniers et Noël quand date 2026 disponible.
+- Conservation de la mention "À vérifier" quand l'horaire officiel n'est pas publié précisément.
+- Nettoyage final de 2 vrais doublons exacts à Gand (Vrijdagmarkt vendredi et Van Beverenplein dimanche), en conservant les versions sourcées.
+- Contrôle syntaxe JavaScript OK.

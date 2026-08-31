@@ -1,0 +1,10 @@
+Mise à jour marchés vérifiés — 28/08/2026
+
+Intégration prudente dans public/market-data-fr.js des données consolidées déjà vérifiées :
+- Dordogne 24 : Saint-Astier, Montpon-Ménestérol (Thiviers existant conservé).
+- Bretagne : Brest corrigé selon page officielle mise à jour le 01/07/2026.
+- Île-de-France : Argenteuil, Pontoise, Nanterre, Cergy, Melun, Charenton-le-Pont, Vitry-sur-Seine, Évry-Courcouronnes.
+
+Règle appliquée : aucun champ incertain n'a été inventé. Les effectifs anciens de Cergy sont explicitement marqués « Ville 2023 · à revalider 2026 ». Les horaires non suffisamment confirmés restent « à vérifier ».
+
+Les autres données et fonctions de l'application ont été conservées.

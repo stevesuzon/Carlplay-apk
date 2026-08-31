@@ -1,0 +1,8 @@
+AJOUT EFFECTUÉ DANS CETTE VERSION
+
+- Le lien partagé ouvre installer.html.
+- Bouton « TÉLÉCHARGER L’APK POUR ANDROID » : téléchargement direct de l’APK.
+- Bouton « TÉLÉCHARGER IPHONE » : ouverture du tutoriel vidéo.
+- La vidéo masque les contacts Snapchat et met les boutons en évidence.
+- Au début : « COMMENT METTRE L’APPLI SUR IPHONE ».
+- À la fin de la vidéo : ouverture automatique de l’application pour refaire les étapes.

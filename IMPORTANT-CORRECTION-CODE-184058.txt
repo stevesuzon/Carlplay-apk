@@ -1,0 +1,10 @@
+Cette version a été modifiée DIRECTEMENT à partir de :
+CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5(20260826-184058).zip
+
+Corrections ajoutées :
+- codes 6 caractères lettres + chiffres ;
+- mêmes codes reconnus par le générateur et l'application ;
+- 1 autoradio/poste + 1 téléphone maximum par code ;
+- refus d'un troisième appareil ;
+- réactivation du même code après expiration des 365 jours ;
+- cache forcé pour charger la nouvelle logique.

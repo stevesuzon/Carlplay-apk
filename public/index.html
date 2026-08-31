@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
+<title>Appli Téléphone</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CarPlay">
+<meta name="theme-color" content="#e31319">
+<link rel="manifest" href="/manifest.webmanifest?v=carplay-noir-rouge">
+<link rel="apple-touch-icon" sizes="180x180" href="/carplay-noir-rouge-180.png?v=1">
+<style>*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;color:#fff;background:linear-gradient(135deg,#152f42,#6d4b28)}body:before{content:'';position:fixed;inset:0;background:radial-gradient(circle at 50% 35%,rgba(255,190,70,.32),transparent 42%),linear-gradient(180deg,rgba(0,90,150,.12),rgba(60,20,0,.38));pointer-events:none}.wrap{position:relative;width:min(1100px,94vw);margin:auto;padding:24px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.status{font-weight:800;text-shadow:0 2px 4px #000}.gear{width:68px;height:68px;border-radius:50%;background:#293448;border:2px solid #8792a5;display:flex;align-items:center;justify-content:center;font-size:36px;cursor:pointer;position:relative;z-index:1002}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.card{border-radius:28px;min-height:230px;padding:25px;box-shadow:0 8px 24px #0007;border:2px solid #ffffff55;cursor:pointer;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden}.blue{background:linear-gradient(145deg,#05aaff,#1934d7)}.orange{background:linear-gradient(145deg,#ff9a19,#ff3d00)}.bottom{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}.small{min-height:118px;border-radius:26px;padding:10px 22px;display:flex;align-items:center;justify-content:center;gap:12px;font-size:24px;font-weight:900;box-shadow:0 8px 24px #0007;border:2px solid #ffffff55;cursor:pointer;position:relative;overflow:hidden}.green{background:linear-gradient(135deg,#09d66f,#00a5f4)}.red{background:linear-gradient(135deg,#ff456d,#ff1d24)}.tag{align-self:flex-end;border-radius:30px;background:#183f91aa;border:2px solid #ffffff55;padding:9px 16px;font-size:18px;font-weight:800;position:relative;z-index:3}.title{font-size:42px;font-weight:900;margin:18px 0 4px;text-shadow:0 3px 8px #0005;line-height:1.05}.marketText{margin-left:220px;position:relative;z-index:2;padding-right:8px}.vehicleVisual{position:absolute;left:10px;bottom:14px;width:220px;height:205px;display:flex;align-items:flex-end;justify-content:center;z-index:1}.vehicleVisual img{width:100%;height:100%;object-fit:contain;object-position:center;border-radius:0;filter:drop-shadow(0 10px 11px #0009)}.chinaTitle{max-width:58%;font-size:32px;position:relative;z-index:2}.chinaVisual{position:absolute;right:8px;bottom:4px;width:46%;height:178px;display:flex;align-items:flex-end;justify-content:flex-end;z-index:1}.chinaVisual img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 8px 10px #0008)}.returnVehicle{display:flex;align-items:center;justify-content:center;width:180px;height:105px;flex:0 0 180px}.returnVehicle img{width:180px;height:105px;object-fit:contain;filter:drop-shadow(0 5px 7px #0008)}.settings{display:none;position:fixed;top:0;right:0;bottom:0;width:min(430px,94vw);z-index:1001;padding:18px;background:#101724f5;border-left:2px solid #ffffff35;box-shadow:-10px 0 30px #0009;overflow-y:auto}.settings.open{display:block}.settings h2{margin:5px 0 14px;font-size:28px}.settingRow{margin:10px 0;border-radius:17px;overflow:hidden;background:#1d293c;border:1px solid #ffffff24}.settingHead{width:100%;padding:18px;border:0;background:#263650;color:#fff;font-size:20px;font-weight:900;text-align:left;display:flex;justify-content:space-between;align-items:center;cursor:pointer}.settingBody{display:none;padding:10px}.settingBody.open{display:block}.settingBody button{width:100%;margin:6px 0;padding:16px;border:0;border-radius:14px;font-size:18px;font-weight:850;background:#eef2f8;color:#172033;cursor:pointer}.settingBody .selected{outline:4px solid #ffb62e;background:#fff4d8}.settingNote{font-size:13px;color:#d7dde8;padding:7px 4px 3px;line-height:1.4}.closeSettings{width:100%;margin-top:14px;padding:17px;border:0;border-radius:15px;background:#d34343;color:#fff;font-size:19px;font-weight:900}.saved{text-align:center;margin-top:8px;font-weight:700}@media(max-width:720px){.grid,.bottom{grid-template-columns:1fr}.title{font-size:32px}.marketText{margin-left:160px}.vehicleVisual{width:160px;height:165px}.chinaTitle{max-width:60%;font-size:28px}.chinaVisual{width:42%;height:150px}.returnVehicle{width:145px;flex-basis:145px}.returnVehicle img{width:145px;height:95px}}
+.returnPlaceTrafic{padding:0!important;overflow:hidden!important;background:transparent!important;display:block!important}
+.returnPlaceTraficImg{width:100%!important;height:100%!important;object-fit:cover!important;display:block!important;background:transparent!important}
+@media(max-width:720px){.returnPlaceTrafic{padding:0!important}.returnPlaceTraficImg{width:100%!important;height:100%!important;object-fit:cover!important}}
+
+/* Alertes papiers : plein écran, 7 jours avant, 1 fois/24h, 3 fois max */
+#paperRenewalOverlay{display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,.78);padding:18px;align-items:center;justify-content:center}
+#paperRenewalOverlay.open{display:flex}
+#paperRenewalBubble{position:relative;width:min(560px,94vw);border:3px solid #ffb12b;border-radius:30px;background:linear-gradient(155deg,#30160f,#151018 72%);box-shadow:0 20px 60px #000c,0 0 0 5px #ff8a0018;padding:64px 22px 30px;text-align:center;color:#fff}
+#paperRenewalBack{position:absolute;top:14px;left:14px;width:48px;height:48px;border:0;border-radius:50%;background:#ff9d19;color:#17100b;font-size:30px;font-weight:950;line-height:48px;box-shadow:0 5px 15px #0007}
+#paperRenewalIcon{font-size:58px;line-height:1;margin-bottom:12px}
+#paperRenewalTitle{font:950 clamp(25px,7vw,38px)/1.04 Arial,sans-serif;margin:0 0 16px;color:#ffcf49}
+#paperRenewalText{font:800 clamp(18px,5vw,25px)/1.35 Arial,sans-serif;margin:0}
+#paperRenewalHint{font:700 14px/1.35 Arial,sans-serif;color:#d8ccd5;margin:18px 0 0}
+body.settings-open #weatherBubble,body.settings-open #unifiedTop{display:none!important}body.settings-open{padding-top:0!important}</style>
+<style id="weatherStyle">#weatherBubble{position:fixed;z-index:999;top:78px;left:50%;transform:translateX(-50%);max-width:42vw;min-width:330px;padding:8px 14px;border-radius:18px;border:2px solid #f39b19;background:rgba(5,10,18,.92);color:#fff;text-align:center;font:900 16px Arial;box-shadow:0 5px 14px #0008;white-space:normal;overflow:hidden;text-overflow:ellipsis;line-height:1.2}#weatherBubble .weatherMain{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#weatherBubble .weatherDate{margin-top:4px;font-size:12px;color:#fff}body{padding-top:78px!important}#network{display:none!important}.gear{position:fixed!important;top:8px!important;right:14px!important;width:74px!important;height:74px!important;font-size:39px!important;z-index:1600!important}.top{min-height:72px!important;margin-bottom:8px!important}@media(max-width:720px){#weatherBubble{top:74px!important;min-width:0!important;width:calc(100vw - 110px)!important;max-width:360px!important;font-size:12px!important;padding:6px 10px!important}.weatherDate{font-size:11px!important}}
+</style>
+<style id="homeLayoutClean">
+.directLinks{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:0 0 18px}
+.directBtn{min-height:190px;border:2px solid #ffffff66;border-radius:28px;padding:25px;color:#fff;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:25px;text-align:center;font:950 32px/1.12 Arial,sans-serif;box-shadow:0 8px 24px #0008;text-shadow:0 3px 7px #0005;overflow:hidden}
+.directBtn.place{background:linear-gradient(135deg,#f12f79,#ff6812)}
+.directBtn.docs{background:linear-gradient(135deg,#9629e8,#087ee5)}
+.directIcon{width:76px;height:76px;display:flex;align-items:center;justify-content:center;flex:0 0 76px}
+.directIcon svg{width:100%;height:100%;filter:drop-shadow(0 5px 5px #0006)}
+#directArticle{position:fixed;left:7px;top:52%;transform:translateY(-50%);z-index:1900;width:92px;min-height:94px;padding:10px 7px;border:2px solid #ffc34d;border-radius:17px;background:linear-gradient(180deg,#ff7a00,#e23b00);box-shadow:0 5px 18px #0008;color:#fff;text-align:center;font:950 13px/1.1 Arial,sans-serif;cursor:pointer}
+#directArticle span{display:block;font-size:27px;margin-bottom:5px}
+#directArticleModal{display:none;position:fixed;inset:0;z-index:2147483646;background:#000c;align-items:center;justify-content:center;padding:18px;overflow:auto}
+#directArticleModal.open{display:flex}
+#directArticleModal .panel{position:relative;width:min(560px,94vw);max-height:92vh;overflow:auto;background:#111923;border:3px solid #f39b19;border-radius:22px;padding:23px;color:#fff;box-shadow:0 15px 45px #000c}
+#directArticleModal h2{margin:0 0 18px;text-align:center;font-size:27px}
+#directArticleModal h3{margin:18px 0 9px;font-size:18px;color:#ffd27d}
+#directArticleModal .verifiedProfessionals{margin:0 0 18px;padding:14px;border:2px solid #55d985;border-radius:14px;background:#123a25;color:#fff;text-align:center;font-size:16px;font-weight:900;line-height:1.35}
+#directArticleModal .verifiedProfessionals strong{display:block;margin-bottom:4px;color:#75f0a3;font-size:19px}
+#directArticleModal button{width:100%;padding:15px;border:0;border-radius:13px;background:#f39b19;color:#111;font-size:18px;font-weight:950;cursor:pointer}
+#directArticleModal .articleIntro{font-size:16px;line-height:1.4;text-align:center}
+#directArticleModal .paperChoices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#directArticleModal .paperChoice{box-sizing:border-box;min-width:0;padding:12px 2px;background:#263442;color:#fff;border:2px solid #53687a;font-size:clamp(9px,2.8vw,14px);line-height:1.1;white-space:nowrap;overflow:hidden}
+#directArticleModal .paperChoices[data-choice="requestType"] .paperChoice{font-size:clamp(8px,2.35vw,11px);letter-spacing:-.35px}
+#directArticleModal .paperChoice.selected{background:#f39b19;color:#111;border-color:#ffd27d}
+#directArticleModal .paperField{display:block;margin-top:12px;font-size:15px;font-weight:900}
+#directArticleModal .paperField input{box-sizing:border-box;width:100%;margin-top:6px;padding:13px;border:2px solid #64788b;border-radius:11px;background:#fff;color:#111;font-size:17px}
+#directArticleModal .paperMailHelp{margin:15px 0 10px;text-align:center;color:#dce7ef;font-size:14px;line-height:1.35}
+#directArticleModal #paperMailButton:disabled{background:#66543c;color:#b9afa3;opacity:.65;cursor:not-allowed}
+#directArticleModal .paperTopBack{position:absolute;top:14px;left:14px;width:48px!important;height:48px;padding:0!important;border:2px solid #f39b19!important;border-radius:50%!important;background:#263442!important;color:#fff!important;font-size:27px!important;line-height:1!important;z-index:2}
+#directArticleModal .paperClose{margin-top:10px!important;background:#1e2933!important;color:#fff!important;font-size:15px!important}
+#directArticleModal .myposPreview{display:none;width:100%;max-height:52vh;object-fit:contain;margin:12px 0;border:2px solid #f39b19;border-radius:14px;background:#050505}
+#directArticleModal .myposPreview.visible{display:block}
+#directArticleModal .myposChoices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#directArticleModal .myposChoice{min-width:0;padding:13px 4px!important;background:#263442!important;color:#fff!important;border:2px solid #53687a!important;font-size:15px!important}
+#directArticleModal .myposChoice.selected{background:#f39b19!important;color:#111!important;border-color:#ffd27d!important}
+#directArticleModal .myposRequestBox{margin:14px 0 16px;padding:12px;border:2px solid #f39b19;border-radius:14px;background:#21180a}
+#directArticleModal .myposRequestTitle{margin:0 0 10px;text-align:center;color:#ffd84a;font-weight:950;font-size:16px}
+#directArticleModal .myposRequestHint{margin:12px 2px 6px;text-align:center;color:#fff;font-size:13px;font-weight:850;line-height:1.3}
+#directArticleModal .myposRequestChoice{width:100%;padding:13px 10px!important;background:#263442!important;color:#fff!important;border:2px solid #53687a!important;border-radius:13px!important;font-size:16px!important;font-weight:950!important}
+#directArticleModal .myposRequestChoice.selected{background:#f39b19!important;color:#111!important;border-color:#ffd27d!important}
+#directArticleModal #myposMailButton:disabled{background:#66543c;color:#b9afa3;opacity:.65;cursor:not-allowed}
+@media(max-width:420px){#directArticleModal{padding:8px}#directArticleModal .panel{width:96vw;padding:18px 12px}#directArticleModal h2{font-size:24px;padding-left:42px;padding-right:12px}#directArticleModal .paperChoices{gap:6px}#directArticleModal .paperChoice{font-size:clamp(8px,2.65vw,11px)}#directArticleModal .paperChoices[data-choice="requestType"] .paperChoice{font-size:9px;letter-spacing:-.45px}}
+body.homeChromeHidden .gear,body.homeChromeHidden .subscription-home-status,body.homeChromeHidden #weatherBubble{opacity:0!important;pointer-events:none!important;transform:translateY(-120px)!important}
+.gear,.subscription-home-status,#weatherBubble{transition:opacity .18s ease,transform .18s ease!important}
+@media(max-width:720px){
+  .wrap{width:100%!important;max-width:720px!important;padding:12px 8px 22px!important;margin:0 auto!important}
+  .grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-auto-rows:164px!important;gap:8px!important;width:100%!important}
+  .card,.directBtn,.small{box-sizing:border-box!important;width:100%!important;min-width:0!important;height:164px!important;min-height:164px!important;max-height:164px!important;border-radius:18px!important;padding:7px 5px!important;margin:0!important}
+  .directBtn{font-size:13px!important;line-height:1.03!important;gap:4px!important;flex-direction:column!important}
+  .directIcon{width:58px!important;height:58px!important;flex-basis:58px!important;font-size:48px!important}
+  .card.blue .marketText{position:absolute!important;top:8px!important;left:0!important;margin:0!important;width:100%!important;padding:0 5px!important;text-align:center!important}
+  .card.blue .title{margin:0!important;font-size:17px!important;white-space:nowrap!important}
+  .card.blue .vehicleVisual{left:50%!important;bottom:-2px!important;transform:translateX(-50%)!important;width:96%!important;height:78%!important}
+  .card.blue .tag{display:none!important}
+  .card.orange .chinaTitle{position:absolute!important;top:8px!important;left:0!important;margin:0!important;width:100%!important;max-width:100%!important;padding:0 5px!important;text-align:center!important;font-size:13px!important;line-height:1.02!important}
+  .card.orange .chinaVisual{left:50%!important;right:auto!important;bottom:0!important;transform:translateX(-50%)!important;width:88%!important;height:72%!important;justify-content:center!important}
+  .small{font-size:13px!important;line-height:1.03!important;display:flex!important;flex-direction:column!important;text-align:center!important;align-items:center!important;justify-content:center!important;gap:4px!important}
+  .returnPlaceTrafic{padding:0!important;background:transparent!important;overflow:hidden!important}
+  .returnPlaceTraficImg{display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;object-position:center!important;background:transparent!important}
+  /* FINAL PHONE ICON LAYOUT */
+  body.homePage .grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-auto-rows:164px!important;gap:8px!important}
+  body.homePage .grid>*{min-width:0!important;width:100%!important;height:164px!important;min-height:164px!important;max-height:164px!important}
+  body.homePage .returnPlaceTrafic{padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important}
+  body.homePage .returnPlaceTraficImg{width:100%!important;height:100%!important;object-fit:cover!important;object-position:center!important}
+  body.homePage .vehicleVisual img,body.homePage .chinaVisual img{max-width:100%!important;max-height:100%!important;object-fit:cover!important}
+  #directArticle{display:none!important}
+  #weatherBubble{left:50%!important;transform:translateX(-50%)!important;width:calc(100vw - 32px)!important;max-width:none!important}
+  #weatherBubble .weatherMain{font-size:11px!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+}
+</style>
+
+<style id="finalHomeDesign20260825">
+body.homePage{padding-top:112px!important;background:linear-gradient(155deg,#0a1c2d 0%,#172d42 48%,#392518 100%)!important}
+body.homePage .wrap{width:min(760px,100vw)!important;padding:8px 7px 22px!important}
+body.homePage .top{min-height:52px!important;margin:0!important}
+body.homePage .gear{top:max(7px,env(safe-area-inset-top))!important;right:8px!important;width:58px!important;height:58px!important;font-size:31px!important;background:#253246!important;border:2px solid #7f8ba0!important}
+body.homePage #weatherBubble{top:69px!important;width:calc(100vw - 22px)!important;max-width:720px!important;min-width:0!important;padding:7px 10px!important;font-size:13px!important;border-radius:15px!important}
+body.homePage .subscription-home-status{top:max(7px,env(safe-area-inset-top))!important;left:8px!important;min-width:0!important;width:auto!important;max-width:190px!important;padding:7px 10px!important;font-size:12px!important;border-radius:13px!important}
+body.homePage .subscription-home-status span{font-size:11px!important}
+body.homePage .homeDesignGrid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:clamp(190px,28vh,245px)!important;gap:9px!important;width:100%!important}
+body.homePage .homeDesignGrid>*{width:100%!important;min-width:0!important;height:100%!important;min-height:0!important;max-height:none!important;border-radius:23px!important;margin:0!important}
+body.homePage .card{padding:10px!important}
+body.homePage .card.blue .marketText{position:absolute!important;top:11px!important;left:0!important;width:100%!important;margin:0!important;padding:0 8px!important;text-align:center!important}
+body.homePage .card.blue .title{font-size:clamp(21px,6vw,31px)!important;margin:0!important;white-space:nowrap!important}
+body.homePage .card.blue .tag{display:none!important}
+body.homePage .card.blue .vehicleVisual{left:50%!important;bottom:0!important;transform:translateX(-50%)!important;width:98%!important;height:82%!important}
+body.homePage .card.orange .chinaTitle{position:absolute!important;top:10px!important;left:0!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0 8px!important;text-align:center!important;font-size:clamp(16px,4.5vw,24px)!important;line-height:1.02!important}
+body.homePage .card.orange .chinaVisual{left:50%!important;right:auto!important;bottom:0!important;transform:translateX(-50%)!important;width:96%!important;height:78%!important;justify-content:center!important}
+body.homePage .homeBigTile{position:relative!important;display:block!important;padding:9px!important;text-decoration:none!important;overflow:hidden!important}
+body.homePage .homeTileTitle{position:absolute;z-index:3;top:10px;left:6px;right:6px;text-align:center;font:950 clamp(18px,5.3vw,28px)/1.02 Arial,sans-serif;color:#fff;text-shadow:0 3px 7px #0007}
+body.homePage .homeArt{position:absolute;left:5px;right:5px;top:43px;bottom:3px;display:flex;align-items:center;justify-content:center}
+body.homePage .homeArt img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 8px 8px #0007)}
+body.homePage .returnPlaceTrafic{padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;background:transparent!important;overflow:hidden!important;box-shadow:inset 0 0 0 1px #ffffff33,0 8px 24px #0007!important}
+body.homePage .returnPlaceTraficImg{width:100%!important;height:100%!important;object-fit:cover!important;object-position:center!important}
+body.homePage .eraseTile{position:relative!important;background:linear-gradient(145deg,#ff315f,#d80925)!important;display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:center!important;text-align:center!important;padding:8px!important}
+body.homePage .eraseTitle{font:950 clamp(18px,5vw,27px)/1.03 Arial,sans-serif;text-shadow:0 3px 7px #0007;z-index:2}
+body.homePage .eraseIcon{font-size:clamp(72px,20vw,112px);line-height:1;margin-top:6px;filter:drop-shadow(0 8px 7px #0007)}
+body.homePage #directArticle{display:block!important;position:fixed!important;left:2px!important;top:49%!important;transform:translateY(-50%)!important;z-index:1900!important;width:68px!important;min-height:70px!important;padding:7px 3px!important;border:2px solid #ffc34d!important;border-radius:15px!important;background:linear-gradient(180deg,#ff7a00,#e23b00)!important;box-shadow:0 6px 18px #000a!important;color:#fff!important;text-align:center!important;font:950 10px/1.03 Arial,sans-serif!important}
+body.homePage #directArticle span{font-size:28px!important;margin:0 0 3px!important}
+body.homePage.settings-open #directArticle{display:none!important}
+body.homePage.homeChromeHidden #directArticle{opacity:1!important;pointer-events:auto!important;transform:translateY(-50%)!important}
+@media(min-width:721px){body.homePage .homeDesignGrid{grid-auto-rows:245px!important}body.homePage #directArticle{left:calc(50% - 380px)!important}}
+</style>
+
+<style>
+.addr-choice{flex:1;border:2px solid #65788d;border-radius:16px;padding:12px 8px;background:#172536;color:#fff;font-weight:900;font-size:16px}
+.addr-choice.active{border-color:#58d9ff;box-shadow:0 0 0 2px rgba(88,217,255,.18)}
+#addrApartmentFields label{font-weight:800;font-size:14px;color:#bfeeff}
+#addrApartmentFields input,#addrApartmentFields select{box-sizing:border-box;width:100%;margin-top:6px;padding:12px;border:2px solid #65788d;border-radius:12px;background:#081522;color:#fff;font-weight:800;font-size:16px}
+</style>
+<style id="addressHousingStyle">
+.housingChoice{min-height:44px;border:2px solid #63778d;border-radius:12px;background:#172536;color:#fff;font-weight:950;font-size:14px}
+.housingChoice.active{border-color:#61ddff;background:#0b678d;box-shadow:0 0 0 2px #61ddff33}
+#addressApartmentFields select,#addressApartmentFields input{width:100%;box-sizing:border-box;border:2px solid #63778d;border-radius:10px;padding:8px;background:#07111d;color:#fff;font:850 15px Arial,sans-serif}
+</style>
+
+<style>
+.addrAddressRow{
+  display:flex;align-items:center;gap:12px;
+  background:#101b2a;border-radius:16px;padding:14px 16px;
+}
+.addrAddressText{flex:1;min-width:0;font-weight:800;color:#ffd166;line-height:1.28}
+.addrStreetThumb{
+  width:96px;height:72px;flex:0 0 96px;border-radius:12px;
+  object-fit:cover;border:2px solid rgba(255,255,255,.16);display:block;
+}
+@media(max-width:430px){
+  .addrStreetThumb{width:88px;height:66px;flex-basis:88px}
+}
+</style>
+
+
+
+
+
+<style id="realAddressBookV5">
+#addressCreatorModal .addressPanel{width:min(660px,96vw)!important;background:#080808!important;border:4px solid #ff8a00!important;border-radius:22px!important;color:#fff!important}
+#addressCreatorModal h2{color:#fff!important;font-size:27px!important}
+#savedAddressFolders{display:grid!important;gap:12px!important;margin-top:12px!important}
+.savedFolder,.folderNav{background:#050505!important;border:4px solid #ff8a00!important;border-radius:18px!important;padding:14px!important;color:#fff!important}
+.savedFolderTitle{color:#fff!important;font-size:24px!important;line-height:1.15!important;font-weight:1000!important}
+.savedFolderText{color:#fff!important;font-size:20px!important;line-height:1.35!important;font-weight:850!important;white-space:pre-wrap!important}
+.addrNewCard{background:#050505;border:4px solid #ff8a00;border-radius:20px;padding:14px;color:#fff}
+.addrNewName{font-size:27px;line-height:1.12;font-weight:1000;color:#fff;margin-bottom:10px}
+.addrNewAddressRow{display:flex;align-items:center;gap:12px;margin:7px 0 10px}
+.addrNewAddress{flex:1;min-width:0;color:#fff;font-size:23px;font-weight:1000;line-height:1.28;overflow-wrap:anywhere}
+.addrNewStreet{width:104px;height:78px;flex:0 0 104px;border:3px solid #ff8a00;border-radius:12px;overflow:hidden;background:#171717;position:relative}
+.addrNewStreet iframe{width:100%;height:100%;border:0;pointer-events:none}
+.addrNewStreet a{position:absolute;inset:0}
+.addrNewInfo{color:#fff;font-size:19px;font-weight:850;line-height:1.42;margin:4px 0}.addrTopPhone{font-size:21px;font-weight:1000;margin-top:8px}
+.addrNewActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}
+.addrNewActions button,.addrNewActions a{min-height:50px;border-radius:12px;border:0;padding:10px 8px;display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;font-size:16px;font-weight:1000;box-sizing:border-box}
+.addrCall{background:#22b86b!important;color:#fff!important}.addrGo{background:#ff8a00!important;color:#111!important}.addrEdit{background:#f4f4f4!important;color:#111!important}.addrDelete{background:#c73535!important;color:#fff!important}
+.addrPhoneInput{width:100%;box-sizing:border-box;margin-top:10px;border:3px solid #ff8a00;border-radius:12px;padding:12px;background:#111;color:#fff;font-size:18px;font-weight:900}
+#addressVoiceInput{background:#050505!important;color:#fff!important;border:3px solid #ff8a00!important;font-size:19px!important}
+#addressDetected{background:#111!important;border:2px solid #ff8a00!important;color:#fff!important}
+#addressBookClose{border:3px solid #ff8a00!important;background:#050505!important;color:#fff!important}
+@media(max-width:430px){.addrNewName{font-size:24px}.addrNewAddress{font-size:21px}.addrNewInfo{font-size:18px}.addrNewStreet{width:92px;height:70px;flex-basis:92px}}
+</style>
+
+
+<style id="homeConnectedAndAddressFix20260831">
+body.homePage #onlineUsers{position:fixed!important;top:max(7px,env(safe-area-inset-top))!important;left:8px!important;z-index:1700!important;max-width:190px!important;padding:7px 10px!important;border:2px solid #37d67a!important;border-radius:13px!important;background:rgba(4,18,12,.94)!important;color:#fff!important;box-shadow:0 5px 16px #0009!important;font:950 12px/1.1 Arial,sans-serif!important;text-align:left!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+body.homePage #homeAddressBookBtn{background:linear-gradient(145deg,#119447,#036c2d)!important;padding:0!important;border:2px solid #ffffff66!important}
+body.homePage #homeAddressBookBtn .addressButtonFull{display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;border-radius:21px!important}
+body.homePage.settings-open #onlineUsers{display:none!important}
+@media(max-width:430px){body.homePage #onlineUsers{max-width:165px!important;font-size:11px!important;padding:6px 8px!important}}
+</style>
+
+<style id="homeNearMarkets20260831">
+body.homePage .homeNearWrap{width:100%;margin:-2px 0 9px!important}
+body.homePage .homeNearButton{width:100%;min-height:54px;border:2px solid #62e6a4;border-radius:16px;background:linear-gradient(135deg,#087a49,#0566a9);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 12px;box-shadow:0 7px 18px #0008;font:950 clamp(15px,4.2vw,20px)/1.08 Arial,sans-serif;cursor:pointer;text-align:center}
+body.homePage .homeNearButton .pin{font-size:25px;line-height:1}
+body.homePage .homeNearButton small{display:block;margin-top:3px;color:#ddfff0;font:800 10px/1.1 Arial,sans-serif}
+body.homePage #homeNearMsg{min-height:0;margin:5px 4px 0;color:#ffd36d;text-align:center;font:850 11px/1.2 Arial,sans-serif}
+body.homePage.settings-open .homeNearWrap{display:none!important}
+</style>
+</head>
+<body class="homePage">
+<div class="wrap">
+<div class="top">
+<div id="network" class="status">Vérification Internet…</div>
+<div class="gear" onclick="toggleSettings()">⚙</div>
+</div>
+<div class="homeNearWrap">
+  <button id="homeNearMarkets" class="homeNearButton" type="button"><span class="pin">📍</span><span>MARCHÉS À MOINS DE 80 KM<small>Recherche autour de la position « Retourner sur la place »</small></span></button>
+  <div id="homeNearMsg"></div>
+</div>
+<div class="grid homeDesignGrid">
+  <div class="card blue" onclick="location.href='choix-marches-final.html'">
+    <div class="tag">FRANCE + BELGIQUE</div>
+    <div class="vehicleVisual"><img src="master-front-transparent.png" alt="Marchés"></div>
+    <div class="marketText"><div class="title">MARCHÉS</div></div>
+  </div>
+  <div id="homeAddressBookBtn" class="card orange addressBookTile" onclick="window.openSavedAddressBook&&window.openSavedAddressBook()" aria-label="Ouvrir les adresses">
+    <img class="addressButtonFull" src="address-button.png" alt="Adresse">
+  </div>
+
+  <a class="directBtn place homeBigTile" href="mes-papiers.html">
+    <span class="homeTileTitle">MES PAPIERS</span>
+    <span class="homeArt"><img src="icon-mes-papiers.svg" alt="Mes papiers"></span>
+  </a>
+  <a class="directBtn docs homeBigTile" href="documents-travail.html">
+    <span class="homeTileTitle">DÉMARCHES PRO</span>
+    <span class="homeArt"><img src="icon-demarches-pro.svg" alt="Carte commerçant, assurance parapluie et Kbis"></span>
+  </a>
+
+  <div class="small green returnPlaceTrafic" onclick="returnPlace()" aria-label="Retourner sur la place">
+    <img class="returnPlaceTraficImg" src="retourner-place-trafic-2025.png" alt="Retourner sur la place - Renault Trafic 2025 et caravane">
+  </div>
+  <div class="small red eraseTile" onclick="clearReturnPlace()">
+    <span class="eraseTitle">EFFACER EMPLACEMENT</span><span class="eraseIcon">🗑️</span>
+  </div>
+</div>
+<div id="settings" class="settings">
+<h2>⚙️ Réglages</h2>
+<div class="settingRow">
+<button class="settingHead" onclick="forceAppUpdate()">
+<span>🔄 MISE À JOUR</span>
+<span>›</span>
+</button>
+<div class="settingNote" style="padding:0 16px 14px">Charger la dernière version de l’application.</div>
+</div>
+<div class="settingRow">
+<button class="settingHead" onclick="toggleSection('gpsMenu',this)">
+<span>🧭 GPS / navigation</span>
+<span>⌄</span>
+</button>
+<div class="settingBody" id="gpsMenu">
+<button id="gpsWaze" onclick="saveGps('Waze')">Waze</button>
+<button id="gpsGoogle" onclick="saveGps('Google Maps')">Google Maps</button>
+<div class="settingNote" id="gpsStatus">
+</div>
+</div>
+</div>
+<div class="settingRow">
+<button class="settingHead" onclick="toggleSection('mapsMenu',this)">
+<span>🗺️ Cartes hors ligne</span>
+<span>⌄</span>
+</button>
+<div class="settingBody" id="mapsMenu">
+<button onclick="openExternal('https://www.google.com/maps/search/France')">🇫🇷 France</button>
+<button onclick="openExternal('https://www.google.com/maps/search/Belgique')">🇧🇪 Belgique</button>
+<div class="settingNote">Ouvre Google Maps pour préparer les cartes hors connexion.</div>
+</div>
+</div>
+<div class="settingRow">
+<button class="settingHead" onclick="toggleSection('radioMenu',this)">
+<span>📻 Télécharger pour autoradio</span>
+<span>⌄</span>
+</button>
+<div class="settingBody" id="radioMenu">
+<button onclick="location.href='/download-autoradio.apk'">📥 TÉLÉCHARGER L’APK AUTORADIO</button>
+<button onclick="document.getElementById('usbGuide').style.display=document.getElementById('usbGuide').style.display==='block'?'none':'block'">🔑 INSTALLATION AVEC CLÉ USB</button>
+<div id="usbGuide" class="settingNote" style="display:none;font-size:17px;line-height:1.55;background:#111b2b;border-radius:14px;padding:14px;margin-top:8px">
+<b>1️⃣ Appuie sur « TÉLÉCHARGER L’APK AUTORADIO ».</b><br>
+<b>2️⃣ Copie le fichier APK sur une clé USB.</b><br>
+<b>3️⃣ Branche la clé USB sur l’autoradio Android.</b><br>
+<b>4️⃣ Ouvre la clé dans le gestionnaire de fichiers.</b><br>
+<b>5️⃣ Appuie sur le fichier APK puis sur INSTALLER.</b><br>
+<b>6️⃣ Ouvre CarPlay.</b><br><br>
+Si Android le demande, autorise l’installation d’applications provenant de cette source.
+</div>
+</div>
+</div>
+
+<div class="settingRow">
+<button class="settingHead" onclick="toggleSection('shareMenu',this)">
+<span>📤 Envoyer l’application à un ami</span>
+<span>⌄</span>
+</button>
+<div class="settingBody" id="shareMenu">
+<button onclick="shareApp()">📤 ENVOYER L’APPLICATION</button>
+<div class="settingNote">Ouvre directement le partage du téléphone pour envoyer l’application par SMS, Mail, WhatsApp ou une autre application. Si le partage n’est pas disponible, le lien est copié automatiquement.</div>
+</div>
+</div>
+<div class="settingRow" id="adminSettingRow">
+<button class="settingHead" onclick="location.href='/admin.html'">
+<span>🔐 ADMINISTRATION</span>
+<span>›</span>
+</button>
+<div class="settingNote" style="padding:0 16px 14px">Accès privé : compteurs des demandes et gestion des abonnements.</div>
+</div>
+<div class="settingRow">
+<button class="settingHead" onclick="toggleSection('infoMenu',this)">
+<span>ℹ️ Informations et contact</span>
+<span>⌄</span>
+</button>
+<div class="settingBody" id="infoMenu">
+<div class="appCreatorInfo">
+<small>APPLICATION CRÉÉE PAR</small>
+<strong>STEVE SUZON</strong>
+<p>Application conçue pour aider les commerçants à trouver les marchés, préparer leurs documents de travail et enregistrer ou retrouver un emplacement.</p>
+<a href="https://www.snapchat.com/add/steve_suzon" target="_blank" rel="noopener">👻 Snapchat : <b>steve_suzon</b></a>
+<a href="mailto:appli.suzon@gmail.com">✉️ E-mail : <b>appli.suzon@gmail.com</b></a>
+</div>
+</div>
+</div>
+<button class="closeSettings" onclick="toggleSettings()">FERMER LES RÉGLAGES</button>
+</div>
+<div id="returnStatus" class="saved">
+</div>
+</div>
+
+<div id="paperRenewalOverlay" role="dialog" aria-modal="true" aria-labelledby="paperRenewalTitle">
+  <div id="paperRenewalBubble">
+    <button id="paperRenewalBack" type="button" aria-label="Retour à l’accueil">←</button>
+    <div id="paperRenewalIcon">⚠️</div>
+    <h2 id="paperRenewalTitle">DOCUMENT À RENOUVELER</h2>
+    <p id="paperRenewalText"></p>
+    <p id="paperRenewalHint">Cette alerte revient au maximum une fois toutes les 24 heures, pendant 3 affichages.</p>
+  </div>
+</div>
+<button id="directArticle" type="button" onclick="openArticleModal()"><span>🧰</span>ARTICLE<br>DE TRAVAIL</button>
+<div id="directArticleModal" role="dialog" aria-modal="true" aria-labelledby="directArticleTitle" onclick="if(event.target===this)closeArticleModal()">
+  <div class="panel">
+    <div id="articleMenu">
+      <h2 id="directArticleTitle">🧰 Article de travail</h2>
+      <div class="verifiedProfessionals"><strong>✅ PROFESSIONNELS VALIDÉS</strong>Les personnes présentes dans cette rubrique ont été validées pour leur activité professionnelle.</div>
+      <p class="articleIntro">Choisissez le service dont vous avez besoin.</p>
+      <button id="openPaperForm" type="button">📄 PAPIERS DE TRAVAIL</button>
+      <button id="openMyposForm" type="button" style="margin-top:10px">💳 COMMANDER UN myPOS</button>
+    </div>
+    <div id="paperWorkView" hidden>
+      <button id="paperFormBack" class="paperTopBack" type="button" aria-label="Retour">←</button>
+      <h2>📄 Papiers de travail</h2>
+      <h3>Votre choix</h3>
+      <div class="paperChoices" data-choice="requestType">
+        <button class="paperChoice" type="button" data-value="Ouverture">OUVERTURE</button>
+        <button class="paperChoice" type="button" data-value="Renouvellement">RENOUVELLEMENT</button>
+        <button class="paperChoice" type="button" data-value="Modification">MODIFICATION</button>
+      </div>
+      <h3>Choisissez le pays</h3>
+      <div class="paperChoices" data-choice="country">
+        <button class="paperChoice" type="button" data-value="France">FRANCE</button>
+        <button class="paperChoice" type="button" data-value="Belgique">BELGIQUE</button>
+        <button class="paperChoice" type="button" data-value="Suisse">SUISSE</button>
+      </div>
+      <label class="paperField">Nom<input id="paperLastName" type="text" autocomplete="family-name" required></label>
+      <label class="paperField">Prénom<input id="paperFirstName" type="text" autocomplete="given-name" required></label>
+      <label class="paperField">Numéro de téléphone<input id="paperPhone" type="tel" autocomplete="tel" required></label>
+      <label class="paperField">Adresse e-mail<input id="paperEmail" type="email" autocomplete="email" required></label>
+      <p class="paperMailHelp">Une fois le formulaire rempli, votre application Mail s’ouvrira avec le message déjà écrit. Il restera seulement à appuyer sur « Envoyer ».</p>
+      <button id="paperMailButton" type="button" disabled>OUVRIR LE MESSAGE À ENVOYER</button>
+    </div>
+    <div id="myposWorkView" hidden>
+      <button id="myposFormBack" class="paperTopBack" type="button" aria-label="Retour">←</button>
+      <h2>💳 Commander un myPOS</h2>
+      <div class="myposRequestBox" aria-label="Type de demande myPOS">
+        <div class="myposRequestTitle">⚠️ IMPORTANT — Choisissez votre demande</div>
+        <button id="myposNewClient" class="myposRequestChoice" type="button" aria-pressed="false">☐ Nouveau client</button>
+        <div class="myposRequestHint">Cochez cette case si vous faites partie de DS Solution</div>
+        <button id="myposProblem" class="myposRequestChoice" type="button" aria-pressed="false">☐ Résoudre un problème</button>
+      </div>
+      <h3>Choisissez votre terminal</h3>
+      <div class="myposChoices">
+        <button class="myposChoice" type="button" data-value="GO 2" data-image="mypos-go2.jpeg">GO 2</button>
+        <button class="myposChoice" type="button" data-value="ULTRA" data-image="mypos-ultra.jpeg">ULTRA</button>
+        <button class="myposChoice" type="button" data-value="FLEX" data-image="mypos-flex.jpeg">FLEX</button>
+      </div>
+      <img id="myposPreview" class="myposPreview" alt="Terminal myPOS sélectionné">
+      <label class="paperField">Nom<input id="myposLastName" type="text" autocomplete="family-name" required></label>
+      <label class="paperField">Prénom<input id="myposFirstName" type="text" autocomplete="given-name" required></label>
+      <label class="paperField">Numéro de téléphone<input id="myposPhone" type="tel" autocomplete="tel" required></label>
+      <label class="paperField">Adresse e-mail<input id="myposEmail" type="email" autocomplete="email" required></label>
+      <div id="myposIdentityHeadingV61" style="margin:14px 0 5px;padding:9px;border:2px solid #f39b19;border-radius:12px;background:#21180a;color:#ffd84a;font-weight:950;text-align:center">SIRET + PIÈCE D’IDENTITÉ OBLIGATOIRES AVANT ENVOI</div>
+      <label class="paperField">Numéro SIRET (14 chiffres)<input id="myposSiret" type="text" inputmode="numeric" autocomplete="off" maxlength="17" placeholder="123 456 789 00012" required></label>
+      <p class="paperMailHelp" id="myposSiretHelp">Le SIRET enregistré dans « Mes papiers » est repris automatiquement. Vous pouvez le corriger ici si nécessaire.</p>
+      <div class="paperField" style="gap:9px">
+        <strong>Pièce d’identité recto-verso</strong>
+        <label class="paperChoice" style="display:block;text-align:center;cursor:pointer">📷 AJOUTER / PRENDRE LE RECTO<input id="myposIdFront" type="file" accept="image/*" capture="environment" style="display:none" required></label>
+        <div id="myposIdFrontName" class="paperMailHelp">Aucun recto sélectionné.</div><img id="myposIdFrontPreview" alt="Aperçu recto" style="display:none;width:120px;height:86px;object-fit:cover;border-radius:12px;border:2px solid #f39b19;margin:4px auto 10px"><div id="myposIdFrontRetake" class="paperMailHelp" style="display:none;text-align:center;color:#ffd84a">Touchez « AJOUTER / PRENDRE LE RECTO » pour reprendre la photo.</div>
+        <label class="paperChoice" style="display:block;text-align:center;cursor:pointer">📷 AJOUTER / PRENDRE LE VERSO<input id="myposIdBack" type="file" accept="image/*" capture="environment" style="display:none" required></label>
+        <div id="myposIdBackName" class="paperMailHelp">Aucun verso sélectionné.</div><img id="myposIdBackPreview" alt="Aperçu verso" style="display:none;width:120px;height:86px;object-fit:cover;border-radius:12px;border:2px solid #f39b19;margin:4px auto 10px"><div id="myposIdBackRetake" class="paperMailHelp" style="display:none;text-align:center;color:#ffd84a">Touchez « AJOUTER / PRENDRE LE VERSO » pour reprendre la photo.</div>
+      </div>
+      <p class="paperMailHelp">Le formulaire prépare votre commande avec le modèle choisi, vos coordonnées, votre SIRET et votre pièce d’identité recto-verso.</p>
+      <button id="myposMailButton" type="button" disabled>ENVOYER LA DEMANDE myPOS</button>
+    </div>
+  </div>
+</div>
+<script>window.updateNetworkStatus=function(){let ok=false;try{ok=window.AndroidStatus?AndroidStatus.hasInternet():navigator.onLine}catch(e){ok=navigator.onLine}network.textContent=ok?'Internet disponible':'Réseau indisponible'};addEventListener('online',updateNetworkStatus);addEventListener('offline',updateNetworkStatus);setInterval(updateNetworkStatus,4000);updateNetworkStatus();function toggleSettings(){settings.classList.toggle('open');const open=settings.classList.contains('open');document.body.classList.toggle('settings-open',open)}function toggleSection(id,btn){const b=document.getElementById(id),open=b.classList.contains('open');document.querySelectorAll('.settingBody').forEach(x=>x.classList.remove('open'));document.querySelectorAll('.settingHead span:last-child').forEach(x=>x.textContent='⌄');if(!open){b.classList.add('open');btn.querySelector('span:last-child').textContent='⌃'}}function saveGps(v){localStorage.setItem('gps_pref',v);refreshPrefs()}function refreshPrefs(){const g=localStorage.getItem('gps_pref')||'';gpsStatus.textContent=g?'GPS choisi : '+g:'Aucun GPS choisi';gpsWaze.classList.toggle('selected',g==='Waze');gpsGoogle.classList.toggle('selected',g==='Google Maps')}function returnPlace(){let a=localStorage.getItem('return_lat'),o=localStorage.getItem('return_lon');if(!a||!o){if(!navigator.geolocation)return alert('GPS indisponible');navigator.geolocation.getCurrentPosition(p=>{localStorage.setItem('return_lat',p.coords.latitude);localStorage.setItem('return_lon',p.coords.longitude);showStatuses();alert('Camping enregistré. Appuie à nouveau pour y retourner.')},()=>alert('Impossible de récupérer votre position.'),{enableHighAccuracy:true});return}const q=a+','+o,pref=localStorage.getItem('gps_pref')||'Google Maps';location.href=pref==='Waze'?'https://waze.com/ul?ll='+encodeURIComponent(q)+'&navigate=yes':'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(q)+'&travelmode=driving&dir_action=navigate'}function clearReturnPlace(){localStorage.removeItem('return_lat');localStorage.removeItem('return_lon');showStatuses();alert('Emplacement de retour effacé.')}function showStatuses(){returnStatus.textContent=localStorage.getItem('return_lat')?'Camping enregistré.':''}function shareApp(){const u=(location.origin&&location.origin!=='null')?location.origin+'/installer.html':'https://carplay-telephone.appli-suzon.workers.dev/installer.html';const data={title:'CarPlay',text:'Installe CarPlay : ouvre ce lien puis suis le gros bouton pour l’ajouter à ton écran d’accueil :',url:u};try{if(navigator.share){navigator.share(data).catch(function(e){if(e&&e.name==='AbortError')return;copyShareLink(u)});return}}catch(e){}copyShareLink(u)}function copyShareLink(u){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(function(){alert('Lien de l’application copié. Tu peux maintenant l’envoyer à ton ami.')}).catch(function(){prompt('Copie ce lien et envoie-le à ton ami :',u)});return}}catch(e){}prompt('Copie ce lien et envoie-le à ton ami :',u)}async function forceAppUpdate(){try{if('caches' in window){let ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}if('serviceWorker' in navigator){let rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.update().catch(()=>{})))}}catch(e){}let u=new URL(location.href);u.searchParams.set('maj',Date.now());location.replace(u.toString())}function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
+<script id="paperWorkRequestForm">
+(function(){
+  var modal=document.getElementById('directArticleModal');
+  var menu=document.getElementById('articleMenu');
+  var formView=document.getElementById('paperWorkView');
+  var openButton=document.getElementById('openPaperForm');
+  var openMyposButton=document.getElementById('openMyposForm');
+  var backButton=document.getElementById('paperFormBack');
+  var mailButton=document.getElementById('paperMailButton');
+  var fields=['paperLastName','paperFirstName','paperPhone','paperEmail'].map(function(id){return document.getElementById(id)});
+  var selection={requestType:'',country:''};
+  var myposView=document.getElementById('myposWorkView');
+  window.openArticleModal=function(){menu.hidden=false;formView.hidden=true;myposView.hidden=true;modal.classList.add('open');document.body.style.overflow='hidden'};
+  window.closeArticleModal=function(){modal.classList.remove('open');document.body.style.overflow=''};
+  openButton.addEventListener('click',function(){menu.hidden=true;formView.hidden=false;validate();});
+  openMyposButton.addEventListener('click',function(){menu.hidden=true;myposView.hidden=false;validateMypos();});
+  backButton.addEventListener('click',function(){formView.hidden=true;menu.hidden=false;});
+  document.getElementById('myposFormBack').addEventListener('click',function(){myposView.hidden=true;menu.hidden=false;});
+  document.querySelectorAll('#paperWorkView .paperChoice').forEach(function(button){
+    button.addEventListener('click',function(){
+      var group=button.parentElement;
+      selection[group.dataset.choice]=button.dataset.value;
+      group.querySelectorAll('.paperChoice').forEach(function(item){item.classList.toggle('selected',item===button)});
+      validate();
+    });
+  });
+  fields.forEach(function(field){field.addEventListener('input',validate);field.addEventListener('change',validate)});
+  function validate(){
+    var complete=selection.requestType&&selection.country&&fields.every(function(field){return field.value.trim()&&field.checkValidity()});
+    mailButton.disabled=!complete;
+  }
+  mailButton.addEventListener('click',function(){
+    validate();if(mailButton.disabled)return;
+    var lastName=document.getElementById('paperLastName').value.trim();
+    var firstName=document.getElementById('paperFirstName').value.trim();
+    var phone=document.getElementById('paperPhone').value.trim();
+    var email=document.getElementById('paperEmail').value.trim();
+    var subject='Demande de papiers de travail — '+selection.requestType+' — '+selection.country;
+    var body='Bonjour,\n\nJe souhaite effectuer une demande concernant mes papiers de travail.\n\nType de demande : '+selection.requestType+'\nPays : '+selection.country+'\n\nNom : '+lastName+'\nPrénom : '+firstName+'\nNuméro de téléphone : '+phone+'\nAdresse e-mail : '+email+'\n\nMerci de prendre en compte ma demande.\n\nCordialement,\n\n'+firstName+' '+lastName;
+    trackMailEvent('papiers_travail');
+    location.href='mailto:Cameron.burel@gmail.com?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  });
+  function trackMailEvent(category){
+    try{fetch('/api/mail-event',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({category:category}),keepalive:true}).catch(function(){})}catch(e){}
+  }
+  var myposSelection='';
+  var myposRequest={newClient:false,problem:false};
+  var myposMailButton=document.getElementById('myposMailButton');
+  var myposSiret=document.getElementById('myposSiret');
+  var myposIdFront=document.getElementById('myposIdFront');
+  var myposIdBack=document.getElementById('myposIdBack');
+  var myposFields=['myposLastName','myposFirstName','myposPhone','myposEmail','myposSiret'].map(function(id){return document.getElementById(id)});
+  function siretDigits(v){return String(v||'').replace(/\D/g,'').slice(0,14)}
+  function formatSiret(v){var d=siretDigits(v);return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,5}).*$/,'$1 $2 $3 $4').trim()}
+  function loadMyposSiret(){var saved=localStorage.getItem('monSiretEntreprise')||'';if(saved&&!myposSiret.value)myposSiret.value=formatSiret(saved)}
+  function saveMyposSiret(){var d=siretDigits(myposSiret.value);if(d.length===14){localStorage.setItem('monSiretEntreprise',d);myposSiret.value=formatSiret(d)}}
+  function updateIdName(input,id,label){var out=document.getElementById(id),file=input.files&&input.files[0],preview=document.getElementById(label==='Recto'?'myposIdFrontPreview':'myposIdBackPreview'),retake=document.getElementById(label==='Recto'?'myposIdFrontRetake':'myposIdBackRetake');out.textContent=file?'✓ '+label+' sélectionné — vérifiez la photo ci-dessous.':'Aucun '+label.toLowerCase()+' sélectionné.';if(preview.__objectUrl){URL.revokeObjectURL(preview.__objectUrl);preview.__objectUrl=''}if(file){preview.__objectUrl=URL.createObjectURL(file);preview.src=preview.__objectUrl;preview.style.display='block';retake.style.display='block'}else{preview.removeAttribute('src');preview.style.display='none';retake.style.display='none'}}
+  function validateMypos(){var s=siretDigits(myposSiret.value);var ids=!!(myposIdFront.files&&myposIdFront.files[0]&&myposIdBack.files&&myposIdBack.files[0]);myposMailButton.disabled=!(myposSelection&&s.length===14&&ids&&myposFields.every(function(field){return field.value.trim()&&field.checkValidity()}));}
+  loadMyposSiret();
+  function bindMyposRequestButton(id,key,label){var button=document.getElementById(id);if(!button)return;button.addEventListener('click',function(){myposRequest[key]=!myposRequest[key];button.classList.toggle('selected',myposRequest[key]);button.setAttribute('aria-pressed',myposRequest[key]?'true':'false');button.textContent=(myposRequest[key]?'☑ ':'☐ ')+label;});}
+  bindMyposRequestButton('myposNewClient','newClient','Nouveau client');
+  bindMyposRequestButton('myposProblem','problem','Résoudre un problème');
+  document.querySelectorAll('.myposChoice').forEach(function(button){button.addEventListener('click',function(){
+    myposSelection=button.dataset.value;
+    document.querySelectorAll('.myposChoice').forEach(function(item){item.classList.toggle('selected',item===button)});
+    var preview=document.getElementById('myposPreview');preview.src=button.dataset.image;preview.alt='myPOS '+myposSelection;preview.classList.add('visible');
+    validateMypos();
+  })});
+  myposFields.forEach(function(field){field.addEventListener('input',function(){if(field===myposSiret)myposSiret.value=formatSiret(myposSiret.value);validateMypos()});field.addEventListener('change',function(){if(field===myposSiret)saveMyposSiret();validateMypos()})});
+  myposIdFront.addEventListener('change',function(){updateIdName(myposIdFront,'myposIdFrontName','Recto');validateMypos()});
+  myposIdBack.addEventListener('change',function(){updateIdName(myposIdBack,'myposIdBackName','Verso');validateMypos()});
+  myposMailButton.addEventListener('click',async function(){
+    validateMypos();if(myposMailButton.disabled)return;
+    saveMyposSiret();
+    var lastName=document.getElementById('myposLastName').value.trim(),firstName=document.getElementById('myposFirstName').value.trim(),phone=document.getElementById('myposPhone').value.trim(),email=document.getElementById('myposEmail').value.trim(),siret=siretDigits(myposSiret.value);
+    var requestLabels=[];if(myposRequest.newClient)requestLabels.push('Nouveau client');if(myposRequest.problem)requestLabels.push('Résoudre un problème');var requestText=requestLabels.length?requestLabels.join(' + '):'Aucune case cochée';
+    var subject='Demande myPOS — '+myposSelection;
+    var body='Bonjour,\n\nJe souhaite effectuer une demande myPOS.\n\nType de demande : '+requestText+'\nModèle choisi : '+myposSelection+'\n\nNom : '+lastName+'\nPrénom : '+firstName+'\nNuméro de téléphone : '+phone+'\nAdresse e-mail : '+email+'\nNuméro SIRET : '+formatSiret(siret)+'\n\nPièce d’identité : recto et verso joints à la demande.\n\nMerci de prendre en compte ma demande.\n\nCordialement,\n\n'+firstName+' '+lastName;
+    try{trackMailEvent('mypos_'+myposSelection.toLowerCase().replace(/[^a-z0-9]+/g,''))}catch(e){}
+    var files=[myposIdFront.files[0],myposIdBack.files[0]];
+    try{
+      if(navigator.share&&navigator.canShare&&navigator.canShare({files:files})){
+        await navigator.share({title:subject,text:'Destinataire : stroppemarvin@gmail.com\n\n'+body,files:files});
+        return;
+      }
+    }catch(e){if(e&&e.name==='AbortError')return}
+    alert('Votre téléphone ne permet pas de joindre automatiquement les 2 photos depuis cette page. Mail va s’ouvrir avec le message préparé : ajoutez simplement les photos RECTO et VERSO avant d’envoyer.');
+    location.href='mailto:stroppemarvin@gmail.com?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  });
+  if(new URLSearchParams(location.search).get('openArticle')==='1'){
+    setTimeout(window.openArticleModal,100);
+  }
+})();
+</script>
+<script id="weatherLive">(function(){var b=document.createElement('div');b.id='weatherBubble';b.dataset.weather=localStorage.getItem('last_weather_text')||'🌤️ MÉTÉO — EN ATTENTE INTERNET/GPS';document.body.appendChild(b);function renderWeather(){var n=new Date(),jour=n.toLocaleDateString('fr-FR',{weekday:'long'}).toUpperCase(),court=String(n.getDate()).padStart(2,'0')+'/'+String(n.getMonth()+1).padStart(2,'0')+'/'+String(n.getFullYear()).slice(-2);b.innerHTML='<div class="weatherMain">'+b.dataset.weather+'</div><div class="weatherDate">'+jour+' / '+court+'</div>'}renderWeather();setInterval(renderWeather,30000);function msg(p,code){p=Math.max(0,Math.min(100,Math.round(Number(p)||0)));var icon=(code>=51&&code<=99)?'🌧️':(code<=1?'☀️':'⛅');var t=p===0?'TRÈS BON JOUR POUR TRAVAILLER':p<60?'TU PEUX ENCORE ALLER TRAVAILLER':p<80?'T’ES VAILLANT':'RESTE CHEZ TOI, C’EST MIEUX';return icon+' '+p+' % — '+t}function go(){if(!navigator.onLine||!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(function(pos){var u='https://api.open-meteo.com/v1/forecast?latitude='+pos.coords.latitude+'&longitude='+pos.coords.longitude+'&current=weather_code&hourly=precipitation_probability&forecast_days=1&timezone=auto';fetch(u).then(function(r){return r.json()}).then(function(d){var p=0,c=d.current&&d.current.weather_code||0;if(d.hourly&&d.hourly.precipitation_probability){var a=d.hourly.precipitation_probability,t=d.hourly.time||[],now=Date.now(),best=1e99;for(var i=0;i<t.length;i++){var z=Math.abs(new Date(t[i]).getTime()-now);if(z<best){best=z;p=a[i]}}}var x=msg(p,c);b.dataset.weather=x;renderWeather();localStorage.setItem('last_weather_text',x)}).catch(function(){})},function(){},{enableHighAccuracy:false,timeout:8000,maximumAge:600000})}go();setInterval(go,900000);addEventListener('online',go)})();</script>
+<script>(function(){function h(){document.body.classList.toggle('homeChromeHidden',(window.scrollY||0)>45)}addEventListener('scroll',h,{passive:true});h()})();</script>
+<script id="paperRenewalAlerts">
+(function(){
+  const overlay=document.getElementById('paperRenewalOverlay');
+  const text=document.getElementById('paperRenewalText');
+  const title=document.getElementById('paperRenewalTitle');
+  const back=document.getElementById('paperRenewalBack');
+  if(!overlay||!text||!back)return;
+  const DAY=24*60*60*1000;
+  function openDb(){return new Promise((resolve,reject)=>{const r=indexedDB.open('carplayDocuments',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('files'))r.result.createObjectStore('files')};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+  function get(key){return openDb().then(db=>new Promise((resolve,reject)=>{const r=db.transaction('files','readonly').objectStore('files').get(key);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error)}))}
+  function expiryFor(kind,record){if(!record||!record.savedAt)return 0;const d=new Date(record.savedAt);if(kind==='kbis')d.setMonth(d.getMonth()+3);else d.setFullYear(d.getFullYear()+1);return d.getTime()}
+  function eligible(kind,record){const exp=expiryFor(kind,record),now=Date.now();if(!exp||now<exp-7*DAY||now>=exp)return false;const count=Number(localStorage.getItem('paperAlert.'+kind+'.count')||0);const last=Number(localStorage.getItem('paperAlert.'+kind+'.last')||0);return count<3&&(!last||now-last>=DAY)}
+  function show(kind,record){const exp=expiryFor(kind,record),days=Math.max(0,Math.ceil((exp-Date.now())/DAY));const label=kind==='kbis'?'votre Kbis':'votre assurance parapluie';title.textContent=kind==='kbis'?'KBIS À RENOUVELER':'ASSURANCE À RENOUVELER';text.textContent='Il reste '+days+' jour'+(days>1?'s':'')+' avant l’échéance de '+label+'. Pensez à le renouveler.';overlay.classList.add('open');document.body.style.overflow='hidden';const k='paperAlert.'+kind;localStorage.setItem(k+'.count',String(Number(localStorage.getItem(k+'.count')||0)+1));localStorage.setItem(k+'.last',String(Date.now()))}
+  back.addEventListener('click',()=>{overlay.classList.remove('open');document.body.style.overflow=''});
+  const vatDue=Number(localStorage.getItem('belgiumVat.nextDue')||0);function eligibleVat(){const now=Date.now(),last=Number(localStorage.getItem('paperAlert.tva.last')||0);return vatDue&&now>=vatDue-7*DAY&&(!last||now-last>=DAY)}function showVat(){const days=Math.max(0,Math.ceil((vatDue-Date.now())/DAY));title.textContent='🇧🇪 DÉCLARATION BELGE';text.textContent=days>0?'Il reste '+days+' jour'+(days>1?'s':'')+' avant votre déclaration TVA belge. Ouvrez Mes Papiers pour faire vos papiers belges.':'Votre déclaration TVA belge arrive à échéance. Ouvrez Mes Papiers pour faire vos papiers belges.';overlay.classList.add('open');document.body.style.overflow='hidden';localStorage.setItem('paperAlert.tva.last',String(Date.now()))}Promise.all([get('extrait-rne').catch(()=>null),get('assurance-parapluie').catch(()=>null)]).then(([k,a])=>{if(eligibleVat())showVat();else if(eligible('kbis',k))show('kbis',k);else if(eligible('assurance',a))show('assurance',a)});
+})();
+</script>
+<script>
+(function(){
+  var returnButton=document.querySelector('.returnPlaceTrafic');
+  if(returnButton)returnButton.addEventListener('click',function(){
+    var wasEmpty=!localStorage.getItem('return_lat')||!localStorage.getItem('return_lon');
+    if(wasEmpty){
+      var attempts=0,waitForSavedGps=setInterval(function(){
+        attempts++;
+        var saved=localStorage.getItem('return_lat')&&localStorage.getItem('return_lon');
+        if(saved||attempts>=20){
+          clearInterval(waitForSavedGps);
+          if(saved&&window.__checkSavedPlaceDanger)window.__checkSavedPlaceDanger();
+        }
+      },1000);
+    }
+  },true);
+})();
+</script>
+
+<style id="updateNotificationStyle">
+#updateNotification{display:none;position:fixed;z-index:2147483647;left:50%;top:22%;transform:translateX(-50%);width:min(520px,90vw);padding:18px 20px;border:3px solid #f39b19;border-radius:22px;background:rgba(5,10,18,.97);color:#fff;text-align:center;box-shadow:0 12px 35px #000c;font-family:Arial,sans-serif;cursor:pointer}
+#updateNotification strong{display:block;font-size:23px;color:#ffd84a;margin-bottom:7px}#updateNotification span{font-size:16px;font-weight:800;line-height:1.3}
+</style>
+<div id="updateNotification" role="status" aria-live="polite"><strong>🔔 APPLICATION MISE À JOUR</strong><span id="updateNotificationText">Une nouvelle mise à jour a été installée.</span></div>
+<script id="automaticUpdateNotification">
+(function(){
+  var box=document.getElementById('updateNotification'),txt=document.getElementById('updateNotificationText');
+  if(!box)return;
+  function show(v,message){
+    txt.textContent=message||'Une nouvelle mise à jour a été installée.';box.style.display='block';
+    localStorage.setItem('carplay.lastSeenVersion',v);
+    clearTimeout(window.__updateNotifTimer);window.__updateNotifTimer=setTimeout(function(){box.style.display='none'},7000);
+  }
+  box.onclick=function(){box.style.display='none';clearTimeout(window.__updateNotifTimer)};
+  fetch('/app-version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){
+    var v=String(j.version||'').trim();if(!v)return;var old=localStorage.getItem('carplay.lastSeenVersion');
+    if(old!==v)show(v,j.message);
+  }).catch(function(){});
+})();
+</script>
+
+
+<script>
+(function(){
+  async function updateAdminVisibility(){
+    const row=document.getElementById('adminSettingRow');
+    if(!row)return;
+    const thisDeviceIsAdmin=localStorage.getItem('carplay_admin_here')==='1';
+    try{
+      const r=await fetch('/api/admin/presence',{cache:'no-store'});
+      const j=await r.json();
+      row.style.display=(j.active && !thisDeviceIsAdmin)?'none':'';
+    }catch(e){ row.style.display=''; }
+  }
+  updateAdminVisibility();
+  window.addEventListener('focus',updateAdminVisibility);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateAdminVisibility()});
+})();
+</script>
+<style id="savedAddressCreatorStyle">
+#createAddressBtn{display:block!important;position:fixed;right:4px;bottom:max(6px,env(safe-area-inset-bottom));z-index:1900;width:72px;min-height:74px;padding:7px 4px;border:2px solid #61ddff;border-radius:15px;background:linear-gradient(180deg,#0b8fc4,#075b8c);box-shadow:0 6px 18px #000a;color:#fff;text-align:center;font:950 10px/1.03 Arial,sans-serif}#createAddressBtn span{display:block;font-size:27px;margin-bottom:3px}body.settings-open #createAddressBtn{display:none!important}
+#addressCreatorModal{display:none;position:fixed;inset:0;z-index:2147483647;background:#000d;align-items:center;justify-content:center;padding:10px;font-family:Arial,sans-serif;overflow:auto}#addressCreatorModal.open{display:flex}#addressCreatorModal .addressPanel{width:min(600px,96vw);max-height:94vh;overflow:auto;background:#101925;border:3px solid #61ddff;border-radius:22px;padding:15px;color:#fff;box-shadow:0 18px 55px #000}#addressCreatorModal h2{margin:0 0 6px;text-align:center;color:#61ddff;font-size:23px}#addressCreatorModal p{font-size:13px;line-height:1.35;text-align:center;margin:5px 0 10px}
+#addressVoiceInput{width:100%;min-height:170px;box-sizing:border-box;border:2px solid #63778d;border-radius:14px;padding:12px;background:#07111d;color:#fff;font:850 17px/1.35 Arial,sans-serif;resize:vertical;margin-top:8px}#addressVoiceInput.listening{border-color:#f3a119;box-shadow:0 0 0 3px #f3a11933}
+#addressCreatorModal .addressActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}#addressCreatorModal button{min-height:48px;border:0;border-radius:12px;font-weight:950;font-size:14px}#addressSpeak{background:#f39b19;color:#111}#addressSpeak.listening{background:#ff4d4d;color:#fff;animation:micPulse .8s infinite alternate}#addressSave{background:#22b86b;color:#fff}#addressCancel{grid-column:1/-1;background:#344154;color:#fff}@keyframes micPulse{to{transform:scale(1.025)}}#addressCreatorStatus{min-height:22px;margin-top:8px;text-align:center;color:#ffd86b;font-weight:900;font-size:13px}
+#addressLocate{grid-column:1/-1;background:#1677c8;color:#fff}#addressLocate.loading{opacity:.65;pointer-events:none}
+.savedAddressStreet{position:relative;width:100%;height:118px;margin:8px 0;border:2px solid #61ddff;border-radius:12px;overflow:hidden;background:#15283a}.savedAddressStreet iframe{width:100%;height:100%;border:0;pointer-events:none}.savedAddressStreet a{position:absolute;inset:0;z-index:2}.savedAddressStreet:after{content:"STREET VIEW";position:absolute;right:6px;bottom:6px;z-index:1;background:#000b;color:#fff;border-radius:6px;padding:3px 6px;font-size:9px;font-weight:950}
+#addressDetected{display:none;margin-top:9px;border-radius:12px;padding:10px;background:#0a2b3d;border:2px solid #238cc3;color:#dff7ff;font:850 13px/1.35 Arial,sans-serif}#addressDetected.show{display:block}#savedAddressFolders{margin-top:12px;display:grid;gap:7px}.savedFolder{background:#07111d;border:1px solid #3f5870;border-radius:12px;padding:9px}.savedFolderTitle{font-weight:950;color:#61ddff}.savedFolderText{font-size:12px;color:#dcecff;margin-top:4px;white-space:pre-wrap}
+.housingChoice{background:#26374a;color:#fff;border:2px solid #516b85!important}.housingChoice.active{background:#0b8fc4!important;border-color:#61ddff!important}
+#addressApartmentFields select,#addressApartmentFields input{width:100%;box-sizing:border-box;border:2px solid #63778d;border-radius:10px;padding:9px;background:#07111d;color:#fff;font:850 15px Arial,sans-serif}.addrField{display:flex;flex-direction:column;gap:3px}.addrField label{font-size:11px;font-weight:950;color:#bdefff}
+@media(min-width:721px){#createAddressBtn{right:calc(50% - 380px)!important}}
+</style>
+<button id="createAddressBtn" type="button" aria-label="Ajouter une adresse"><span>🎤</span>AJOUTER<br>ADRESSE</button>
+<div id="addressCreatorModal" aria-hidden="true"><div class="addressPanel"><h2>📒 CARNET D’ADRESSES</h2><div id="addressAddSection"><p style="color:#ff9f1c;font-size:22px;line-height:1.22;font-weight:1000;margin:5px 4px 12px">L’application range tout automatiquement dans votre carnet d’adresses.</p><div style="margin:8px 0 12px;padding:16px 12px;border:3px solid #35d07f;border-radius:16px;background:#10251b;color:#58e69a;text-align:center;font-size:21px;font-weight:1000;line-height:1.25">🔒 Vos adresses restent privées<br><span style="display:block;margin-top:7px;color:#f3f7f5;font-size:19px;line-height:1.32;font-weight:900">Elles sont enregistrées uniquement dans votre application, chiffrées sur cet appareil et ne sont jamais partagées.</span></div>
+<textarea id="addressVoiceInput" inputmode="text" autocomplete="off" spellcheck="true" placeholder="Votre dictée apparaît ici. Touchez le texte pour le corriger au clavier avant d’enregistrer."></textarea>
+<div id="addressDetected" aria-live="polite"></div>
+<div id="addressHousingBlock" style="margin-top:12px">
+  <div style="font-size:12px;font-weight:950;color:#bdefff;margin-bottom:6px">TYPE DE LOGEMENT</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <button id="addressHouse" type="button" class="housingChoice active">🏠 MAISON</button>
+    <button id="addressApartment" type="button" class="housingChoice">🏢 APPARTEMENT</button>
+  </div>
+  <input id="addressHousingType" type="hidden" value="Maison">
+  <div id="addressApartmentFields" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+    <div class="addrField"><label>ÉTAGE</label><select id="addressFloor"><option value="">Choisir</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option></select></div>
+    <div class="addrField"><label>CODE APPARTEMENT</label><input id="addressApartmentCode" type="text" autocomplete="off" placeholder="Ex. 2580, A12, B305"></div>
+  </div>
+</div>
+<div class="addressActions"><button id="addressLocate" type="button">📍 UTILISER MA LOCALISATION</button><button id="addressSpeak" type="button">🎤 PARLER</button><button id="addressSave" type="button">✓ ENREGISTRER TOUT</button><button id="addressCancel" type="button">RETOUR</button></div><div id="addressCreatorStatus" aria-live="polite"></div></div><button id="addressBookClose" type="button" style="display:none;width:100%;margin:8px 0 12px;padding:12px;border:2px solid #61ddff;border-radius:12px;background:#102537;color:#fff;font-weight:950">← RETOUR À L’ACCUEIL</button><div id="savedAddressFolders"></div></div></div>
+<script id="savedAddressCreatorScript">
+(function(){
+ var $=function(id){return document.getElementById(id)},openBtn=$('createAddressBtn'),modal=$('addressCreatorModal'),raw=$('addressVoiceInput'),locateBtn=$('addressLocate'),speak=$('addressSpeak'),save=$('addressSave'),cancel=$('addressCancel'),status=$('addressCreatorStatus'),detected=$('addressDetected'),folders=$('savedAddressFolders'),addSection=$('addressAddSection'),bookClose=$('addressBookClose');
+ if(!openBtn||!modal)return;var recognition=null,listening=false,finalText='',pendingLat=null,pendingLng=null,pendingGeo=null;
+ function clean(s){return String(s||'').replace(/\s+/g,' ').replace(/^\s*[,;:-]+|[,;:-]+\s*$/g,'').trim()}
+ var addressCache=[];
+ var secureAddressReady=(async function(){
+   var LEGACY='saved_market_addresses', SECURE='saved_market_addresses_secure_v1';
+   function b64(bytes){var bin='';for(var i=0;i<bytes.length;i++)bin+=String.fromCharCode(bytes[i]);return btoa(bin)}
+   function unb64(str){var bin=atob(str),out=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);return out}
+   function dbOpen(){return new Promise(function(resolve,reject){var q=indexedDB.open('carplay-private-v1',1);q.onupgradeneeded=function(){if(!q.result.objectStoreNames.contains('keys'))q.result.createObjectStore('keys')};q.onsuccess=function(){resolve(q.result)};q.onerror=function(){reject(q.error)}})}
+   async function getKey(){var db=await dbOpen();var found=await new Promise(function(resolve,reject){var tx=db.transaction('keys','readonly'),q=tx.objectStore('keys').get('addresses-aes');q.onsuccess=function(){resolve(q.result||null)};q.onerror=function(){reject(q.error)}});if(found)return found;var key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);await new Promise(function(resolve,reject){var tx=db.transaction('keys','readwrite');tx.objectStore('keys').put(key,'addresses-aes');tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error)}});return key}
+   async function writeSecure(list){var key=await getKey(),iv=crypto.getRandomValues(new Uint8Array(12)),plain=new TextEncoder().encode(JSON.stringify(list)),cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},key,plain));localStorage.setItem(SECURE,JSON.stringify({v:1,iv:b64(iv),data:b64(cipher)}));localStorage.removeItem(LEGACY)}
+   async function readSecure(){var raw=localStorage.getItem(SECURE);if(!raw)return null;var box=JSON.parse(raw),key=await getKey(),plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(box.iv)},key,unb64(box.data));var v=JSON.parse(new TextDecoder().decode(plain));return Array.isArray(v)?v:[]}
+   window.SecureAddressStore={save:async function(list){addressCache=Array.isArray(list)?list:[];await writeSecure(addressCache)},get:function(){return addressCache.slice()}};
+   try{
+     var secure=await readSecure();
+     if(secure){addressCache=secure;return addressCache}
+     var legacy=JSON.parse(localStorage.getItem(LEGACY)||'[]');
+     addressCache=Array.isArray(legacy)?legacy:[];
+     if(addressCache.length)await writeSecure(addressCache);
+   }catch(e){
+     try{var fallback=JSON.parse(localStorage.getItem(LEGACY)||'[]');addressCache=Array.isArray(fallback)?fallback:[]}catch(_){addressCache=[]}
+     console.warn('Coffre d’adresses indisponible',e);
+   }
+   return addressCache;
+ })();
+ function getAll(){return addressCache.slice()}
+ function saveAllSecure(all){addressCache=Array.isArray(all)?all.slice(0,100):[];return window.SecureAddressStore?window.SecureAddressStore.save(addressCache):Promise.resolve()}
+
+ function esc(s){return String(s||'').replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]})}
+ function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[’'-]/g,' ')}
+ var ones={zero:0,un:1,une:1,deux:2,trois:3,quatre:4,cinq:5,six:6,sept:7,huit:8,neuf:9,dix:10,onze:11,douze:12,treize:13,quatorze:14,quinze:15,seize:16};
+ function frenchNumber(words){var t=norm(words).replace(/\bet\b/g,' ').split(/\s+/).filter(Boolean),v=0,i=0;if(!t.length)return null;if(t.length===1&&/^\d{1,4}$/.test(t[0]))return +t[0];if(t[0]==='cent'){v=100;i=1}else if(t.length>1&&ones[t[0]]&&t[1]==='cent'){v=ones[t[0]]*100;i=2}if(i<t.length){var a=t[i];if(a==='quatre'&&t[i+1]==='vingt'){v+=80;i+=2;if(ones[t[i]]!=null&&ones[t[i]]<20){v+=ones[t[i]];i++}}else {var tens={vingt:20,trente:30,quarante:40,cinquante:50,soixante:60};if(tens[a]!=null){v+=tens[a];i++;if(t[i]==='dix'){v+=10;i++;if(ones[t[i]]!=null&&ones[t[i]]<10){v+=ones[t[i]];i++}}else if(ones[t[i]]!=null&&ones[t[i]]<10){v+=ones[t[i]];i++}}else if(ones[a]!=null){v+=ones[a];i++}}}return i===t.length?v:null}
+ function detectionText(text){
+  var t=String(text||'').replace(/\s+/g,' ').trim();
+  /* Code postal dicté avec un espace : 35 000 -> 35000. */
+  t=t.replace(/\b(\d{2})\s+(\d{3})\b/g,'$1$2');
+  /* Téléphone français dicté chiffre par chiffre ou par paires. */
+  t=t.replace(/\b0[1-9](?:[ .\/-]*\d){8}\b/g,function(m){var d=m.replace(/\D/g,'');return d.length===10?d:m});
+  t=t.replace(/\+33(?:[ .\/-]*\d){9}\b/g,function(m){var d=m.replace(/\D/g,'');return d.length===11?'+33'+d.slice(2):m});
+  return t;
+ }
+ function extractPostalCode(text){var t=detectionText(text),m=t.match(/\b(97[1-6]\d{2}|(?:0[1-9]|[1-8][0-9]|9[0-5])\d{3})\b/);return m?m[1]:''}
+ function extractDepartment(text){var t=detectionText(text),pc=extractPostalCode(t);if(pc)return pc.slice(0,pc.startsWith('97')?3:2);var m=t.match(/\b(?:d[eé]partement|departement)\s*(?:num[eé]ro|n°)?\s*([0-9]{1,3}|2A|2B|[A-Za-zÀ-ÿ -]{2,28})/i);if(m){var seg=clean(m[1]).split(/[,;.]/)[0];if(/^(?:2A|2B|\d{1,3})$/i.test(seg))return seg.toUpperCase();var words=seg.split(/\s+/);for(var n=Math.min(words.length,5);n>=1;n--){var x=frenchNumber(words.slice(0,n).join(' '));if(x!=null&&x>=1&&x<=101)return String(x).padStart(2,'0')}}return''}
+ function titleCaseCity(v){return clean(v).replace(/\b(?:a|à)\s*$/i,'').replace(/(^|[ '\-])([a-zà-ÿ])/g,function(_,a,b){return a+b.toUpperCase()})}
+ function extractCity(text,dep){var t=detectionText(text),postal=extractPostalCode(t),m;if(postal){m=t.match(new RegExp("\\b"+postal+"\\s*[,;-]?\\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ’' -]{1,40})","i"));if(m){var after=clean(m[1]).split(/[,;]/)[0].replace(/\b(?:t[eé]l[eé]phone|portable|maison|appartement|appt|étage|etage|code)\b.*$/i,'').trim();if(after)return titleCaseCity(after)}m=t.match(new RegExp("(?:^|\\s)(?:à|a|ville de|commune de)\\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ’' -]{1,35}?)\\s+"+postal+"\\b","i"));if(m)return titleCaseCity(m[1]);m=t.match(new RegExp("(?:^|[,;]\\s*)([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ’' -]{1,30}?)\\s+"+postal+"\\b","i"));if(m){var before=clean(m[1]);var words=before.split(/\s+/);return titleCaseCity(words.slice(-3).join(' '))}}m=t.match(/\b(?:ville|commune)\s*(?:de|:)?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ’' -]{1,40})/i);return m?titleCaseCity(clean(m[1]).split(/[,;]/)[0]):''}
+ function extractPhone(text){var t=detectionText(text),m=t.match(/(?:\+33[1-9]\d{8}|0[1-9]\d{8})\b/);if(!m)return'';var d=m[0];if(d.indexOf('+33')===0)return '+33 '+d.slice(3).replace(/(\d{1})(?=(?:\d{2})+$)/g,'$1 ').trim();return d.replace(/(\d{2})(?=\d)/g,'$1 ').trim()}
+ function rawPhoneMatch(text){var t=detectionText(text),m=t.match(/(?:\+33[1-9]\d{8}|0[1-9]\d{8})\b/);return m?{value:m[0],index:m.index,end:m.index+m[0].length}:null}
+ function extractPerson(text,city){var t=detectionText(text),candidate='',lab=t.match(/\bnom\s+([A-Za-zÀ-ÿ’' -]{2,35}?)\s+pr[eé]nom\s+([A-Za-zÀ-ÿ’' -]{2,35}?)(?=\s+(?:t[eé]l[eé]phone|0[1-9]\d{8}|\+33|\d+\s+(?:rue|avenue|boulevard|chemin|route|impasse|all[eé]e|place))|[,;]|$)/i);if(lab)return {firstName:clean(lab[2]),lastName:clean(lab[1]),displayName:clean(lab[2]+' '+lab[1])};
+  var ph=rawPhoneMatch(t);if(ph){var suffix=clean(t.slice(ph.end)).replace(/^(?:nom|pr[eé]nom)\s*:?[ ]*/i,'');if(/^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ’' -]{2,60}$/.test(suffix)&&!/\b(?:rue|avenue|boulevard|chemin|route|impasse|all[eé]e|place|maison|appartement|étage|etage|code)\b/i.test(suffix))candidate=suffix}
+  if(!candidate){var cut=t.search(/(?:\+33\d{9}|0[1-9]\d{8}|\b\d{1,4}\s*[,.-]?\s*(?:rue|avenue|boulevard|chemin|route|impasse|all[eé]e|place)\b)/i);if(cut>0)candidate=clean(t.slice(0,cut)).replace(/^\s*(?:nom|pr[eé]nom)\s*:?\s*/i,'')}
+  if(!candidate){var parts=t.split(/[,;]+/).map(clean).filter(Boolean);for(var i=0;i<parts.length;i++){var q=parts[i];if(/^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ’' -]{2,50}$/.test(q)&&(!city||norm(q)!==norm(city))&&!/(rue|avenue|boulevard|chemin|route|ville|commune|d[eé]partement)/i.test(q)){candidate=q;break}}}
+  if(!candidate)return {firstName:'',lastName:'',displayName:''};candidate=candidate.replace(/\b(?:t[eé]l[eé]phone|portable)\b.*$/i,'').trim();var w=candidate.split(/\s+/);return w.length>1?{firstName:w[0],lastName:w.slice(1).join(' '),displayName:candidate}:{firstName:'',lastName:candidate,displayName:candidate}
+ }
+ function extractAddressParts(text,person,city){var t=detectionText(text),postal=extractPostalCode(t),ph=rawPhoneMatch(t);if(ph)t=clean(t.slice(0,ph.index)+' '+t.slice(ph.end));var pn=person&&person.displayName?person.displayName:'';if(pn){var escpn=pn.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');t=clean(t.replace(new RegExp('(?:^|[,;]\\s*)'+escpn+'(?:\\s*[,;]|$)','i'),' '));t=clean(t.replace(new RegExp('\\b'+escpn+'\\s*$','i'),' '))}t=t.replace(/\b(?:nom|pr[eé]nom|t[eé]l[eé]phone|portable)\s*:?\s*/gi,'');var streetNumber='',street='';var sm=t.match(/\b(\d{1,4})\s*[,.-]?\s*((?:rue|avenue|boulevard|chemin|route|impasse|all[eé]e|place|quai|square|passage)\b[\s\S]*?)(?=\s+(?:à|a)\s+[A-Za-zÀ-ÿ]|\s+\d{5}\b|$)/i);if(sm){streetNumber=sm[1];street=clean(sm[2])}var address='';if(streetNumber||street)address=clean([streetNumber,street,(city?'à '+city:''),postal].filter(Boolean).join(' '));else address=clean(t);return {streetNumber:streetNumber,street:street,postalCode:postal,address:address}
+ }
+ function savedDate(v){if(!v)return'';var d=new Date(v);if(isNaN(d.getTime()))return'';var days=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];return days[d.getDay()]+' '+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()+' à '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+ function currentProfession(){var keys=['market_trade','metier','métier','profession','selected_metier','selectedMetier','carplay_metier','market_job'];for(var i=0;i<keys.length;i++){var v=localStorage.getItem(keys[i]);if(v)return v}return''}
+ function normalizeImportantNumbers(text){var out=text;out=out.replace(/\b(d[eé]partement|departement)\s+((?:[A-Za-zÀ-ÿ-]+\s*){1,5})/gi,function(all,label,numw){var x=frenchNumber(numw.trim());return x!=null&&x<=101?label+' '+String(x).padStart(2,'0'):all});var st='rue|avenue|boulevard|chemin|route|impasse|all[eé]e|place';out=out.replace(new RegExp('\\b((?:[A-Za-zÀ-ÿ-]+\\s+){1,5})(?=('+st+')\\b)','gi'),function(all){var x=frenchNumber(all.trim());return x!=null?String(x)+' ':all});return clean(out)}
+ function streetEmbed(a,b){return 'https://maps.google.com/maps?q='+encodeURIComponent(a+','+b)+'&layer=c&cbll='+encodeURIComponent(a+','+b)+'&cbp=11,0,0,0,0&output=svembed'}
+ function streetUrl(a,b){return 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(a+','+b)}
+ function geoAddress(g){if(!g)return'';return clean([g.houseNumber,g.road,g.postalCode,g.city].filter(Boolean).join(' '))}
+ async function reverseGeocode(lat,lng){try{var r=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lng),{headers:{'Accept-Language':'fr'}});if(!r.ok)throw 0;var j=await r.json(),a=j.address||{},pc=String(a.postcode||'').trim(),city=clean(a.city||a.town||a.village||a.municipality||a.suburb||''),road=clean(a.road||a.pedestrian||a.residential||a.path||''),hn=clean(a.house_number||''),dep='',country=String(a.country_code||'').toLowerCase();if(country==='be'){dep=clean(a.province||a.state||a.region||a.county||'');var beMap={'limburg':'Limbourg','limbourg':'Limbourg','antwerpen':'Anvers','anvers':'Anvers','oost-vlaanderen':'Flandre-Orientale','flandre-orientale':'Flandre-Orientale','west-vlaanderen':'Flandre-Occidentale','flandre-occidentale':'Flandre-Occidentale','vlaams-brabant':'Brabant flamand','brabant flamand':'Brabant flamand','brabant wallon':'Brabant wallon','hainaut':'Hainaut','henegouwen':'Hainaut','liège':'Liège','liege':'Liège','luik':'Liège','luxembourg':'Luxembourg','namen':'Namur','namur':'Namur'};var key=norm(dep).replace(/\s+/g,' ').trim();Object.keys(beMap).some(function(k){if(norm(k)===key){dep=beMap[k];return true}return false})}else if(/^97[1-6]/.test(pc))dep=pc.slice(0,3);else if(/^\d{5}$/.test(pc))dep=pc.slice(0,2);return {houseNumber:hn,road:road,postalCode:pc,city:city,department:dep,address:clean([hn,road,pc,city].filter(Boolean).join(' '))}}catch(e){return null}}
+ async function geocodeText(q){q=clean(q);if(!q)return null;try{var r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=fr,be&q='+encodeURIComponent(q),{headers:{'Accept-Language':'fr'}});if(!r.ok)throw 0;var a=await r.json();if(!Array.isArray(a)||!a[0])return null;return {lat:Number(a[0].lat),lng:Number(a[0].lon)}}catch(e){return null}}
+ if(locateBtn)locateBtn.onclick=function(){if(!navigator.geolocation){status.textContent='GPS indisponible sur cet appareil.';return}locateBtn.classList.add('loading');locateBtn.textContent='📍 LOCALISATION…';status.textContent='Recherche de votre adresse…';navigator.geolocation.getCurrentPosition(async function(p){pendingLat=p.coords.latitude;pendingLng=p.coords.longitude;pendingGeo=await reverseGeocode(pendingLat,pendingLng);locateBtn.classList.remove('loading');locateBtn.textContent='📍 UTILISER MA LOCALISATION';if(!pendingGeo||!pendingGeo.address){status.textContent='Position trouvée, mais adresse exacte non trouvée. Vous pouvez la compléter au clavier.';return}var a=pendingGeo.address;if(raw.value.trim()){if(raw.value.toLowerCase().indexOf(a.toLowerCase())<0)raw.value=clean(raw.value+' '+a)}else raw.value=a;finalText=raw.value;analyze();status.textContent='✓ Adresse remplie automatiquement avec votre localisation. Complétez nom, prénom ou téléphone si besoin.'},function(){locateBtn.classList.remove('loading');locateBtn.textContent='📍 UTILISER MA LOCALISATION';status.textContent='Autorisez la localisation GPS pour remplir l’adresse.'},{enableHighAccuracy:true,timeout:15000,maximumAge:0})};
+ function analyze(){var text=normalizeImportantNumbers(raw.value);var dep=extractDepartment(text);var city=extractCity(text,dep);var person=extractPerson(text,city),phone=extractPhone(text),job=currentProfession(),parts=extractAddressParts(text,person,city);detected.className=text?'show':'';detected.innerHTML=text?'<b>Classement automatique :</b> '+(dep?esc(dep):'Département à reconnaître')+' → '+(city?esc(city):'Ville à reconnaître')+(person.firstName||person.lastName?' → '+esc((person.firstName+' '+person.lastName).trim()):'')+(phone?'<br><b>Téléphone :</b> '+esc(phone):'')+(parts.address?'<br><b>Adresse :</b> '+esc(parts.address):'')+(job?'<br><b>Métier :</b> '+esc(job):'')+'<br><span style="color:#9ee7ff">Touchez la dictée au-dessus pour la corriger au clavier avant Enregistrer.</span>':' ';return {department:dep||(pendingGeo&&pendingGeo.department)||'',city:city||(pendingGeo&&pendingGeo.city)||'',text:text,firstName:person.firstName,lastName:person.lastName,personName:person.displayName||((person.firstName+' '+person.lastName).trim()),phone:phone,profession:job,streetNumber:parts.streetNumber||(pendingGeo&&pendingGeo.houseNumber)||'',street:parts.street||(pendingGeo&&pendingGeo.road)||'',postalCode:parts.postalCode||(pendingGeo&&pendingGeo.postalCode)||'',address:parts.address||(pendingGeo&&pendingGeo.address)||''}}
+
+ function phoneDigits(v){return String(v||'').replace(/[^\d+]/g,'')}
+ function telHref(v){var d=phoneDigits(v);return d?'tel:'+d:''}
+ function mapsHref(x){var q=String(x.address||x.fullDictation||'').trim();if(q)return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q);if(Number.isFinite(Number(x.lat))&&Number.isFinite(Number(x.lng)))return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(x.lat+','+x.lng);return '#'}
+ async function savePhoneToItem(id,input){var all=getAll(),v=clean(input.value);all.forEach(function(x){if(x.id===id)x.phone=v});await saveAllSecure(all);renderFolders(currentDep,currentCity)}
+ async function deleteAddressItem(id){if(!confirm('Supprimer cette fiche ?'))return;var all=getAll().filter(function(x){return x.id!==id});await saveAllSecure(all);renderFolders(currentDep,currentCity)}
+ function editAddressItem(id){var all=getAll(),x=all.find(function(v){return v.id===id});if(!x)return;addSection.style.display='block';bookClose.style.display='none';raw.value=x.fullDictation||x.address||'';raw.dataset.editId=id;pendingLat=x.fromLocation?Number(x.lat):null;pendingLng=x.fromLocation?Number(x.lng):null;pendingGeo=null;analyze();status.textContent='Modifie le texte puis appuie sur ENREGISTRER TOUT.';folders.innerHTML=''}
+ var currentDep='',currentCity='';
+ function renderFolders(depFilter,cityFilter){
+   currentDep=depFilter||'';currentCity=cityFilter||'';
+   var all=getAll(),deps={};
+   all.forEach(function(x){var d=x.department||x.folderDepartment||'Sans département';(deps[d]||(deps[d]=[])).push(x)});
+   if(!depFilter){
+     folders.innerHTML=Object.keys(deps).sort().map(function(d){var label=/^(?:2A|2B|\d{2,3})$/i.test(d)?'Département '+d:'Province '+d;return '<button type="button" class="savedFolder folderNav" data-dep="'+esc(d)+'"><div class="savedFolderTitle">📁 '+esc(label)+'</div><div class="savedFolderText">'+deps[d].length+' fiche(s)</div></button>'}).join('')||'<div class="savedFolder"><div class="savedFolderTitle">Aucune adresse enregistrée</div></div>';
+     folders.querySelectorAll('[data-dep]').forEach(function(b){b.onclick=function(){renderFolders(b.getAttribute('data-dep'))}});return
+   }
+   var cities={};(deps[depFilter]||[]).forEach(function(x){var c=x.city||x.folderName||'Sans ville';(cities[c]||(cities[c]=[])).push(x)});
+   if(!cityFilter){
+     folders.innerHTML='<button type="button" class="savedFolder folderNav" id="folderBackDep">← DÉPARTEMENTS</button>'+Object.keys(cities).sort().map(function(c){return '<button type="button" class="savedFolder folderNav" data-city="'+esc(c)+'"><div class="savedFolderTitle">📁 '+esc(c)+'</div><div class="savedFolderText">'+cities[c].length+' fiche(s)</div></button>'}).join('');
+     $('folderBackDep').onclick=function(){renderFolders()};folders.querySelectorAll('[data-city]').forEach(function(b){b.onclick=function(){renderFolders(depFilter,b.getAttribute('data-city'))}});return
+   }
+   var cards=(cities[cityFilter]||[]).map(function(x){
+     var name=esc(x.personName||((x.firstName||'')+' '+(x.lastName||'')).trim()||'Nom non renseigné');
+     var address=esc(x.address||x.fullDictation||'Adresse non renseignée');
+     var street='';if(x.fromLocation===true&&Number.isFinite(Number(x.lat))&&Number.isFinite(Number(x.lng))){street='<div class="addrNewStreet"><iframe title="Street View" src="'+streetEmbed(x.lat,x.lng)+'"></iframe><a href="'+streetUrl(x.lat,x.lng)+'" aria-label="Ouvrir Street View"></a></div>'}
+     var phone=x.phone||'';
+     var phoneInfo=phone?'<div class="addrNewInfo addrTopPhone">📞 '+esc(phone)+'</div>':'';var phoneAction=phone?'<a class="addrCall" href="'+telHref(phone)+'">📞 APPELER</a>':'<input class="addrPhoneInput" inputmode="tel" placeholder="Entrer le numéro ici" data-phone-id="'+esc(x.id)+'">';
+     var trade=x.profession||x.trade||'';if(trade==='Brocanteur')trade='Brocante';
+     return '<div class="addrNewCard" data-card-id="'+esc(x.id)+'"><div class="addrNewName">👤 '+name+'</div><div class="addrNewAddressRow"><div class="addrNewAddress">📍 '+address+phoneInfo+'</div>'+street+'</div>'+(trade?'<div class="addrNewInfo">🧰 Métier : '+esc(trade)+'</div>':'')+(x.housingType?'<div class="addrNewInfo">🏠 '+esc(x.housingType)+(x.floor?' · étage '+esc(x.floor):'')+(x.apartmentCode?' · code '+esc(x.apartmentCode):'')+'</div>':'')+(x.createdAt?'<div class="addrNewInfo">🕒 Enregistré : '+esc(savedDate(x.createdAt))+'</div>':'')+'<div class="addrNewActions">'+phoneAction+'<a class="addrGo" href="'+mapsHref(x)+'">🧭 Y ALLER</a><button type="button" class="addrEdit" data-edit-id="'+esc(x.id)+'">✏️ MODIFIER</button><button type="button" class="addrDelete" data-delete-id="'+esc(x.id)+'">🗑️ SUPPRIMER</button></div></div>'
+   }).join('');
+   folders.innerHTML='<button type="button" class="savedFolder folderNav" id="folderBackCity">← '+esc(depFilter)+'</button>'+cards;
+   $('folderBackCity').onclick=function(){renderFolders(depFilter)};
+   folders.querySelectorAll('[data-edit-id]').forEach(function(b){b.onclick=function(){editAddressItem(b.getAttribute('data-edit-id'))}});
+   folders.querySelectorAll('[data-delete-id]').forEach(function(b){b.onclick=function(){deleteAddressItem(b.getAttribute('data-delete-id'))}});
+   folders.querySelectorAll('[data-phone-id]').forEach(function(inp){inp.onchange=function(){savePhoneToItem(inp.getAttribute('data-phone-id'),inp)};inp.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();inp.blur()}}})
+ } function close(){pendingLat=null;pendingLng=null;pendingGeo=null;if(recognition&&listening){try{recognition.stop()}catch(e){}}modal.classList.remove('open');modal.setAttribute('aria-hidden','true');document.body.style.overflow='';status.textContent=''}
+ function showModal(){modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden'}
+ function openAdd(){secureAddressReady.then(function(){renderFolders()});raw.dataset.editId='';if(addSection)addSection.style.display='block';if(bookClose)bookClose.style.display='none';raw.value='';finalText='';pendingLat=null;pendingLng=null;pendingGeo=null;detected.className='';detected.innerHTML='';showModal();status.textContent='Appuie sur PARLER et dicte tout.';renderFolders()}
+ function openBook(){secureAddressReady.then(function(){renderFolders()});if(addSection)addSection.style.display='none';if(bookClose)bookClose.style.display='block';showModal();status.textContent='';renderFolders()}
+ window.openSavedAddressBook=openBook;openBtn.onclick=openAdd;if(bookClose)bookClose.onclick=close;cancel.onclick=close;
+ raw.addEventListener('input',analyze);
+ /* Clavier : conserver les espaces saisis dans la zone de dictée.
+    La normalisation est faite uniquement pour l'analyse, sans réécrire la saisie à chaque touche. */
+ raw.addEventListener('keydown',function(e){
+   if(e.key===' '||e.code==='Space'){
+     e.stopPropagation();
+   }
+ });
+ raw.addEventListener('keyup',function(e){
+   if(e.key===' '||e.code==='Space')e.stopPropagation();
+ });
+ save.onclick=async function(){var a=analyze();if(!a.text){status.textContent='Dicte, écris ou utilise la localisation avant d’enregistrer.';return}save.disabled=true;status.textContent='Enregistrement de la fiche…';var type=$('addressHousingType'),floor=$('addressFloor'),code=$('addressApartmentCode');var usedLocation=(pendingLat!==null&&pendingLng!==null);var lat=pendingLat,lng=pendingLng;if((lat===null||lng===null)&&a.address){var g=await geocodeText(a.address);if(g){lat=g.lat;lng=g.lng}}var item={id:'a'+Date.now(),fullDictation:a.text,address:a.address||a.text,streetNumber:a.streetNumber||'',street:a.street||'',postalCode:a.postalCode||'',department:a.department,city:a.city,folderDepartment:a.department||'Sans département',folderName:a.city||'Sans ville',housingType:type?type.value:'Maison',floor:floor?floor.value:'',apartmentCode:code?code.value:'',firstName:a.firstName,lastName:a.lastName,personName:a.personName,phone:a.phone,profession:a.profession,trade:a.profession,lat:lat,lng:lng,fromLocation:usedLocation,createdAt:new Date().toISOString()};var all=getAll();var sig=[item.fullDictation,item.phone,item.department,item.city].join('|').toLowerCase().replace(/\s+/g,' ');var dup=all.some(function(x){return [x.fullDictation,x.phone,x.department,x.city].join('|').toLowerCase().replace(/\s+/g,' ')===sig});if(dup){status.textContent='Cette fiche est déjà enregistrée.';save.disabled=false;return}var editId=raw.dataset.editId||'';if(editId){var old=all.find(function(x){return x.id===editId});if(old){item.id=old.id;item.createdAt=old.createdAt||item.createdAt;if(!usedLocation){item.fromLocation=old.fromLocation===true;item.lat=old.lat;item.lng=old.lng}all=all.map(function(x){return x.id===editId?item:x})}raw.dataset.editId=''}else{all.unshift(item)}await saveAllSecure(all.slice(0,100));status.textContent='✓ Fiche enregistrée et chiffrée dans '+item.folderDepartment+' → '+item.folderName;renderFolders();save.disabled=false;setTimeout(close,900)};
+ var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){speak.onclick=function(){raw.focus();status.textContent='Utilise le micro du clavier : tout le texte sera enregistré.'};return}
+ recognition=new SR();recognition.lang='fr-FR';recognition.interimResults=true;recognition.continuous=true;recognition.maxAlternatives=3;
+ recognition.onstart=function(){listening=true;speak.classList.add('listening');raw.classList.add('listening');speak.textContent='■ TERMINER';status.textContent='🎤 Je t’écoute…'};
+ recognition.onresult=function(e){var interim='',added='';for(var i=e.resultIndex;i<e.results.length;i++){var t=e.results[i][0].transcript;if(e.results[i].isFinal)added+=t+' ';else interim+=t+' '}if(added)finalText=clean(finalText+' '+added);raw.value=clean(finalText+' '+interim);analyze();status.textContent='🎤 Continue, puis appuie sur TERMINER.'};
+ recognition.onerror=function(e){status.textContent=e.error==='no-speech'?'Je t’écoute encore…':'Micro : '+(e.error||'recommence')};
+ recognition.onend=function(){listening=false;speak.classList.remove('listening');raw.classList.remove('listening');speak.textContent='🎤 PARLER';raw.value=normalizeImportantNumbers(raw.value);analyze();if(raw.value)status.textContent='✓ Dictée terminée. Tu peux corriger le texte ou enregistrer.'};
+ speak.onclick=function(){if(listening){try{recognition.stop()}catch(e){};return}finalText=raw.value||'';try{recognition.start()}catch(e){setTimeout(function(){try{recognition.start()}catch(_e){}},100)}};
+})();
+</script>
+<script id="addressHousingScript">
+(function(){
+  var house=document.getElementById('addressHouse');
+  var apt=document.getElementById('addressApartment');
+  var type=document.getElementById('addressHousingType');
+  var fields=document.getElementById('addressApartmentFields');
+  var floor=document.getElementById('addressFloor');
+  var code=document.getElementById('addressApartmentCode');
+  if(!house||!apt||!type||!fields)return;
+
+  function setHousing(v){
+    var isA=v==='Appartement';
+    type.value=v;
+    fields.style.display=isA?'grid':'none';
+    house.classList.toggle('active',!isA);
+    apt.classList.toggle('active',isA);
+    if(!isA){
+      if(floor) floor.value='';
+      if(code) code.value='';
+    }
+  }
+
+  house.onclick=function(){setHousing('Maison')};
+  apt.onclick=function(){setHousing('Appartement')};
+  setHousing(type.value||'Maison');
+
+  // Le type de logement est déjà inclus dans la fiche chiffrée lors de l’enregistrement.
+})();
+</script>
+
+<script>
+(function(){
+  function isStreetImg(img){
+    var s=(img.getAttribute('src')||'').toLowerCase();
+    var a=(img.getAttribute('alt')||'').toLowerCase();
+    return s.includes('streetview') || s.includes('maps.googleapis') || a.includes('street');
+  }
+  function enhanceAddressCards(root){
+    (root||document).querySelectorAll('img').forEach(function(img){
+      if(!isStreetImg(img)) return;
+      var card=img.closest('.addrCard,.addressCard,.savedAddressCard,[data-address-card]');
+      if(!card) return;
+
+      var candidates=[...card.querySelectorAll('.addrCardAddress,.addressLine,.addressText,.addrText,[data-address-text]')];
+      var addr=candidates.find(function(el){
+        return el!==img && (el.textContent||'').trim().length>4;
+      });
+      if(!addr) return;
+
+      if(addr.parentElement && addr.parentElement.classList.contains('addrAddressRow')) return;
+
+      var row=document.createElement('div');
+      row.className='addrAddressRow';
+      addr.parentNode.insertBefore(row,addr);
+      addr.classList.add('addrAddressText');
+      img.classList.add('addrStreetThumb');
+      row.appendChild(addr);
+      row.appendChild(img);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){
+    enhanceAddressCards(document);
+    new MutationObserver(function(){ enhanceAddressCards(document); })
+      .observe(document.body,{subtree:true,childList:true});
+  });
+})();
+</script>
+
+
+
+
+
+<script id="brocanteMigrationV5">
+(function(){
+ try{
+   if(localStorage.getItem('market_trade')==='Brocanteur')localStorage.setItem('market_trade','Brocante');
+   ['saved_addresses','addressBook','address_book'].forEach(function(k){
+     var raw=localStorage.getItem(k); if(!raw)return;
+     try{
+       var a=JSON.parse(raw),changed=false;
+       if(Array.isArray(a))a.forEach(function(x){
+         if(x&&x.profession==='Brocanteur'){x.profession='Brocante';changed=true}
+         if(x&&x.trade==='Brocanteur'){x.trade='Brocante';changed=true}
+       });
+       if(changed)localStorage.setItem(k,JSON.stringify(a));
+     }catch(_){}
+   });
+ }catch(_){}
+})();
+</script>
+
+
+<script id="addressRealSpaceFixV5">
+document.addEventListener('keydown',function(e){
+ var t=e.target;if(!t||t.id!=='addressVoiceInput')return;
+ if(e.key===' '||e.code==='Space'){e.preventDefault();var a=t.selectionStart||0,b=t.selectionEnd||0,v=t.value;t.value=v.slice(0,a)+' '+v.slice(b);t.selectionStart=t.selectionEnd=a+1;t.dispatchEvent(new Event('input',{bubbles:true}))}
+},true);
+</script>
+
+
+<script id="brocanteMigrationV5">
+(function(){try{if(localStorage.getItem('market_trade')==='Brocanteur')localStorage.setItem('market_trade','Brocante');var raw=localStorage.getItem('saved_market_addresses');if(!raw)return;var a=JSON.parse(raw),c=false;if(Array.isArray(a))a.forEach(function(x){if(x&&x.profession==='Brocanteur'){x.profession='Brocante';c=true}if(x&&x.trade==='Brocanteur'){x.trade='Brocante';c=true}});if(c)localStorage.setItem('saved_market_addresses',JSON.stringify(a))}catch(_){}})();
+</script>
+
+
+<script id="homeNearMarketsScript">
+(function(){
+ var b=document.getElementById('homeNearMarkets'),m=document.getElementById('homeNearMsg');
+ if(!b)return;
+ b.onclick=function(){
+   var a=localStorage.getItem('return_lat'),o=localStorage.getItem('return_lon'),lat=Number(a),lon=Number(o);
+   if(!a||!o||!Number.isFinite(lat)||!Number.isFinite(lon)){
+     if(m)m.textContent='Enregistre d’abord ta position avec « Retourner sur la place ».';
+     return;
+   }
+   try{sessionStorage.setItem('near_market_position',JSON.stringify({lat:lat,lon:lon,at:Date.now(),source:'retourner-sur-la-place'}));location.href='marches-proches.html'}
+   catch(e){if(m)m.textContent='Impossible de préparer la recherche.'}
+ };
+})();
+</script>
+</body>
+</html>
+
+<!-- DICTEE_V2: phrase unique + nom/prenom + metier conserve + dossiers departement/ville -->
+
+<!-- DICTEE_V4: dictée naturelle robuste + chiffres espacés + market_trade + clavier + confidentialité -->

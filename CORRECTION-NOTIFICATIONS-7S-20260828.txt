@@ -1,0 +1,5 @@
+CORRECTION NOTIFICATIONS
+- Déclenchement de la notification de mise à jour réactivé par nouvelle version app-version.json.
+- Durée d'affichage : 7 secondes.
+- Correction appliquée dans public/ ET cloudflare_carplay/public/ pour éviter une différence selon le dossier déployé.
+- Cache du service worker renouvelé pour forcer la prise en compte de la correction.

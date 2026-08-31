@@ -1,0 +1,13 @@
+AJOUT AU BOUTON ARTICLE DE TRAVAIL
+
+- Bouton « Papiers de travail ».
+- Choix : Ouverture, Renouvellement ou Modification.
+- Pays : France, Belgique ou Suisse.
+- Coordonnées obligatoires : nom, prénom, téléphone et e-mail.
+- Le bouton orange reste désactivé tant que le formulaire n'est pas complet.
+- Le bouton ouvre l'application Mail avec un message prérempli pour Cameron.burel@gmail.com.
+- La personne doit vérifier le message puis appuyer sur « Envoyer » dans son application Mail.
+- Un bandeau vert indique en haut de la bulle que les professionnels présentés ont été validés pour leur activité professionnelle.
+- Tous les anciens boutons « Article de travail » ouvrent maintenant ce nouveau formulaire.
+- Les mots des choix restent dans leurs cases sur iPhone.
+- Le bouton Retour est placé en haut à gauche et le bouton Fermer du bas est supprimé.

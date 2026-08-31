@@ -1,0 +1,16 @@
+MODIFICATIONS DÉJÀ INTÉGRÉES
+- Zoom à deux doigts activé sur toute l’application.
+- Page Marchés : 2 colonnes sur téléphone, cartes extensibles, toutes les infos visibles.
+- Météo par marché retirée.
+- Ligne séparée « Placier » retirée des fiches.
+- Vérifier : Femme / Homme / Municipal regroupés dans « ACCUEIL DU PLACIER ».
+- Accueil : recherche par numéro de département + CONFIRMER.
+  Exemple 94 -> marchés du 94 sur le jour actuel.
+- Accueil : MODE ESSAI visible uniquement pendant l’essai.
+  MODE ACTIVÉ / DÉSACTIVÉ uniquement dans Réglages > Abonnement.
+- Réglages > Abonnement : état, jours restants, date de fin.
+- Accueil : compteur de personnes connectées via /api/presence.
+- Démarches Pro protégé par l’abonnement.
+- Cache PWA incrémenté.
+
+Les dernières données marchés vérifiées seront ajoutées au ZIP final.

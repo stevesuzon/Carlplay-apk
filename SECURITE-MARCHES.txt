@@ -1,0 +1,11 @@
+SECURITE DES MARCHES — VERSION SERVEUR
+
+- Les fichiers market-data-fr.js et market-data-be.js ont été supprimés du dossier public.
+- Les 3 272 fiches marchés ne sont plus incluses dans le ZIP public de l’application.
+- L’application demande uniquement un département/province + un jour à /api/markets/query.
+- /api/markets (export complet) est désormais réservé à l’administrateur.
+- Limitation serveur: 120 requêtes/heure par couple IP + appareil.
+- Les réponses marchés sont no-store.
+
+IMPORTANT : avant le premier déploiement de cette version, importer le fichier SQL privé fourni séparément dans la base D1 carplay-metiers.
+NE PAS mettre le fichier MARCHES-IMPORT-PRIVE-20260830.sql dans GitHub ni dans le dossier public.

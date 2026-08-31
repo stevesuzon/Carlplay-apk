@@ -1,0 +1,8 @@
+ADMINISTRATION — FONCTIONNEMENT
+
+- Tant qu’aucun administrateur n’est connecté : la ligne Administration est visible dans Réglages.
+- Quand l’administrateur se connecte avec le secret Cloudflare ADMIN_SECRET : la ligne Administration disparaît automatiquement pour les autres utilisateurs.
+- Sur l’appareil administrateur, l’accès reste disponible.
+- Le bouton “SE DÉCONNECTER ADMIN” remet la ligne Administration visible pour tout le monde.
+
+IMPORTANT : dans Cloudflare, définir le secret ADMIN_SECRET avec le code administrateur choisi. Ne pas écrire ce code dans les fichiers publics.

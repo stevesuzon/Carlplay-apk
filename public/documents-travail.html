@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
+<title>Documents de travail — Les Voyageurs</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#100d12;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+.top{height:7px;background:linear-gradient(90deg,#263d72 50%,#d62d25 50%)}
+header{padding:22px 18px;background:#151118;border-bottom:1px solid #ffffff16}
+.wrap{max-width:680px;margin:auto;padding:0 18px}
+.back{display:inline-flex;align-items:center;justify-content:center;color:#111;text-decoration:none;font-weight:950;margin:14px 0 15px;padding:12px 18px;border-radius:14px;background:linear-gradient(135deg,#ffb52b,#ff6a00);box-shadow:0 5px 14px #0007}
+h1{font-size:33px;line-height:1.08;margin:0 0 8px}.lead{color:#c9c1ca;line-height:1.5}
+main{padding:22px 0 45px}.card{background:#211923;border:1px solid #ffffff16;border-radius:18px;padding:20px;margin-bottom:14px}
+.card h2{margin:0 0 8px;font-size:21px}.card p{margin:0 0 14px;color:#c9c1ca;line-height:1.45}
+.btn{display:block;text-align:center;background:#f4c542;color:#171017;text-decoration:none;font-weight:900;padding:14px;border-radius:11px;margin-top:10px}
+.secondary{background:#332b35;color:#fff}.note{font-size:13px;color:#aaa3aa;line-height:1.45;margin-top:18px}
+.belgique-contact{margin:8px 0 20px!important;color:#f4c542!important;font-size:clamp(24px,5vw,38px);font-weight:950;line-height:1.12;text-align:center;text-transform:uppercase}
+.fieldLabel{display:block;margin:12px 0 7px;font-weight:900}.textField{width:100%;padding:14px 16px;border-radius:14px;border:1px solid #ffffff30;background:#171217;color:#fff;font-size:18px}.docStatus{margin:12px 0 0;padding:12px;border-radius:12px;background:#171217;color:#c9c1ca;line-height:1.4}.docStatus.ready{border:1px solid #46c879;color:#fff}.hiddenFile{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+</style>
+
+
+<link rel="manifest" href="manifest.webmanifest?v=3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Appli Téléphone">
+
+
+<style id="article-travail-flottant-style">
+#articleTravailFlottant{position:fixed;left:8px;top:52%;transform:translateY(-50%);z-index:99999;width:86px;min-height:82px;box-sizing:border-box;padding:10px 7px;border:2px solid #ffc34d;border-radius:16px;background:linear-gradient(180deg,#ff7a00 0%,#e23b00 100%);box-shadow:0 4px 14px rgba(0,0,0,.42);color:#fff;text-decoration:none;text-align:center;font-family:Arial,sans-serif;font-weight:900;font-size:12px;line-height:1.15;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;-webkit-tap-highlight-color:transparent}
+#articleTravailFlottant .at-icon{font-size:25px;line-height:1}
+#articleTravailFlottant:active{transform:translateY(-50%) scale(.96)}
+@media (max-width:480px){#articleTravailFlottant{left:5px;width:76px;min-height:74px;padding:8px 5px;font-size:11px;border-radius:14px}#articleTravailFlottant .at-icon{font-size:22px}}
+
+#articleTravailModal{display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.72);padding:18px;box-sizing:border-box;align-items:center;justify-content:center;font-family:Arial,sans-serif}
+#articleTravailModal.open{display:flex}
+#articleTravailModal .at-panel{width:min(520px,94vw);background:#1a1413;border:2px solid #ffc34d;border-radius:18px;box-shadow:0 14px 40px rgba(0,0,0,.55);padding:20px;color:#fff}
+#articleTravailModal h2{margin:0 0 12px;font-size:24px;color:#ffc34d}
+#articleTravailModal p{margin:0;font-size:17px;line-height:1.5}
+#articleTravailModal .at-close{margin-top:18px;width:100%;border:0;border-radius:12px;padding:13px 16px;background:linear-gradient(180deg,#ff7a00 0%,#e23b00 100%);color:#fff;font-weight:900;font-size:16px;cursor:pointer}
+
+#kbisFlottant{position:fixed;right:8px;top:52%;transform:translateY(-50%);z-index:99999;width:86px;min-height:82px;box-sizing:border-box;padding:10px 7px;border:2px solid #ffc34d;border-radius:16px;background:linear-gradient(180deg,#ff7a00 0%,#e23b00 100%);box-shadow:0 4px 14px rgba(0,0,0,.42);color:#fff;text-decoration:none;text-align:center;font-family:Arial,sans-serif;font-weight:900;font-size:12px;line-height:1.15;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;-webkit-tap-highlight-color:transparent}
+#kbisFlottant .kb-icon{font-size:25px;line-height:1}#kbisFlottant:active{transform:translateY(-50%) scale(.96)}
+#kbisFlottant.expired{background:linear-gradient(180deg,#d90000 0%,#8d0000 100%);border-color:#fff;animation:kbisPulse 1.4s infinite}@keyframes kbisPulse{50%{box-shadow:0 0 0 7px rgba(255,45,45,.22),0 4px 14px rgba(0,0,0,.42)}}
+#kbisModal{display:none;position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.78);padding:14px;box-sizing:border-box;align-items:center;justify-content:center;font-family:Arial,sans-serif;overflow:auto}
+#kbisModal.open{display:flex}#kbisModal .kb-panel{width:min(560px,96vw);max-height:92vh;overflow:auto;background:#1a1413;border:2px solid #ffc34d;border-radius:18px;box-shadow:0 14px 40px rgba(0,0,0,.6);padding:16px;color:#fff}#kbisModal .kb-close{width:100%;border:0;border-radius:12px;padding:13px 16px;background:linear-gradient(180deg,#ff7a00 0%,#e23b00 100%);color:#fff;font-weight:900;font-size:16px;cursor:pointer}#kbisModal #rneCard{margin:0 0 12px}
+@media (max-width:480px){#kbisFlottant{right:5px;width:76px;min-height:74px;padding:8px 5px;font-size:11px;border-radius:14px}#kbisFlottant .kb-icon{font-size:22px}}
+</style>
+<script>
+window.setPaperExpiry=function(type,expired){
+  window.__paperExpiry=window.__paperExpiry||{};window.__paperExpiry[type]=!!expired;
+  const button=document.getElementById('kbisFlottant');if(!button)return;
+  button.dataset[type+'Expired']=expired?'1':'0';
+  const k=button.dataset.kbisExpired==='1',a=button.dataset.assuranceExpired==='1',label=document.getElementById('papersFloatingLabel');
+  button.classList.toggle('expired',k||a);if(!label)return;
+  if(k&&a)label.innerHTML='PAPIERS ÉCHUS<br>À RENOUVELER';else if(k)label.innerHTML='KBIS ÉCHU<br>À RENOUVELER';else if(a)label.innerHTML='ASSURANCE ÉCHUE<br>À RENOUVELER';else label.innerHTML='MES<br>PAPIERS';
+};
+</script>
+</head>
+<body>
+<div class="top"></div>
+<header><div class="wrap">
+<a class="back safeTopBack" href="index.html">← RETOUR</a>
+<h1>📄 Documents de travail</h1>
+<p class="lead">Les principaux liens pour les démarches professionnelles des voyageurs.</p>
+</div></header>
+<main class="wrap">
+
+<div class="card" id="assuranceCard">
+<h2>🛡️ Assurance parapluie</h2>
+<p>Enregistre une fois la page Internet de ton assurance. Ensuite, ce bouton ouvrira directement ta propre assurance.</p>
+<label for="assuranceUrl" style="display:block;margin:12px 0 7px;font-weight:900">Lien de votre assurance :</label>
+<input id="assuranceUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://www.mon-assurance.fr/mon-espace" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #ffffff30;background:#171217;color:#fff;font-size:16px">
+<button class="btn secondary" type="button" id="saveAssurance">ENREGISTRER MON ASSURANCE</button>
+<button class="btn" type="button" id="openAssurance">OUVRIR MON ASSURANCE →</button>
+<p id="assuranceMessage" style="display:none;margin:10px 0 0;font-weight:900;color:#f4c542"></p>
+<div id="assuranceStorage">
+<p style="font-size:18px;line-height:1.45;font-weight:850">Faites une capture d’écran de votre assurance parapluie, puis ajoutez-la ici.</p>
+<input class="hiddenFile" id="assuranceFile" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif">
+<button class="btn secondary" type="button" id="replaceAssurance">📚 REMPLACER MON ASSURANCE — BIBLIOTHÈQUE</button>
+<div class="docStatus" id="assuranceStatus" style="display:none"></div>
+</div>
+</div>
+
+<script>
+(function(){
+  const key='monLienAssuranceParapluie';
+  const input=document.getElementById('assuranceUrl');
+  const message=document.getElementById('assuranceMessage');
+  const picker=document.getElementById('assuranceFile');
+  const status=document.getElementById('assuranceStatus');
+  let currentFile=null;
+  function show(text){message.textContent=text;message.style.display='block';}
+  function openDb(){return new Promise(function(resolve,reject){const req=indexedDB.open('carplayDocuments',1);req.onupgradeneeded=function(){if(!req.result.objectStoreNames.contains('files'))req.result.createObjectStore('files')};req.onsuccess=function(){resolve(req.result)};req.onerror=function(){reject(req.error)}})}
+  function saveFile(file){return openDb().then(function(db){return new Promise(function(resolve,reject){const tx=db.transaction('files','readwrite');tx.objectStore('files').put({blob:file,name:file.name||'capture-assurance.jpg',savedAt:Date.now()},'assurance-parapluie');tx.oncomplete=function(){localStorage.removeItem('paperAlert.assurance.count');localStorage.removeItem('paperAlert.assurance.last');resolve()};tx.onerror=function(){reject(tx.error)}})})}
+  function loadFile(){return openDb().then(function(db){return new Promise(function(resolve,reject){const req=db.transaction('files','readonly').objectStore('files').get('assurance-parapluie');req.onsuccess=function(){resolve(req.result||null)};req.onerror=function(){reject(req.error)}})})}
+  function insuranceExpired(record){if(!record||!record.savedAt)return false;const limit=new Date(record.savedAt);limit.setFullYear(limit.getFullYear()+1);return Date.now()>=limit.getTime()}
+  function refreshFile(){loadFile().then(function(record){
+    currentFile=record;const expired=insuranceExpired(record);window.setPaperExpiry('assurance',expired);
+    if(!record){status.style.display='none';return}
+    const d=new Date(record.savedAt),limit=new Date(record.savedAt);limit.setFullYear(limit.getFullYear()+1);status.style.display='block';
+    if(expired){status.className='docStatus';status.style.border='2px solid #ff3b30';status.style.color='#fff';status.textContent='⚠️ ASSURANCE ÉCHUE — À RENOUVELER.'}
+    else{status.className='docStatus ready';status.style.border='';status.style.color='';status.textContent='✅ Assurance enregistrée — valable jusqu’au '+limit.toLocaleDateString('fr-FR')+'.'}
+  }).catch(function(){status.className='docStatus';status.textContent='⚠️ Impossible de lire l’attestation enregistrée.'})}
+  const saved=localStorage.getItem(key)||'';
+  if(saved) input.value=saved;
+  document.getElementById('saveAssurance').addEventListener('click',function(){
+    let url=input.value.trim();
+    if(url && !/^https?:\/\//i.test(url)) url='https://'+url;
+    try{
+      const parsed=new URL(url);
+      if(!/^https?:$/.test(parsed.protocol)) throw new Error();
+      localStorage.setItem(key,parsed.href);
+      input.value=parsed.href;
+      show('✅ Votre assurance est enregistrée sur cet appareil.');
+    }catch(e){show('⚠️ Entrez le lien Internet complet de votre assurance.');}
+  });
+  document.getElementById('openAssurance').addEventListener('click',function(){
+    const url=localStorage.getItem(key);
+    if(!url){show('⚠️ Enregistrez d’abord le lien de votre assurance.');input.focus();return;}
+    localStorage.setItem('pendingPaperCapture','assurance');localStorage.setItem('pendingPaperCaptureAt',String(Date.now()));window.open(url,'_blank','noopener');
+  });
+  document.getElementById('replaceAssurance').addEventListener('click',function(){picker.click()});
+  picker.addEventListener('change',function(){const file=picker.files&&picker.files[0];if(!file)return;if(!/^image\//i.test(file.type)&&!/[.](jpe?g|png|webp|heic|heif)$/i.test(file.name)){status.style.display='block';status.className='docStatus';status.textContent='⚠️ Choisis une photo ou une capture d’écran de ton assurance.';picker.value='';return}saveFile(file).then(function(){picker.value='';refreshFile();setTimeout(function(){location.href='mes-papiers.html'},450)}).catch(function(){status.style.display='block';status.className='docStatus';status.textContent='⚠️ La photo n’a pas pu être enregistrée.'})});
+  refreshFile();
+})();
+</script>
+
+<div class="card" id="rneCard">
+<h2>📄 Extrait de KBis gratuit</h2>
+<p><strong style="color:#f4c542;font-size:19px">Entrez votre SIRET une seule fois.</strong><br>L’application le garde automatiquement. Vous n’aurez plus besoin de le réécrire.</p>
+<label class="fieldLabel" for="siretInput">Numéro SIRET (14 chiffres) :</label>
+<input class="textField" id="siretInput" type="text" inputmode="numeric" autocomplete="off" maxlength="17" placeholder="123 456 789 00012">
+<button class="btn secondary" type="button" id="saveSiret">ENREGISTRER MON SIRET</button>
+<div id="siretSavedNote" class="docStatus" style="display:none"></div>
+<button class="btn" type="button" id="openRne">TÉLÉCHARGER / ENREGISTRER MON EXTRAIT GRATUITEMENT →</button>
+
+<div id="rneStorage">
+<p style="font-size:18px;line-height:1.45;font-weight:850">Faites une capture d’écran de votre Kbis, puis ajoutez-la ici.</p>
+<input class="hiddenFile" id="rneFile" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif">
+<button class="btn secondary" type="button" id="replaceRne">📚 REMPLACER MON KBIS — BIBLIOTHÈQUE</button>
+<div class="docStatus" id="rneStatus" style="display:none"></div>
+</div>
+</div>
+
+<script>
+(function(){
+  const siretKey='monSiretEntreprise';
+  const input=document.getElementById('siretInput');
+  const status=document.getElementById('rneStatus');
+  const picker=document.getElementById('rneFile');
+  let currentFile=null;
+  function digits(value){return String(value||'').replace(/\D/g,'').slice(0,14)}
+  function format(value){const s=digits(value);return s.replace(/(\d{3})(?=\d)/g,'$1 ').trim()}
+  function valid(){const s=digits(input.value);if(s.length!==14){const note=document.getElementById('siretSavedNote');note.style.display='block';note.className='docStatus';note.textContent='⚠️ Le SIRET doit contenir exactement 14 chiffres.';input.focus();return null}return s}
+  function openDb(){return new Promise(function(resolve,reject){const req=indexedDB.open('carplayDocuments',1);req.onupgradeneeded=function(){if(!req.result.objectStoreNames.contains('files'))req.result.createObjectStore('files')};req.onsuccess=function(){resolve(req.result)};req.onerror=function(){reject(req.error)}})}
+  function saveFile(file){return openDb().then(function(db){return new Promise(function(resolve,reject){const blob=file&&file.blob?file.blob:file;const name=file&&file.name?file.name:'capture-kbis.jpg';const tx=db.transaction('files','readwrite');tx.objectStore('files').put({blob:blob,name:name,savedAt:Date.now()},'extrait-rne');tx.oncomplete=function(){localStorage.removeItem('paperAlert.kbis.count');localStorage.removeItem('paperAlert.kbis.last');resolve()};tx.onerror=function(){reject(tx.error)}})})}
+  function loadFile(){return openDb().then(function(db){return new Promise(function(resolve,reject){const req=db.transaction('files','readonly').objectStore('files').get('extrait-rne');req.onsuccess=function(){resolve(req.result||null)};req.onerror=function(){reject(req.error)}})})}
+  function refresh(){loadFile().then(function(record){
+    currentFile=record;
+    if(!record){status.style.display='none';window.setPaperExpiry('kbis',false);return}
+    const d=new Date(record.savedAt),limit=new Date(record.savedAt);limit.setMonth(limit.getMonth()+3);const expired=Date.now()>=limit.getTime();status.style.display='block';
+    if(expired){status.className='docStatus';status.style.border='2px solid #ff3b30';status.style.color='#fff';status.textContent='⚠️ KBIS ÉCHU — À RENOUVELER.';window.setPaperExpiry('kbis',true)}
+    else{status.className='docStatus ready';status.style.border='';status.style.color='';status.textContent='✅ Extrait enregistré le '+d.toLocaleDateString('fr-FR')+'. À renouveler à partir du '+limit.toLocaleDateString('fr-FR')+'.';window.setPaperExpiry('kbis',false)}
+  }).catch(function(){status.className='docStatus';status.textContent='⚠️ Impossible de lire le document enregistré sur cet appareil.'})}
+  input.value=format(localStorage.getItem(siretKey)||'');
+  const savedNote=document.getElementById('siretSavedNote');
+  const saveSiretBtn=document.getElementById('saveSiret');
+  function markSiretSaved(){savedNote.style.display='none';saveSiretBtn.textContent='✓ SIRET ENREGISTRÉ';saveSiretBtn.style.background='linear-gradient(135deg,#34c759,#168a36)';saveSiretBtn.style.color='#fff'}
+  if(digits(input.value).length===14)markSiretSaved();
+  input.addEventListener('input',function(){input.value=format(input.value)});
+  saveSiretBtn.addEventListener('click',function(){const s=valid();if(!s)return;localStorage.setItem(siretKey,s);input.value=format(s);markSiretSaved();});
+  const autoButton=document.getElementById('openRne');
+  autoButton.addEventListener('click',function(){
+    const s=valid();if(!s)return;
+    localStorage.setItem(siretKey,s);input.value=format(s);markSiretSaved();
+    const siren=s.slice(0,9);
+    localStorage.setItem('lastRneSiren',siren);
+    localStorage.setItem('lastRneOpenAt',String(Date.now()));
+    localStorage.setItem('pendingPaperCapture','kbis');localStorage.setItem('pendingPaperCaptureAt',String(Date.now()));
+    location.href='https://annuaire-entreprises.data.gouv.fr/entreprise/'+encodeURIComponent(siren);
+  });
+  document.getElementById('replaceRne').addEventListener('click',function(){picker.click()});
+  picker.addEventListener('change',function(){const file=picker.files&&picker.files[0];if(!file)return;if(!/^image\//i.test(file.type)&&!/[.](jpe?g|png|webp|heic|heif)$/i.test(file.name)){status.style.display='block';status.className='docStatus';status.textContent='⚠️ Choisis une photo ou une capture d’écran de ton assurance.';picker.value='';return}saveFile(file).then(function(){picker.value='';refreshFile();setTimeout(function(){location.href='mes-papiers.html'},450)}).catch(function(){status.style.display='block';status.className='docStatus';status.textContent='⚠️ La photo n’a pas pu être enregistrée.'})});
+  refresh();
+})();
+</script>
+
+<div class="card" id="papierBelgiqueCard">
+<h2>🇧🇪 Papier Belgique</h2>
+
+<!-- Accès libre : déclaration et validation -->
+<div id="belgiqueDeclarationLibre">
+  <div style="margin:14px 0;padding:14px;border:2px solid #f4c542;border-radius:16px;background:#171217">
+    <h3 style="margin:0 0 8px">🇧🇪 Papiers belges / TVA</h3>
+    <a class="btn" href="https://intervat.minfin.fgov.be/VAT/dashboard" target="_blank" rel="noopener noreferrer">FAIRE MA DÉCLARATION DE TVA →</a>
+    <button class="btn secondary" type="button" id="belgiumVatDone">✓ MA DÉCLARATION EST FAITE</button>
+    <p id="belgiumVatStatus" style="font-weight:900;color:#f4c542"></p>
+  </div>
+</div>
+
+<!-- Documents protégés uniquement -->
+<div id="belgiqueLock">
+  <p class="belgique-contact">🔒 Documents et pièces à fournir</p>
+  <p style="margin:0 0 10px;color:#c9c1ca">Pour l’ouverture de Papier Belgique, contactez-moi sur Snapchat : <a href="https://www.snapchat.com/add/steve_suzon" target="_blank" rel="noopener noreferrer" style="color:#ffcf45;font-weight:950;text-decoration:underline">Steve Suzon</a>.</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px">
+    <input id="belgiqueCode" type="password" inputmode="numeric" maxlength="4" placeholder="Code" autocomplete="off" style="flex:1;min-width:130px;padding:14px 16px;border-radius:14px;border:1px solid #ffffff30;background:#171217;color:#fff;font-size:20px;font-weight:900;letter-spacing:5px">
+    <button class="btn" type="button" onclick="unlockBelgiqueDocs()">🔓 Ouvrir les documents</button>
+  </div>
+  <p id="belgiqueErreur" style="display:none;color:#ffcf45;font-weight:900;margin:10px 0 0">Code incorrect</p>
+</div>
+
+<div id="belgiqueProtected" style="display:none">
+  <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px">
+    <a class="btn" href="https://finances.belgium.be/sites/default/files/downloads/123-formulaire604a-fr.pdf" target="_blank" rel="noopener noreferrer">📄 Télécharger les pièces à fournir</a>
+  </div>
+  <div style="margin-top:18px;padding-top:18px;border-top:1px solid #ffffff18">
+    <p style="margin:0 0 8px;font-weight:900;color:#fff">📎 À joindre au dossier :</p>
+    <p style="margin:0;color:#fff;line-height:1.45"><strong>Kbis de moins de 3 mois</strong></p>
+    <p style="margin:8px 0 0;color:#c9c1ca;line-height:1.45">Le SPF Finances indique de joindre à la demande un extrait du Registre du commerce.</p>
+    <p style="margin:18px 0 6px;font-weight:900;color:#fff">📧 Adresse e-mail d’envoi :</p>
+    <div style="font-size:clamp(20px,5vw,32px);font-weight:950;color:#f4c542;word-break:break-word;line-height:1.15">foreigners.team2@minfin.fed.be</div>
+    <p style="margin:8px 0 0;color:#aaa3aa;font-size:13px;line-height:1.45">Envoyer le formulaire complété et signé, avec les documents demandés.</p>
+  </div>
+</div>
+</div>
+<script>
+(function(){
+  const DAYVAT=86400000;
+  function refreshBelgiumVat(){
+    const e=document.getElementById('belgiumVatStatus'),due=Number(localStorage.getItem('belgiumVat.nextDue')||0);
+    if(!e)return;
+    if(!due){e.textContent='Aucune échéance enregistrée.';return}
+    const days=Math.ceil((due-Date.now())/DAYVAT);
+    e.textContent=(days>=0?'Prochaine déclaration dans '+days+' jour'+(days>1?'s':''):'⚠️ DÉCLARATION BELGE À FAIRE')+' — '+new Date(due).toLocaleDateString('fr-FR');
+  }
+  setTimeout(refreshBelgiumVat,0);
+  document.addEventListener('click',function(ev){
+    if(ev.target&&ev.target.id==='belgiumVatDone'){
+      const d=new Date();d.setMonth(d.getMonth()+3);
+      localStorage.setItem('belgiumVat.lastDone',String(Date.now()));
+      localStorage.setItem('belgiumVat.nextDue',String(d.getTime()));
+      localStorage.removeItem('paperAlert.tva.last');
+      refreshBelgiumVat();
+      alert('Déclaration belge enregistrée. Rappel 1 semaine avant la prochaine échéance.');
+    }
+  });
+  const key='papierBelgiqueDocsUnlocked';
+  window.unlockBelgiqueDocs=function(){
+    const input=document.getElementById('belgiqueCode');
+    if(input && input.value==='1908'){
+      sessionStorage.setItem(key,'1');
+      document.getElementById('belgiqueLock').style.display='none';
+      document.getElementById('belgiqueProtected').style.display='block';
+    } else {
+      document.getElementById('belgiqueErreur').style.display='block';
+      if(input){input.value='';input.focus();}
+    }
+  };
+  document.addEventListener('DOMContentLoaded',function(){
+    if(sessionStorage.getItem(key)==='1'){
+      document.getElementById('belgiqueLock').style.display='none';
+      document.getElementById('belgiqueProtected').style.display='block';
+    }
+    const input=document.getElementById('belgiqueCode');
+    if(input) input.addEventListener('keydown',e=>{if(e.key==='Enter') unlockBelgiqueDocs();});
+  });
+})();
+</script>
+
+<div class="card">
+<h2>🇫🇷 Carte de Paris — demande / renouvellement</h2>
+<p>Le document principal à télécharger directement :</p>
+<a class="btn secondary" href="https://cdn.paris.fr/paris/2024/01/10/liste-documents-a-fournir-volants-2-qiaG.pdf" target="_blank" rel="noopener">📄 Télécharger les pièces à fournir</a>
+
+<div style="margin-top:24px;padding-top:20px;border-top:1px solid #ffffff18">
+<p style="margin-bottom:6px;font-weight:800">📧 Adresse e-mail pour envoyer les papiers :</p>
+<div style="font-size:clamp(24px,6vw,42px);font-weight:950;color:#f4c542;word-break:break-word;line-height:1.1;margin:8px 0 22px">DAE-BMQ@paris.fr</div>
+
+<p style="margin-bottom:6px;font-weight:800">📮 Adresse postale :</p>
+<div style="font-size:clamp(19px,4.5vw,28px);font-weight:900;line-height:1.35;color:#fff">
+Direction de l’attractivité et de l’emploi<br>
+Bureau des Marchés de Quartier<br>
+8 rue de Cîteaux<br>
+75012 Paris
+</div>
+</div>
+</div>
+
+
+<div id="captureReturnPrompt" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.82);align-items:center;justify-content:center;padding:24px">
+  <div style="width:min(92vw,430px);background:#171217;border:3px solid #f4c542;border-radius:26px;padding:24px;text-align:center;box-shadow:0 20px 60px #000">
+    <div style="font-size:46px">📸</div><h2 id="captureReturnTitle" style="margin:8px 0 12px">Capture terminée ?</h2>
+    <p id="captureReturnText" style="font-size:19px;line-height:1.45;font-weight:800"></p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px">
+      <button class="btn secondary" type="button" id="captureNo" style="margin:0">NON</button>
+      <button class="btn" type="button" id="captureYes" style="margin:0">OUI</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+ const box=document.getElementById('captureReturnPrompt'),txt=document.getElementById('captureReturnText'),yes=document.getElementById('captureYes'),no=document.getElementById('captureNo');
+ let shown=false;
+ function pending(){const t=localStorage.getItem('pendingPaperCapture'),at=Number(localStorage.getItem('pendingPaperCaptureAt')||0);return t&&at&&Date.now()-at<30*60*1000?t:null}
+ function show(){const t=pending();if(!t||shown)return;shown=true;txt.textContent=t==='kbis'?'Avez-vous fait la capture d’écran de votre Kbis ? Voulez-vous la mettre dans Mes papiers ?':'Avez-vous fait la capture d’écran de votre assurance parapluie ? Voulez-vous la mettre dans Mes papiers ?';box.style.display='flex'}
+ function clear(){localStorage.removeItem('pendingPaperCapture');localStorage.removeItem('pendingPaperCaptureAt');box.style.display='none'}
+ no.addEventListener('click',clear);
+ yes.addEventListener('click',function(){const t=pending();clear();if(t==='kbis')document.getElementById('rneFile').click();else if(t==='assurance')document.getElementById('assuranceFile').click()});
+ window.addEventListener('pageshow',function(){setTimeout(show,250)});
+ document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')setTimeout(show,250)});
+})();
+</script>
+</main>
+
+<style id="offline-map-button-style">
+#offlineMapBtn{position:fixed;top:max(10px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));z-index:100000;border:1px solid rgba(255,255,255,.28);border-radius:13px;padding:10px 12px;background:rgba(16,13,18,.94);color:#fff;font:800 13px/1.1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 5px 18px rgba(0,0,0,.35);cursor:pointer;-webkit-tap-highlight-color:transparent}
+#offlineMapBtn:active{transform:scale(.97)}
+@media(min-width:700px){#offlineMapBtn{font-size:15px;padding:12px 15px}}
+</style>
+<script>
+function openOfflineMaps(){
+  alert("Google Maps va s’ouvrir. Pour enregistrer une zone : touche ta photo de profil → Plans hors connexion → Sélectionner ton propre plan → Télécharger. Fais-le pendant que tu as Internet ; ensuite la navigation GPS pourra fonctionner dans cette zone sans réseau.");
+  var web='https://www.google.com/maps';
+  var ua=navigator.userAgent||'';
+  if(/Android/i.test(ua)){
+    location.href='intent://www.google.com/maps#Intent;scheme=https;package=com.google.android.apps.maps;S.browser_fallback_url='+encodeURIComponent(web)+';end';
+  }else{
+    window.open(web,'_blank');
+  }
+}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
+</script>
+
+<script id="safe-top-back-script">(function(){var b=document.querySelector('a.safeTopBack');if(!b)return;b.addEventListener('click',function(e){if(history.length>1){e.preventDefault();history.back()}})})();</script>
+<a id="articleTravailFlottant" href="#" aria-label="Article de travail" title="Article de travail">
+  <span class="at-icon" aria-hidden="true">🧰</span>
+  <span>ARTICLE<br>DE TRAVAIL</span>
+</a>
+<div id="articleTravailModal" role="dialog" aria-modal="true" aria-labelledby="articleTravailTitre">
+  <div class="at-panel">
+    <h2 id="articleTravailTitre">🧰 Article de travail</h2>
+    <p>Ici, je rajouterai tout ce qui concerne le travail : carnet de factures, cartes de visite, modification des papiers de travail, décennale, etc.</p>
+    <button class="at-close" type="button">FERMER</button>
+  </div>
+</div>
+
+<div id="kbisModal" role="dialog" aria-modal="true" aria-label="Kbis et assurance parapluie">
+  <div class="kb-panel">
+    <div id="papersCardTarget"></div>
+    <button class="kb-close" type="button">FERMER</button>
+  </div>
+</div>
+<script>
+(function(){
+  const b=document.getElementById('articleTravailFlottant');
+  const m=document.getElementById('articleTravailModal');
+  if(!b||!m)return;
+  const c=m.querySelector('.at-close');
+  b.addEventListener('click',function(e){e.preventDefault();location.href='index.html?openArticle=1';});
+  c.addEventListener('click',function(){m.classList.remove('open');});
+  m.addEventListener('click',function(e){if(e.target===m)m.classList.remove('open');});
+})();
+</script>
+<script>
+(function(){
+  const button=document.getElementById('kbisFlottant');
+  const modal=document.getElementById('kbisModal');
+  const assurance=document.getElementById('assuranceStorage');
+  const kbis=document.getElementById('rneStorage');
+  const target=document.getElementById('papersCardTarget');
+  if(!button||!modal||!assurance||!kbis||!target)return;
+  const kbisBox=document.createElement('div');kbisBox.className='card';kbisBox.appendChild(kbis);target.appendChild(kbisBox);
+  const assuranceBox=document.createElement('div');assuranceBox.className='card';assuranceBox.appendChild(assurance);target.appendChild(assuranceBox);
+  const states=window.__paperExpiry||{};window.setPaperExpiry('kbis',!!states.kbis);window.setPaperExpiry('assurance',!!states.assurance);
+  button.addEventListener('click',function(e){e.preventDefault();modal.classList.add('open')});
+  modal.querySelector('.kb-close').addEventListener('click',function(){modal.classList.remove('open')});
+  modal.addEventListener('click',function(e){if(e.target===modal)modal.classList.remove('open')});
+})();
+</script>
+</body>
+</html>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>

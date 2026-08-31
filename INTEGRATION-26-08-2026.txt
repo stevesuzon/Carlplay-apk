@@ -1,0 +1,17 @@
+Mise à jour intégrée le 26/08/2026
+
+- Ajout du premier lot vérifié Dordogne / Périgord (24).
+- Enrichissement de fiches confirmées en Bretagne et à Paris.
+- Alerte météo sur la position enregistrée de « Retourner sur la place » :
+  * grêle : message « Préparez les filets anti-grêle » ; taille affichée uniquement si une source la fournit (sinon aucune taille inventée),
+  * vent : alerte uniquement à partir de 70 km/h, vitesse des rafales en gros, intensité visuelle progressive.
+- L’alerte apparaît par-dessus la page actuelle ; toucher à côté la ferme sans changer de page.
+
+Important : la prévision locale d’alerte fonctionne immédiatement avec la source météo déjà utilisée par l’application. L’accès direct à l’API officielle Météo-France Vigilance nécessite un compte/jeton API Météo-France ; aucune fausse donnée Météo-France n’est simulée.
+
+
+MISE A JOUR ALERTES METEO - 26/08/2026
+- Alerte INONDATION/CRUE pour la position de retour enregistrée.
+- Combinaisons automatiques avec GRELE, FOUDRE et VENT FORT.
+- Exemples : GRELE + INONDATION, FOUDRE + INONDATION, VENT FORT + INONDATION.
+- Vérification au démarrage, au retour dans l application, au retour du réseau et toutes les 15 minutes.

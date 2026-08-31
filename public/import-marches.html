@@ -1,0 +1,40 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes"><title>Importer les marchés</title><style>
+*{box-sizing:border-box}body{margin:0;background:#0c1119;color:#fff;font-family:Arial,sans-serif}.wrap{width:min(1000px,94vw);margin:25px auto}.box{background:#151e2b;border:2px solid #f39b19;border-radius:22px;padding:22px;margin:16px 0}h1{color:#ffc34d}label{display:block;font-weight:900;margin:14px 0 7px}input,textarea{width:100%;padding:14px;border-radius:12px;border:1px solid #566274;background:#080d14;color:#fff;font-size:16px}textarea{min-height:280px;font-family:monospace}button{width:100%;padding:17px;border:0;border-radius:14px;background:#f39b19;color:#111;font-size:19px;font-weight:950;margin-top:14px}.note{color:#cad3df;line-height:1.45}.result{font-size:19px;font-weight:900;color:#ffc34d;margin-top:14px}.back{color:#fff}
+</style></head><body><main class="wrap"><a class="back" href="/">← Retour</a><h1>📥 Importer de nouveaux marchés</h1><section class="box"><p class="note">Choisis un fichier CSV/JSON ou colle directement ta liste. Les anciens marchés restent sur le serveur. Les doublons sont ignorés.</p><label>Mot de passe administrateur</label><input id="secret" type="password" autocomplete="current-password"><label>Fichier CSV ou JSON</label><input id="file" type="file" accept=".csv,.json,.txt"><label>Ou colle les marchés ici</label><textarea id="source" placeholder="pays;departement;type;nom;ville;jour;horaires;adresse;commercants;tirage;remarques&#10;FR;35;marche;Marché de Mellesse;Mellesse;jeudi;8h-13h;Place de la mairie;40;non;"></textarea><button id="send">RANGER ET ENREGISTRER SUR LE SERVEUR</button><div id="result" class="result"></div></section></main><script>
+var secret=document.getElementById('secret'),file=document.getElementById('file'),source=document.getElementById('source'),result=document.getElementById('result');secret.value=sessionStorage.getItem('market_admin_secret')||'';
+file.onchange=async function(){var f=file.files&&file.files[0];if(f)source.value=await f.text()};
+function csvLine(line,sep){var out=[],v='',q=false;for(var i=0;i<line.length;i++){var c=line[i];if(c==='"'){if(q&&line[i+1]==='"'){v+='"';i++}else q=!q}else if(c===sep&&!q){out.push(v.trim());v=''}else v+=c}out.push(v.trim());return out}
+function parse(){var text=source.value.trim();if(!text)return[];if(text[0]==='['||text[0]==='{'){var j=JSON.parse(text);return Array.isArray(j)?j:(j.markets||[])}var lines=text.split(/\r?\n/).filter(function(x){return x.trim()});var sep=lines[0].includes(';')?';':',';var first=csvLine(lines[0],sep);var aliases={pays:'country',country:'country',departement:'area','département':'area',province:'area',area:'area',type:'kind',nom:'name',name:'name',ville:'city',commune:'city',city:'city',jour:'day',day:'day',horaires:'hours',hours:'hours',adresse:'address',address:'address',commercants:'merchants','commerçants':'merchants',tirage:'draw',remarques:'note',note:'note'};var header=first.map(function(x){return aliases[x.toLowerCase().trim()]||x.toLowerCase().trim()});var start=header.some(function(x){return x==='name'||x==='country'||x==='area'})?1:0;if(!start)header=['country','area','kind','name','city','day','hours','address','merchants','draw','note'];return lines.slice(start).map(function(line){var values=csvLine(line,sep),o={};header.forEach(function(h,i){o[h]=values[i]||''});return o})}
+document.getElementById('send').onclick=async function(){
+  var button=this;
+  try{
+    var markets=parse(),password=secret.value.trim();
+    if(!markets.length)throw new Error('Aucun marché trouvé.');
+    if(!password)throw new Error('Entre le mot de passe administrateur.');
+    sessionStorage.setItem('market_admin_secret',password);
+    button.disabled=true;
+    var size=100,added=0,duplicates=0,invalid=0;
+    for(var start=0;start<markets.length;start+=size){
+      var end=Math.min(start+size,markets.length);
+      result.textContent='Enregistrement : '+start+' / '+markets.length+' marchés…';
+      var r=await fetch(location.origin+'/api/admin/markets/import',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+password},
+        body:JSON.stringify({markets:markets.slice(start,end)})
+      });
+      var text=await r.text(),j={};
+      try{j=text?JSON.parse(text):{}}catch(ignore){}
+      if(!r.ok)throw new Error(j.error==='SECRET_INCORRECT'?'Mot de passe incorrect.':(j.error||('Serveur indisponible (erreur '+r.status+').')));
+      added+=Number(j.added||0);
+      duplicates+=Number(j.duplicates||0);
+      invalid+=Number(j.invalid||0);
+      result.textContent='Enregistrement : '+end+' / '+markets.length+' marchés…';
+    }
+    result.textContent='TERMINÉ : '+added+' nouveau(x) marché(s), '+duplicates+' doublon(s), '+invalid+' ligne(s) incomplète(s).';
+  }catch(e){
+    result.textContent='IMPORT ARRÊTÉ : '+(e&&e.message?e.message:'Import impossible.');
+  }finally{
+    button.disabled=false;
+  }
+}
+</script></body></html>

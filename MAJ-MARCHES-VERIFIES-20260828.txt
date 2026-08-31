@@ -1,0 +1,13 @@
+MISE À JOUR MARCHÉS — 28/08/2026
+
+Les données déjà intégrées dans cette version sont conservées : Saint-Astier, Montpon-Ménestérol, Brest, Argenteuil, Pontoise, Nanterre, Cergy, Melun, Charenton-le-Pont, Vitry-sur-Seine, Évry-Courcouronnes, ainsi que les données antérieures du projet.
+
+Ajout / consolidation de PÉRIGUEUX (source Ville de Périgueux) :
+- Halle du Coderc : mardi à dimanche, 07h00–13h00, jusqu'à 14h00 en période estivale.
+- Marché alimentaire étendu : mercredi et samedi 08h00–12h45, jusqu'à 13h00 en été, places de la Clautre, ancien Hôtel-de-Ville, Saint-Silain / Coderc.
+- Marché textile / bazar : mercredi 08h00–17h00, jusqu'à 18h00 en été, esplanade Robert-Badinter et place Bugeaud.
+- Petit marché alimentaire du Toulon, place de Verdun : vendredi matin ; horaire précis laissé « à vérifier ».
+- Marché au gras, place Saint-Louis : mercredi et samedi, novembre à mars, environ 30 producteurs ; horaire précis laissé « à vérifier ».
+- Le règlement officiel des marchés et le formulaire de demande d'emplacement sont publiés par la Ville de Périgueux.
+
+Aucune donnée incertaine n'a été inventée : les champs non confirmés restent à vérifier.
