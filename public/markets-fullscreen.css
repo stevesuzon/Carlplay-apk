@@ -1,0 +1,11 @@
+.areaOpen{width:100%;min-height:88px;border:4px solid #62d8ff;border-radius:22px;background:linear-gradient(135deg,#0a5cb4,#071f4b);color:#fff;font-size:30px;font-weight:950;padding:12px 20px;text-align:center}
+.areaOverlay{position:fixed;z-index:350000;inset:0;display:none;flex-direction:column;background:#050b16;color:#fff;padding:10px}
+.areaOverlay.open{display:flex}
+.areaOverlayHead{flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:8px;border-bottom:3px solid #f39b19}
+.areaOverlayHead h2{flex:1;margin:0;text-align:center;color:#fff;font-size:30px}
+.areaClose{min-width:130px;height:60px;border:3px solid #ffd36c;border-radius:15px;background:#d96a00;color:#fff;font-size:19px;font-weight:950}
+.areaList{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 4px 30px}
+.areaChoice{display:block;width:100%;min-height:68px;margin:7px 0;border:3px solid #62d8ff;border-radius:16px;background:#0b294c;color:#fff;text-align:left;padding:10px 22px;font-size:25px;font-weight:950}
+.areaChoice:active{background:#087ee5}
+.areaOverlayHint{text-align:center;color:#ffd36d;font-size:17px;font-weight:900;padding:5px}
+@media(max-width:760px){.areaOpen{min-height:78px;font-size:25px}.areaOverlayHead h2{font-size:24px}.areaClose{min-width:105px;height:54px;font-size:16px}.areaChoice{min-height:64px;font-size:22px}}

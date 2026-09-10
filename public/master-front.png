@@ -1,0 +1,22 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><title>Coin de chine</title>
+<style>*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:white}
+body{background:linear-gradient(90deg,rgba(3,5,11,.72),rgba(3,5,11,.2),rgba(3,5,11,.55)),linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.62)),url("assets/hero-les-4-pauvres-diables-sans-boutons.jpg") center/cover fixed no-repeat;padding:18px}
+.wrap{width:min(940px,100%);margin:auto}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.back{padding:13px 18px;border-radius:18px;background:#192337dd;color:#fff;text-decoration:none;font-weight:900;border:1px solid #ffffff33}
+h1{font-size:clamp(28px,5vw,48px);margin:0;text-shadow:0 3px 10px #000}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{min-height:150px;border:1px solid #ffffff55;border-radius:28px;padding:22px;display:flex;flex-direction:column;justify-content:center;box-shadow:0 14px 35px #0007;cursor:pointer}
+.save{background:linear-gradient(135deg,#ff2d55,#ff7a1c,#ffb000)}.go{background:linear-gradient(135deg,#30d158,#00c7be,#0a84ff)}.erase{background:linear-gradient(135deg,#ff375f,#ff453a)}.info{background:linear-gradient(135deg,#5e5ce6,#0a84ff)}
+.t{font-size:clamp(25px,4vw,42px);font-weight:950}.s{margin-top:8px;font-weight:700}.status{margin-top:16px;padding:15px;border-radius:18px;background:#101724dd;border:1px solid #ffffff2b;font-weight:800}
+@media(max-width:700px){.grid{grid-template-columns:1fr}.card{min-height:110px}}</style></head><body><div class="wrap"><div class="top"><a class="back" href="index.html">← RETOUR</a><h1>COIN DE CHINE</h1></div>
+<div class="grid"><div class="card save" onclick="saveSpot()"><div class="t">📍 ENREGISTRER</div><div class="s">Mémoriser l'endroit où tu chines.</div></div>
+<div class="card go" onclick="goSpot()"><div class="t">🧭 Y RETOURNER</div><div class="s">Ouvrir le GPS vers le coin enregistré.</div></div>
+<div class="card erase" onclick="eraseSpot()"><div class="t">🗑️ EFFACER</div><div class="s">Effacer uniquement le coin de chine.</div></div>
+<div class="card info"><div class="t">⭐ MÉMOIRE SÉPARÉE</div><div class="s">N'efface jamais la position « Retrouve la place ».</div></div></div>
+<div id="st" class="status"></div></div>
+<script>
+const K='chine_spot_v2',NAV='l4pd_vehicle_navigation_preference_v1';
+function get(){try{return JSON.parse(localStorage.getItem(K)||'null')}catch(e){return null}}
+function status(){st.textContent=get()?'Coin de chine enregistré ✓':'Aucun coin de chine enregistré.'} status();
+function saveSpot(){if(!navigator.geolocation)return alert('GPS indisponible.');navigator.geolocation.getCurrentPosition(p=>{localStorage.setItem(K,JSON.stringify({lat:p.coords.latitude,lng:p.coords.longitude,savedAt:Date.now()}));status();alert('Coin de chine enregistré.')},()=>alert('Autorise la localisation GPS.'),{enableHighAccuracy:true,timeout:15000})}
+function nav(dest){const pref=localStorage.getItem(NAV)||'google';if(pref==='waze')location.href='waze://?ll='+dest+'&navigate=yes';else location.href='google.navigation:q='+dest+'&mode=d'}
+function goSpot(){const p=get();if(!p)return alert('Aucun coin de chine enregistré.');nav(p.lat+','+p.lng)}
+function eraseSpot(){if(confirm('Effacer le coin de chine enregistré ?')){localStorage.removeItem(K);status()}}
+</script></body></html>

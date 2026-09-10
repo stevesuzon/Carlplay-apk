@@ -1,23 +1,11 @@
 (function () {
   "use strict";
-  document.write(
-    '<script src="markets-44-complete.js?v=20260902-complet"><\/script>',
-  );
-  document.write(
-    '<script src="markets-france-national.js?v=20260902-national"><\/script>',
-  );
-  document.write('<script src="markets-missing-v97.js?v=20260902"><\/script>');
-  document.write('<script src="markets-missing-v100.js?v=20260902"><\/script>');
-  document.write('<script src="markets-missing-v101.js?v=20260902"><\/script>');
-  document.write('<script src="markets-missing-v102.js?v=20260902"><\/script>');
-  document.write('<script src="markets-missing-v103.js?v=20260902"><\/script>');
-  document.write('<script src="markets-missing-v104.js?v=20260902"><\/script>');
-  document.write(
-    '<script src="market-weekly-filter.js?v=20260902-france-belgique"><\/script>',
-  );
+  var areaCss = document.createElement("link");
+  areaCss.rel = "stylesheet";
+  areaCss.href = "markets-fullscreen.css";
+  document.head.appendChild(areaCss);
   var selected = null,
-    server = "https://carplay-metiers.appli-suzon.workers.dev",
-    searchQuery = "";
+    server = "https://carplay-metiers.appli-suzon.workers.dev";
   var days = [
     "lundi",
     "mardi",
@@ -52,121 +40,20 @@
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
   }
-  function cleanCardText(v) {
-    return String(v == null ? "" : v)
-      .replace(/\s+officiellement\b/gi, "")
-      .replace(/\s*[,;:-]?\s*GPS\s+[àa]\s+confirmer\s+sur\s+place\b/gi, "")
-      .replace(/\s{2,}/g, " ")
-      .trim();
-  }
-  function verificationDot(r, s) {
-    var note = String((r && r[6]) || "")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-    var complete = s && s.time && s.count && s.draw;
-    var official = note.indexOf("verifie sur le site officiel") >= 0 || note.indexOf("verifie officiellement") >= 0;
-    var ok = !!complete || official;
-    return '<span class="marketVerificationDot ' + (ok ? "green" : "orange") + '" title="' + (ok ? "Fiche vérifiée" : "Fiche à vérifier") + '" aria-label="' + (ok ? "Fiche vérifiée" : "Fiche à vérifier") + '"></span>';
-  }
-  function favoriteKey(r) {
-    return "marketFavoriteDeviceOnlyV1:" + country + ":" + identity(r);
-  }
-  function isFavorite(r) {
-    try {
-      return localStorage.getItem(favoriteKey(r)) === "1";
-    } catch (e) {
-      return false;
-    }
-  }
-  function toggleFavorite(index, btn) {
-    var r = marketRows()[index],
-      k,
-      on;
-    if (!r) return;
-    k = favoriteKey(r);
-    try {
-      on = localStorage.getItem(k) === "1";
-      if (on) localStorage.removeItem(k);
-      else localStorage.setItem(k, "1");
-      on = !on;
-    } catch (e) {
-      on = isFavorite(r);
-    }
-    if (btn) {
-      btn.classList.toggle("active", on);
-      btn.textContent = on ? "★" : "☆";
-      btn.setAttribute(
-        "aria-label",
-        on ? "Retirer des favoris" : "Ajouter aux favoris",
-      );
-      btn.setAttribute(
-        "title",
-        on ? "Retirer des favoris" : "Ajouter aux favoris",
-      );
-    }
-    return false;
-  }
-  window.toggleMarketFavorite = toggleFavorite;
-  (function migrateLocalFavorites() {
-    try {
-      var i, k, v, nk;
-      for (i = localStorage.length - 1; i >= 0; i--) {
-        k = localStorage.key(i);
-        if (k && k.indexOf("marketFavoriteV1:") === 0) {
-          v = localStorage.getItem(k);
-          nk = k.replace("marketFavoriteV1:", "marketFavoriteDeviceOnlyV1:");
-          if (v === "1" && localStorage.getItem(nk) !== "1")
-            localStorage.setItem(nk, "1");
-          localStorage.removeItem(k);
-        }
-      }
-    } catch (e) {}
-  })();
   function areaLabel(a) {
     return country === "fr" ? a[0] + " — " + a[1] : a[1];
   }
   function areaKey() {
     return selected ? String(selected[0]) : "";
   }
-  function normSearch(v) {
-    return String(v || "")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, " ")
-      .trim();
-  }
   function marketRows() {
     var k = areaKey(),
       out = [],
       i,
-      r,
-      q = normSearch(searchQuery),
-      aq = q,
-      a = window.BE_CITY_ALIASES || {},
-      x;
-    if (country === "be" && q) {
-      for (x in a) {
-        if (normSearch(x) === q) {
-          aq = normSearch(a[x]);
-          break;
-        }
-      }
-    }
+      r;
     for (i = 0; i < data.length; i++) {
       r = data[i];
-      if (
-        String(r[0]) === k &&
-        String(r[4]).toLowerCase() === currentDay &&
-        (!q ||
-          normSearch(
-            (r[2] || "") + " " + (r[3] || "") + " " + (r[8] || ""),
-          ).indexOf(q) >= 0 ||
-          normSearch(
-            (r[2] || "") + " " + (r[3] || "") + " " + (r[8] || ""),
-          ).indexOf(aq) >= 0)
-      )
+      if (String(r[0]) === k && String(r[4]).toLowerCase() === currentDay)
         out.push(r);
     }
     return out;
@@ -231,25 +118,6 @@
   }
   function currentTrade() {
     return String(localStorage.getItem("market_trade") || "").trim();
-  }
-  var tradeChoices = [
-    "Brocante",
-    "Matelas",
-    "Vêtements",
-    "Alimentaire",
-    "Outillage",
-    "Bijoux",
-    "Chaussures",
-    "Couvreur",
-    "Rempailleur / Restauration",
-    "Bonbons des Vosges",
-    "Horloger",
-    "Meubles",
-    "Tapis",
-    "Espace vert",
-  ];
-  function knownTrade(v) {
-    return tradeChoices.indexOf(v) >= 0;
   }
   function identity(r) {
     return [country, r[0], r[2], r[3], r[4], r[8] || ""].join("|");
@@ -354,14 +222,13 @@
   }
   function askTrade() {
     bubble(
-      '<h2>VOTRE MÉTIER</h2><p>Choisissez obligatoirement un métier dans la liste pour ne pas fausser les compteurs.</p><select id="newTradeSelect" style="width:94%;height:68px;border:3px solid #62d8ff;border-radius:15px;background:#081727;color:#fff;font-size:24px;padding:10px"><option value="">CHOISIR SON MÉTIER</option><option>Brocante</option><option>Matelas</option><option>Vêtements</option><option>Alimentaire</option><option>Outillage</option><option>Bijoux</option><option>Chaussures</option><option>Couvreur</option><option>Rempailleur / Restauration</option><option>Bonbons des Vosges</option><option>Horloger</option><option>Meubles</option><option>Tapis</option><option>Espace vert</option></select><div class="bubbleBtns"><button id="newCancel" class="red">ANNULER</button><button id="newTradeSave" class="blue">ENREGISTRER</button></div>',
+      '<h2>VOTRE MÉTIER</h2><p>Enregistrez votre métier pour afficher automatiquement la concurrence sur chaque marché.</p><input id="newTradeInput" maxlength="80" placeholder="Ex. Matelas" style="width:94%;height:68px;border:3px solid #62d8ff;border-radius:15px;background:#081727;color:#fff;font-size:27px;padding:10px 15px"><div class="bubbleBtns"><button id="newCancel" class="red">ANNULER</button><button id="newTradeSave" class="blue">ENREGISTRER</button></div>',
     );
     bindTap(el("newCancel"), closeBubble);
     bindTap(el("newTradeSave"), function () {
-      var s = el("newTradeSelect"),
-        v = s.value;
-      if (!knownTrade(v)) {
-        s.focus();
+      var v = el("newTradeInput").value.trim();
+      if (!v) {
+        el("newTradeInput").focus();
         return;
       }
       localStorage.setItem("market_trade", v);
@@ -549,40 +416,9 @@
         renderDays();
         renderMarkets();
       };
-    setTimeout(function () {
-      var active = el("days").querySelector(".day.active");
-      if (active && active.scrollIntoView)
-        active.scrollIntoView({
-          behavior: "smooth",
-          block: "nearest",
-          inline: "center",
-        });
-    }, 20);
   }
   function listText(v) {
     return v && v.length ? v.join(", ") : "À vérifier";
-  }
-  function builtInDraw(r) {
-    var city = String((r && r[3]) || "").toLowerCase();
-    if (city.indexOf("nantes") >= 0) return "Oui";
-    if (city.indexOf("rennes") >= 0) return "Oui";
-    return "À vérifier";
-  }
-  function marketDistanceText(r) {
-    var a = parseFloat(localStorage.getItem("return_lat")),
-      b = parseFloat(localStorage.getItem("return_lon")),
-      c = parseFloat(r && r[10]),
-      d = parseFloat(r && r[11]);
-    if (!isFinite(a) || !isFinite(b) || !isFinite(c) || !isFinite(d)) return "";
-    var p = Math.PI / 180,
-      da = (c - a) * p,
-      db = (d - b) * p,
-      x =
-        Math.sin(da / 2) * Math.sin(da / 2) +
-        Math.cos(a * p) * Math.cos(c * p) * Math.sin(db / 2) * Math.sin(db / 2),
-      km = 2 * 6371 * Math.asin(Math.sqrt(x));
-    if (km < 1) return Math.round(km * 1000) + " m";
-    return (km < 10 ? km.toFixed(1) : Math.round(km)) + " km";
   }
   function renderMarkets() {
     var rs = marketRows(),
@@ -594,21 +430,16 @@
       place,
       time,
       count,
-      url,
-      fav;
+      url;
     el("heading").textContent =
-      areaLabel(selected) +
-      " — " +
-      currentDay.toUpperCase() +
-      (searchQuery ? " — RECHERCHE : " + searchQuery.toUpperCase() : "");
+      areaLabel(selected) + " — " + currentDay.toUpperCase();
     for (i = 0; i < rs.length; i++) {
       r = rs[i];
       s = saved(r) || {};
-      name = cleanCardText(r[2] || "Marché");
-      place = cleanCardText(r[3] || "À préciser");
-      time = cleanCardText(s.time || r[5] || "Horaire à vérifier");
-      count = cleanCardText(s.count || r[7] || "À vérifier");
-      fav = isFavorite(r);
+      name = r[2] || "Marché";
+      place = r[3] || "À préciser";
+      time = s.time || r[5] || "Horaire à vérifier";
+      count = s.count || r[7] || "À vérifier";
       url =
         "verification-v9.html?k=" +
         encodeURIComponent(verificationKey(r)) +
@@ -620,55 +451,33 @@
         encodeURIComponent(r[7] || "") +
         "&mk=" +
         encodeURIComponent(identity(r)) +
-        "&country=" +
-        encodeURIComponent(country) +
         "&lat=" +
         encodeURIComponent(r[10] == null ? "" : r[10]) +
         "&lon=" +
-        encodeURIComponent(r[11] == null ? "" : r[11]) +
-        "&back=" +
-        encodeURIComponent(
-          (country === "be"
-            ? "belgique-marches-final.html"
-            : "marches-final.html") +
-            "?area=" +
-            encodeURIComponent(areaKey()) +
-            "&day=" +
-            encodeURIComponent(currentDay),
-        );
+        encodeURIComponent(r[11] == null ? "" : r[11]);
       html +=
-        '<article class="card">' + verificationDot(r, s) + '<button type="button" class="marketFavoriteStar ' +
-        (fav ? "active" : "") +
-        '" aria-label="' +
-        (fav ? "Retirer des favoris" : "Ajouter aux favoris") +
-        '" title="' +
-        (fav ? "Retirer des favoris" : "Ajouter aux favoris") +
-        '" onclick="return window.toggleMarketFavorite(' +
-        i +
-        ',this)">' +
-        (fav ? "★" : "☆") +
-        '</button><div class="name">' +
+        '<article class="card"><div class="name">' +
         esc(place) +
         "</div>" +
         '<div class="meta" style="font-weight:900;font-size:20px;margin-bottom:8px">' +
         esc(name) +
         "</div>" +
-        (marketDistanceText(r)
-          ? '<div class="meta" data-feature="market-distance" style="color:#6fe0ff;font-size:18px;font-weight:950">' +
-            esc(marketDistanceText(r)) +
-            "</div>"
-          : "") +
+        (r[8] ? '<div class="meta">📍 ' + esc(r[8]) + "</div>" : "") +
         '<div class="meta">🕒 ' +
         esc(time) +
         '</div><div class="meta">👥 Commerçants : ' +
         esc(count) +
         '</div><div class="meta">Tirage au sort : ' +
-        esc(cleanCardText(s.draw || r[12] || builtInDraw(r))) +
+        esc(s.draw || r[12] || "À vérifier") +
         '</div><div class="meta">Accueil du placier : ' +
-        esc(cleanCardText(s.welcome || "À vérifier")) +
+        esc(s.welcome || "À vérifier") +
+        '</div><div class="meta">Placier : ' +
+        esc(listText(s.placer)) +
         '</div><div class="meta">Modèle de clients : ' +
-        esc(cleanCardText(s.clientModel || "À vérifier")) +
-        '</div><div id="competition_' +
+        esc(s.clientModel || "À vérifier") +
+        '</div><div class="weather" id="weather_' +
+        i +
+        '">🌤️ Météo 07h00–13h30 : chargement…</div><div id="competition_' +
         i +
         '" style="margin-top:10px;padding:12px;border:3px solid #f39b19;border-radius:14px;background:#05090f;color:#fff;font-size:18px;font-weight:950">Concurrence : chargement…</div><div class="actions"><button type="button" class="go" data-market="' +
         i +
@@ -686,6 +495,7 @@
       html ||
       '<article class="card empty">Aucun marché enregistré pour ce jour.</article>';
     loadCounts(rs);
+    loadWeather(rs);
   }
   function loadWeather(rs) {
     var date = nextDate(currentDay),
@@ -740,11 +550,7 @@
         box.textContent = "🌤️ Météo 07h00–13h30 : indisponible";
       });
   }
-  function pickerTop(on) {
-    document.body.classList.toggle("departmentPicker", !!on);
-  }
   function showMarkets() {
-    pickerTop(false);
     el("picker").style.display = "none";
     el("results").style.display = "block";
     renderDays();
@@ -771,71 +577,69 @@
   }
   function init() {
     var picker = el("picker"),
+      overlay = document.createElement("div"),
       listHtml = "",
-      i,
-      code,
-      boxLabel,
-      params,
-      restoreArea,
-      restoreDay;
-    pickerTop(true);
-    if (country === "be") document.body.classList.add("belgiumPicker");
-    boxLabel = country === "fr" ? "DÉPARTEMENT" : "PROVINCE";
+      i;
     picker.innerHTML =
-      '<a class="departmentBack" href="choix-marches-final.html">← RETOUR</a><div class="departmentInstruction">CHOISIR ' +
-      (country === "fr" ? "UN DÉPARTEMENT" : "UNE PROVINCE") +
-      '</div><div id="areaDirectList" class="areaDirectList"></div>';
-    if (country === "fr") {
-      listHtml =
-        '<select id="frDepartmentSelect" class="frDepartmentSelect" aria-label="Choisir un département"><option value="">CHOISIR UN DÉPARTEMENT</option>';
-      for (i = 0; i < areas.length; i++) {
-        code = String(areas[i][0]);
-        listHtml +=
-          '<option value="' +
-          i +
-          '">' +
-          esc(code + " — " + areas[i][1]) +
-          "</option>";
-      }
+      '<div class="label">CHOISIR SON ' +
+      (country === "fr" ? "DÉPARTEMENT" : "SECTEUR") +
+      '</div><button type="button" id="areaOpen" class="areaOpen">APPUYEZ ICI</button><button type="button" id="confirm" disabled>CONFIRMER</button>';
+    for (i = 0; i < areas.length; i++)
       listHtml +=
-        '</select><button type="button" id="frDepartmentOpen" class="frDepartmentOpen">OUVRIR</button>';
-      el("areaDirectList").innerHTML = listHtml;
-      marketTap(el("frDepartmentOpen"), function () {
-        var v = el("frDepartmentSelect").value;
-        if (v === "") return;
-        selected = areas[Number(v)];
-        showMarkets();
-      });
-    } else {
-      for (i = 0; i < areas.length; i++) {
-        listHtml +=
-          '<button type="button" class="areaChoice" data-area="' +
-          i +
-          '"><span class="areaBoxLabel">' +
-          boxLabel +
-          '</span><span class="areaBoxCode">' +
-          esc(areas[i][1]) +
-          "</span></button>";
-      }
-      el("areaDirectList").innerHTML = listHtml;
-      var choices = el("areaDirectList").getElementsByTagName("button");
-      for (i = 0; i < choices.length; i++)
-        marketTap(
-          choices[i],
-          function () {
-            selected = areas[Number(this.getAttribute("data-area"))];
-            showMarkets();
-          }.bind(choices[i]),
-        );
+        '<button type="button" class="areaChoice" data-area="' +
+        i +
+        '">' +
+        esc(areaLabel(areas[i])) +
+        "</button>";
+    overlay.id = "areaOverlay";
+    overlay.className = "areaOverlay";
+    overlay.innerHTML =
+      '<div class="areaOverlayHead"><button type="button" id="areaClose" class="areaClose">← RETOUR</button><h2>CHOISIR SON ' +
+      (country === "fr" ? "DÉPARTEMENT" : "SECTEUR") +
+      '</h2></div><div class="areaOverlayHint">FAITES DÉFILER PUIS APPUYEZ SUR VOTRE CHOIX</div><div id="areaList" class="areaList">' +
+      listHtml +
+      "</div>";
+    document.body.appendChild(overlay);
+    var open = el("areaOpen"),
+      confirm = el("confirm");
+    function closeArea() {
+      overlay.className = "areaOverlay";
+      document.body.style.overflow = "";
     }
+    marketTap(open, function () {
+      overlay.className = "areaOverlay open";
+      document.body.style.overflow = "hidden";
+      el("areaList").scrollTop = 0;
+    });
+    marketTap(el("areaClose"), closeArea);
+    var choices = el("areaList").getElementsByTagName("button");
+    for (i = 0; i < choices.length; i++)
+      marketTap(
+        choices[i],
+        function () {
+          var n = Number(this.getAttribute("data-area"));
+          selected = areas[n];
+          open.textContent = areaLabel(selected);
+          confirm.disabled = false;
+          confirm.className = "ready";
+          closeArea();
+        }.bind(choices[i]),
+      );
+    marketTap(confirm, function () {
+      if (selected) showMarkets();
+    });
     marketTap(el("changeArea"), function () {
-      // Retour direct à la page principale de recherche France / Belgique.
-      // On ne réaffiche plus l’écran intermédiaire département / province.
-      location.href = "choix-marches-final.html";
+      el("results").style.display = "none";
+      picker.style.display = "block";
+      selected = null;
+      open.textContent = "APPUYEZ ICI";
+      confirm.disabled = true;
+      confirm.className = "";
+      window.scrollTo(0, 0);
     });
     el("tradeSave").onclick = function () {
-      var v = el("tradeInput").value;
-      if (!knownTrade(v)) {
+      var v = el("tradeInput").value.trim();
+      if (!v) {
         el("tradeInput").focus();
         return;
       }
@@ -845,10 +649,6 @@
       if (el("results").style.display === "block") renderMarkets();
     };
     var trade = currentTrade();
-    if (!knownTrade(trade)) {
-      trade = "";
-      localStorage.removeItem("market_trade");
-    }
     el("tradeInput").value = trade;
     el("tradeStatus").textContent = trade
       ? "Métier enregistré : " + trade
@@ -856,33 +656,27 @@
     el("tradeSave").textContent = trade
       ? "MODIFIER LE MÉTIER"
       : "ENREGISTRER LE MÉTIER";
-    try {
-      params = new URLSearchParams(location.search);
-      restoreArea = params.get("area");
-      restoreDay = params.get("day");
-      searchQuery = params.get("q") || "";
-    } catch (e) {
-      restoreArea = "";
-      restoreDay = "";
-    }
-    if (restoreDay && days.indexOf(String(restoreDay).toLowerCase()) >= 0)
-      currentDay = String(restoreDay).toLowerCase();
-    if (restoreArea) {
-      for (i = 0; i < areas.length; i++) {
-        if (String(areas[i][0]) === String(restoreArea)) {
-          selected = areas[i];
-          showMarkets();
-          break;
-        }
-      }
-    }
-    if (!selected) {
-      // Le choix département/province se fait uniquement sur la page principale Marchés.
-      location.replace("choix-marches-final.html");
-      return;
+  }
+  function addRegistrationLines() {
+    var rs = marketRows(),
+      cards = el("cards") && el("cards").querySelectorAll(".card"),
+      i,
+      line,
+      target;
+    if (!cards) return;
+    for (i = 0; i < cards.length && i < rs.length; i++) {
+      if (cards[i].querySelector(".registrationMeta")) continue;
+      line = document.createElement("div");
+      line.className = "meta registrationMeta";
+      line.textContent =
+        "Inscription : " + (rs[i][13] || "Non publiée officiellement");
+      target = cards[i].querySelector('[id^="competition_"]');
+      cards[i].insertBefore(line, target);
     }
   }
-  function addRegistrationLines() {}
+  new MutationObserver(addRegistrationLines).observe(el("cards"), {
+    childList: true,
+  });
   init();
   document.addEventListener("visibilitychange", function () {
     if (!document.hidden) refreshCountsOnReturn();

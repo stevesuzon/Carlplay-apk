@@ -5,36 +5,5 @@ var secret=document.getElementById('secret'),file=document.getElementById('file'
 file.onchange=async function(){var f=file.files&&file.files[0];if(f)source.value=await f.text()};
 function csvLine(line,sep){var out=[],v='',q=false;for(var i=0;i<line.length;i++){var c=line[i];if(c==='"'){if(q&&line[i+1]==='"'){v+='"';i++}else q=!q}else if(c===sep&&!q){out.push(v.trim());v=''}else v+=c}out.push(v.trim());return out}
 function parse(){var text=source.value.trim();if(!text)return[];if(text[0]==='['||text[0]==='{'){var j=JSON.parse(text);return Array.isArray(j)?j:(j.markets||[])}var lines=text.split(/\r?\n/).filter(function(x){return x.trim()});var sep=lines[0].includes(';')?';':',';var first=csvLine(lines[0],sep);var aliases={pays:'country',country:'country',departement:'area','département':'area',province:'area',area:'area',type:'kind',nom:'name',name:'name',ville:'city',commune:'city',city:'city',jour:'day',day:'day',horaires:'hours',hours:'hours',adresse:'address',address:'address',commercants:'merchants','commerçants':'merchants',tirage:'draw',remarques:'note',note:'note'};var header=first.map(function(x){return aliases[x.toLowerCase().trim()]||x.toLowerCase().trim()});var start=header.some(function(x){return x==='name'||x==='country'||x==='area'})?1:0;if(!start)header=['country','area','kind','name','city','day','hours','address','merchants','draw','note'];return lines.slice(start).map(function(line){var values=csvLine(line,sep),o={};header.forEach(function(h,i){o[h]=values[i]||''});return o})}
-document.getElementById('send').onclick=async function(){
-  var button=this;
-  try{
-    var markets=parse(),password=secret.value.trim();
-    if(!markets.length)throw new Error('Aucun marché trouvé.');
-    if(!password)throw new Error('Entre le mot de passe administrateur.');
-    sessionStorage.setItem('market_admin_secret',password);
-    button.disabled=true;
-    var size=100,added=0,duplicates=0,invalid=0;
-    for(var start=0;start<markets.length;start+=size){
-      var end=Math.min(start+size,markets.length);
-      result.textContent='Enregistrement : '+start+' / '+markets.length+' marchés…';
-      var r=await fetch(location.origin+'/api/admin/markets/import',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+password},
-        body:JSON.stringify({markets:markets.slice(start,end)})
-      });
-      var text=await r.text(),j={};
-      try{j=text?JSON.parse(text):{}}catch(ignore){}
-      if(!r.ok)throw new Error(j.error==='SECRET_INCORRECT'?'Mot de passe incorrect.':(j.error||('Serveur indisponible (erreur '+r.status+').')));
-      added+=Number(j.added||0);
-      duplicates+=Number(j.duplicates||0);
-      invalid+=Number(j.invalid||0);
-      result.textContent='Enregistrement : '+end+' / '+markets.length+' marchés…';
-    }
-    result.textContent='TERMINÉ : '+added+' nouveau(x) marché(s), '+duplicates+' doublon(s), '+invalid+' ligne(s) incomplète(s).';
-  }catch(e){
-    result.textContent='IMPORT ARRÊTÉ : '+(e&&e.message?e.message:'Import impossible.');
-  }finally{
-    button.disabled=false;
-  }
-}
+document.getElementById('send').onclick=async function(){try{var markets=parse();if(!markets.length)throw new Error('Aucun marché trouvé.');sessionStorage.setItem('market_admin_secret',secret.value);result.textContent='Enregistrement en cours…';var r=await fetch('/api/admin/markets/import',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+secret.value},body:JSON.stringify({markets:markets})});var j=await r.json();if(!r.ok)throw new Error(j.error==='SECRET_INCORRECT'?'Mot de passe incorrect.':(j.error||'Import impossible.'));result.textContent=j.added+' nouveau(x) marché(s), '+(j.updated||0)+' marché(s) mis à jour, '+j.invalid+' ligne(s) incomplète(s).'}catch(e){result.textContent=e.message||'Import impossible.'}}
 </script></body></html>

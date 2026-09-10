@@ -18,8 +18,32 @@ main{padding:22px 0 45px}.card{background:#211923;border:1px solid #ffffff16;bor
 .belgique-contact{margin:8px 0 20px!important;color:#f4c542!important;font-size:clamp(24px,5vw,38px);font-weight:950;line-height:1.12;text-align:center;text-transform:uppercase}
 .fieldLabel{display:block;margin:12px 0 7px;font-weight:900}.textField{width:100%;padding:14px 16px;border-radius:14px;border:1px solid #ffffff30;background:#171217;color:#fff;font-size:18px}.docStatus{margin:12px 0 0;padding:12px;border-radius:12px;background:#171217;color:#c9c1ca;line-height:1.4}.docStatus.ready{border:1px solid #46c879;color:#fff}.hiddenFile{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 </style>
+<style id="switch-site-button-style">
+#switch-site-button{
+  position:fixed;left:0;right:0;bottom:0;z-index:99999;
+  display:flex;justify-content:center;align-items:center;
+  min-height:58px;padding:9px 14px;
+  background:rgba(20,16,18,.97);border-top:1px solid rgba(255,255,255,.16);
+  box-shadow:0 -4px 18px rgba(0,0,0,.28);
+}
+#switch-site-button a{
+  display:flex;align-items:center;justify-content:center;
+  width:min(94%,720px);min-height:42px;padding:10px 18px;
+  border-radius:12px;text-decoration:none;
+  background:#111;color:#fff;font-weight:700;font-size:16px;
+  border:1px solid rgba(255,255,255,.22);
+}
+#switch-site-button a:active{transform:scale(.99)}
+body{padding-bottom:76px!important}
+</style>
 
 
+<link rel="apple-touch-icon" sizes="180x180" href="assets/icon-pauvres-180.png?v=3">
+<link rel="apple-touch-icon" sizes="167x167" href="assets/icon-pauvres-167.png?v=3">
+<link rel="apple-touch-icon" sizes="152x152" href="assets/icon-pauvres-152.png?v=3">
+<link rel="apple-touch-icon" sizes="120x120" href="assets/icon-pauvres-120.png?v=3">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-pauvres-192.png?v=3">
+<link rel="icon" type="image/png" sizes="512x512" href="assets/icon-pauvres-512.png?v=3">
 <link rel="manifest" href="manifest.webmanifest?v=3">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -130,7 +154,7 @@ window.setPaperExpiry=function(type,expired){
 <h2>📄 Extrait de KBis gratuit</h2>
 <p><strong style="color:#f4c542;font-size:19px">Entrez votre SIRET une seule fois.</strong><br>L’application le garde automatiquement. Vous n’aurez plus besoin de le réécrire.</p>
 <label class="fieldLabel" for="siretInput">Numéro SIRET (14 chiffres) :</label>
-<input class="textField" id="siretInput" type="text" inputmode="numeric" autocomplete="off" maxlength="17" placeholder="123 456 789 00012">
+<input class="textField" id="siretInput" type="text" inputmode="numeric" autocomplete="off" maxlength="30" placeholder="123 456 789 00012">
 <button class="btn secondary" type="button" id="saveSiret">ENREGISTRER MON SIRET</button>
 <div id="siretSavedNote" class="docStatus" style="display:none"></div>
 <button class="btn" type="button" id="openRne">TÉLÉCHARGER / ENREGISTRER MON EXTRAIT GRATUITEMENT →</button>
@@ -194,8 +218,13 @@ window.setPaperExpiry=function(type,expired){
   <div style="margin:14px 0;padding:14px;border:2px solid #f4c542;border-radius:16px;background:#171217">
     <h3 style="margin:0 0 8px">🇧🇪 Papiers belges / TVA</h3>
     <a class="btn" href="https://intervat.minfin.fgov.be/VAT/dashboard" target="_blank" rel="noopener noreferrer">FAIRE MA DÉCLARATION DE TVA →</a>
-    <button class="btn secondary" type="button" id="belgiumVatDone">✓ MA DÉCLARATION EST FAITE</button>
+    <div id="belgiumVatActions" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:10px;align-items:stretch">
+      <button class="btn secondary" type="button" id="belgiumVatDone" style="margin-top:0;width:100%;min-width:0;min-height:76px;padding:10px 8px;font-size:clamp(11px,2.8vw,15px);line-height:1.15;white-space:normal;overflow-wrap:anywhere;display:flex;align-items:center;justify-content:center">✓ MA DÉCLARATION EST FAITE</button>
+      <button class="btn secondary" type="button" id="belgiumVatImport" style="margin-top:0;width:100%;min-width:0;min-height:76px;padding:10px 8px;font-size:clamp(11px,2.8vw,15px);line-height:1.15;white-space:normal;overflow-wrap:anywhere;display:flex;align-items:center;justify-content:center">📄 METTRE MA TVA DANS MES PAPIERS</button>
+    </div>
+    <input id="belgiumVatFile" type="file" accept="application/pdf,image/*" hidden>
     <p id="belgiumVatStatus" style="font-weight:900;color:#f4c542"></p>
+    <p id="belgiumVatImportStatus" style="margin:8px 0 0;color:#c9c1ca;font-weight:800"></p>
   </div>
 </div>
 
@@ -237,6 +266,11 @@ window.setPaperExpiry=function(type,expired){
   setTimeout(refreshBelgiumVat,0);
   document.addEventListener('click',function(ev){
     if(ev.target&&ev.target.id==='belgiumVatDone'){
+      const due=Number(localStorage.getItem('belgiumVat.nextDue')||0),now=Date.now();
+      if(due>now){
+        const days=Math.max(1,Math.ceil((due-now)/DAYVAT));
+        if(!confirm('Votre prochaine déclaration est déjà programmée dans '+days+' jour'+(days>1?'s':'')+'.\n\nÊtes-vous sûr de vouloir remettre le compteur à zéro et repartir pour 3 mois ?'))return;
+      }
       const d=new Date();d.setMonth(d.getMonth()+3);
       localStorage.setItem('belgiumVat.lastDone',String(Date.now()));
       localStorage.setItem('belgiumVat.nextDue',String(d.getTime()));
@@ -245,6 +279,10 @@ window.setPaperExpiry=function(type,expired){
       alert('Déclaration belge enregistrée. Rappel 1 semaine avant la prochaine échéance.');
     }
   });
+  const vatPicker=document.getElementById('belgiumVatFile'),vatImport=document.getElementById('belgiumVatImport'),vatImportStatus=document.getElementById('belgiumVatImportStatus');
+  function vatDb(){return new Promise(function(ok,no){const r=indexedDB.open('carplayDocuments',1);r.onupgradeneeded=function(){if(!r.result.objectStoreNames.contains('files'))r.result.createObjectStore('files')};r.onsuccess=function(){ok(r.result)};r.onerror=function(){no(r.error)}})}
+  function saveVatFile(file){return vatDb().then(function(db){return new Promise(function(ok,no){const tx=db.transaction('files','readwrite');tx.objectStore('files').put({blob:file,name:file.name||'tva-belge.pdf',savedAt:Date.now()},'tva-belge');tx.oncomplete=ok;tx.onerror=function(){no(tx.error)}})})}
+  if(vatImport&&vatPicker){vatImport.addEventListener('click',function(){vatPicker.click()});vatPicker.addEventListener('change',function(){const f=vatPicker.files&&vatPicker.files[0];if(!f)return;saveVatFile(f).then(function(){vatImportStatus.textContent='✓ TVA enregistrée. Consultez-la dans Mes papiers.';vatPicker.value=''}).catch(function(){vatImportStatus.textContent='⚠️ Impossible d’enregistrer ce document.'})})}
   const key='papierBelgiqueDocsUnlocked';
   window.unlockBelgiqueDocs=function(){
     const input=document.getElementById('belgiqueCode');
@@ -378,6 +416,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
   modal.addEventListener('click',function(e){if(e.target===modal)modal.classList.remove('open')});
 })();
 </script>
+<script src="new-feature-bubbles.js?v=20260905b"></script>
 </body>
 </html>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>

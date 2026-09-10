@@ -1,0 +1,79 @@
+{
+  "version": "2026-09-01",
+  "updated_at": "2026-09-01",
+  "france": [],
+  "belgique": [
+    {
+      "name": "Marché de Noël de Hannut",
+      "start": "2026-12-04",
+      "end": "2026-12-06",
+      "city": "Hannut",
+      "category": "noel"
+    },
+    {
+      "name": "Le Noël des Artisans",
+      "start": "2026-12-19",
+      "end": "2026-12-20",
+      "city": "Courcelles",
+      "category": "noel"
+    },
+    {
+      "name": "33ème Village de Noël",
+      "start": "2026-12-10",
+      "end": "2026-12-13",
+      "city": "Waremme",
+      "category": "noel"
+    },
+    {
+      "name": "Marché de Noël à l'Abbaye Notre-Dame du Vivier",
+      "start": "2026-12-04",
+      "end": "2026-12-06",
+      "city": "Marche-les-Dames",
+      "category": "noel"
+    },
+    {
+      "name": "Village du Père Noël",
+      "start": "2026-12-12",
+      "end": "2026-12-13",
+      "city": "Braine-le-Château",
+      "category": "noel"
+    },
+    {
+      "name": "Marché de Noël artisanal",
+      "start": "2026-12-19",
+      "end": "2026-12-20",
+      "city": "Jemeppe-sur-Sambre",
+      "category": "noel"
+    },
+    {
+      "name": "Marché de Noël de Rebecq",
+      "start": "2026-12-18",
+      "end": "2026-12-20",
+      "city": "Rebecq",
+      "category": "noel"
+    },
+    {
+      "name": "Marché de Noël 2026 à Court-Saint-Etienne",
+      "start": "2026-12-11",
+      "end": "2026-12-13",
+      "city": "Court-Saint-Etienne",
+      "address": "Place Baudouin 1er, 1490 Court-Saint-Etienne",
+      "hours": "Ven 17h30–22h; Sam 15h–22h; Dim 12h–21h",
+      "category": "noel"
+    },
+    {
+      "name": "Marché de Noël de Binche",
+      "start": "2026-12-04",
+      "end": "2026-12-13",
+      "city": "Binche",
+      "category": "noel"
+    },
+    {
+      "name": "Marché de Noël de Gouvy",
+      "start": "2026-12-05",
+      "end": "2026-12-06",
+      "city": "Gouvy",
+      "category": "noel"
+    }
+  ]
+}

@@ -1,1 +1,12 @@
-@media(max-width:720px){.wrap{padding-left:12px!important;padding-right:12px!important;margin-left:auto!important;margin-right:auto!important}}
+#articleTravailFlottant,#articleTravailModal{display:none!important}
+.homeWorkLinks{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:0 0 18px}
+.homeWorkBtn{min-height:190px;border:2px solid #ffffff66;border-radius:28px;padding:25px;color:#fff;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:25px;text-align:center;font:950 32px/1.12 Arial,sans-serif;box-shadow:0 8px 24px #0008;text-shadow:0 3px 7px #0005;overflow:hidden}
+.homeWorkBtn.place{background:linear-gradient(135deg,#f12f79,#ff6812)}.homeWorkBtn.docs{background:linear-gradient(135deg,#9629e8,#087ee5)}.homeWorkBtn .homeWorkIcon{font-size:70px;filter:drop-shadow(0 7px 7px #0006)}
+#homeArticleBtn{position:fixed;left:8px;top:52%;transform:translateY(-50%);z-index:1900;width:92px;min-height:94px;padding:10px 7px;border:2px solid #ffc34d;border-radius:17px;background:linear-gradient(180deg,#ff7a00,#e23b00);box-shadow:0 5px 18px #0008;color:#fff;text-align:center;font:950 13px/1.1 Arial,sans-serif;cursor:pointer}
+#homeArticleBtn span{display:block;font-size:27px;margin-bottom:5px}#homeArticleModal{display:none;position:fixed;inset:0;z-index:2147483646;background:#000c;align-items:center;justify-content:center;padding:18px;font-family:Arial,sans-serif}#homeArticleModal.open{display:flex}
+#homeArticleModal .panel{width:min(520px,94vw);background:#111923;border:3px solid #f39b19;border-radius:22px;padding:23px;color:#fff;box-shadow:0 18px 55px #000}#homeArticleModal h2{margin:0 0 12px;color:#ffc34d;font-size:27px}#homeArticleModal p{font-size:18px;line-height:1.5}#homeArticleModal button{width:100%;margin-top:16px;padding:15px;border:0;border-radius:13px;background:#f39b19;color:#10131a;font-size:18px;font-weight:950}
+.belgiqueContactLock{padding:18px;border:3px solid #f39b19;border-radius:17px;background:#080b10;text-align:center;color:#fff}.belgiqueContactLock strong{display:block;color:#ffc34d;font-size:23px;margin-bottom:8px}.belgiqueContactLock p{font-size:18px!important;font-weight:900;color:#fff!important;margin:0!important}
+@media(max-width:720px){.homeWorkLinks{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.homeWorkBtn{min-height:112px;font-size:23px}.homeWorkBtn .homeWorkIcon{font-size:45px}#homeArticleBtn{left:4px;width:78px;min-height:82px;font-size:11px}.wrap{padding-left:12px!important;padding-right:12px!important;margin-left:auto!important;margin-right:auto!important}}
+
+/* Article de travail : seul le petit bouton flottant #directArticle est autorisé sur l’accueil. */
+#homeArticleBtn,.articleTile{display:none!important}

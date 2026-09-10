@@ -5,15 +5,144 @@
 body #weatherBubble{display:none!important}
 
 
-/* 2026-08-27 — 2 colonnes, toutes les informations visibles */
+/* Grand écran : 2 colonnes. Téléphone : une fiche complète par ligne. */
 .cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:stretch}
 .card{min-width:0!important;height:auto!important;overflow:visible!important}
 .card .name,.card .meta{overflow-wrap:anywhere}
 @media(max-width:760px){
-  .cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
-  .card{padding:11px!important;border-radius:16px!important}
-  .name{font-size:18px!important;line-height:1.12!important}
-  .meta{font-size:13px!important;line-height:1.28!important;margin-top:6px!important}
+  .cards{grid-template-columns:1fr!important;gap:12px!important}
+  .card{width:100%!important;max-width:100%!important;padding:15px!important;border-radius:18px!important}
+  .name{font-size:23px!important;line-height:1.15!important}
+  .meta{font-size:17px!important;line-height:1.35!important;margin-top:7px!important}
   .actions{display:grid!important;grid-template-columns:1fr!important;gap:7px!important;margin-top:10px!important}
-  .actions .go,.actions .verify{min-height:45px!important;font-size:13px!important;padding:6px!important}
+  .actions .go,.actions .verify{min-height:52px!important;font-size:16px!important;padding:8px!important}
 }
+
+/* V111 : cartes compactes 3 par ligne + photo carrée entière */
+.cards{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important}
+.card{padding:12px!important;border-radius:16px!important}
+.card .name{font-size:20px!important;padding-right:22px}
+.card .meta{font-size:15px!important;line-height:1.28!important;margin-top:6px!important}
+.card .meta[style]{font-size:16px!important}
+.card [id^="competition_"]{font-size:14px!important;padding:9px!important;border-width:2px!important}
+.card .actions{display:grid!important;grid-template-columns:1fr!important;gap:7px!important;margin-top:10px!important}
+.card .actions .go,.card .actions .verify{min-height:48px!important;font-size:13px!important;padding:7px!important}
+.card .sharedMarketPhoto{width:min(150px,100%)!important;aspect-ratio:1/1!important;height:auto!important;object-fit:contain!important;margin:9px auto!important}
+@media(max-width:760px){
+  .cards{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important}
+  .card{width:auto!important;max-width:none!important;padding:8px!important;border-radius:13px!important}
+  .card .name{font-size:16px!important;padding-right:17px}
+  .card .meta,.card .meta[style]{font-size:11px!important;line-height:1.2!important;overflow-wrap:anywhere}
+  .card [id^="competition_"]{font-size:10px!important;padding:6px!important;margin-top:7px!important}
+  .card .actions .go,.card .actions .verify{min-height:40px!important;font-size:10px!important;line-height:1.1!important}
+  .marketVerificationDot{width:14px!important;height:14px!important;right:7px!important;top:7px!important}
+  .card .sharedMarketPhoto{width:100%!important;max-width:120px!important;aspect-ratio:1/1!important;height:auto!important;object-fit:contain!important;margin:7px auto!important;border-width:2px!important;border-radius:10px!important}
+}
+
+/* V112 : EXACTEMENT LE FORMAT VALIDE PAR STEVE — 2 COLONNES x 3 CARTES VISIBLES */
+.cards{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:12px!important;
+  align-items:stretch!important;
+}
+.card{
+  position:relative!important;
+  min-width:0!important;
+  padding:12px!important;
+  border:3px solid #f39b19!important;
+  border-radius:18px!important;
+  background:rgba(5,17,34,.97)!important;
+  overflow:hidden!important;
+}
+.card .name{
+  font-size:22px!important;
+  line-height:1.1!important;
+  font-weight:950!important;
+  padding-right:28px!important;
+  margin-bottom:5px!important;
+}
+.card .meta{
+  font-size:14px!important;
+  line-height:1.25!important;
+  margin-top:4px!important;
+  overflow-wrap:anywhere!important;
+}
+.card .meta[style]{font-size:15px!important;margin-bottom:5px!important}
+.card .sharedMarketPhoto{
+  float:left!important;
+  width:34%!important;
+  max-width:145px!important;
+  aspect-ratio:1/1!important;
+  height:auto!important;
+  object-fit:contain!important;
+  margin:4px 10px 7px 0!important;
+  border:2px solid #f39b19!important;
+  border-radius:8px!important;
+  background:#000!important;
+}
+.card .addMarketPhoto{
+  float:left!important;
+  width:34%!important;
+  min-height:105px!important;
+  margin:4px 10px 7px 0!important;
+  padding:6px!important;
+  font-size:11px!important;
+  line-height:1.15!important;
+}
+.card .registrationMeta{clear:both!important;padding-top:4px!important}
+.card [id^="competition_"]{
+  clear:both!important;
+  margin-top:9px!important;
+  padding:8px!important;
+  border-width:2px!important;
+  border-radius:11px!important;
+  font-size:12px!important;
+  line-height:1.2!important;
+}
+.card .actions{
+  clear:both!important;
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:7px!important;
+  margin-top:9px!important;
+}
+.card .actions .go,.card .actions .verify{
+  min-height:45px!important;
+  padding:6px!important;
+  border-radius:10px!important;
+  font-size:12px!important;
+  line-height:1.12!important;
+}
+.marketVerificationDot{
+  position:absolute!important;width:18px!important;height:18px!important;right:10px!important;top:10px!important;
+  border-radius:50%!important;border:2px solid rgba(255,255,255,.55)!important;box-shadow:0 0 7px rgba(0,0,0,.65)!important;z-index:4!important;
+}
+.marketVerificationDot.green{background:#24c96b!important}
+.marketVerificationDot.orange{background:#f39b19!important}
+@media(max-width:760px){
+  .shade{padding:8px!important}
+  .app{width:100%!important}
+  .cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  .card{width:auto!important;max-width:none!important;padding:8px!important;border-width:2px!important;border-radius:14px!important}
+  .card .name{font-size:16px!important;line-height:1.05!important;padding-right:18px!important}
+  .card .meta,.card .meta[style]{font-size:10px!important;line-height:1.18!important;margin-top:3px!important}
+  .card .sharedMarketPhoto{width:38%!important;max-width:105px!important;margin:3px 6px 5px 0!important;border-radius:6px!important}
+  .card .addMarketPhoto{width:38%!important;min-height:78px!important;margin:3px 6px 5px 0!important;font-size:8px!important}
+  .card [id^="competition_"]{font-size:9px!important;padding:5px!important;margin-top:6px!important;border-radius:8px!important}
+  .card .actions{grid-template-columns:1fr 1fr!important;gap:4px!important;margin-top:6px!important}
+  .card .actions .go,.card .actions .verify{min-height:36px!important;font-size:8.5px!important;padding:4px 2px!important;border-radius:8px!important}
+  .marketVerificationDot{width:13px!important;height:13px!important;right:6px!important;top:6px!important}
+}
+
+.marketFavoriteStar{position:absolute;right:42px;top:7px;z-index:5;width:34px;height:34px;padding:0;border:0;background:transparent;color:#fff;font-size:34px;line-height:34px;text-align:center;text-shadow:0 0 5px #000;cursor:pointer}.marketFavoriteStar.active{color:#ffc43d}.card>.name{padding-right:76px}
+/* Favori discret : étoile seule, alignée avec le point de statut */
+.marketFavoriteStar{right:39px!important;top:8px!important;width:22px!important;height:22px!important;font-size:24px!important;line-height:22px!important;opacity:.82!important;text-shadow:none!important}
+.marketFavoriteStar.active{color:#ffc43d!important;opacity:1!important}
+.card>.name{padding-right:66px!important}
+
+/* Favori V126 : pas de rerendu de toute la liste au clic */
+.marketFavoriteStar{touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+
+/* V127 - menu déroulant France */
+.frDepartmentSelect{width:min(680px,94%);height:64px;border:3px solid #62d8ff;border-radius:18px;background:#081727;color:#fff;font-size:24px;font-weight:900;padding:0 18px;margin:10px auto;display:block}.frDepartmentOpen{display:block;margin:10px auto 0;min-width:210px;min-height:54px;border:0;border-radius:16px;background:linear-gradient(135deg,#168ef2,#0576d7);color:#fff;font-size:19px;font-weight:950}.departmentPicker .areaDirectList:has(.frDepartmentSelect){display:block!important;max-width:760px;margin:0 auto}@media(max-width:720px){.frDepartmentSelect{height:56px;font-size:18px}.frDepartmentOpen{min-height:48px;font-size:16px}}
