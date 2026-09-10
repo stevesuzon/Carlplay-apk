@@ -1,7 +1,7 @@
-const CACHE = "carplay-v5-20260910-adresses-devis3";
+const CACHE = "carplay-v5-20260910-adresses-devis4";
 const CORE = [
   "/index.html",
-  "/cache-cleanup-v20260910.js?v=20260910-adresses-devis3",
+  "/cache-cleanup-v20260910.js?v=20260910-adresses-devis4",
   "/installer.html",
   "/tutoriel-comment-installer-iphone.mp4",
   "/manifest.webmanifest",
