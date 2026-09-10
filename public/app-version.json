@@ -1,6 +1,6 @@
 {
-  "version": "V5-DEVIS-ZOOM-TOITURE-MARGE15-CACHEFIX",
+  "version": "V5-SAUVEGARDER-ADRESSES-DEVIS",
   "date": "2026-09-10",
-  "build": "20260910-cachefix1",
-  "message": "Zoom toiture satellite + marge 15 % + devis mis à jour + cache unifié pour forcer la dernière version."
+  "build": "20260910-adresses-devis3",
+  "message": "Sauvegarde et import des adresses/devis + devis mis à jour + zoom toiture + marge 15 % + nouveau cache pour forcer la mise à jour."
 }
