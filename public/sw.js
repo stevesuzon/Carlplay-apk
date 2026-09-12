@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260912-server-shared-fast-v157";
+const CACHE = "carplay-v5-20260912-server-authoritative-v160";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -23,9 +23,9 @@ const CORE = [
   "/carplay-noir-rouge-512.png",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=68-notifications-globales",
-  "/subscription-web.js?v=156",
-  "/subscription-v154-patch.js?v=154",
-  "/modification-profile-v156.js?v=156",
+  "/subscription-web.js?v=158",
+  "/subscription-v154-patch.js?v=158",
+  "/modification-profile-v156.js?v=158",
   "/special-market-server-v157.js?v=157",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
@@ -34,14 +34,14 @@ const CORE = [
   "/markets-final.css?v=126-favori-fluide",
   "/markets-final-picker.css",
   "/choix-marches-final.html?v=20260912-allmarkets-v149",
-  "/marches-final.html?v=20260912-server-sync-v150",
+  "/marches-final.html?v=159",
+  "/belgique-marches-final.html?v=159",
+  "/market-areas-fr-v159.js?v=159",
+  "/market-areas-be-v159.js?v=159",
+  "/market-final.js?v=160",
+  "/market-consensus.js?v=160",
   "/special-marches.html?v=157",
-  "/nearby-markets.html?v=20260912-gps-admin-unlock1",
-  "/markets-44-complete.js?v=20260912-allmarkets-v149",
-  "/market-data-fr.js?v=20260912-allmarkets-v149",
-  "/market-final.js?v=20260912-allmarkets-v149",
-  "/market-data-be.js?v=130",
-  "/market-consensus.js?v=20260912-server-sync-v150",
+  "/nearby-markets.html?v=158",
   "/verification-v9.html?v=20260912-consulter-fiche9",
   "/modification-demande.html?v=156",
   "/ou-trouver-place.html",
@@ -57,20 +57,7 @@ const CORE = [
 ];
 CORE.push(
   "/contact-mail-v99.css?v=99",
-  "/contact-mail-v99.js?v=99",
-  "/markets-france-national.js?v=20260912-allmarkets-v149",
-  "/markets-missing-v97.js?v=20260912-allmarkets-v149",
-  "/markets-missing-v100.js?v=20260912-allmarkets-v149",
-  "/markets-missing-v101.js?v=20260912-allmarkets-v149",
-  "/markets-missing-v102.js?v=20260912-allmarkets-v149",
-  "/markets-missing-v103.js?v=20260912-allmarkets-v149",
-  "/markets-missing-v104.js?v=20260912-allmarkets-v149",
-  "/markets-france-update-v139.js?v=20260912-allmarkets-v149",
-  "/markets-france-osm-v139.js?v=20260912-allmarkets-v149",
-  "/markets-35-corrections-v142.js?v=20260912-allmarkets-v149",
-  "/markets-17-complete-v144.js?v=20260912-allmarkets-v149",
-  "/markets-35-missing-v143.js?v=20260912-allmarkets-v149",
-  "/market-weekly-filter.js?v=20260912-allmarkets-v149"
+  "/contact-mail-v99.js?v=99"
 );
 self.addEventListener("install", (e) => {
   self.skipWaiting();
@@ -87,7 +74,7 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
   if (url.pathname.startsWith("/api/")) return;
-  const staticAsset = /\.(?:js|css|png|jpe?g|webp|svg|mp4|woff2?)$/i.test(url.pathname);
+  const staticAsset = /\.(?:js|json|css|png|jpe?g|webp|svg|mp4|woff2?)$/i.test(url.pathname);
   if (staticAsset) {
     e.respondWith(caches.match(e.request).then((cached) => {
       const update = fetch(e.request).then((r) => {

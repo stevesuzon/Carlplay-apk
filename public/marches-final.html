@@ -53,62 +53,11 @@
       </main>
     </div>
 
-    <!-- Base + tous les compléments connus chargés directement dans la PWA. -->
-    <script src="market-data-fr.js?v=20260912-allmarkets-v149"></script>
-    <script src="markets-france-update-v139.js?v=20260912-allmarkets-v149"></script>
-    <script src="markets-france-osm-v139.js?v=20260912-allmarkets-v149"></script>
-    <script src="markets-35-corrections-v142.js?v=20260912-allmarkets-v149"></script>
-    <script>
-      if (!window.MARCHES_17_RESTORED) {
-        document.write('<script src="markets-17-complete-v144.js?v=20260912-allmarkets-v149"><\/script>');
-      }
-    </script>
-    <script src="markets-35-missing-v143.js?v=20260912-allmarkets-v149"></script>
-    <script src="markets-44-complete.js?v=20260912-allmarkets-v149"></script>
-    <script src="markets-france-national.js?v=20260912-allmarkets-v149"></script>
-    <script src="markets-missing-v97.js?v=20260912-allmarkets-v149"></script>
-    <script src="markets-missing-v100.js?v=20260912-allmarkets-v149"></script>
-    <script src="markets-missing-v101.js?v=20260912-allmarkets-v149"></script>
-    <script src="markets-missing-v102.js?v=20260912-allmarkets-v149"></script>
-    <script src="markets-missing-v103.js?v=20260912-allmarkets-v149"></script>
-    <script src="markets-missing-v104.js?v=20260912-allmarkets-v149"></script>
-    <script src="market-weekly-filter.js?v=20260912-allmarkets-v149"></script>
-
-    <!-- market-final.js contenait encore d'anciens chargements indirects : on les ignore
-         car les fichiers ci-dessus sont désormais déjà chargés directement. -->
-    <script>
-      (function () {
-        var originalWrite = document.write.bind(document);
-        var alreadyLoaded = [
-          "markets-44-complete.js",
-          "markets-france-national.js",
-          "markets-missing-v97.js",
-          "markets-missing-v100.js",
-          "markets-missing-v101.js",
-          "markets-missing-v102.js",
-          "markets-missing-v103.js",
-          "markets-missing-v104.js",
-          "market-weekly-filter.js"
-        ];
-        window.__cpOriginalDocumentWrite = originalWrite;
-        document.write = function () {
-          var args = Array.prototype.slice.call(arguments);
-          var text = args.join(" ");
-          for (var i = 0; i < alreadyLoaded.length; i++) {
-            if (text.indexOf(alreadyLoaded[i]) !== -1) return;
-          }
-          return originalWrite.apply(document, args);
-        };
-      })();
-    </script>
-    <script src="market-final.js?v=20260912-allmarkets-v149"></script>
-    <script>
-      if (window.__cpOriginalDocumentWrite) {
-        document.write = window.__cpOriginalDocumentWrite;
-        delete window.__cpOriginalDocumentWrite;
-      }
-    </script>
-    <script src="market-consensus.js?v=20260912-server-sync-v150"></script>
+    <!-- V159 : seulement la liste des départements est chargée au départ.
+         Les marchés du département + du jour choisi sont chargés ensuite. -->
+    <script src="market-areas-fr-v159.js?v=159"></script>
+    <script src="market-final.js?v=159"></script>
+    <script src="market-consensus.js?v=159"></script>
     <script src="new-feature-bubbles.js?v=20260912-allmarkets-v149"></script>
   </body>
 </html>

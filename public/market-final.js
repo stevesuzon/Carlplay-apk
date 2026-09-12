@@ -1,20 +1,16 @@
 (function () {
   "use strict";
-  document.write(
-    '<script src="markets-44-complete.js?v=20260902-complet"><\/script>',
-  );
-  document.write(
-    '<script src="markets-france-national.js?v=20260902-national"><\/script>',
-  );
-  document.write('<script src="markets-missing-v97.js?v=20260902"><\/script>');
-  document.write('<script src="markets-missing-v100.js?v=20260902"><\/script>');
-  document.write('<script src="markets-missing-v101.js?v=20260902"><\/script>');
-  document.write('<script src="markets-missing-v102.js?v=20260902"><\/script>');
-  document.write('<script src="markets-missing-v103.js?v=20260902"><\/script>');
-  document.write('<script src="markets-missing-v104.js?v=20260902"><\/script>');
-  document.write(
-    '<script src="market-weekly-filter.js?v=20260902-france-belgique"><\/script>',
-  );
+  if (!window.CARPLAY_MARKET_LAZY) {
+    document.write('<script src="markets-44-complete.js?v=20260902-complet"><\/script>');
+    document.write('<script src="markets-france-national.js?v=20260902-national"><\/script>');
+    document.write('<script src="markets-missing-v97.js?v=20260902"><\/script>');
+    document.write('<script src="markets-missing-v100.js?v=20260902"><\/script>');
+    document.write('<script src="markets-missing-v101.js?v=20260902"><\/script>');
+    document.write('<script src="markets-missing-v102.js?v=20260902"><\/script>');
+    document.write('<script src="markets-missing-v103.js?v=20260902"><\/script>');
+    document.write('<script src="markets-missing-v104.js?v=20260902"><\/script>');
+    document.write('<script src="market-weekly-filter.js?v=20260902-france-belgique"><\/script>');
+  }
   var selected = null,
     server = "https://carplay-metiers.appli-suzon.workers.dev",
     searchQuery = "";
@@ -128,6 +124,33 @@
   }
   function areaKey() {
     return selected ? String(selected[0]) : "";
+  }
+  var marketChunkCache = {}, marketChunkToken = 0;
+  function marketChunkUrl() {
+    return "/market-chunks/" + encodeURIComponent(country) + "/" +
+      encodeURIComponent(areaKey()) + "/" + encodeURIComponent(currentDay) + ".json?v=160";
+  }
+  function loadSelectedMarketChunk(done) {
+    if (!window.CARPLAY_MARKET_LAZY) { done(); return; }
+    var key = country + "|" + areaKey() + "|" + currentDay, token = ++marketChunkToken;
+    if (marketChunkCache[key]) { window.data = marketChunkCache[key]; done(); return; }
+    if (el("cards")) el("cards").innerHTML = '<article class="card empty">Chargement des marchés…</article>';
+    fetch(marketChunkUrl(), { cache: "no-cache" })
+      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(function (rows) {
+        if (token !== marketChunkToken) return;
+        marketChunkCache[key] = Array.isArray(rows) ? rows : [];
+        window.data = marketChunkCache[key];
+        done();
+      })
+      .catch(function () {
+        if (token !== marketChunkToken) return;
+        window.data = [];
+        if (el("cards")) el("cards").innerHTML = '<article class="card empty">Impossible de charger les marchés. Vérifiez Internet puis réessayez.</article>';
+      });
+  }
+  function renderSelectedMarkets() {
+    loadSelectedMarketChunk(function () { renderMarkets(); });
   }
   function normSearch(v) {
     return String(v || "")
@@ -547,7 +570,7 @@
       buttons[i].onclick = function () {
         currentDay = this.getAttribute("data-day");
         renderDays();
-        renderMarkets();
+        renderSelectedMarkets();
       };
     setTimeout(function () {
       var active = el("days").querySelector(".day.active");
@@ -748,7 +771,7 @@
     el("picker").style.display = "none";
     el("results").style.display = "block";
     renderDays();
-    renderMarkets();
+    renderSelectedMarkets();
     window.scrollTo(0, 0);
   }
   var lastResumeRefresh = 0;

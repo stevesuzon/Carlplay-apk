@@ -135,7 +135,7 @@ async function injectV154Patch(response) {
   if (!type.includes("text/html")) return response;
   let text = await response.text();
   if (!text.includes("subscription-v154-patch.js")) {
-    const tag = '<script src="/subscription-v154-patch.js?v=154" defer></script>';
+    const tag = '<script src="/subscription-v154-patch.js?v=158" defer></script>';
     text = text.includes("</head>") ? text.replace("</head>", tag + "</head>") : tag + text;
   }
   const headers = new Headers(response.headers);

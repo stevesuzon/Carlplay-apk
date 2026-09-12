@@ -1,4 +1,4 @@
 {
-  "version": "20260912-server-shared-fast-v157",
-  "message": "Tous les utilisateurs ayant une adresse e-mail liée à leur abonnement peuvent envoyer leurs propres demandes de modification. Les informations, GPS et photos validés sont partagés par le serveur commun, y compris pour les marchés de Noël, brocantes, saisonniers et périodiques. Chargement accéléré grâce au cache des données marchés et au chargement uniquement du pays utile sur les pages spéciales."
+  "version": "20260912-server-authoritative-v160",
+  "message": "Les données marchés sont lues depuis le serveur en priorité. Les modifications validées (horaires, places, GPS, tirage et autres informations) restent dans la base serveur commune et les photos dans le stockage serveur. Le cache du téléphone sert uniquement à accélérer l'affichage et ne devient jamais la source officielle. Rafraîchissement serveur accéléré pour que les changements apparaissent plus vite sur les autres téléphones."
 }
