@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260912-server-authoritative-v160";
+const CACHE = "carplay-v5-20260912-traveller-markets-v162";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -26,6 +26,7 @@ const CORE = [
   "/subscription-web.js?v=158",
   "/subscription-v154-patch.js?v=158",
   "/modification-profile-v156.js?v=158",
+  "/sanction-guard-v161.js?v=161",
   "/special-market-server-v157.js?v=157",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
@@ -33,7 +34,9 @@ const CORE = [
   "/location-permission-v20260911.js?v=20260911",
   "/markets-final.css?v=126-favori-fluide",
   "/markets-final-picker.css",
-  "/choix-marches-final.html?v=20260912-allmarkets-v149",
+  "/choix-marches-final.html?v=162",
+  "/traveller-markets.html?v=162",
+  "/traveller-markets-data-v162.js?v=162",
   "/marches-final.html?v=159",
   "/belgique-marches-final.html?v=159",
   "/market-areas-fr-v159.js?v=159",
@@ -43,7 +46,7 @@ const CORE = [
   "/special-marches.html?v=157",
   "/nearby-markets.html?v=158",
   "/verification-v9.html?v=20260912-consulter-fiche9",
-  "/modification-demande.html?v=156",
+  "/modification-demande.html?v=161",
   "/ou-trouver-place.html",
   "/documents-travail.html",
   "/mes-papiers.html",

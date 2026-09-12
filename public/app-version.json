@@ -1,4 +1,4 @@
 {
-  "version": "20260912-server-authoritative-v160",
-  "message": "Les données marchés sont lues depuis le serveur en priorité. Les modifications validées (horaires, places, GPS, tirage et autres informations) restent dans la base serveur commune et les photos dans le stockage serveur. Le cache du téléphone sert uniquement à accélérer l'affichage et ne devient jamais la source officielle. Rafraîchissement serveur accéléré pour que les changements apparaissent plus vite sur les autres téléphones."
+  "version": "20260912-traveller-beta-shared-v163",
+  "message": "Marchés de voyageurs France et Belgique en BÊTA — à vérifier. Les fiches utilisent maintenant le même système de renseignement/modification que les autres marchés : informations partagées serveur, photo, GPS exact validé sur place, accueil du placier, responsable, tirage et modèle de clients. Les organisateurs sont affichés quand la source les publie et le bouton d'appel apparaît quand un numéro public fiable est disponible."
 }
