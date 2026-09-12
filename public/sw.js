@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260912-email-code-per-user-v156";
+const CACHE = "carplay-v5-20260912-server-shared-fast-v157";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -26,6 +26,7 @@ const CORE = [
   "/subscription-web.js?v=156",
   "/subscription-v154-patch.js?v=154",
   "/modification-profile-v156.js?v=156",
+  "/special-market-server-v157.js?v=157",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
   "/gps-apple-plans-v141.js?v=141",
@@ -34,7 +35,7 @@ const CORE = [
   "/markets-final-picker.css",
   "/choix-marches-final.html?v=20260912-allmarkets-v149",
   "/marches-final.html?v=20260912-server-sync-v150",
-  "/special-marches.html?v=20260910-ficheachat-mobile-acompte-signatures1",
+  "/special-marches.html?v=157",
   "/nearby-markets.html?v=20260912-gps-admin-unlock1",
   "/markets-44-complete.js?v=20260912-allmarkets-v149",
   "/market-data-fr.js?v=20260912-allmarkets-v149",
@@ -69,8 +70,7 @@ CORE.push(
   "/markets-35-corrections-v142.js?v=20260912-allmarkets-v149",
   "/markets-17-complete-v144.js?v=20260912-allmarkets-v149",
   "/markets-35-missing-v143.js?v=20260912-allmarkets-v149",
-  "/market-weekly-filter.js?v=20260912-allmarkets-v149",
-  "/market-consensus.js?v=20260912-server-sync-v150"
+  "/market-weekly-filter.js?v=20260912-allmarkets-v149"
 );
 self.addEventListener("install", (e) => {
   self.skipWaiting();
@@ -84,11 +84,24 @@ self.addEventListener("activate", (e) =>
   )
 );
 self.addEventListener("fetch", (e) => {
-  if (e.request.method !== "GET" || new URL(e.request.url).pathname.startsWith("/api/")) return;
+  if (e.request.method !== "GET") return;
+  const url = new URL(e.request.url);
+  if (url.pathname.startsWith("/api/")) return;
+  const staticAsset = /\.(?:js|css|png|jpe?g|webp|svg|mp4|woff2?)$/i.test(url.pathname);
+  if (staticAsset) {
+    e.respondWith(caches.match(e.request).then((cached) => {
+      const update = fetch(e.request).then((r) => {
+        if (r && r.ok) caches.open(CACHE).then((c) => c.put(e.request, r.clone()));
+        return r;
+      }).catch(() => null);
+      if (cached) { e.waitUntil(update); return cached; }
+      return update.then((r) => r || Response.error());
+    }));
+    return;
+  }
   e.respondWith(
     fetch(e.request, { cache: "no-store" }).then((r) => {
-      let c = r.clone();
-      caches.open(CACHE).then((x) => x.put(e.request, c));
+      if (r && r.ok) caches.open(CACHE).then((x) => x.put(e.request, r.clone()));
       return r;
     }).catch(() => caches.match(e.request))
   );
