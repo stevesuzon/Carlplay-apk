@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260912-account-email-password-v155";
+const CACHE = "carplay-v5-20260912-email-code-per-user-v156";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -23,10 +23,9 @@ const CORE = [
   "/carplay-noir-rouge-512.png",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=68-notifications-globales",
-  "/subscription-web.js?v=155",
+  "/subscription-web.js?v=156",
   "/subscription-v154-patch.js?v=154",
-  "/account-v155.js?v=155",
-  "/modification-account-v155.js?v=155",
+  "/modification-profile-v156.js?v=156",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
   "/gps-apple-plans-v141.js?v=141",
@@ -43,7 +42,7 @@ const CORE = [
   "/market-data-be.js?v=130",
   "/market-consensus.js?v=20260912-server-sync-v150",
   "/verification-v9.html?v=20260912-consulter-fiche9",
-  "/modification-demande.html?v=155",
+  "/modification-demande.html?v=156",
   "/ou-trouver-place.html",
   "/documents-travail.html",
   "/mes-papiers.html",
