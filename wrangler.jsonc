@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "carplay-telephone",
-  "main": "src/v156.js",
+  "main": "src/v157.js",
   "compatibility_date": "2026-08-01",
   "keep_vars": true,
   "assets": {
