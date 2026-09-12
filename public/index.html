@@ -510,7 +510,7 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
 #simpleSignatureValidate{background:#087cff;color:#fff}
 #simpleSignatureInfo{margin-top:8px;font-size:13px;font-weight:800}
 .simpleSignedStamp{margin-top:12px;padding:10px;border:2px solid #159447;border-radius:10px;color:#0b7133;font-weight:900}
-@media print{.simpleSignatureActions{display:none!important}}
+@media print{.simpleSignatureActions{display:none!important}#simpleSignatureBlock{display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px!important;margin-top:8px!important;page-break-inside:avoid!important}.simpleSignatureBox{margin-top:0!important;padding:7px!important;border-radius:8px!important;min-width:0!important}.simpleSignatureBox canvas{height:78px!important}.simpleSignatureBox img{max-height:72px!important}.simpleSignatureBox>div{min-height:78px!important}.simpleSignatureBox h3{font-size:13px!important;margin:0 0 4px!important}#simpleSignatureInfo,#simpleProfessionalSignatureInfo{font-size:9px!important;margin-top:3px!important}}
 </style>
 
 <style id="genericAddressQuoteCss">
@@ -774,6 +774,35 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
   font-weight:900;
 }
 </style>
+
+<style id="addressDeleteSmallRed">
+.savedAddressDelete{
+  flex:0 0 42px!important;
+  width:42px!important;
+  min-width:42px!important;
+  height:42px!important;
+  padding:0!important;
+  border-radius:50%!important;
+  border:2px solid #ff7676!important;
+  background:#a61f28!important;
+  color:#fff!important;
+  font-size:20px!important;
+  line-height:38px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  box-shadow:0 3px 8px #0006!important;
+}
+</style>
+
+
+<style id="locationPermissionStyle">
+#locationPermissionBtn{background:#eef2f8!important;color:#172033!important;transition:.2s ease}
+#locationPermissionBtn.location-enabled{background:#19a85b!important;color:#fff!important;outline:4px solid #78e6a7!important}
+#locationPermissionBtn.location-disabled{background:#eef2f8!important;color:#172033!important}
+#locationPermissionBtn:disabled{opacity:.72}
+#locationPermissionNote{font-size:14px;line-height:1.45}
+</style>
 </head>
 <body class="homePage">
 
@@ -850,6 +879,8 @@ opacity:.9;
 <span>⌄</span>
 </button>
 <div class="settingBody" id="gpsMenu">
+<button id="locationPermissionBtn" class="location-disabled" type="button">📍 ACTIVER LA LOCALISATION</button>
+<div class="settingNote" id="locationPermissionNote">Appuyez pour autoriser CarPlay à utiliser votre position.</div>
 <button id="gpsWaze" onclick="saveGps('Waze')">Waze</button>
 <button id="gpsGoogle" onclick="saveGps('Google Maps')">Google Maps</button>
 <button id="gpsApple" onclick="saveGps('Plans Apple')">Plans Apple</button>
@@ -906,9 +937,12 @@ Si Android le demande, autorise l’installation d’applications provenant de c
 <button id="addressExportBtn" type="button" onclick="exportMyAddresses()">💾 SAUVEGARDER LES ADRESSES/DEVIS</button>
 <button type="button" onclick="document.getElementById('addressImportFile').click()">📥 IMPORTER LES ADRESSES/DEVIS</button>
 <input id="addressImportFile" type="file" accept="application/json,.json" style="display:none" onchange="importMyAddresses(this.files&&this.files[0]);this.value=''">
-<div class="settingNote"><b>Export :</b> À refaire après de nouvelles adresses ou devis. La sauvegarde garde tout.<br><b>Import :</b> Récupérez vos adresses et devis sur un autre téléphone.</div>
+<div class="settingNote"><b>Sauvegarde :</b> Vous pouvez l'envoyer par WhatsApp, Messages, Mail ou Fichiers.<br><b>Récupération :</b> Importez le fichier JSON ou collez directement le texte reçu dans un message / WhatsApp ci-dessous.</div>
+<textarea id="addressImportText" placeholder="Collez ici la sauvegarde reçue par message, WhatsApp ou mail…" style="width:100%;min-height:110px;margin:7px 0;padding:10px;border-radius:12px;border:2px solid #536b80;background:#0b1724;color:#fff;font-size:14px"></textarea>
+<button type="button" onclick="importMyAddressesText()">📲 RÉCUPÉRER DEPUIS UN MESSAGE / WHATSAPP</button>
 </div>
 </div>
+<div class="settingRow"><button class="settingHead" onclick="toggleSection('notificationMenu',this)"><span>🔔 Notifications de l’application</span><span>⌄</span></button><div class="settingBody" id="notificationMenu"><div style="margin:10px 8px 14px;padding:16px;border:4px solid #ff9f13;border-radius:16px;background:#321400;color:#fff;text-align:center;font-size:19px;font-weight:1000;line-height:1.35">⚠️ IMPORTANT<br>SI LA CASE N’EST PAS COCHÉE, VOUS NE RECEVREZ PLUS AUCUNE NOTIFICATION DE L’APPLICATION : MÉTÉO, MARCHÉS, MISES À JOUR ET DEMANDES ADMINISTRATEUR.</div><label style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px;color:#fff;font-size:20px;font-weight:900">RECEVOIR TOUTES LES NOTIFICATIONS <input id="appNotificationToggle" type="checkbox" style="width:34px;height:34px"></label><div class="settingNote" id="appNotificationStatus">🔕 Aucune notification ne sera reçue sur ce téléphone.</div><div class="settingNote">Une seule case commande toutes les notifications. Cochez-la pour tout recevoir ; décochez-la pour tout arrêter.</div></div></div>
 <div class="settingRow" id="adminSettingRow">
 <button class="settingHead" onclick="location.href='/admin.html'">
 <span>🔐 ADMINISTRATION</span>
@@ -1119,12 +1153,13 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     <button id="gqAddLine" type="button">＋ AJOUTER UNE LIGNE</button>
     <div class="gqNotes"><textarea id="gqNotes" placeholder="Notes (facultatif)"></textarea></div>
     <div class="gqExtraOptions">
-      <label><b>🚗 Déplacement</b><select id="gqTravel"><option value="0">Gratuit</option><option value="10">10 €</option><option value="20">20 €</option><option value="30">30 €</option><option value="40">40 €</option><option value="50">50 €</option><option value="60">60 €</option><option value="70">70 €</option><option value="80">80 €</option><option value="90">90 €</option><option value="100">100 €</option></select></label>
+      <label><b>Déplacement</b><select id="gqTravel"><option value="0">Gratuit</option><option value="10">10 €</option><option value="20">20 €</option><option value="30">30 €</option><option value="40">40 €</option><option value="50">50 €</option><option value="60">60 €</option><option value="70">70 €</option><option value="80">80 €</option><option value="90">90 €</option><option value="100">100 €</option></select></label>
       <label class="gqImmediate"><input id="gqImmediate" type="checkbox"> <b>EXÉCUTION IMMÉDIATE</b></label>
+      <label class="gqImmediate"><input id="gqDepositPaid" type="checkbox"> <b>ACOMPTE 30 % VERSÉ</b></label>
     </div>
     <div class="gqSummary">
       <div class="gqSummaryRow total"><span>TOTAL</span><span id="gqTotal">0,00 €</span></div>
-      <div class="gqSummaryRow"><span>Acompte 30 %</span><span id="gqDeposit">0,00 €</span></div>
+      <div id="gqDepositRow" class="gqSummaryRow" style="display:none"><span>Acompte 30 % versé</span><span id="gqDeposit">0,00 €</span></div><div id="gqRemainingRow" class="gqSummaryRow total" style="display:none"><span>RESTE DÛ</span><span id="gqRemaining">0,00 €</span></div>
     </div>
     <div class="gqActions">
       <button id="gqSave" type="button">💾 ENREGISTRER</button>
@@ -1242,15 +1277,63 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     </div>
   </div>
 </div>
-<script>window.updateNetworkStatus=function(){let ok=false;try{ok=window.AndroidStatus?AndroidStatus.hasInternet():navigator.onLine}catch(e){ok=navigator.onLine}network.textContent=ok?'Internet disponible':'Réseau indisponible'};addEventListener('online',updateNetworkStatus);addEventListener('offline',updateNetworkStatus);setInterval(updateNetworkStatus,4000);updateNetworkStatus();function toggleSettings(){settings.classList.toggle('open');const open=settings.classList.contains('open');document.body.classList.toggle('settings-open',open)}function toggleSection(id,btn){const b=document.getElementById(id),open=b.classList.contains('open');document.querySelectorAll('.settingBody').forEach(x=>x.classList.remove('open'));document.querySelectorAll('.settingHead span:last-child').forEach(x=>x.textContent='⌄');if(!open){b.classList.add('open');btn.querySelector('span:last-child').textContent='⌃'}}function saveGps(v){localStorage.setItem('gps_pref',v);refreshPrefs()}function refreshPrefs(){const g=localStorage.getItem('gps_pref')||'';gpsStatus.textContent=g?'GPS choisi : '+g:'Aucun GPS choisi';gpsWaze.classList.toggle('selected',g==='Waze');gpsGoogle.classList.toggle('selected',g==='Google Maps')}function returnPlace(){let a=localStorage.getItem('return_lat'),o=localStorage.getItem('return_lon');if(!a||!o){if(!navigator.geolocation)return alert('GPS indisponible');navigator.geolocation.getCurrentPosition(p=>{localStorage.setItem('return_lat',p.coords.latitude);localStorage.setItem('return_lon',p.coords.longitude);showStatuses();alert('Camping enregistré. Appuie à nouveau pour y retourner.')},()=>alert('Impossible de récupérer votre position.'),{enableHighAccuracy:true});return}const q=a+','+o,pref=localStorage.getItem('gps_pref')||'Google Maps';location.href=pref==='Waze'?'https://waze.com/ul?ll='+encodeURIComponent(q)+'&navigate=yes':'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(q)+'&travelmode=driving&dir_action=navigate'}function clearReturnPlace(){localStorage.removeItem('return_lat');localStorage.removeItem('return_lon');showStatuses();alert('Emplacement de retour effacé.')}function showStatuses(){returnStatus.textContent=localStorage.getItem('return_lat')?'Camping enregistré.':''}function shareApp(){const u=(location.origin&&location.origin!=='null')?location.origin+'/installer.html':'https://carplay-telephone.appli-suzon.workers.dev/installer.html';const data={title:'CarPlay',text:'Installe CarPlay : ouvre ce lien puis suis le gros bouton pour l’ajouter à ton écran d’accueil :',url:u};try{if(navigator.share){navigator.share(data).catch(function(e){if(e&&e.name==='AbortError')return;copyShareLink(u)});return}}catch(e){}copyShareLink(u)}function copyShareLink(u){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(function(){alert('Lien de l’application copié. Tu peux maintenant l’envoyer à ton ami.')}).catch(function(){prompt('Copie ce lien et envoie-le à ton ami :',u)});return}}catch(e){}prompt('Copie ce lien et envoie-le à ton ami :',u)}async function forceAppUpdate(){try{if('caches' in window){let ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}if('serviceWorker' in navigator){let rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.update().catch(()=>{})))}}catch(e){}let u=new URL(location.href);u.searchParams.set('maj',Date.now());location.replace(u.toString())}function _addressBackupArray(key){try{var v=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(v)?v:[]}catch(e){return []}}
+<script>window.updateNetworkStatus=function(){let ok=false;try{ok=window.AndroidStatus?AndroidStatus.hasInternet():navigator.onLine}catch(e){ok=navigator.onLine}network.textContent=ok?'Internet disponible':'Réseau indisponible'};addEventListener('online',updateNetworkStatus);addEventListener('offline',updateNetworkStatus);setInterval(updateNetworkStatus,4000);updateNetworkStatus();function toggleSettings(){settings.classList.toggle('open');const open=settings.classList.contains('open');document.body.classList.toggle('settings-open',open);if(open&&window.CarPlayLocation)window.CarPlayLocation.refresh()}function toggleSection(id,btn){const b=document.getElementById(id),open=b.classList.contains('open');document.querySelectorAll('.settingBody').forEach(x=>x.classList.remove('open'));document.querySelectorAll('.settingHead span:last-child').forEach(x=>x.textContent='⌄');if(!open){b.classList.add('open');btn.querySelector('span:last-child').textContent='⌃'}}function saveGps(v){localStorage.setItem('gps_pref',v);refreshPrefs()}function refreshPrefs(){const g=localStorage.getItem('gps_pref')||'';gpsStatus.textContent=g?'GPS choisi : '+g:'Aucun GPS choisi';gpsWaze.classList.toggle('selected',g==='Waze');gpsGoogle.classList.toggle('selected',g==='Google Maps')}function returnPlace(){let a=localStorage.getItem('return_lat'),o=localStorage.getItem('return_lon');if(!a||!o){if(!navigator.geolocation)return alert('GPS indisponible');navigator.geolocation.getCurrentPosition(p=>{localStorage.setItem('return_lat',p.coords.latitude);localStorage.setItem('return_lon',p.coords.longitude);showStatuses();alert('Camping enregistré. Appuie à nouveau pour y retourner.')},e=>{var m=window.CarPlayLocation?window.CarPlayLocation.showHelp(e):'Activez la localisation.';alert(m)},{enableHighAccuracy:true});return}const q=a+','+o,pref=localStorage.getItem('gps_pref')||'Google Maps';location.href=pref==='Waze'?'https://waze.com/ul?ll='+encodeURIComponent(q)+'&navigate=yes':'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(q)+'&travelmode=driving&dir_action=navigate'}function clearReturnPlace(){localStorage.removeItem('return_lat');localStorage.removeItem('return_lon');showStatuses();alert('Emplacement de retour effacé.')}function showStatuses(){returnStatus.textContent=localStorage.getItem('return_lat')?'Camping enregistré.':''}function shareApp(){const u=(location.origin&&location.origin!=='null')?location.origin+'/installer.html':'https://carplay-telephone.appli-suzon.workers.dev/installer.html';const data={title:'CarPlay',text:'Installe CarPlay : ouvre ce lien puis suis le gros bouton pour l’ajouter à ton écran d’accueil :',url:u};try{if(navigator.share){navigator.share(data).catch(function(e){if(e&&e.name==='AbortError')return;copyShareLink(u)});return}}catch(e){}copyShareLink(u)}function copyShareLink(u){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(function(){alert('Lien de l’application copié. Tu peux maintenant l’envoyer à ton ami.')}).catch(function(){prompt('Copie ce lien et envoie-le à ton ami :',u)});return}}catch(e){}prompt('Copie ce lien et envoie-le à ton ami :',u)}async function forceAppUpdate(){try{if('caches' in window){let ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}if('serviceWorker' in navigator){let rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.update().catch(()=>{})))}}catch(e){}let u=new URL(location.href);u.searchParams.set('maj',Date.now());location.replace(u.toString())}function _addressBackupArray(key){try{var v=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(v)?v:[]}catch(e){return []}}
 function _addressBackupIdentity(x){if(!x||typeof x!=='object')return '';var pick=['id','type','documentFolder','firstName','lastName','name','phone','address','street','postalCode','postcode','city','department','province','country','createdAt','date'];return pick.map(function(k){var v=x[k];return v==null?'':String(v).trim().toLowerCase()}).join('|')}
 function _mergeAddressLists(current,incoming){var out=[],seen={};function add(x){if(!x||typeof x!=='object')return;var id=_addressBackupIdentity(x);if(!id){try{id=JSON.stringify(x)}catch(e){return}}if(seen[id])return;seen[id]=1;out.push(x)};(current||[]).forEach(add);(incoming||[]).forEach(add);return out}
 function _clientDocumentsBackup(){try{var v=JSON.parse(localStorage.getItem('generic_client_documents')||'[]');return Array.isArray(v)?v:[]}catch(e){return []}}
 function _mergeClientDocuments(current,incoming){var out=[],seen={};function add(x){if(!x||typeof x!=='object')return;var id=String(x.number||'').trim();if(!id){try{id=JSON.stringify(x)}catch(e){return}}if(seen[id])return;seen[id]=1;out.push(x)};(current||[]).forEach(add);(incoming||[]).forEach(add);return out}
 function _markAddressExportDone(total){var prev=parseInt(localStorage.getItem('address_export_last_count')||'0',10);if(!isFinite(prev)||prev<0)prev=0;var added=Math.max(0,total-prev);localStorage.setItem('address_export_last_count',String(total));localStorage.setItem('address_export_last_at',new Date().toISOString());var b=document.getElementById('addressExportBtn');if(b){b.style.background='#159447';b.style.color='#fff';b.style.borderColor='#32c96a';b.textContent=added>0?'✓ SAUVEGARDÉ — +'+added+' ADRESSE'+(added>1?'S':''):'✓ À JOUR — 0 NOUVELLE ADRESSE'}}
-async function exportMyAddresses(){var fr=_addressBackupArray('saved_market_addresses'),be=_addressBackupArray('saved_market_addresses_be'),docs=_clientDocumentsBackup();var payload={format:'carplay-addresses-devis',version:2,exportedAt:new Date().toISOString(),france:fr,belgique:be,documents:docs,totalAddresses:fr.length+be.length,totalDocuments:docs.length};var text=JSON.stringify(payload,null,2);var d=new Date(),pad=function(n){return String(n).padStart(2,'0')};var name='Adresses-Devis-'+pad(d.getDate())+'-'+pad(d.getMonth()+1)+'-'+d.getFullYear()+'-'+pad(d.getHours())+'h'+pad(d.getMinutes())+'.json';var blob=new Blob([text],{type:'application/json'});var file;try{file=new File([blob],name,{type:'application/json'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({title:'Adresses / Devis',text:'Sauvegarde complète de mes adresses et devis',files:[file]});_markAddressExportDone(payload.totalAddresses);return}}catch(e){if(e&&e.name==='AbortError')return}var url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},2000);_markAddressExportDone(payload.totalAddresses);alert('Sauvegarde créée : '+payload.totalAddresses+' adresse(s) et '+payload.totalDocuments+' devis/document(s).')}
-function importMyAddresses(file){if(!file)return;var r=new FileReader();r.onload=function(){try{var j=JSON.parse(String(r.result||''));var fr=[],be=[],docs=[];if(j&&j.format==='carplay-addresses-devis'){fr=Array.isArray(j.france)?j.france:[];be=Array.isArray(j.belgique)?j.belgique:[];docs=Array.isArray(j.documents)?j.documents:[]}else if(j&&j.format==='carplay-address-book'){fr=Array.isArray(j.france)?j.france:[];be=Array.isArray(j.belgique)?j.belgique:[]}else if(Array.isArray(j)){fr=j}else{throw new Error('format')}var oldFr=_addressBackupArray('saved_market_addresses'),oldBe=_addressBackupArray('saved_market_addresses_be'),oldDocs=_clientDocumentsBackup();var newFr=_mergeAddressLists(oldFr,fr),newBe=_mergeAddressLists(oldBe,be),newDocs=_mergeClientDocuments(oldDocs,docs);localStorage.setItem('saved_market_addresses',JSON.stringify(newFr));localStorage.setItem('saved_market_addresses_be',JSON.stringify(newBe));localStorage.setItem('generic_client_documents',JSON.stringify(newDocs.slice(0,200)));localStorage.setItem('address_data_version','2');var added=(newFr.length-oldFr.length)+(newBe.length-oldBe.length),addedDocs=newDocs.length-oldDocs.length;alert('Import terminé : '+added+' nouvelle(s) adresse(s) et '+addedDocs+' devis/document(s) ajouté(s).')}catch(e){alert('Ce fichier Adresses / Devis est invalide ou incompatible.')}};r.onerror=function(){alert('Impossible de lire ce fichier.')};r.readAsText(file)}
+async function exportMyAddresses(){var fr=_addressBackupArray('saved_market_addresses'),be=_addressBackupArray('saved_market_addresses_be'),docs=_clientDocumentsBackup();var payload={format:'carplay-addresses-devis',version:3,exportedAt:new Date().toISOString(),france:fr,belgique:be,documents:docs,professionalSignature:localStorage.getItem('professional_signature_v1')||'',companyLogo:localStorage.getItem('generic_company_logo')||'',quoteTemplates:(function(){try{return JSON.parse(localStorage.getItem('custom_quote_templates_v1')||'[]')}catch(e){return[]}})(),quoteCompany:(function(){try{return JSON.parse(localStorage.getItem('custom_quote_company_v2')||'{}')}catch(e){return{}}})(),totalAddresses:fr.length+be.length,totalDocuments:docs.length};var text=JSON.stringify(payload,null,2);var d=new Date(),pad=function(n){return String(n).padStart(2,'0')};var name='Adresses-Devis-'+pad(d.getDate())+'-'+pad(d.getMonth()+1)+'-'+d.getFullYear()+'-'+pad(d.getHours())+'h'+pad(d.getMinutes())+'.json';var blob=new Blob([text],{type:'application/json'});var file;try{file=new File([blob],name,{type:'application/json'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({title:'Adresses / Devis',text:'Sauvegarde complète de mes adresses et devis',files:[file]});_markAddressExportDone(payload.totalAddresses);return}}catch(e){if(e&&e.name==='AbortError')return}var url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},2000);_markAddressExportDone(payload.totalAddresses);alert('Sauvegarde créée : '+payload.totalAddresses+' adresse(s) et '+payload.totalDocuments+' devis/document(s).')}
+
+function _importMyAddressesPayload(raw){
+  try{
+    var j=typeof raw==='string'?JSON.parse(String(raw||'')):raw;
+    var fr=[],be=[],docs=[];
+    if(j&&j.format==='carplay-addresses-devis'){
+      fr=Array.isArray(j.france)?j.france:[];
+      be=Array.isArray(j.belgique)?j.belgique:[];
+      docs=Array.isArray(j.documents)?j.documents:[];
+    }else if(j&&j.format==='carplay-address-book'){
+      fr=Array.isArray(j.france)?j.france:[];
+      be=Array.isArray(j.belgique)?j.belgique:[];
+    }else if(Array.isArray(j)){
+      fr=j;
+    }else{
+      throw new Error('format');
+    }
+    var oldFr=_addressBackupArray('saved_market_addresses'),
+        oldBe=_addressBackupArray('saved_market_addresses_be'),
+        oldDocs=_clientDocumentsBackup();
+    var newFr=_mergeAddressLists(oldFr,fr),
+        newBe=_mergeAddressLists(oldBe,be),
+        newDocs=_mergeClientDocuments(oldDocs,docs);
+    localStorage.setItem('saved_market_addresses',JSON.stringify(newFr));
+    localStorage.setItem('saved_market_addresses_be',JSON.stringify(newBe));
+    localStorage.setItem('generic_client_documents',JSON.stringify(newDocs.slice(0,200)));
+    if(j&&j.professionalSignature)localStorage.setItem('professional_signature_v1',String(j.professionalSignature));
+    if(j&&j.companyLogo)localStorage.setItem('generic_company_logo',String(j.companyLogo));
+    if(j&&Array.isArray(j.quoteTemplates))localStorage.setItem('custom_quote_templates_v1',JSON.stringify(j.quoteTemplates.slice(0,50)));
+    if(j&&j.quoteCompany&&typeof j.quoteCompany==='object')localStorage.setItem('custom_quote_company_v2',JSON.stringify(j.quoteCompany));
+    localStorage.setItem('address_data_version','3');
+    var added=(newFr.length-oldFr.length)+(newBe.length-oldBe.length),
+        addedDocs=newDocs.length-oldDocs.length;
+    alert('Récupération terminée : '+added+' nouvelle(s) adresse(s) et '+addedDocs+' devis/document(s) ajouté(s).');
+    if(typeof renderFolders==='function')try{renderFolders()}catch(e){}
+    return true;
+  }catch(e){
+    alert('Cette sauvegarde est invalide ou incompatible.');
+    return false;
+  }
+}
+function importMyAddressesText(){
+  var el=document.getElementById('addressImportText');
+  var raw=el?String(el.value||'').trim():'';
+  if(!raw){alert('Collez d’abord la sauvegarde reçue par message ou WhatsApp.');return;}
+  if(_importMyAddressesPayload(raw) && el) el.value='';
+}
+function importMyAddresses(file){if(!file)return;var r=new FileReader();r.onload=function(){_importMyAddressesPayload(String(r.result||''))};r.onerror=function(){alert('Impossible de lire ce fichier.')};r.readAsText(file)}
 function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
+<script src="/location-permission-v20260911.js?v=20260911"></script>
 <script src="/gps-apple-plans-v141.js?v=141"></script>
 <script id="paperWorkRequestForm">
 (function(){
@@ -1403,7 +1486,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 (function(){
   var box=document.getElementById('updateNotification'),txt=document.getElementById('updateNotificationText');
   if(!box)return;
-  function show(v,message){
+  function show(v,message){if(localStorage.getItem('carplay_notifications_enabled')!=='1'){localStorage.setItem('carplay.lastSeenVersion',v);return}
     txt.textContent=message||'Une nouvelle mise à jour a été installée.';box.style.display='block';
     localStorage.setItem('carplay.lastSeenVersion',v);
     clearTimeout(window.__updateNotifTimer);window.__updateNotifTimer=setTimeout(function(){box.style.display='none'},7000);
@@ -1490,7 +1573,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
  function val(id){var e=$(id);return e?clean(e.value):''}
  function set(id,v){var e=$(id);if(e)e.value=v||''}
  function storageKey(){return currentCountry==='be'?'saved_market_addresses_be':'saved_market_addresses'}
- function getAll(){try{var a=JSON.parse(localStorage.getItem(storageKey())||'[]');if(!Array.isArray(a))return [];var now=Date.now(),changed=false;a.forEach(function(x){var b=x&&x.buildingEstimate;if(!b)return;var exp=Date.parse(b.photosExpiresAt||'');if(exp&&now>=exp){['photo','gable1Photo','gable2Photo','frontFacadePhoto','backFacadePhoto'].forEach(function(k){if(b[k]){b[k]=null;changed=true}});b.photosExpired=true}});if(changed)try{localStorage.setItem(storageKey(),JSON.stringify(a))}catch(e){}return a}catch(e){return []}}
+ function getAll(){try{var a=JSON.parse(localStorage.getItem(storageKey())||'[]');if(!Array.isArray(a))return [];var now=Date.now(),changed=false,prefix=currentCountry==='be'?'bea':'fra',seen={};a.forEach(function(x,i){if(!x||typeof x!=='object')return;var id=String(x.id||'').trim();if(!id||seen[id]){x.id=prefix+'-ancien-'+now+'-'+i+'-'+Math.random().toString(36).slice(2,7);changed=true}seen[x.id]=1;var b=x.buildingEstimate;if(!b)return;var exp=Date.parse(b.photosExpiresAt||'');if(exp&&now>=exp){['photo','gable1Photo','gable2Photo','frontFacadePhoto','backFacadePhoto'].forEach(function(k){if(b[k]){b[k]=null;changed=true}});b.photosExpired=true}});if(changed)try{localStorage.setItem(storageKey(),JSON.stringify(a))}catch(e){}return a}catch(e){return []}}
  function esc(s){return String(s||'').replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]})}
  function currentProfession(){try{return clean(localStorage.getItem('market_trade')||localStorage.getItem('profession')||'')}catch(e){return ''}}
  function savedDate(v){try{return new Date(v).toLocaleDateString('fr-FR')}catch(e){return ''}}
@@ -1533,7 +1616,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
  async function geocodeText(q){q=clean(q);if(!q)return null;try{var cc=currentCountry==='be'?'be':'fr',r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes='+cc+'&q='+encodeURIComponent(q),{headers:{'Accept-Language':'fr'}});if(!r.ok)throw 0;var a=await r.json();if(!Array.isArray(a)||!a[0])return null;return {lat:Number(a[0].lat),lng:Number(a[0].lon)}}catch(e){return null}}
  function splitRoad(road){var types=['Rue','Chemin','Avenue','Route','Boulevard','Impasse','Allée','Place','Quai','Lieu-dit','Chaussée','Steenweg','Straat','Laan','Weg','Dreef','Plein'];var low=clean(road).toLowerCase();for(var i=0;i<types.length;i++){var t=types[i];if(low.indexOf(t.toLowerCase()+' ')===0)return {type:t,name:clean(road.slice(t.length))}}return {type:'Autre',name:clean(road)}}
  function ensureStreetOptions(){var sel=$('addressStreetType'),extras=['Chaussée','Steenweg','Straat','Laan','Weg','Dreef','Plein'];if(!sel)return;extras.forEach(function(x){if(!Array.from(sel.options).some(function(o){return o.value===x||o.text===x})){var o=document.createElement('option');o.textContent=x;o.value=x;sel.appendChild(o)}})}ensureStreetOptions();
- if(locateBtn)locateBtn.onclick=function(){if(!navigator.geolocation){status.textContent='GPS indisponible sur cet appareil.';return}locateBtn.classList.add('loading');locateBtn.textContent='📍 LOCALISATION…';status.textContent='Recherche de votre adresse…';navigator.geolocation.getCurrentPosition(async function(p){pendingLat=p.coords.latitude;pendingLng=p.coords.longitude;pendingGeo=await reverseGeocode(pendingLat,pendingLng);locateBtn.classList.remove('loading');locateBtn.textContent='📍 UTILISER MA LOCALISATION';if(!pendingGeo){status.textContent='Position trouvée. Complétez les cases au clavier.';return}var sr=splitRoad(pendingGeo.road);set('addressStreetNumber',pendingGeo.houseNumber);if(currentCountry==='be'){set('addressStreetName',pendingGeo.road)}else{set('addressStreetType',sr.type);set('addressStreetName',sr.name)}set('addressPostalCode',pendingGeo.postalCode);set('addressDepartment',pendingGeo.department);set('addressCity',pendingGeo.city);status.textContent='✓ Adresse remplie avec votre position. Vérifiez les cases avant d’enregistrer.'},function(){locateBtn.classList.remove('loading');locateBtn.textContent='📍 UTILISER MA LOCALISATION';status.textContent='Autorisez la localisation GPS pour remplir l’adresse.'},{enableHighAccuracy:true,timeout:15000,maximumAge:0})};
+ if(locateBtn)locateBtn.onclick=function(){if(!navigator.geolocation){status.textContent='GPS indisponible sur cet appareil.';return}locateBtn.classList.add('loading');locateBtn.textContent='📍 LOCALISATION…';status.textContent='Recherche de votre adresse…';navigator.geolocation.getCurrentPosition(async function(p){if(window.CarPlayLocation)window.CarPlayLocation.success(p);pendingLat=p.coords.latitude;pendingLng=p.coords.longitude;pendingGeo=await reverseGeocode(pendingLat,pendingLng);locateBtn.classList.remove('loading');locateBtn.textContent='📍 UTILISER MA LOCALISATION';if(!pendingGeo){status.textContent='Position trouvée. Complétez les cases au clavier.';return}var sr=splitRoad(pendingGeo.road);set('addressStreetNumber',pendingGeo.houseNumber);if(currentCountry==='be'){set('addressStreetName',pendingGeo.road)}else{set('addressStreetType',sr.type);set('addressStreetName',sr.name)}set('addressPostalCode',pendingGeo.postalCode);set('addressDepartment',pendingGeo.department);set('addressCity',pendingGeo.city);status.textContent='✓ Adresse remplie avec votre position. Vérifiez les cases avant d’enregistrer.'},function(e){locateBtn.classList.remove('loading');locateBtn.textContent='📍 ACTIVER LA LOCALISATION';status.textContent=window.CarPlayLocation?window.CarPlayLocation.showHelp(e):'Activez la localisation pour remplir l’adresse.'},{enableHighAccuracy:true,timeout:15000,maximumAge:0})};
  function addressNavUrl(x){var dest=(x.lat!=null&&x.lng!=null)?(x.lat+','+x.lng):(x.address||x.fullDictation||'');var pref=localStorage.getItem('gps_pref')||'Google Maps';if(pref==='Waze')return 'https://waze.com/ul?q='+encodeURIComponent(dest)+'&navigate=yes';return 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(dest)+'&travelmode=driving&dir_action=navigate'}
  function updateSavedPhone(id,areaFilter,cityFilter){var all=getAll(),item=all.find(function(x){return x.id===id});if(!item)return;var value=prompt(item.phone?'Modifier le numéro de téléphone :':'Ajouter un numéro de téléphone :',item.phone||'');if(value===null)return;value=String(value).trim();item.phone=value;localStorage.setItem(storageKey(),JSON.stringify(all));renderFolders(areaFilter,cityFilter)}
  function deleteSavedAddress(id,areaFilter,cityFilter){var all=getAll(),item=all.find(function(x){return x.id===id});if(!item)return;var name=item.personName||item.address||'cette adresse';if(!confirm('Effacer '+name+' ?'))return;all=all.filter(function(x){return x.id!==id});localStorage.setItem(storageKey(),JSON.stringify(all));renderFolders(areaFilter,cityFilter)}
@@ -1899,10 +1982,11 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
       var st=$('simpleGpsStatus');st.textContent='📍 Localisation en cours…';
       if(!navigator.geolocation){st.textContent='GPS indisponible.';return}
       navigator.geolocation.getCurrentPosition(async function(p){
+        if(window.CarPlayLocation)window.CarPlayLocation.success(p);
         client.lat=p.coords.latitude;client.lng=p.coords.longitude;window.simpleHouseClientGPS={lat:client.lat,lng:client.lng};
         client.address=await reverse(client.lat,client.lng);$('simpleClientAddress').value=client.address;
         st.textContent=client.address?'✓ '+client.address:'✓ Position GPS enregistrée.';
-      },function(){st.textContent='Position GPS refusée.'},{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+      },function(e){st.textContent=window.CarPlayLocation?window.CarPlayLocation.showHelp(e):'Activez la localisation.';$('simpleGpsBtn').textContent='📍 ACTIVER LA LOCALISATION';},{enableHighAccuracy:true,timeout:15000,maximumAge:0});
     };
     $('simpleContinueBtn').onclick=function(){
       client.address=$('simpleClientAddress').value.trim();client.name=$('simpleClientName').value.trim();client.phone=$('simpleClientPhone').value.trim();
@@ -1948,9 +2032,9 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
         grand+=subtotal;rows+='<tr><td>'+p.label+'</td><td>'+a.toLocaleString('fr-FR')+' m²</td><td>'+desc.join(', ')+'</td><td>'+money(subtotal)+'</td></tr>';
       });
       var travelOptions='<option value="0">Gratuit</option>'+[10,20,30,40,50,60,70,80,90,100].map(function(v){return '<option value="'+v+'">'+v+' €</option>'}).join('');
-      $('simpleQuoteBody').innerHTML='<h1>DEVIS MESURER MA MAISON</h1><p><b>Client :</b> '+client.name+'<br><b>Téléphone :</b> '+client.phone+'<br><b>Adresse :</b> '+client.address+'</p><table class="simpleQuoteTable"><tr><th>Partie</th><th>Surface</th><th>Prestation</th><th>Total</th></tr>'+rows+'</table><div class="simpleQuoteOptions"><label><b>🚗 Déplacement</b><select id="simpleQuoteTravel">'+travelOptions+'</select></label><label class="simpleImmediate"><input id="simpleQuoteImmediate" type="checkbox"> <b>EXÉCUTION IMMÉDIATE</b></label></div><div id="simpleQuoteTotals"></div><div class="simpleQuoteLegal">En cochant « Exécution immédiate », le client demande expressément que la prestation commence avant la fin du délai légal de rétractation de 14 jours. Il reconnaît qu’une fois la prestation entièrement exécutée, il perdra son droit de rétractation. En cas de rétractation avant l’exécution complète, les prestations déjà réalisées restent dues dans les conditions prévues par les articles L.221-25 et L.221-28 du Code de la consommation.</div>';
-      function refreshSimpleQuoteTotal(){var t=Number($('simpleQuoteTravel').value||0),total=grand+t,dep=total*.30;$('simpleQuoteTotals').innerHTML='<p class="quoteTravelLine" style="text-align:right">Déplacement : '+(t?money(t):'Gratuit')+'</p><h2 style="text-align:right">TOTAL : '+money(total)+'</h2><p style="text-align:right"><b>Acompte 30 % : '+money(dep)+'</b><br>TVA non appliquée.</p>';}
-      $('simpleQuoteTravel').addEventListener('change',refreshSimpleQuoteTotal);refreshSimpleQuoteTotal();
+      $('simpleQuoteBody').innerHTML='<h1>DEVIS</h1><p><b>Client :</b> '+client.name+'<br><b>Téléphone :</b> '+client.phone+'<br><b>Adresse :</b> '+client.address+'</p><table class="simpleQuoteTable"><tr><th>Partie</th><th>Surface</th><th>Prestation</th><th>Total</th></tr>'+rows+'</table><div class="simpleQuoteOptions"><label><b>Déplacement</b><select id="simpleQuoteTravel">'+travelOptions+'</select></label><label class="simpleImmediate"><input id="simpleQuoteImmediate" type="checkbox"> <b>EXÉCUTION IMMÉDIATE</b></label><label class="simpleImmediate"><input id="simpleQuoteDepositPaid" type="checkbox"> <b>ACOMPTE 30 % VERSÉ</b></label></div><div id="simpleQuoteTotals"></div><div class="simpleQuoteLegal">En cochant « Exécution immédiate », le client demande expressément que la prestation commence avant la fin du délai légal de rétractation de 14 jours. Il reconnaît qu’une fois la prestation entièrement exécutée, il perdra son droit de rétractation. En cas de rétractation avant l’exécution complète, les prestations déjà réalisées restent dues dans les conditions prévues par les articles L.221-25 et L.221-28 du Code de la consommation.</div>';
+      function refreshSimpleQuoteTotal(){var t=Number($('simpleQuoteTravel').value||0),total=grand+t,paid=!!($('simpleQuoteDepositPaid')&&$('simpleQuoteDepositPaid').checked),dep=paid?total*.30:0,remain=total-dep;$('simpleQuoteTotals').innerHTML='<p class="quoteTravelLine" style="text-align:right">Déplacement : '+(t?money(t):'Gratuit')+'</p><h2 style="text-align:right">TOTAL : '+money(total)+'</h2>'+(paid?'<p style="text-align:right"><b>Acompte 30 % versé : - '+money(dep)+'</b><br><b style="font-size:20px">RESTE DÛ : '+money(remain)+'</b></p>':'')+'<p style="text-align:right">TVA non appliquée.</p>';}
+      $('simpleQuoteTravel').addEventListener('change',refreshSimpleQuoteTotal);$('simpleQuoteDepositPaid').addEventListener('change',refreshSimpleQuoteTotal);refreshSimpleQuoteTotal();
       $('simpleQuoteOverlay').hidden=false;
     };
     $('simpleQuoteClose').onclick=function(){$('simpleQuoteOverlay').hidden=true};
@@ -1959,7 +2043,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
       saveCurrentPart();
       var key=client.country==='BE'?'saved_market_addresses_be':'saved_market_addresses';
       var arr=[];try{arr=JSON.parse(localStorage.getItem(key)||'[]');if(!Array.isArray(arr))arr=[]}catch(e){arr=[]}
-      arr.unshift({type:'devis',documentFolder:'DEVIS',firstName:client.name,lastName:'',phone:client.phone,address:client.address,lat:client.lat,lng:client.lng,country:client.country,createdAt:new Date().toISOString(),clientSignature:(window.getSimpleClientSignature?window.getSimpleClientSignature():null),buildingEstimate:{parts:parts}});
+      arr.unshift({type:'devis',documentFolder:'DEVIS',firstName:client.name,lastName:'',phone:client.phone,address:client.address,lat:client.lat,lng:client.lng,country:client.country,createdAt:new Date().toISOString(),clientSignature:(window.getSimpleClientSignature?window.getSimpleClientSignature():null),professionalSignature:(window.getSimpleProfessionalSignature?window.getSimpleProfessionalSignature():null),buildingEstimate:{parts:parts}});
       localStorage.setItem(key,JSON.stringify(arr));alert('Enregistré dans '+(client.country==='BE'?'Belgique':'France')+' → DEVIS.');
     };
     $('simpleMailBtn').onclick=function(){
@@ -1973,59 +2057,70 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 
 <script id="clientSignatureScript">
 (function(){
-  var signatureData=null, signatureDate=null;
+  var clientSignatureData=null, clientSignatureDate=null;
+  var PRO_KEY='professional_signature_v1';
 
-  function addSignatureArea(){
-    var body=document.getElementById('simpleQuoteBody');
-    if(!body || document.getElementById('simpleSignatureCanvas')) return;
-    var box=document.createElement('div');
-    box.className='simpleSignatureBox';
-    box.innerHTML='<h3>✍️ Signature du client</h3>'+
-      '<canvas id="simpleSignatureCanvas"></canvas>'+
-      '<div class="simpleSignatureActions">'+
-      '<button id="simpleSignatureClear" type="button">EFFACER</button>'+
-      '<button id="simpleSignatureValidate" type="button">VALIDER LA SIGNATURE</button>'+
-      '</div><div id="simpleSignatureInfo">Le client signe avec son doigt.</div>';
-    var legal=body.querySelector('.simpleQuoteLegal');
-    if(legal)body.insertBefore(box,legal);else body.appendChild(box);
-
-    var c=document.getElementById('simpleSignatureCanvas'),ctx=c.getContext('2d'),drawing=false,last=null;
+  function savedPro(){try{return localStorage.getItem(PRO_KEY)||''}catch(e){return ''}}
+  function savePro(v){try{if(v)localStorage.setItem(PRO_KEY,v)}catch(e){}}
+  function drawSaved(canvas,data){
+    if(!canvas||!data)return;
+    var ctx=canvas.getContext('2d'),im=new Image();
+    im.onload=function(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(im,0,0,canvas.width,canvas.height)};
+    im.src=data;
+  }
+  function wireCanvas(canvas,clearBtn,validateBtn,info,kind){
+    var ctx=canvas.getContext('2d'),drawing=false,last=null,drawn=false;
     function resize(){
-      var r=c.getBoundingClientRect(),ratio=window.devicePixelRatio||1;
-      var old=signatureData;
-      c.width=Math.max(1,Math.round(r.width*ratio));c.height=Math.max(1,Math.round(180*ratio));
+      var r=canvas.getBoundingClientRect(),ratio=window.devicePixelRatio||1;
+      canvas.width=Math.max(1,Math.round(r.width*ratio));canvas.height=Math.max(1,Math.round(180*ratio));
       ctx.setTransform(ratio,0,0,ratio,0,0);ctx.lineWidth=2.4;ctx.lineCap='round';ctx.strokeStyle='#111';
-      if(old){var im=new Image();im.onload=function(){ctx.drawImage(im,0,0,r.width,180)};im.src=old}
+      if(kind==='pro'){var sp=savedPro();if(sp){drawSaved(canvas,sp);info.textContent='✓ Signature professionnelle mémorisée — elle sera utilisée automatiquement.'}}
     }
     setTimeout(resize,20);
-
-    function point(ev){
-      var r=c.getBoundingClientRect(),p=ev.touches?ev.touches[0]:ev;
-      return {x:p.clientX-r.left,y:p.clientY-r.top};
-    }
-    function start(ev){ev.preventDefault();drawing=true;last=point(ev)}
+    function point(ev){var r=canvas.getBoundingClientRect(),p=ev.touches?ev.touches[0]:ev;return{x:p.clientX-r.left,y:p.clientY-r.top}}
+    function begin(ev){ev.preventDefault();drawing=true;drawn=true;last=point(ev)}
     function move(ev){if(!drawing)return;ev.preventDefault();var p=point(ev);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p}
-    function end(ev){if(drawing){drawing=false;last=null}}
-    c.addEventListener('pointerdown',start);c.addEventListener('pointermove',move);c.addEventListener('pointerup',end);c.addEventListener('pointercancel',end);
-
-    document.getElementById('simpleSignatureClear').onclick=function(){
-      ctx.clearRect(0,0,c.width,c.height);signatureData=null;signatureDate=null;
-      document.getElementById('simpleSignatureInfo').textContent='Le client signe avec son doigt.';
-    };
-    document.getElementById('simpleSignatureValidate').onclick=function(){
-      signatureData=c.toDataURL('image/png');signatureDate=new Date();
-      var info=document.getElementById('simpleSignatureInfo');
-      info.className='simpleSignedStamp';
-      info.textContent='✓ Devis signé le '+signatureDate.toLocaleDateString('fr-FR')+' à '+signatureDate.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-      window.simpleClientSignature={image:signatureData,signedAt:signatureDate.toISOString()};
+    function finish(){drawing=false;last=null}
+    canvas.addEventListener('pointerdown',begin);canvas.addEventListener('pointermove',move);canvas.addEventListener('pointerup',finish);canvas.addEventListener('pointercancel',finish);
+    clearBtn.onclick=function(){ctx.clearRect(0,0,canvas.width,canvas.height);drawn=false;if(kind==='client'){clientSignatureData=null;clientSignatureDate=null;window.simpleClientSignature=null;info.textContent='Le client signe avec son doigt.'}else{info.textContent='Signez votre nouvelle signature puis appuyez sur VALIDER ET MÉMORISER.'}};
+    validateBtn.onclick=function(){
+      if(kind==='pro'&&!drawn&&!savedPro()){alert('Signez d’abord dans la case.');return}
+      var data=canvas.toDataURL('image/png'),iso=new Date().toISOString();
+      if(kind==='client'){
+        clientSignatureData=data;clientSignatureDate=iso;
+        info.textContent='✓ Devis signé le '+new Date(iso).toLocaleDateString('fr-FR')+' à '+new Date(iso).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+        window.simpleClientSignature={image:data,signedAt:iso};
+      }else{
+        savePro(data);
+        info.textContent='✓ Signature mémorisée le '+new Date(iso).toLocaleDateString('fr-FR')+' à '+new Date(iso).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+        window.simpleProfessionalSignature={image:data,signedAt:iso};
+      }
     };
   }
 
-  document.addEventListener('click',function(ev){
-    if(ev.target && ev.target.id==='simpleQuoteBtn') setTimeout(addSignatureArea,30);
-  });
+  function addSignatureArea(){
+    var body=document.getElementById('simpleQuoteBody');
+    if(!body)return;
+    var old=document.getElementById('simpleSignatureBlock');
+    if(old)old.remove();
+    var box=document.createElement('div');
+    box.id='simpleSignatureBlock';
+    box.innerHTML=
+      '<div class="simpleSignatureBox"><h3>Signature du client</h3>'+
+      '<canvas id="simpleSignatureCanvas"></canvas>'+
+      '<div class="simpleSignatureActions"><button id="simpleSignatureClear" type="button">EFFACER</button><button id="simpleSignatureValidate" type="button">VALIDER LA SIGNATURE</button></div>'+
+      '<div id="simpleSignatureInfo">Le client signe avec son doigt.</div></div>'+
+      '<div class="simpleSignatureBox"><h3>Signature du professionnel</h3>'+
+      (savedPro()?'<div style="min-height:120px;border:2px solid #777;border-radius:10px;background:#fff;padding:8px;display:flex;align-items:center;justify-content:center"><img src="'+savedPro()+'" style="max-width:100%;max-height:105px;object-fit:contain"></div>':'<div style="min-height:120px;border:2px solid #777;border-radius:10px;background:#fff;color:#333;padding:12px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:800">Aucune signature enregistrée.<br>Ajoutez-la dans Réglages → Mes modèles de devis.</div>')+
+      '<div id="simpleProfessionalSignatureInfo">Signature professionnelle enregistrée dans Réglages — non modifiable depuis Mesurer ma maison.</div></div>';
+    var legal=body.querySelector('.simpleQuoteLegal');
+    if(legal)body.insertBefore(box,legal);else body.appendChild(box);
+    wireCanvas(document.getElementById('simpleSignatureCanvas'),document.getElementById('simpleSignatureClear'),document.getElementById('simpleSignatureValidate'),document.getElementById('simpleSignatureInfo'),'client');
+  }
 
+  document.addEventListener('click',function(ev){if(ev.target&&ev.target.id==='simpleQuoteBtn')setTimeout(addSignatureArea,30)});
   window.getSimpleClientSignature=function(){return window.simpleClientSignature||null};
+  window.getSimpleProfessionalSignature=function(){var d=window.simpleProfessionalSignature||null;if(d)return d;var s=savedPro();return s?{image:s,signedAt:new Date().toISOString()}:null};
 })();
 </script>
 
@@ -2057,22 +2152,22 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
    $('gqLines').appendChild(row);row.querySelectorAll('input').forEach(function(i){i.addEventListener('input',calc)});row.querySelector('button').onclick=function(){row.remove();calc()};
  }
  function readLines(){return Array.from(document.querySelectorAll('.gqLine')).map(function(r){return{description:clean(r.querySelector('.gqDesc').value),qty:parseFloat(r.querySelector('.gqQty').value)||0,unitPrice:parseFloat(r.querySelector('.gqPrice').value)||0}}).filter(function(x){return x.description||x.qty||x.unitPrice})}
- function calc(){if(window.updateTreatmentQuantities)window.updateTreatmentQuantities();var base=readLines().reduce(function(a,x){return a+x.qty*x.unitPrice},0),travel=Number(($('gqTravel')&&$('gqTravel').value)||0),total=base+travel;$('gqTotal').textContent=money(total);$('gqDeposit').textContent=money(total*.30);return total}
+ function calc(){if(window.updateTreatmentQuantities)window.updateTreatmentQuantities();var base=readLines().reduce(function(a,x){return a+x.qty*x.unitPrice},0),travel=Number(($('gqTravel')&&$('gqTravel').value)||0),total=base+travel,paid=!!($('gqDepositPaid')&&$('gqDepositPaid').checked),dep=paid?Math.round(total*.30*100)/100:0,remain=Math.round((total-dep)*100)/100;$('gqTotal').textContent=money(total);$('gqDeposit').textContent=money(dep);if($('gqRemaining'))$('gqRemaining').textContent=money(remain);if($('gqDepositRow'))$('gqDepositRow').style.display=paid?'flex':'none';if($('gqRemainingRow'))$('gqRemainingRow').style.display=paid?'flex':'none';return total}
  function logo(){return localStorage.getItem('generic_company_logo')||''}
  function buildDoc(){
    if(!doc)doc={kind:'quote',number:nextNo('quote'),createdAt:new Date().toISOString()};
-   doc.client=clientFromForm();doc.lines=readLines();doc.notes=$('gqNotes').value;doc.travel=Number(($('gqTravel')&&$('gqTravel').value)||0);doc.immediate=!!($('gqImmediate')&&$('gqImmediate').checked);doc.total=calc();doc.deposit=Math.round(doc.total*.30*100)/100;doc.signature=signature;doc.signedAt=signatureDate;doc.logo=logo();return doc
+   doc.client=clientFromForm();doc.lines=readLines();doc.notes=$('gqNotes').value;doc.travel=Number(($('gqTravel')&&$('gqTravel').value)||0);doc.immediate=!!($('gqImmediate')&&$('gqImmediate').checked);doc.depositPaid=!!($('gqDepositPaid')&&$('gqDepositPaid').checked);doc.total=calc();doc.deposit=doc.depositPaid?Math.round(doc.total*.30*100)/100:0;doc.remaining=Math.round((doc.total-doc.deposit)*100)/100;doc.signature=signature;doc.signedAt=signatureDate;doc.logo=logo();return doc
  }
  function preview(){
    var d=buildDoc(),dt=new Date(d.createdAt),title=d.kind==='invoice'?'FACTURE':'DEVIS',rows=(d.lines||[]).map(function(x){return'<tr><td>'+esc(x.description)+'</td><td>'+x.qty+'</td><td>'+money(x.unitPrice)+'</td><td>'+money(x.qty*x.unitPrice)+'</td></tr>'}).join('');
    $('gqTitle').textContent=title;$('gqNumber').textContent=d.number;
-   $('gqDocPreview').innerHTML='<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">'+(d.logo?'<img class="logo" src="'+d.logo+'">':'<div></div>')+'<div style="text-align:right"><h1 style="margin:0">'+title+'</h1><b>'+d.number+'</b><br>'+dt.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})+' '+dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'</div></div><hr><p><b>Client :</b> '+esc(d.client.name||'—')+'<br><b>Téléphone :</b> '+esc(d.client.phone||'—')+'<br><b>Adresse :</b> '+esc(d.client.address||'—')+'</p><table><tr><th>Description</th><th>Qté</th><th>Prix</th><th>Total</th></tr>'+rows+'</table>'+(d.travel!=null?'<p class="quoteTravelLine" style="text-align:right">Déplacement : '+(d.travel?money(d.travel):'Gratuit')+'</p>':'')+'<h2 style="text-align:right">TOTAL : '+money(d.total)+'</h2>'+(d.kind==='quote'?'<p style="text-align:right"><b>Acompte 30 % : '+money(d.deposit)+'</b></p>':'')+(d.kind==='quote'&&d.immediate?'<div class="quoteImmediateBox">☑ EXÉCUTION IMMÉDIATE</div>':'')+(d.notes?'<p><b>Notes :</b><br>'+esc(d.notes)+'</p>':'')+(d.signature?'<div style="margin-top:18px"><b>Signature client</b><br><img src="'+d.signature+'" style="max-width:280px;max-height:120px"><br><small>Signé le '+new Date(d.signedAt).toLocaleString('fr-FR')+'</small></div>':'')+(d.kind==='quote'?'<div class="quoteLegal">En cochant « Exécution immédiate », le client demande expressément que la prestation commence avant la fin du délai légal de rétractation de 14 jours. Il reconnaît qu’une fois la prestation entièrement exécutée, il perdra son droit de rétractation. En cas de rétractation avant l’exécution complète, les prestations déjà réalisées restent dues dans les conditions prévues par les articles L.221-25 et L.221-28 du Code de la consommation.</div>':'');
+   $('gqDocPreview').innerHTML='<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">'+(d.logo?'<img class="logo" src="'+d.logo+'">':'<div></div>')+'<div style="text-align:right"><h1 style="margin:0">'+title+'</h1><b>'+d.number+'</b><br>'+dt.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})+' '+dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'</div></div><hr><p><b>Client :</b> '+esc(d.client.name||'—')+'<br><b>Téléphone :</b> '+esc(d.client.phone||'—')+'<br><b>Adresse :</b> '+esc(d.client.address||'—')+'</p><table><tr><th>Description</th><th>Qté</th><th>Prix</th><th>Total</th></tr>'+rows+'</table>'+(d.travel!=null?'<p class="quoteTravelLine" style="text-align:right">Déplacement : '+(d.travel?money(d.travel):'Gratuit')+'</p>':'')+'<h2 style="text-align:right">TOTAL : '+money(d.total)+'</h2>'+(d.kind==='quote'&&d.depositPaid?'<p style="text-align:right"><b>Acompte 30 % versé : - '+money(d.deposit)+'</b><br><b style="font-size:20px">RESTE DÛ : '+money(d.remaining)+'</b></p>':'')+(d.kind==='quote'&&d.immediate?'<div class="quoteImmediateBox">☑ EXÉCUTION IMMÉDIATE</div>':'')+(d.notes?'<p><b>Notes :</b><br>'+esc(d.notes)+'</p>':'')+(d.signature?'<div style="margin-top:18px"><b>Signature client</b><br><img src="'+d.signature+'" style="max-width:280px;max-height:120px"><br><small>Signé le '+new Date(d.signedAt).toLocaleString('fr-FR')+'</small></div>':'')+(d.kind==='quote'?'<div class="quoteLegal">En cochant « Exécution immédiate », le client demande expressément que la prestation commence avant la fin du délai légal de rétractation de 14 jours. Il reconnaît qu’une fois la prestation entièrement exécutée, il perdra son droit de rétractation. En cas de rétractation avant l’exécution complète, les prestations déjà réalisées restent dues dans les conditions prévues par les articles L.221-25 et L.221-28 du Code de la consommation.</div>':'');
  }
  function esc(s){return String(s||'').replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
  function openQuote(){
    var c=clientFromForm();if(!c.address){alert('Renseignez d’abord l’adresse.');return}
    doc={kind:'quote',number:nextNo('quote'),createdAt:new Date().toISOString(),client:c};signature=null;signatureDate=null;
-   $('gqLines').innerHTML='';addLine('',1,'');$('gqNotes').value='';if($('gqTravel'))$('gqTravel').value='0';if($('gqImmediate'))$('gqImmediate').checked=false;$('gqSignatureArea').style.display='none';
+   $('gqLines').innerHTML='';addLine('',1,'');$('gqNotes').value='';if($('gqTravel'))$('gqTravel').value='0';if($('gqImmediate'))$('gqImmediate').checked=false;if($('gqDepositPaid'))$('gqDepositPaid').checked=false;$('gqSignatureArea').style.display='none';
    $('gqClient').innerHTML='<b>'+esc(c.name||'Client')+'</b><br>'+esc(c.address)+(c.phone?'<br>📞 '+esc(c.phone):'');
    var l=logo();if(l){$('gqLogoPreview').src=l;$('gqLogoPreview').hidden=false}else $('gqLogoPreview').hidden=true;
    modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';calc();preview();
@@ -2085,10 +2180,10 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
  }
 
  var btn=$('addressCreateQuote');if(btn)btn.onclick=openQuote;
- if($('gqTravel'))$('gqTravel').addEventListener('change',function(){calc();preview()});if($('gqImmediate'))$('gqImmediate').addEventListener('change',preview);
+ if($('gqTravel'))$('gqTravel').addEventListener('change',function(){calc();preview()});if($('gqImmediate'))$('gqImmediate').addEventListener('change',preview);if($('gqDepositPaid'))$('gqDepositPaid').addEventListener('change',function(){calc();preview()});
  $('gqClose').onclick=close;$('gqAddLine').onclick=function(){addLine('',1,'')};$('gqEdit').onclick=preview;$('gqSave').onclick=function(){preview();saveDoc()};
  $('gqInvoice').onclick=function(){buildDoc();if(doc.kind==='invoice'){alert('Ce document est déjà une facture.');return}var old=doc.number;doc.kind='invoice';doc.sourceQuoteNumber=old;doc.number=nextNo('invoice');doc.createdAt=new Date().toISOString();preview();saveDoc()};
- $('gqMail').onclick=function(){var d=buildDoc(),sub=(d.kind==='invoice'?'Facture ':'Devis ')+d.number,body=(d.kind==='invoice'?'FACTURE ':'DEVIS ')+d.number+'\nClient : '+(d.client.name||'')+'\nAdresse : '+(d.client.address||'')+'\nTotal : '+money(d.total)+(d.kind==='quote'?'\nAcompte 30 % : '+money(d.deposit):'');location.href='mailto:?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(body)};
+ $('gqMail').onclick=function(){var d=buildDoc(),sub=(d.kind==='invoice'?'Facture ':'Devis ')+d.number,body=(d.kind==='invoice'?'FACTURE ':'DEVIS ')+d.number+'\nClient : '+(d.client.name||'')+'\nAdresse : '+(d.client.address||'')+'\nTotal : '+money(d.total)+(d.kind==='quote'&&d.depositPaid?'\nAcompte 30 % versé : '+money(d.deposit)+'\nReste dû : '+money(d.remaining):'');location.href='mailto:?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(body)};
  $('gqPrint').onclick=function(){preview();window.print()};
  $('gqLogoBtn').onclick=function(){$('gqLogoInput').click()};$('gqLogoInput').onchange=function(){var f=this.files&&this.files[0];if(!f)return;var r=new FileReader();r.onload=function(){localStorage.setItem('generic_company_logo',r.result);$('gqLogoPreview').src=r.result;$('gqLogoPreview').hidden=false;preview()};r.readAsDataURL(f)};
  $('gqSign').onclick=function(){$('gqSignatureArea').style.display='block';setTimeout(setupCanvas,10)};
@@ -2479,7 +2574,9 @@ window.addEventListener('load',function(){
   },true);
 })();
 </script>
-</body>
+<script src="/devis-personnalises-v2.js?v=20260910-ficheachat-mobile-acompte-signatures2"></script>
+<script src="/brocante-fiche-achat-v1.js?v=20260910-ficheachat-mobile-acompte-signatures2"></script>
+<script src="/notification-settings.js?v=20260912-notifications-globales2"></script><script src="/admin-approval-overlay.js?v=20260912-notification-toggle1"></script></body>
 </html>
 
 <!-- DICTEE_V2: phrase unique + nom/prenom + metier conserve + dossiers departement/ville -->

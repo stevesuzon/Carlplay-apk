@@ -60,6 +60,7 @@
 
   function windLevel(kmh){if(kmh>=75)return{css:3,label:'TRÈS DANGEREUX',icon:'🚨',advice:'Évitez de circuler avec un véhicule ou une caravane. Rafales violentes : sécurisez la caravane, le véhicule, l’auvent et les équipements, puis mettez-vous à l’abri.'};if(kmh>=65)return{css:3,label:'DANGEREUX',icon:'🔴',advice:'Ne partez pas avec une caravane si vous pouvez l’éviter. Risque important lié aux rafales : sécurisez l’auvent et les équipements.'};if(kmh>=60)return{css:2,label:'ATTENTION',icon:'🟠',advice:'Déconseillé de circuler en tractant une caravane. Fortes rafales : vérifiez l’auvent, les cales, le véhicule et les objets extérieurs.'};if(kmh>=55)return{css:1,label:'FORT',icon:'🟠',advice:'Évitez de partir en tractant une caravane par ce vent. Rangez ou sécurisez l’auvent et les équipements extérieurs.'};if(kmh>=45)return{css:1,label:'VIGILANCE',icon:'🟡',advice:'Vent sensible. Surveillez l’auvent, la caravane, le véhicule et les objets extérieurs.'};return{css:1,label:'FAIBLE',icon:'🟢',advice:'Pas de risque particulier lié au vent.'}}
   function showDanger(kind,maxGust,hailSize,extra){
+    if(localStorage.getItem('carplay_notifications_enabled')!=='1')return;
     extra=extra||{};
     var day=new Date().toISOString().slice(0,10),strength=(kind==='wind'||kind==='combined')?Math.floor(Number(maxGust||0)/10)*10:(hailSize||0);
     var hazardSignature=kind==='combined'?[extra.hailConfirmed?'hail':'',extra.hailPossible?'hailPossible':'',extra.lightning?'lightning':'',extra.wind?'wind':'',extra.flood?'flood'+(extra.floodLevel||''):''].join('-'):'';
@@ -142,4 +143,5 @@
   scrollState(); render(); refresh(); checkSavedPlaceDanger(true);
   setInterval(render,30000); setInterval(refresh,900000); setInterval(function(){checkSavedPlaceDanger(false)},900000);
   addEventListener("online", function(){refresh();checkSavedPlaceDanger(true)});
+  addEventListener('carplay-notifications-changed',function(e){if(!e.detail||!e.detail.enabled){overlay.hidden=true;overlay.className=''}else checkSavedPlaceDanger(true)});
 })();

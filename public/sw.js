@@ -1,4 +1,15 @@
-const CACHE = "carplay-v5-20260912-email-account-admin-envois7";
+const CACHE = "carplay-v5-20260912-notifications-globales8";
+const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
+const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
+async function notificationsEnabled() {
+  const cache = await caches.open(NOTIFICATION_PREF_CACHE);
+  const response = await cache.match(NOTIFICATION_PREF_URL);
+  return !!response && (await response.text()) === "1";
+}
+async function saveNotificationPreference(enabled) {
+  const cache = await caches.open(NOTIFICATION_PREF_CACHE);
+  await cache.put(NOTIFICATION_PREF_URL, new Response(enabled ? "1" : "0"));
+}
 const CORE = [
   "/brocante-fiche-achat-v1.js?v=20260910-ficheachat-mobile-acompte-signatures1",
   "/devis-personnalises-v2.js?v=20260910-ficheachat-mobile-acompte-signatures1",
@@ -11,7 +22,7 @@ const CORE = [
   "/carplay-noir-rouge-192.png",
   "/carplay-noir-rouge-512.png",
   "/mobile-overrides.css?v=64",
-  "/weather-all-pages.js?v=64",
+  "/weather-all-pages.js?v=68-notifications-globales",
   "/subscription-web.js?v=66-email-recovery",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
@@ -27,8 +38,8 @@ const CORE = [
   "/market-final.js?v=20260912-gps-admin-unlock1",
   "/market-data-be.js?v=130",
   "/market-consensus.js?v=20260912-gps-admin-unlock1",
-  "/verification-v9.html?v=20260912-demande-page2-email4",
-  "/modification-demande.html?v=20260912-email-account7",
+  "/verification-v9.html?v=20260912-demande-page2-email8",
+  "/modification-demande.html?v=20260912-email-account8",
   "/ou-trouver-place.html",
   "/documents-travail.html",
   "/mes-papiers.html",
@@ -90,14 +101,22 @@ self.addEventListener("fetch", (e) => {
   );
 });
 self.addEventListener("push", (e) => {
-  e.waitUntil(self.registration.showNotification("Modification de marché demandée", {
+  e.waitUntil(notificationsEnabled().then((enabled) => {
+    if (!enabled) return;
+    return self.registration.showNotification("Modification de marché demandée", {
     body: "Une demande d’horaire, de GPS ou de photo attend votre réponse OUI ou NON pendant 3 minutes.",
     icon: "/carplay-noir-rouge-192.png",
     badge: "/carplay-noir-rouge-192.png",
     tag: "gps-unlock-request",
     renotify: true,
     data: { url: "/admin.html#gps-requests" }
+    });
   }));
+});
+self.addEventListener("message", (e) => {
+  if (e.data && e.data.type === "CARPLAY_NOTIFICATIONS_PREFERENCE") {
+    e.waitUntil(saveNotificationPreference(e.data.enabled === true));
+  }
 });
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
