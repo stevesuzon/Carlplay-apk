@@ -1,4 +1,4 @@
 {
-  "version": "20260912-email-server-sync-v154",
-  "message": "Correction définitive e-mail : l’adresse affichée comme validée est maintenant confirmée par le serveur, le code d’abonnement sert de secours pour retrouver le bon compte, et une panne de notification push ne bloque plus l’envoi d’une demande marché."
+  "version": "20260912-account-email-password-v155",
+  "message": "Compte abonnement : connexion avec adresse e-mail personnelle et mot de passe. L’abonnement lié à l’e-mail est récupéré automatiquement. L’e-mail, le nom et le prénom sont conservés sur le serveur et réutilisés pour les demandes de modification de marché, y compris sur un autre téléphone après connexion."
 }
