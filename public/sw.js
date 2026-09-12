@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260912-marches17-restaures1";
+const CACHE = "carplay-v5-20260912-allmarkets-v147";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -30,14 +30,15 @@ const CORE = [
   "/location-permission-v20260911.js?v=20260911",
   "/markets-final.css?v=126-favori-fluide",
   "/markets-final-picker.css",
-  "/choix-marches-final.html?v=122",
+  "/choix-marches-final.html?v=20260912-allmarkets-v147",
+  "/marches-final.html?v=20260912-allmarkets-v147",
   "/special-marches.html?v=20260910-ficheachat-mobile-acompte-signatures1",
   "/nearby-markets.html?v=20260912-gps-admin-unlock1",
   "/markets-44-complete.js?v=20260902-complet",
-  "/market-data-fr.js?v=130",
-  "/market-final.js?v=20260912-gps-admin-unlock1",
+  "/market-data-fr.js?v=20260912-allmarkets-v147",
+  "/market-final.js?v=20260912-allmarkets-v147",
   "/market-data-be.js?v=130",
-  "/market-consensus.js?v=20260912-gps-admin-unlock1",
+  "/market-consensus.js?v=20260912-allmarkets-v147",
   "/verification-v9.html?v=20260912-consulter-fiche9",
   "/modification-demande.html?v=20260912-identity-answer9",
   "/ou-trouver-place.html",
@@ -61,13 +62,13 @@ CORE.push(
   "/markets-missing-v102.js?v=20260902",
   "/markets-missing-v103.js?v=20260902",
   "/markets-missing-v104.js?v=20260902",
-  "/markets-france-update-v139.js?v=139",
-  "/markets-france-osm-v139.js?v=139",
-  "/markets-35-corrections-v142.js?v=142",
-  "/markets-17-complete-v144.js?v=20260912-dept17-complet2",
-  "/markets-35-missing-v143.js?v=143",
-  "/market-weekly-filter.js?v=122-categories",
-  "/market-consensus.js?v=20260912-gps-admin-unlock1",
+  "/markets-france-update-v139.js?v=20260912-allmarkets-v147",
+  "/markets-france-osm-v139.js?v=20260912-allmarkets-v147",
+  "/markets-35-corrections-v142.js?v=20260912-allmarkets-v147",
+  "/markets-17-complete-v144.js?v=20260912-allmarkets-v147",
+  "/markets-35-missing-v143.js?v=20260912-allmarkets-v147",
+  "/market-weekly-filter.js?v=20260912-allmarkets-v147",
+  "/market-consensus.js?v=20260912-allmarkets-v147",
 );
 self.addEventListener("install", (e) => {
   self.skipWaiting();
