@@ -262,6 +262,23 @@ async function activate(request, env) {
   return json({ok:true,lifetime:!!row.lifetime,expiresAt:row.expires_at||null,deviceType:type,email});
 }
 
+async function updateSubscriptionEmail(request, env) {
+  await ensureSubscriptionEmailColumns(env);
+  const data = await body(request);
+  const email = normalizeEmail(data.email);
+  const deviceId = String(data.deviceId || "");
+  if (!validEmail(email)) return json({ok:false,error:"EMAIL_OBLIGATOIRE"},400);
+  if (!validDevice(deviceId)) return json({ok:false,error:"DONNEES_INVALIDES"},400);
+  const row = await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) LIMIT 1").bind(deviceId,deviceId).first();
+  if (!row) return json({ok:false,error:"COMPTE_ABONNEMENT_INTROUVABLE"},403);
+  if (!row.lifetime && (!row.expires_at || Date.parse(row.expires_at) <= Date.now())) return json({ok:false,error:"ABONNEMENT_EXPIRE"},403);
+  const emailHash = await sha256Text(email);
+  const owner = await env.DB.prepare("SELECT id FROM subscriptions WHERE recovery_email_hash=? AND id<>?").bind(emailHash,row.id).first();
+  if (owner) return json({ok:false,error:"EMAIL_DEJA_UTILISEE"},409);
+  await env.DB.prepare("UPDATE subscriptions SET recovery_email_hash=?,recovery_email_mask=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(emailHash,email,row.id).run();
+  return json({ok:true,email});
+}
+
 async function confirmSubscriptionEmail(request,env){
   await ensureSubscriptionEmailColumns(env);const data=await body(request),challengeId=String(data.challengeId||""),verificationCode=String(data.verificationCode||"").replace(/\D/g,""),deviceId=String(data.deviceId||"");
   if(!challengeId||!/^\d{6}$/.test(verificationCode)||!validDevice(deviceId))return json({ok:false,error:"DONNEES_INVALIDES"},400);
@@ -938,7 +955,7 @@ async function vigilanceForPlace(url) {
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=67-approval-center" defer></script><script src="/home-work.js?v=62" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=68-email-sync-v151" defer></script><script src="/home-work.js?v=62" defer></script>', { html: true });
   }
 }
 
@@ -965,6 +982,7 @@ export default {
     if (url.pathname === "/api/activate" && request.method === "POST") return activate(request, env);
     if (url.pathname === "/api/status" && request.method === "POST") return subscriptionStatus(request, env);
     if (url.pathname === "/api/recover-code" && request.method === "POST") return recoverSubscriptionCode(request, env);
+    if (url.pathname === "/api/subscription-email" && request.method === "POST") return updateSubscriptionEmail(request, env);
     if (url.pathname === "/api/presence" && (request.method === "GET" || request.method === "POST")) return presence(request, env);
     if (url.pathname === "/api/installations" && request.method === "POST") return installations(request, env);
     if (url.pathname === "/api/admin/installations" && request.method === "GET") return adminInstallations(request, env);

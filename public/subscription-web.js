@@ -1,5 +1,5 @@
 (function () {
-  if ("serviceWorker" in navigator) addEventListener("load", function () { navigator.serviceWorker.register("/sw.js?v=20260912-consulter-fiche9").catch(function () {}); });
+  if ("serviceWorker" in navigator) addEventListener("load", function () { navigator.serviceWorker.register("/sw.js?v=20260912-email-sync-v151").catch(function () {}); });
   var KEY = "carplay_shared_subscription";
   var PAID_KEY = "carplay_paid_activated";
   var EMAIL_KEY = "carplay_recovery_email";
@@ -38,6 +38,7 @@
     if(!email)return "";
     try{localStorage.setItem(EMAIL_KEY,email)}catch(_){}
     try{document.cookie=EMAIL_KEY+"="+encodeURIComponent(email)+"; Max-Age=31536000; Path=/; SameSite=Lax; Secure"}catch(_){}
+    try{var sub=JSON.parse(localStorage.getItem(KEY)||"null");if(sub&&!sub.globalFree){sub.email=email;localStorage.setItem(KEY,JSON.stringify(sub));}}catch(_){}
     return email;
   }
   function rememberedEmail() {
@@ -80,10 +81,19 @@
     rememberEmail(email);
     done({ok:true,email:email,emailProof:"adresse-confirmee"});
   }
+  function updateActiveSubscriptionEmail(email, done, failed) {
+    email=String(email||"").trim().toLowerCase();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){failed({error:"EMAIL_OBLIGATOIRE"});return;}
+    var real=null;try{real=JSON.parse(localStorage.getItem(KEY)||"null")}catch(_){}
+    if(!real||real.globalFree||!valid(real)){rememberEmail(email);done({ok:true,email:email,localOnly:true});return;}
+    fetch("/api/subscription-email",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email:email,deviceId:id()})})
+      .then(function(r){return r.json().then(function(j){if(!r.ok)throw j;return j;});})
+      .then(function(j){rememberEmail(j.email||email);done(j);})
+      .catch(failed);
+  }
   function sendRecoveryCode(email, button, done, failed) {
     email=String(email||"").trim().toLowerCase();
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){failed({error:"EMAIL_OBLIGATOIRE"});return;}
-    rememberEmail(email);
     var oldText=button.textContent;
     button.disabled=true;
     button.textContent="ENVOI EN COURS…";
@@ -92,7 +102,7 @@
       headers:{"content-type":"application/json"},
       body:JSON.stringify({email:email,deviceId:id()})
     }).then(function(r){return r.json().then(function(j){if(!r.ok)throw j;return j;});})
-      .then(function(j){done(j);})
+      .then(function(j){rememberEmail(email);done(j);})
       .catch(failed)
       .finally(function(){button.disabled=false;button.textContent=oldText;});
   }
@@ -242,15 +252,15 @@
     var days = isActive ? (s.lifetime ? "ABONNEMENT À VIE" : remaining + " JOUR" + (remaining > 1 ? "S" : "") + " RESTANT" + (remaining > 1 ? "S" : "")) : "0 JOUR RESTANT";
     var end = isActive ? (s.lifetime ? "AUCUNE DATE DE FIN" : "FIN LE " + new Date(s.expiresAt).toLocaleDateString("fr-FR")) : "FONCTIONS VERROUILLÉES";
     panel.innerHTML = '<div class="settingHead"><span>🔐 ABONNEMENT</span><span>⌄</span></div><div class="settingBody"><div class="sub-current-status" style="margin:4px 0 12px;padding:12px;border:2px solid '+(isActive?'#44d17a':'#ff5a5a')+';border-radius:13px;background:#0b1522;text-align:center;font-weight:950"><div style="font-size:19px">'+state+'</div><div style="margin-top:4px">'+days+'</div><div style="margin-top:4px;font-size:13px;color:#d8e0eb">'+end+'</div></div><div class="sub-settings"><label class="sub-setting-email-label"><b>1. ÉCRIVEZ VOTRE ADRESSE E-MAIL COMPLÈTE</b></label><input class="sub-setting-email sub-full-email" type="email" inputmode="email" autocomplete="email" placeholder="Exemple : prenom.nom@gmail.com"><div class="sub-setting-confirmed sub-email-complete" style="display:none;color:#55e58c;font-weight:900;margin:7px 0"></div><div class="sub-setting-warning" style="display:none;font-size:12px;color:#ffd166;margin:4px 0 9px">⚠️ Attention : si l’adresse e-mail est incorrecte, aucune récupération du compte ne sera possible.</div><button class="sub-setting-confirm-email" type="button">CONFIRMER MON ADRESSE E-MAIL</button><button class="sub-setting-change-email" type="button" style="display:none">MODIFIER L’ADRESSE E-MAIL</button><button class="sub-setting-recover-code" type="button">ENVOYER MON CODE D’ABONNEMENT</button><small class="sub-recovery-help">Application effacée ou nouveau téléphone ? Entrez la même adresse e-mail pour recevoir votre code actuel.</small><label><b>2. ENTREZ VOTRE CODE D’ABONNEMENT</b></label><input class="sub-setting-code" disabled inputmode="text" autocapitalize="characters" maxlength="6" placeholder="CODE 6 LETTRES / CHIFFRES"><button class="sub-setting-activate" disabled>RENOUVELER / CHANGER MON CODE</button><div class="sub-settings-message"></div></div></div>';
-    var emailField=panel.querySelector('.sub-setting-email'),emailProof='';if(emailField&&!emailField.value){emailField.value=(s&&s.email)||rememberedEmail()||'';}
+    var emailField=panel.querySelector('.sub-setting-email'),emailProof='';if(emailField&&!emailField.value){emailField.value=rememberedEmail()||(s&&s.email)||'';}
     function showConfirmed(email){emailProof='adresse-confirmee';emailField.value=email;emailField.style.display='none';panel.querySelector('.sub-setting-email-label').style.display='none';panel.querySelector('.sub-setting-confirmed').style.display='block';panel.querySelector('.sub-setting-confirmed').textContent='✅ ADRESSE E-MAIL VALIDÉE : '+email;panel.querySelector('.sub-setting-warning').style.display='block';panel.querySelector('.sub-setting-confirm-email').style.display='none';panel.querySelector('.sub-setting-change-email').style.display='block';panel.querySelector('.sub-setting-code').disabled=false;panel.querySelector('.sub-setting-activate').disabled=false;}
-    if(emailField&&emailField.value)showConfirmed(emailField.value);
+    if(emailField&&emailField.value){showConfirmed(emailField.value);updateActiveSubscriptionEmail(emailField.value,function(r){showConfirmed(r.email||emailField.value);},function(){});}
     var firstSetting = settings.querySelector(".settingRow");
     if (firstSetting) settings.insertBefore(panel, firstSetting); else settings.appendChild(panel);
     panel.querySelector(".settingHead").onclick = function () { panel.querySelector(".settingBody").classList.toggle("open"); };
     var settingsCodeInput = panel.querySelector(".sub-setting-code");
     settingsCodeInput.addEventListener("input", function(){ settingsCodeInput.value = cleanCode(settingsCodeInput.value); });
-    panel.querySelector('.sub-setting-confirm-email').onclick=function(){var msg=panel.querySelector('.sub-settings-message');confirmEmail(emailField.value,function(r){showConfirmed(r.email);msg.textContent='Adresse enregistrée. Vous pouvez maintenant entrer votre code d’abonnement.';},function(e){msg.textContent=messageFor(e)});};
+    panel.querySelector('.sub-setting-confirm-email').onclick=function(){var msg=panel.querySelector('.sub-settings-message');msg.textContent='Enregistrement de l’adresse e-mail…';updateActiveSubscriptionEmail(emailField.value,function(r){showConfirmed(r.email);msg.textContent='✅ Adresse e-mail enregistrée dans votre abonnement.';},function(e){msg.textContent=messageFor(e)});};
     panel.querySelector('.sub-setting-change-email').onclick=function(){emailProof='';emailField.style.display='block';panel.querySelector('.sub-setting-email-label').style.display='block';emailField.focus();panel.querySelector('.sub-setting-confirm-email').style.display='block';panel.querySelector('.sub-setting-confirmed').style.display='none';panel.querySelector('.sub-setting-warning').style.display='none';this.style.display='none';settingsCodeInput.disabled=true;panel.querySelector('.sub-setting-activate').disabled=true;};
     panel.querySelector('.sub-setting-recover-code').onclick=function(){var email=String(emailField.value||'').trim(),msg=panel.querySelector('.sub-settings-message'),button=this;msg.textContent='Vérification de l’adresse…';sendRecoveryCode(email,button,function(){emailProof='adresse-confirmee';rememberEmail(email);showConfirmed(email);settingsCodeInput.disabled=false;panel.querySelector('.sub-setting-activate').disabled=false;msg.textContent='✅ Votre code d’abonnement a été envoyé à '+email+'. Entrez-le ci-dessous pour continuer votre abonnement.';},function(e){msg.textContent=messageFor(e)});};
     panel.querySelector(".sub-setting-activate").onclick = function () {

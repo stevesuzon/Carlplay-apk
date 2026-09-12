@@ -1,1 +1,1 @@
-{"version":"2026.09.12-server-sync-v150","message":"Mise à jour effectuée : photos et coordonnées GPS des marchés synchronisées depuis le serveur commun pour tous les utilisateurs, avec actualisation automatique au retour dans l’application."}
+{"version":"2026.09.12-email-sync-v151","message":"Correction abonnement : l’adresse e-mail affichée dans Abonnement est maintenant enregistrée sur le serveur et utilisée comme adresse de référence pour les demandes de modification de marché."}
