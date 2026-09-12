@@ -52,13 +52,18 @@ jobs:
         run: |
           set -euo pipefail
           cp assets-src/verified-market-patches.js app/src/main/assets/verified-market-patches.js
+          cp public/markets-17-complete-v144.js app/src/main/assets/markets-17-complete-v144.js
           python3 - <<'PY'
           from pathlib import Path
           p=Path('app/src/main/assets/marches.html')
           s=p.read_text(encoding='utf-8',errors='ignore')
-          tag='<script src="verified-market-patches.js"></script>'
-          if tag not in s:
-              s=s.replace('</body>',tag+'</body>')
+          tags=[
+              '<script src="verified-market-patches.js"></script>',
+              '<script src="markets-17-complete-v144.js?v=20260912-dept17-complet3"></script>'
+          ]
+          for tag in tags:
+              if tag not in s:
+                  s=s.replace('</body>',tag+'</body>')
           p.write_text(s,encoding='utf-8')
           PY
       - name: Add visible update notification
