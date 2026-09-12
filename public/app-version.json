@@ -1,1 +1,1 @@
-{"version":"2026.09.12-email-sync-v151","message":"Correction abonnement : l’adresse e-mail affichée dans Abonnement est maintenant enregistrée sur le serveur et utilisée comme adresse de référence pour les demandes de modification de marché."}
+{"version":"2026.09.12-email-all-phones-v152","message":"Correction e-mail multi-téléphones : chaque téléphone ayant son propre abonnement actif peut envoyer une demande de modification de marché. Les anciens abonnements sans e-mail serveur sont régularisés automatiquement sans mélanger les abonnements entre téléphones."}

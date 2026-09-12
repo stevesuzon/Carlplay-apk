@@ -129,11 +129,26 @@ async function requestGpsUnlock(request, env) {
   const requesterName=String(data.requesterName||"").trim().replace(/\s+/g," ").slice(0,100);
   if(requesterName.split(" ").filter(Boolean).length<2)return json({ok:false,error:"NOM_ET_PRENOM_OBLIGATOIRES"},400);
   if(!validEmail(requesterEmail))return json({ok:false,error:"EMAIL_OBLIGATOIRE"},400);
-  const sub=await env.DB.prepare("SELECT id,recovery_email_hash,expires_at,lifetime,active FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) LIMIT 1").bind(deviceId,deviceId).first();
+  const sub=await env.DB.prepare("SELECT id,recovery_email_hash,recovery_email_mask,expires_at,lifetime,active FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) LIMIT 1").bind(deviceId,deviceId).first();
   if(!sub)return json({ok:false,error:"COMPTE_ABONNEMENT_INTROUVABLE"},403);
   if(!sub.lifetime&&(!sub.expires_at||Date.parse(sub.expires_at)<=Date.now()))return json({ok:false,error:"ABONNEMENT_EXPIRE"},403);
   const emailHash=await sha256Text(requesterEmail);
-  if(!sub.recovery_email_hash||String(sub.recovery_email_hash)!==emailHash)return json({ok:false,error:"EMAIL_NE_CORRESPOND_PAS"},403);
+  // Compatibilité anciens téléphones : si cet abonnement n'avait jamais encore
+  // enregistré son e-mail côté serveur, la première demande initialise l'e-mail
+  // de CE téléphone/abonnement. Un e-mail déjà utilisé par un autre abonnement
+  // encore actif reste refusé.
+  if(!sub.recovery_email_hash){
+    const owner=await activeEmailOwner(env,emailHash,sub.id);
+    if(owner)return json({ok:false,error:"EMAIL_DEJA_UTILISEE_AUTRE_TELEPHONE"},409);
+    await env.DB.prepare("UPDATE subscriptions SET recovery_email_hash=?,recovery_email_mask=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(emailHash,requesterEmail,sub.id).run();
+  }else if(String(sub.recovery_email_hash)!==emailHash){
+    // Répare aussi les très anciennes lignes où l'adresse complète avait été
+    // enregistrée dans recovery_email_mask mais le hash n'avait pas suivi.
+    const legacyEmail=String(sub.recovery_email_mask||"").trim().toLowerCase();
+    if(legacyEmail && !legacyEmail.includes("***") && legacyEmail===requesterEmail){
+      await env.DB.prepare("UPDATE subscriptions SET recovery_email_hash=?,recovery_email_mask=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(emailHash,requesterEmail,sub.id).run();
+    }else return json({ok:false,error:"EMAIL_NE_CORRESPOND_PAS"},403);
+  }
   const editableScopes=["gps","photo","time","count","draw","clientModel","welcome","placer"],scope=editableScopes.includes(data.scope)?data.scope:"gps",now=Date.now(),id=crypto.randomUUID(),token=crypto.randomUUID()+crypto.randomUUID(),tokenHash=await sha256Text(token);
   await env.DB.prepare("UPDATE gps_unlock_requests SET status='expired',updated_at=? WHERE device_id=? AND market_key=? AND scope=? AND status='pending'").bind(now,deviceId,marketKey,scope).run();
   const informationScope=["time","count","draw","clientModel","welcome","placer"].includes(scope),proposedValue=informationScope?String(data.proposedValue||'').slice(0,100):(scope==='gps'?'Correction du point GPS':scope==='photo'?'Remplacement de la photo':'');
@@ -174,6 +189,11 @@ function normalizeCode(value) {
 function validCode(value) { return /^[A-HJ-NP-Z0-9]{6}$/.test(normalizeCode(value)); }
 function validDevice(value) { return /^[a-zA-Z0-9-]{16,80}$/.test(String(value || "")); }
 function normalizeEmail(value){return String(value||"").trim().toLowerCase().slice(0,254)}
+async function activeEmailOwner(env,emailHash,exceptId){
+  const rows=await env.DB.prepare("SELECT id,lifetime,expires_at,active FROM subscriptions WHERE recovery_email_hash=? AND id<>? AND active=1").bind(emailHash,exceptId||-1).all();
+  const now=Date.now();
+  return (rows.results||[]).find(r=>!!r.lifetime||(r.expires_at&&Date.parse(r.expires_at)>now))||null;
+}
 function validEmail(value){return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)}
 async function ensureSubscriptionEmailColumns(env){
   try{await env.DB.prepare("ALTER TABLE subscriptions ADD COLUMN recovery_email_hash TEXT").run()}catch(_){}
@@ -255,7 +275,7 @@ async function activate(request, env) {
   const registered = row[column];
   const emailHash=await sha256Text(email),storedEmail=String(row.recovery_email_hash||"");
   if(storedEmail&&storedEmail!==emailHash&&registered&&registered!==deviceId)return json({ok:false,error:"EMAIL_NE_CORRESPOND_PAS"},403);
-  const emailOwner=await env.DB.prepare("SELECT id FROM subscriptions WHERE recovery_email_hash=? AND id<>?").bind(emailHash,row.id).first();
+  const emailOwner=await activeEmailOwner(env,emailHash,row.id);
   if(emailOwner)return json({ok:false,error:"EMAIL_DEJA_UTILISEE"},409);
   const recoveryCodeBox=await sealRecoveryCode(code,env);
   await env.DB.prepare(`UPDATE subscriptions SET recovery_email_hash=?,recovery_email_mask=?,recovery_code_box=?,${column}=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(emailHash,email,recoveryCodeBox,deviceId,row.id).run();
@@ -273,7 +293,7 @@ async function updateSubscriptionEmail(request, env) {
   if (!row) return json({ok:false,error:"COMPTE_ABONNEMENT_INTROUVABLE"},403);
   if (!row.lifetime && (!row.expires_at || Date.parse(row.expires_at) <= Date.now())) return json({ok:false,error:"ABONNEMENT_EXPIRE"},403);
   const emailHash = await sha256Text(email);
-  const owner = await env.DB.prepare("SELECT id FROM subscriptions WHERE recovery_email_hash=? AND id<>?").bind(emailHash,row.id).first();
+  const owner = await activeEmailOwner(env,emailHash,row.id);
   if (owner) return json({ok:false,error:"EMAIL_DEJA_UTILISEE"},409);
   await env.DB.prepare("UPDATE subscriptions SET recovery_email_hash=?,recovery_email_mask=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(emailHash,email,row.id).run();
   return json({ok:true,email});
@@ -290,7 +310,7 @@ async function confirmSubscriptionEmail(request,env){
   if(supplied!==challenge.code_hash){await env.DB.prepare("UPDATE subscription_email_challenges SET attempts=attempts+1 WHERE id=?").bind(challengeId).run();return json({ok:false,error:"CODE_EMAIL_INCORRECT"},403)}
   const row=await env.DB.prepare("SELECT * FROM subscriptions WHERE id=? AND active=1").bind(challenge.subscription_id).first();
   if(!row||(!row.lifetime&&(!row.expires_at||Date.parse(row.expires_at)<=now)))return json({ok:false,error:"ABONNEMENT_EXPIRE"},403);
-  const owner=await env.DB.prepare("SELECT id FROM subscriptions WHERE recovery_email_hash=? AND id<>?").bind(challenge.email_hash,row.id).first();if(owner)return json({ok:false,error:"EMAIL_DEJA_UTILISEE"},409);
+  const owner=await activeEmailOwner(env,challenge.email_hash,row.id);if(owner)return json({ok:false,error:"EMAIL_DEJA_UTILISEE"},409);
   const column=challenge.device_type==="autoradio"?"autoradio_device":"phone_device";
   await env.DB.batch([env.DB.prepare(`UPDATE subscriptions SET recovery_email_hash=?,recovery_email_mask=?,${column}=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(challenge.email_hash,emailMask(challenge.email),deviceId,row.id),env.DB.prepare("UPDATE subscription_email_challenges SET consumed=1 WHERE id=?").bind(challengeId)]);
   return json({ok:true,lifetime:!!row.lifetime,expiresAt:row.expires_at||null,deviceType:challenge.device_type,email:challenge.email});
@@ -955,7 +975,7 @@ async function vigilanceForPlace(url) {
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=68-email-sync-v151" defer></script><script src="/home-work.js?v=62" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=69-email-all-phones-v152" defer></script><script src="/home-work.js?v=62" defer></script>', { html: true });
   }
 }
 
