@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260912-pwa-only-beta-autoradio1";
+const CACHE = "carplay-v5-20260912-allmarkets-v149";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -14,7 +14,7 @@ const CORE = [
   "/brocante-fiche-achat-v1.js?v=20260910-ficheachat-mobile-acompte-signatures1",
   "/devis-personnalises-v2.js?v=20260910-ficheachat-mobile-acompte-signatures1",
   "/index.html",
-  "/cache-cleanup-v20260910.js?v=20260912-pwa-only-beta-autoradio1",
+  "/cache-cleanup-v20260910.js?v=20260912-allmarkets-v149",
   "/installer.html",
   "/tutoriel-comment-installer-iphone.mp4",
   "/manifest.webmanifest",
@@ -30,15 +30,15 @@ const CORE = [
   "/location-permission-v20260911.js?v=20260911",
   "/markets-final.css?v=126-favori-fluide",
   "/markets-final-picker.css",
-  "/choix-marches-final.html?v=20260912-allmarkets-v147",
-  "/marches-final.html?v=20260912-allmarkets-v147",
+  "/choix-marches-final.html?v=20260912-allmarkets-v149",
+  "/marches-final.html?v=20260912-allmarkets-v149",
   "/special-marches.html?v=20260910-ficheachat-mobile-acompte-signatures1",
   "/nearby-markets.html?v=20260912-gps-admin-unlock1",
-  "/markets-44-complete.js?v=20260902-complet",
-  "/market-data-fr.js?v=20260912-allmarkets-v147",
-  "/market-final.js?v=20260912-allmarkets-v147",
+  "/markets-44-complete.js?v=20260912-allmarkets-v149",
+  "/market-data-fr.js?v=20260912-allmarkets-v149",
+  "/market-final.js?v=20260912-allmarkets-v149",
   "/market-data-be.js?v=130",
-  "/market-consensus.js?v=20260912-allmarkets-v147",
+  "/market-consensus.js?v=20260912-allmarkets-v149",
   "/verification-v9.html?v=20260912-consulter-fiche9",
   "/modification-demande.html?v=20260912-identity-answer9",
   "/ou-trouver-place.html",
@@ -55,20 +55,20 @@ const CORE = [
 CORE.push(
   "/contact-mail-v99.css?v=99",
   "/contact-mail-v99.js?v=99",
-  "/markets-france-national.js?v=20260902-national",
-  "/markets-missing-v97.js?v=20260902",
-  "/markets-missing-v100.js?v=20260902",
-  "/markets-missing-v101.js?v=20260902",
-  "/markets-missing-v102.js?v=20260902",
-  "/markets-missing-v103.js?v=20260902",
-  "/markets-missing-v104.js?v=20260902",
-  "/markets-france-update-v139.js?v=20260912-allmarkets-v147",
-  "/markets-france-osm-v139.js?v=20260912-allmarkets-v147",
-  "/markets-35-corrections-v142.js?v=20260912-allmarkets-v147",
-  "/markets-17-complete-v144.js?v=20260912-allmarkets-v147",
-  "/markets-35-missing-v143.js?v=20260912-allmarkets-v147",
-  "/market-weekly-filter.js?v=20260912-allmarkets-v147",
-  "/market-consensus.js?v=20260912-allmarkets-v147",
+  "/markets-france-national.js?v=20260912-allmarkets-v149",
+  "/markets-missing-v97.js?v=20260912-allmarkets-v149",
+  "/markets-missing-v100.js?v=20260912-allmarkets-v149",
+  "/markets-missing-v101.js?v=20260912-allmarkets-v149",
+  "/markets-missing-v102.js?v=20260912-allmarkets-v149",
+  "/markets-missing-v103.js?v=20260912-allmarkets-v149",
+  "/markets-missing-v104.js?v=20260912-allmarkets-v149",
+  "/markets-france-update-v139.js?v=20260912-allmarkets-v149",
+  "/markets-france-osm-v139.js?v=20260912-allmarkets-v149",
+  "/markets-35-corrections-v142.js?v=20260912-allmarkets-v149",
+  "/markets-17-complete-v144.js?v=20260912-allmarkets-v149",
+  "/markets-35-missing-v143.js?v=20260912-allmarkets-v149",
+  "/market-weekly-filter.js?v=20260912-allmarkets-v149",
+  "/market-consensus.js?v=20260912-allmarkets-v149",
 );
 self.addEventListener("install", (e) => {
   self.skipWaiting();
@@ -80,7 +80,7 @@ self.addEventListener("activate", (e) =>
       .keys()
       .then((keys) =>
         Promise.all(
-          keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)),
+          keys.filter((k) => k !== CACHE && k !== NOTIFICATION_PREF_CACHE).map((k) => caches.delete(k)),
         ),
       )
       .then(() => self.clients.claim()),
