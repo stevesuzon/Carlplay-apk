@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260912-allmarkets-v147";
+const CACHE = "carplay-v5-20260912-pwa-only-beta-autoradio1";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -14,7 +14,7 @@ const CORE = [
   "/brocante-fiche-achat-v1.js?v=20260910-ficheachat-mobile-acompte-signatures1",
   "/devis-personnalises-v2.js?v=20260910-ficheachat-mobile-acompte-signatures1",
   "/index.html",
-  "/cache-cleanup-v20260910.js?v=20260910-cachefix1",
+  "/cache-cleanup-v20260910.js?v=20260912-pwa-only-beta-autoradio1",
   "/installer.html",
   "/tutoriel-comment-installer-iphone.mp4",
   "/manifest.webmanifest",
