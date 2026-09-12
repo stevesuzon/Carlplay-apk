@@ -25,6 +25,7 @@ function validCode(value) { return /^[A-HJ-NP-Z0-9]{6}$/.test(normalizeCode(valu
 function validDevice(value) { return /^[a-zA-Z0-9._:-]{8,128}$/.test(String(value || "").trim()); }
 function normalizeEmail(value) { return String(value || "").trim().toLowerCase().slice(0, 254); }
 function validEmail(value) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value); }
+function cleanMarketKey(value) { return String(value || "").replace(/[\u0000-\u001f]/g, "").trim().slice(0, 500); }
 
 async function sha256Text(value) {
   const bytes = new TextEncoder().encode(String(value || ""));
@@ -100,12 +101,58 @@ async function updateSubscriptionEmailV154(request, env) {
   return json({ ok: true, email, subscriptionId: row.id });
 }
 
+async function gpsRequestWithPushFallback(request, env, ctx) {
+  const backup = request.clone();
+  try {
+    return await baseWorker.fetch(request, env, ctx);
+  } catch (error) {
+    if (!env.DB) return json({ ok: false, error: "SERVEUR_INDISPONIBLE" }, 503);
+    let data = {};
+    try { data = await backup.json(); } catch (_) {}
+    const deviceId = String(data.deviceId || "").trim();
+    const marketKey = cleanMarketKey(data.marketKey);
+    const allowed = ["gps", "photo", "time", "count", "draw", "clientModel", "welcome", "placer"];
+    const scope = allowed.includes(data.scope) ? data.scope : "gps";
+    if (!validDevice(deviceId) || !marketKey) return json({ ok: false, error: "SERVEUR_INDISPONIBLE" }, 503);
+
+    const row = await env.DB.prepare("SELECT id,request_expires_at,requested_at FROM gps_unlock_requests WHERE device_id=? AND market_key=? AND scope=? AND status='pending' ORDER BY requested_at DESC LIMIT 1")
+      .bind(deviceId, marketKey, scope).first();
+    const now = Date.now();
+    if (!row || now - Number(row.requested_at || 0) > 15000 || Number(row.request_expires_at || 0) <= now) {
+      return json({ ok: false, error: "SERVEUR_INDISPONIBLE" }, 503);
+    }
+
+    const token = crypto.randomUUID() + crypto.randomUUID();
+    const tokenHash = await sha256Text(token);
+    await env.DB.prepare("UPDATE gps_unlock_requests SET token_hash=?,updated_at=? WHERE id=?")
+      .bind(tokenHash, now, row.id).run();
+    return json({ ok: true, id: row.id, token, expiresAt: Number(row.request_expires_at) });
+  }
+}
+
+async function injectV154Patch(response) {
+  const type = response.headers.get("content-type") || "";
+  if (!type.includes("text/html")) return response;
+  let text = await response.text();
+  if (!text.includes("subscription-v154-patch.js")) {
+    const tag = '<script src="/subscription-v154-patch.js?v=154" defer></script>';
+    text = text.includes("</head>") ? text.replace("</head>", tag + "</head>") : tag + text;
+  }
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", "no-store, no-cache, must-revalidate");
+  return new Response(text, { status: response.status, statusText: response.statusText, headers });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === "/api/subscription-email" && request.method === "POST") {
       return updateSubscriptionEmailV154(request, env);
     }
-    return baseWorker.fetch(request, env, ctx);
+    if (url.pathname === "/api/gps-unlock-request" && request.method === "POST") {
+      return gpsRequestWithPushFallback(request, env, ctx);
+    }
+    const response = await baseWorker.fetch(request, env, ctx);
+    return injectV154Patch(response);
   }
 };
