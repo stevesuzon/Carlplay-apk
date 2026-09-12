@@ -1,4 +1,4 @@
 {
-  "version": "20260912-email-code-per-user-v156",
-  "message": "Retour au système sans mot de passe : chaque abonnement garde sa propre adresse e-mail et son code. Lors d’une modification de marché, l’adresse e-mail est récupérée automatiquement depuis l’abonnement de l’utilisateur. Le nom et le prénom ne sont demandés qu’une seule fois puis sont conservés sur le serveur et réutilisés sur les autres téléphones après récupération de l’abonnement."
+  "version": "20260912-server-shared-fast-v157",
+  "message": "Tous les utilisateurs ayant une adresse e-mail liée à leur abonnement peuvent envoyer leurs propres demandes de modification. Les informations, GPS et photos validés sont partagés par le serveur commun, y compris pour les marchés de Noël, brocantes, saisonniers et périodiques. Chargement accéléré grâce au cache des données marchés et au chargement uniquement du pays utile sur les pages spéciales."
 }
