@@ -1,1 +1,4 @@
-{"version":"2026.09.12-email-all-phones-v152","message":"Correction e-mail multi-téléphones : chaque téléphone ayant son propre abonnement actif peut envoyer une demande de modification de marché. Les anciens abonnements sans e-mail serveur sont régularisés automatiquement sans mélanger les abonnements entre téléphones."}
+{
+  "version": "20260912-email-all-users-v153",
+  "message": "Correction e-mail multi-téléphones : chaque téléphone ayant son propre abonnement actif peut envoyer une demande de modification de marché. Les anciens abonnements sans e-mail serveur sont régularisés automatiquement sans mélanger les abonnements entre téléphones."
+}

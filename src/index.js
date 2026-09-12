@@ -123,27 +123,42 @@ async function adminGpsPush(request, env) {
   return json({ok:true});
 }
 async function requestGpsUnlock(request, env) {
-  await ensureGpsUnlockTables(env); await ensureSubscriptionEmailColumns(env); await ensureMarketVerificationTables(env);
-  const data=await body(request),marketKey=cleanMarketKey(data.marketKey),deviceId=String(data.deviceId||""),requesterEmail=normalizeEmail(data.requesterEmail);
-  if(!marketKey||!validDevice(deviceId)||!(await registeredVerificationDevice(env,deviceId))) return json({ok:false,error:"DONNEES_INVALIDES"},400);
+  await ensureGpsUnlockTables(env); await ensureSubscriptionEmailColumns(env); await ensureMarketVerificationTables(env); await ensureInstallationsTable(env);
+  const data=await body(request),marketKey=cleanMarketKey(data.marketKey),deviceId=String(data.deviceId||"").trim(),requesterEmail=normalizeEmail(data.requesterEmail),subscriptionCode=normalizeCode(data.subscriptionCode);
+  if(!marketKey||!validDevice(deviceId)) return json({ok:false,error:"DONNEES_INVALIDES"},400);
+  // La demande enregistre elle-même le téléphone : aucun ancien appareil ne doit
+  // échouer simplement parce que l'appel /api/installations n'a pas été fait avant.
+  const seen=Math.floor(Date.now()/1000);
+  await env.DB.prepare(`INSERT INTO app_installations(device_id,platform,first_seen,last_seen) VALUES(?,?,?,?)
+    ON CONFLICT(device_id) DO UPDATE SET last_seen=excluded.last_seen`).bind(deviceId,"market-change",seen,seen).run();
   const requesterName=String(data.requesterName||"").trim().replace(/\s+/g," ").slice(0,100);
   if(requesterName.split(" ").filter(Boolean).length<2)return json({ok:false,error:"NOM_ET_PRENOM_OBLIGATOIRES"},400);
   if(!validEmail(requesterEmail))return json({ok:false,error:"EMAIL_OBLIGATOIRE"},400);
-  const sub=await env.DB.prepare("SELECT id,recovery_email_hash,recovery_email_mask,expires_at,lifetime,active FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) LIMIT 1").bind(deviceId,deviceId).first();
+  const emailHash=await sha256Text(requesterEmail);
+  let sub=await env.DB.prepare("SELECT id,code_hash,phone_device,autoradio_device,recovery_email_hash,recovery_email_mask,expires_at,lifetime,active FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) LIMIT 1").bind(deviceId,deviceId).first();
+  // Secours pour les anciens téléphones : si le lien appareil n'est pas retrouvé,
+  // on utilise le code d'abonnement déjà présent dans l'application. Le code + l'e-mail
+  // doivent correspondre au même abonnement; on ne remplace jamais un autre téléphone actif.
+  if(!sub && validCode(subscriptionCode)){
+    const codeHash=await hashCode(subscriptionCode,env.CODE_PEPPER);
+    const byCode=await env.DB.prepare("SELECT id,code_hash,phone_device,autoradio_device,recovery_email_hash,recovery_email_mask,expires_at,lifetime,active FROM subscriptions WHERE code_hash=? AND active=1 LIMIT 1").bind(codeHash).first();
+    if(byCode){
+      if(!byCode.lifetime&&(!byCode.expires_at||Date.parse(byCode.expires_at)<=Date.now()))return json({ok:false,error:"ABONNEMENT_EXPIRE"},403);
+      const stored=String(byCode.recovery_email_hash||"");
+      const legacy=String(byCode.recovery_email_mask||"").trim().toLowerCase();
+      if(stored && stored!==emailHash && !(legacy && !legacy.includes("***") && legacy===requesterEmail))return json({ok:false,error:"EMAIL_NE_CORRESPOND_PAS"},403);
+      if(byCode.phone_device && byCode.phone_device!==deviceId && byCode.autoradio_device!==deviceId)return json({ok:false,error:"APPAREIL_REMPLACE"},409);
+      if(!byCode.phone_device)await env.DB.prepare("UPDATE subscriptions SET phone_device=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(deviceId,byCode.id).run();
+      sub=byCode;
+    }
+  }
   if(!sub)return json({ok:false,error:"COMPTE_ABONNEMENT_INTROUVABLE"},403);
   if(!sub.lifetime&&(!sub.expires_at||Date.parse(sub.expires_at)<=Date.now()))return json({ok:false,error:"ABONNEMENT_EXPIRE"},403);
-  const emailHash=await sha256Text(requesterEmail);
-  // Compatibilité anciens téléphones : si cet abonnement n'avait jamais encore
-  // enregistré son e-mail côté serveur, la première demande initialise l'e-mail
-  // de CE téléphone/abonnement. Un e-mail déjà utilisé par un autre abonnement
-  // encore actif reste refusé.
   if(!sub.recovery_email_hash){
     const owner=await activeEmailOwner(env,emailHash,sub.id);
     if(owner)return json({ok:false,error:"EMAIL_DEJA_UTILISEE_AUTRE_TELEPHONE"},409);
     await env.DB.prepare("UPDATE subscriptions SET recovery_email_hash=?,recovery_email_mask=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(emailHash,requesterEmail,sub.id).run();
   }else if(String(sub.recovery_email_hash)!==emailHash){
-    // Répare aussi les très anciennes lignes où l'adresse complète avait été
-    // enregistrée dans recovery_email_mask mais le hash n'avait pas suivi.
     const legacyEmail=String(sub.recovery_email_mask||"").trim().toLowerCase();
     if(legacyEmail && !legacyEmail.includes("***") && legacyEmail===requesterEmail){
       await env.DB.prepare("UPDATE subscriptions SET recovery_email_hash=?,recovery_email_mask=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(emailHash,requesterEmail,sub.id).run();
@@ -187,7 +202,7 @@ function normalizeCode(value) {
     .slice(0, 6);
 }
 function validCode(value) { return /^[A-HJ-NP-Z0-9]{6}$/.test(normalizeCode(value)); }
-function validDevice(value) { return /^[a-zA-Z0-9-]{16,80}$/.test(String(value || "")); }
+function validDevice(value) { return /^[a-zA-Z0-9._:-]{8,128}$/.test(String(value || "").trim()); }
 function normalizeEmail(value){return String(value||"").trim().toLowerCase().slice(0,254)}
 async function activeEmailOwner(env,emailHash,exceptId){
   const rows=await env.DB.prepare("SELECT id,lifetime,expires_at,active FROM subscriptions WHERE recovery_email_hash=? AND id<>? AND active=1").bind(emailHash,exceptId||-1).all();
@@ -975,7 +990,7 @@ async function vigilanceForPlace(url) {
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=69-email-all-phones-v152" defer></script><script src="/home-work.js?v=62" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=70-email-all-users-v153" defer></script><script src="/home-work.js?v=62" defer></script>', { html: true });
   }
 }
 
