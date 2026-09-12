@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260912-allmarkets-v149";
+const CACHE = "carplay-v5-20260912-server-sync-v150";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -31,14 +31,14 @@ const CORE = [
   "/markets-final.css?v=126-favori-fluide",
   "/markets-final-picker.css",
   "/choix-marches-final.html?v=20260912-allmarkets-v149",
-  "/marches-final.html?v=20260912-allmarkets-v149",
+  "/marches-final.html?v=20260912-server-sync-v150",
   "/special-marches.html?v=20260910-ficheachat-mobile-acompte-signatures1",
   "/nearby-markets.html?v=20260912-gps-admin-unlock1",
   "/markets-44-complete.js?v=20260912-allmarkets-v149",
   "/market-data-fr.js?v=20260912-allmarkets-v149",
   "/market-final.js?v=20260912-allmarkets-v149",
   "/market-data-be.js?v=130",
-  "/market-consensus.js?v=20260912-allmarkets-v149",
+  "/market-consensus.js?v=20260912-server-sync-v150",
   "/verification-v9.html?v=20260912-consulter-fiche9",
   "/modification-demande.html?v=20260912-identity-answer9",
   "/ou-trouver-place.html",
@@ -68,7 +68,7 @@ CORE.push(
   "/markets-17-complete-v144.js?v=20260912-allmarkets-v149",
   "/markets-35-missing-v143.js?v=20260912-allmarkets-v149",
   "/market-weekly-filter.js?v=20260912-allmarkets-v149",
-  "/market-consensus.js?v=20260912-allmarkets-v149",
+  "/market-consensus.js?v=20260912-server-sync-v150",
 );
 self.addEventListener("install", (e) => {
   self.skipWaiting();
