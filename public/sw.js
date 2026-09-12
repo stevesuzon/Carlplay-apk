@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260912-demande-page2-email4";
+const CACHE = "carplay-v5-20260912-email-recovery-envois6";
 const CORE = [
   "/brocante-fiche-achat-v1.js?v=20260910-ficheachat-mobile-acompte-signatures1",
   "/devis-personnalises-v2.js?v=20260910-ficheachat-mobile-acompte-signatures1",
@@ -12,7 +12,7 @@ const CORE = [
   "/carplay-noir-rouge-512.png",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=64",
-  "/subscription-web.js?v=64",
+  "/subscription-web.js?v=66-email-recovery",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
   "/gps-apple-plans-v141.js?v=141",
@@ -28,7 +28,7 @@ const CORE = [
   "/market-data-be.js?v=130",
   "/market-consensus.js?v=20260912-gps-admin-unlock1",
   "/verification-v9.html?v=20260912-demande-page2-email4",
-  "/modification-demande.html?v=20260912-demande-page2-email4",
+  "/modification-demande.html?v=20260912-email-persist5",
   "/ou-trouver-place.html",
   "/documents-travail.html",
   "/mes-papiers.html",

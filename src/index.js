@@ -139,7 +139,7 @@ async function requestGpsUnlock(request, env) {
   const informationScope=["time","count","draw","clientModel","welcome","placer"].includes(scope),proposedValue=informationScope?String(data.proposedValue||'').slice(0,100):(scope==='gps'?'Correction du point GPS':scope==='photo'?'Remplacement de la photo':'');
   if(informationScope&&!normalizedVerification(scope,proposedValue))return json({ok:false,error:'VALEUR_INVALIDE'},400);
   let currentValue='';
-  if(informationScope){const current=await env.DB.prepare("SELECT value_display FROM market_verification_consensus WHERE market_key=? AND field=? LIMIT 1").bind(marketKey,scope).first();currentValue=String(current&&current.value_display||'').slice(0,100);}
+  if(informationScope){const current=await env.DB.prepare("SELECT value_display FROM market_verification_consensus WHERE market_key=? AND field=? LIMIT 1").bind(marketKey,scope).first();currentValue=String(current&&current.value_display||data.currentValue||'').slice(0,100);}
   else if(scope==='gps') currentValue='Point GPS actuel enregistré';
   else if(scope==='photo') currentValue='Photo actuelle enregistrée';
   await env.DB.prepare(`INSERT INTO gps_unlock_requests(id,market_key,market_name,requester_name,requester_email,current_value,proposed_value,device_id,scope,token_hash,status,requested_at,request_expires_at,updated_at)
@@ -938,7 +938,7 @@ async function vigilanceForPlace(url) {
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=62" defer></script><script src="/subscription-web.js?v=62" defer></script><script src="/home-work.js?v=62" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=62" defer></script><script src="/subscription-web.js?v=66-email-recovery" defer></script><script src="/home-work.js?v=62" defer></script>', { html: true });
   }
 }
 
