@@ -1,4 +1,4 @@
 {
-  "version": "20260912-account-email-password-v155",
-  "message": "Compte abonnement : connexion avec adresse e-mail personnelle et mot de passe. L’abonnement lié à l’e-mail est récupéré automatiquement. L’e-mail, le nom et le prénom sont conservés sur le serveur et réutilisés pour les demandes de modification de marché, y compris sur un autre téléphone après connexion."
+  "version": "20260912-email-code-per-user-v156",
+  "message": "Retour au système sans mot de passe : chaque abonnement garde sa propre adresse e-mail et son code. Lors d’une modification de marché, l’adresse e-mail est récupérée automatiquement depuis l’abonnement de l’utilisateur. Le nom et le prénom ne sont demandés qu’une seule fois puis sont conservés sur le serveur et réutilisés sur les autres téléphones après récupération de l’abonnement."
 }
