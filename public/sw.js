@@ -1,7 +1,9 @@
-const CACHE = "carplay-v5-20260910-adresses-devis4";
+const CACHE = "carplay-v5-20260912-demande-page2-email4";
 const CORE = [
+  "/brocante-fiche-achat-v1.js?v=20260910-ficheachat-mobile-acompte-signatures1",
+  "/devis-personnalises-v2.js?v=20260910-ficheachat-mobile-acompte-signatures1",
   "/index.html",
-  "/cache-cleanup-v20260910.js?v=20260910-adresses-devis4",
+  "/cache-cleanup-v20260910.js?v=20260910-cachefix1",
   "/installer.html",
   "/tutoriel-comment-installer-iphone.mp4",
   "/manifest.webmanifest",
@@ -14,17 +16,19 @@ const CORE = [
   "/home-work.css?v=64",
   "/home-work.js?v=64",
   "/gps-apple-plans-v141.js?v=141",
+  "/location-permission-v20260911.js?v=20260911",
   "/markets-final.css?v=126-favori-fluide",
   "/markets-final-picker.css",
   "/choix-marches-final.html?v=122",
-  "/special-marches.html?v=122",
-  "/nearby-markets.html?v=143",
+  "/special-marches.html?v=20260910-ficheachat-mobile-acompte-signatures1",
+  "/nearby-markets.html?v=20260912-gps-admin-unlock1",
   "/markets-44-complete.js?v=20260902-complet",
   "/market-data-fr.js?v=130",
-  "/market-final.js?v=126-favori-fluide",
+  "/market-final.js?v=20260912-gps-admin-unlock1",
   "/market-data-be.js?v=130",
-  "/market-consensus.js?v=113",
-  "/verification-v9.html?v=113",
+  "/market-consensus.js?v=20260912-gps-admin-unlock1",
+  "/verification-v9.html?v=20260912-demande-page2-email4",
+  "/modification-demande.html?v=20260912-demande-page2-email4",
   "/ou-trouver-place.html",
   "/documents-travail.html",
   "/mes-papiers.html",
@@ -51,7 +55,7 @@ CORE.push(
   "/markets-35-corrections-v142.js?v=142",
   "/markets-35-missing-v143.js?v=143",
   "/market-weekly-filter.js?v=122-categories",
-  "/market-consensus.js?v=98",
+  "/market-consensus.js?v=20260912-gps-admin-unlock1",
 );
 self.addEventListener("install", (e) => {
   self.skipWaiting();
@@ -84,4 +88,21 @@ self.addEventListener("fetch", (e) => {
       })
       .catch(() => caches.match(e.request)),
   );
+});
+self.addEventListener("push", (e) => {
+  e.waitUntil(self.registration.showNotification("Modification de marché demandée", {
+    body: "Une demande d’horaire, de GPS ou de photo attend votre réponse OUI ou NON pendant 3 minutes.",
+    icon: "/carplay-noir-rouge-192.png",
+    badge: "/carplay-noir-rouge-192.png",
+    tag: "gps-unlock-request",
+    renotify: true,
+    data: { url: "/admin.html#gps-requests" }
+  }));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  e.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(list=>{
+    for(const client of list) if("focus" in client){client.navigate("/admin.html#gps-requests");return client.focus();}
+    return clients.openWindow("/admin.html#gps-requests");
+  }));
 });
