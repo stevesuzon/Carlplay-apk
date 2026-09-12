@@ -20,9 +20,7 @@
         <section id="picker" class="picker"></section>
         <section id="results" class="results">
           <div class="topLine">
-            <button id="changeArea" class="changeArea">
-              ← RETOUR
-            </button>
+            <button id="changeArea" class="changeArea">← RETOUR</button>
           </div>
           <div id="tradeBar" class="tradeBar">
             <label for="tradeInput">VOTRE MÉTIER</label>
@@ -42,10 +40,9 @@
                 <option>Horloger</option>
                 <option>Meubles</option>
                 <option>Tapis</option>
-                <option>Espace vert</option></select
-              ><button id="tradeSave" type="button">
-                ENREGISTRER LE MÉTIER
-              </button>
+                <option>Espace vert</option>
+              </select>
+              <button id="tradeSave" type="button">ENREGISTRER LE MÉTIER</button>
             </div>
             <div id="tradeStatus" class="tradeStatus"></div>
           </div>
@@ -55,40 +52,63 @@
         </section>
       </main>
     </div>
-    <script src="market-data-fr.js?v=20260912-allmarkets-v147"></script>
-    <script src="markets-france-update-v139.js?v=20260912-allmarkets-v147"></script>
-    <script src="markets-france-osm-v139.js?v=20260912-allmarkets-v147"></script>
-    <script src="markets-35-corrections-v142.js?v=20260912-allmarkets-v147"></script>
+
+    <!-- Base + tous les compléments connus chargés directement dans la PWA. -->
+    <script src="market-data-fr.js?v=20260912-allmarkets-v149"></script>
+    <script src="markets-france-update-v139.js?v=20260912-allmarkets-v149"></script>
+    <script src="markets-france-osm-v139.js?v=20260912-allmarkets-v149"></script>
+    <script src="markets-35-corrections-v142.js?v=20260912-allmarkets-v149"></script>
     <script>
       if (!window.MARCHES_17_RESTORED) {
-        document.write('<script src="markets-17-complete-v144.js?v=20260912-allmarkets-v147"><\/script>');
+        document.write('<script src="markets-17-complete-v144.js?v=20260912-allmarkets-v149"><\/script>');
       }
     </script>
-    <script src="markets-35-missing-v143.js?v=20260912-allmarkets-v147"></script>
+    <script src="markets-35-missing-v143.js?v=20260912-allmarkets-v149"></script>
+    <script src="markets-44-complete.js?v=20260912-allmarkets-v149"></script>
+    <script src="markets-france-national.js?v=20260912-allmarkets-v149"></script>
+    <script src="markets-missing-v97.js?v=20260912-allmarkets-v149"></script>
+    <script src="markets-missing-v100.js?v=20260912-allmarkets-v149"></script>
+    <script src="markets-missing-v101.js?v=20260912-allmarkets-v149"></script>
+    <script src="markets-missing-v102.js?v=20260912-allmarkets-v149"></script>
+    <script src="markets-missing-v103.js?v=20260912-allmarkets-v149"></script>
+    <script src="markets-missing-v104.js?v=20260912-allmarkets-v149"></script>
+    <script src="market-weekly-filter.js?v=20260912-allmarkets-v149"></script>
+
+    <!-- market-final.js contenait encore d'anciens chargements indirects : on les ignore
+         car les fichiers ci-dessus sont désormais déjà chargés directement. -->
     <script>
       (function () {
         var originalWrite = document.write.bind(document);
+        var alreadyLoaded = [
+          "markets-44-complete.js",
+          "markets-france-national.js",
+          "markets-missing-v97.js",
+          "markets-missing-v100.js",
+          "markets-missing-v101.js",
+          "markets-missing-v102.js",
+          "markets-missing-v103.js",
+          "markets-missing-v104.js",
+          "market-weekly-filter.js"
+        ];
         window.__cpOriginalDocumentWrite = originalWrite;
         document.write = function () {
-          var args = Array.prototype.slice.call(arguments).map(function (value) {
-            if (typeof value !== "string") return value;
-            return value.replace(
-              "market-weekly-filter.js?v=20260902-france-belgique",
-              "market-weekly-filter.js?v=20260912-allmarkets-v147",
-            );
-          });
+          var args = Array.prototype.slice.call(arguments);
+          var text = args.join(" ");
+          for (var i = 0; i < alreadyLoaded.length; i++) {
+            if (text.indexOf(alreadyLoaded[i]) !== -1) return;
+          }
           return originalWrite.apply(document, args);
         };
       })();
     </script>
-    <script src="market-final.js?v=20260912-allmarkets-v147"></script>
+    <script src="market-final.js?v=20260912-allmarkets-v149"></script>
     <script>
       if (window.__cpOriginalDocumentWrite) {
         document.write = window.__cpOriginalDocumentWrite;
         delete window.__cpOriginalDocumentWrite;
       }
     </script>
-    <script src="market-consensus.js?v=20260912-allmarkets-v147"></script>
-    <script src="new-feature-bubbles.js?v=20260912-allmarkets-v147"></script>
+    <script src="market-consensus.js?v=20260912-allmarkets-v149"></script>
+    <script src="new-feature-bubbles.js?v=20260912-allmarkets-v149"></script>
   </body>
 </html>
