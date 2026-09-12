@@ -47,19 +47,56 @@ jobs:
           PY
       - name: Generate clean market pages
         run: python3 assets-src/generate_markets.py
-      - name: Apply verified market updates
+      - name: Build complete France market data for APK
         shell: bash
         run: |
           set -euo pipefail
           cp assets-src/verified-market-patches.js app/src/main/assets/verified-market-patches.js
-          cp public/markets-17-complete-v144.js app/src/main/assets/markets-17-complete-v144.js
+          node <<'JS'
+          const fs=require('fs');
+          const vm=require('vm');
+          const files=[
+            'public/market-data-fr.js',
+            'public/markets-france-update-v139.js',
+            'public/markets-france-osm-v139.js',
+            'public/markets-35-corrections-v142.js',
+            'public/markets-17-complete-v144.js',
+            'public/markets-35-missing-v143.js',
+            'public/markets-44-complete.js',
+            'public/markets-france-national.js',
+            'public/markets-missing-v97.js',
+            'public/markets-missing-v100.js',
+            'public/markets-missing-v101.js',
+            'public/markets-missing-v102.js',
+            'public/markets-missing-v103.js',
+            'public/markets-missing-v104.js',
+            'public/market-weekly-filter.js'
+          ];
+          const ctx={console,document:{write:()=>{}},Date,URL};
+          ctx.window=ctx; ctx.globalThis=ctx;
+          vm.createContext(ctx);
+          for(const f of files){
+            if(!fs.existsSync(f)) throw new Error('Fichier marché manquant: '+f);
+            vm.runInContext(fs.readFileSync(f,'utf8'),ctx,{filename:f});
+          }
+          if(!Array.isArray(ctx.data)) throw new Error('Base complète des marchés introuvable');
+          const total=ctx.data.length;
+          const sat17=ctx.data.filter(r=>Array.isArray(r)&&String(r[0])==='17'&&String(r[4]||'').toLowerCase()==='samedi').length;
+          const cities17=new Set(ctx.data.filter(r=>Array.isArray(r)&&String(r[0])==='17'&&String(r[4]||'').toLowerCase()==='samedi').map(r=>String(r[3]||''))).size;
+          console.log('Base APK complète:',total,'lignes ; département 17 samedi:',sat17,'marchés /',cities17,'communes');
+          if(total<5000) throw new Error('Sécurité: moins de 5000 lignes dans la base APK');
+          if(sat17<50) throw new Error('Sécurité: moins de 50 marchés le samedi dans le 17');
+          const payload=JSON.stringify(ctx.data);
+          const js=`(function(){'use strict';var full=${payload};if(Array.isArray(window.data)){window.data.splice(0,window.data.length);for(var i=0;i<full.length;i++)window.data.push(full[i]);}else{window.data=full;}window.CARPLAY_FULL_MARKET_DATA_VERSION='2026-09-12-v147';})();\n`;
+          fs.writeFileSync('app/src/main/assets/full-market-data.js',js);
+          JS
           python3 - <<'PY'
           from pathlib import Path
           p=Path('app/src/main/assets/marches.html')
           s=p.read_text(encoding='utf-8',errors='ignore')
           tags=[
-              '<script src="verified-market-patches.js"></script>',
-              '<script src="markets-17-complete-v144.js?v=20260912-dept17-complet3"></script>'
+              '<script src="full-market-data.js?v=20260912-v147"></script>',
+              '<script src="verified-market-patches.js?v=20260912-v147"></script>'
           ]
           for tag in tags:
               if tag not in s:
@@ -77,7 +114,7 @@ jobs:
           end=s.find('<!-- CP_UPDATE_END -->')
           if start!=-1 and end!=-1:
               s=s[:start]+s[end+len('<!-- CP_UPDATE_END -->'):]
-          inline=r'''<!-- CP_UPDATE_START --><style>#cpUpdateNotice{position:fixed!important;z-index:2147483647!important;top:118px!important;left:4%!important;width:92%!important;box-sizing:border-box!important;background:#07111f!important;color:#fff!important;border:3px solid #ff9818!important;border-radius:18px!important;padding:13px 10px!important;text-align:center!important;font:bold 17px Arial,sans-serif!important;box-shadow:0 8px 24px #000a!important}#cpUpdateDetail{display:none;position:fixed;z-index:2147483647;inset:0;background:#000c;padding:18px}.cpUpdateBox{margin:17vh auto 0;max-width:620px;background:#0d1b2d;color:#fff;border:3px solid #ff9818;border-radius:20px;padding:20px;font:17px Arial;line-height:1.45}</style><div id="cpUpdateNotice" onclick="cpOpenUpdate()">✅ MISE À JOUR EFFECTUÉE — APPUYEZ ICI</div><div id="cpUpdateDetail" onclick="if(event.target===this)this.style.display='none'"><div class="cpUpdateBox"><h2>✅ Mise à jour effectuée</h2><p>🛒 Marchés : restauration des marchés hebdomadaires masqués par erreur.</p><p>📍 Département 17 et autres départements corrigés.</p><p>📲 Installation : iPhone et Android.</p><small>Appuyez à côté pour fermer.</small></div></div><script>window.cpOpenUpdate=function(){var n=document.getElementById('cpUpdateNotice');if(n)n.style.display='none';var d=document.getElementById('cpUpdateDetail');if(d)d.style.display='block';try{localStorage.setItem('cp_seen_update_v2','2026-09-12-marches-restaures-v3')}catch(e){}};(function(){var seen=false;try{seen=localStorage.getItem('cp_seen_update_v2')==='2026-09-12-marches-restaures-v3'}catch(e){}var n=document.getElementById('cpUpdateNotice');if(seen&&n)n.style.display='none';if(!seen&&n)setTimeout(function(){if(n&&n.parentNode)n.style.display='none';try{localStorage.setItem('cp_seen_update_v2','2026-09-12-marches-restaures-v3')}catch(e){}},4000)})();</script><!-- CP_UPDATE_END -->'''
+          inline=r'''<!-- CP_UPDATE_START --><style>#cpUpdateNotice{position:fixed!important;z-index:2147483647!important;top:118px!important;left:4%!important;width:92%!important;box-sizing:border-box!important;background:#07111f!important;color:#fff!important;border:3px solid #ff9818!important;border-radius:18px!important;padding:13px 10px!important;text-align:center!important;font:bold 17px Arial,sans-serif!important;box-shadow:0 8px 24px #000a!important}#cpUpdateDetail{display:none;position:fixed;z-index:2147483647;inset:0;background:#000c;padding:18px}.cpUpdateBox{margin:17vh auto 0;max-width:620px;background:#0d1b2d;color:#fff;border:3px solid #ff9818;border-radius:20px;padding:20px;font:17px Arial;line-height:1.45}</style><div id="cpUpdateNotice" onclick="cpOpenUpdate()">✅ MISE À JOUR EFFECTUÉE — APPUYEZ ICI</div><div id="cpUpdateDetail" onclick="if(event.target===this)this.style.display='none'"><div class="cpUpdateBox"><h2>✅ Mise à jour effectuée</h2><p>🛒 Marchés : base complète restaurée dans l’application.</p><p>📍 Département 17 : marchés du samedi corrigés.</p><p>📲 Installation : iPhone et Android.</p><small>Appuyez à côté pour fermer.</small></div></div><script>window.cpOpenUpdate=function(){var n=document.getElementById('cpUpdateNotice');if(n)n.style.display='none';var d=document.getElementById('cpUpdateDetail');if(d)d.style.display='block';try{localStorage.setItem('cp_seen_update_v2','2026-09-12-base-complete-v147')}catch(e){}};(function(){var seen=false;try{seen=localStorage.getItem('cp_seen_update_v2')==='2026-09-12-base-complete-v147'}catch(e){}var n=document.getElementById('cpUpdateNotice');if(seen&&n)n.style.display='none';if(!seen&&n)setTimeout(function(){if(n&&n.parentNode)n.style.display='none';try{localStorage.setItem('cp_seen_update_v2','2026-09-12-base-complete-v147')}catch(e){}},4000)})();</script><!-- CP_UPDATE_END -->'''
           s=s.replace('</body>',inline+'</body>')
           p.write_text(s,encoding='utf-8')
           PY
