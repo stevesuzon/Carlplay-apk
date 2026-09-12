@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260912-consulter-fiche9";
+const CACHE = "carplay-v5-20260912-marches17-restaures1";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -64,6 +64,7 @@ CORE.push(
   "/markets-france-update-v139.js?v=139",
   "/markets-france-osm-v139.js?v=139",
   "/markets-35-corrections-v142.js?v=142",
+  "/markets-17-complete-v144.js?v=20260912-dept17-complet2",
   "/markets-35-missing-v143.js?v=143",
   "/market-weekly-filter.js?v=122-categories",
   "/market-consensus.js?v=20260912-gps-admin-unlock1",
