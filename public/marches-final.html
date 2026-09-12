@@ -55,14 +55,40 @@
         </section>
       </main>
     </div>
-    <script src="market-data-fr.js"></script>
-    <script src="markets-france-update-v139.js?v=139"></script>
-    <script src="markets-france-osm-v139.js?v=139"></script>
-    <script src="markets-35-corrections-v142.js?v=20260912-dept17-loader1"></script>
-    <script>if(!window.MARCHES_17_RESTORED)document.write('<script src="markets-17-complete-v144.js?v=20260912-dept17-complet4"><\\/script>');</script>
-    <script src="markets-35-missing-v143.js?v=143"></script>
-    <script src="market-final.js?v=127-deux-colonnes-menu-fr"></script>
-    <script src="market-consensus.js?v=112"></script>
-    <script src="new-feature-bubbles.js?v=20260905"></script>
+    <script src="market-data-fr.js?v=20260912-allmarkets-v147"></script>
+    <script src="markets-france-update-v139.js?v=20260912-allmarkets-v147"></script>
+    <script src="markets-france-osm-v139.js?v=20260912-allmarkets-v147"></script>
+    <script src="markets-35-corrections-v142.js?v=20260912-allmarkets-v147"></script>
+    <script>
+      if (!window.MARCHES_17_RESTORED) {
+        document.write('<script src="markets-17-complete-v144.js?v=20260912-allmarkets-v147"><\/script>');
+      }
+    </script>
+    <script src="markets-35-missing-v143.js?v=20260912-allmarkets-v147"></script>
+    <script>
+      (function () {
+        var originalWrite = document.write.bind(document);
+        window.__cpOriginalDocumentWrite = originalWrite;
+        document.write = function () {
+          var args = Array.prototype.slice.call(arguments).map(function (value) {
+            if (typeof value !== "string") return value;
+            return value.replace(
+              "market-weekly-filter.js?v=20260902-france-belgique",
+              "market-weekly-filter.js?v=20260912-allmarkets-v147",
+            );
+          });
+          return originalWrite.apply(document, args);
+        };
+      })();
+    </script>
+    <script src="market-final.js?v=20260912-allmarkets-v147"></script>
+    <script>
+      if (window.__cpOriginalDocumentWrite) {
+        document.write = window.__cpOriginalDocumentWrite;
+        delete window.__cpOriginalDocumentWrite;
+      }
+    </script>
+    <script src="market-consensus.js?v=20260912-allmarkets-v147"></script>
+    <script src="new-feature-bubbles.js?v=20260912-allmarkets-v147"></script>
   </body>
 </html>
