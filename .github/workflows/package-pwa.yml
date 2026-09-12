@@ -1,0 +1,44 @@
+name: Package PWA ZIP
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - 'public/**'
+      - 'src/**'
+      - '.github/workflows/package-pwa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify PWA files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d public
+          test -d src
+          test -f public/market-data-fr.js
+          test -f public/markets-17-complete-v144.js
+          test -f public/markets-35-corrections-v142.js
+          test -f public/markets-35-missing-v143.js
+          test -f public/markets-44-complete.js
+          test -f public/markets-france-national.js
+          test -f public/market-weekly-filter.js
+          test -f public/marches-final.html
+      - name: Create complete PWA ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
+          zip -rq CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip public src
+      - name: Upload PWA ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5
+          path: CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
+          retention-days: 30
