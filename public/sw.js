@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260912-email-server-sync-v154";
+const CACHE = "carplay-v5-20260912-account-email-password-v155";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -23,7 +23,10 @@ const CORE = [
   "/carplay-noir-rouge-512.png",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=68-notifications-globales",
-  "/subscription-web.js?v=71-email-server-sync-v154",
+  "/subscription-web.js?v=155",
+  "/subscription-v154-patch.js?v=154",
+  "/account-v155.js?v=155",
+  "/modification-account-v155.js?v=155",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
   "/gps-apple-plans-v141.js?v=141",
@@ -40,7 +43,7 @@ const CORE = [
   "/market-data-be.js?v=130",
   "/market-consensus.js?v=20260912-server-sync-v150",
   "/verification-v9.html?v=20260912-consulter-fiche9",
-  "/modification-demande.html?v=20260912-email-server-sync-v154",
+  "/modification-demande.html?v=155",
   "/ou-trouver-place.html",
   "/documents-travail.html",
   "/mes-papiers.html",
@@ -50,7 +53,7 @@ const CORE = [
   "/retourner-place-trafic-2025.png",
   "/mypos-go2.jpeg",
   "/mypos-ultra.jpeg",
-  "/mypos-flex.jpeg",
+  "/mypos-flex.jpeg"
 ];
 CORE.push(
   "/contact-mail-v99.css?v=99",
@@ -68,7 +71,7 @@ CORE.push(
   "/markets-17-complete-v144.js?v=20260912-allmarkets-v149",
   "/markets-35-missing-v143.js?v=20260912-allmarkets-v149",
   "/market-weekly-filter.js?v=20260912-allmarkets-v149",
-  "/market-consensus.js?v=20260912-server-sync-v150",
+  "/market-consensus.js?v=20260912-server-sync-v150"
 );
 self.addEventListener("install", (e) => {
   self.skipWaiting();
@@ -76,42 +79,31 @@ self.addEventListener("install", (e) => {
 });
 self.addEventListener("activate", (e) =>
   e.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys.filter((k) => k !== CACHE && k !== NOTIFICATION_PREF_CACHE).map((k) => caches.delete(k)),
-        ),
-      )
-      .then(() => self.clients.claim()),
-  ),
+    caches.keys().then((keys) => Promise.all(
+      keys.filter((k) => k !== CACHE && k !== NOTIFICATION_PREF_CACHE).map((k) => caches.delete(k))
+    )).then(() => self.clients.claim())
+  )
 );
 self.addEventListener("fetch", (e) => {
-  if (
-    e.request.method !== "GET" ||
-    new URL(e.request.url).pathname.startsWith("/api/")
-  )
-    return;
+  if (e.request.method !== "GET" || new URL(e.request.url).pathname.startsWith("/api/")) return;
   e.respondWith(
-    fetch(e.request, { cache: "no-store" })
-      .then((r) => {
-        let c = r.clone();
-        caches.open(CACHE).then((x) => x.put(e.request, c));
-        return r;
-      })
-      .catch(() => caches.match(e.request)),
+    fetch(e.request, { cache: "no-store" }).then((r) => {
+      let c = r.clone();
+      caches.open(CACHE).then((x) => x.put(e.request, c));
+      return r;
+    }).catch(() => caches.match(e.request))
   );
 });
 self.addEventListener("push", (e) => {
   e.waitUntil(notificationsEnabled().then((enabled) => {
     if (!enabled) return;
     return self.registration.showNotification("Modification de marché demandée", {
-    body: "Une demande d’horaire, de GPS ou de photo attend votre réponse OUI ou NON pendant 3 minutes.",
-    icon: "/carplay-noir-rouge-192.png",
-    badge: "/carplay-noir-rouge-192.png",
-    tag: "gps-unlock-request",
-    renotify: true,
-    data: { url: "/admin.html#gps-requests" }
+      body: "Une demande d’horaire, de GPS ou de photo attend votre réponse OUI ou NON pendant 3 minutes.",
+      icon: "/carplay-noir-rouge-192.png",
+      badge: "/carplay-noir-rouge-192.png",
+      tag: "gps-unlock-request",
+      renotify: true,
+      data: { url: "/admin.html#gps-requests" }
     });
   }));
 });
