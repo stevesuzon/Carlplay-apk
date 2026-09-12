@@ -4,3 +4,4 @@ window.data=Array.isArray(window.data)?window.data:[];
   var exists=window.data.some(function(r){return Array.isArray(r)&&String(r[0])==='35'&&String(r[3]).toLowerCase()==='mordelles'&&String(r[4]).toLowerCase()==='mardi'});
   if(!exists)window.data.push(row);
 })();
+document.write('<script src="markets-17-complete-v144.js?v=20260912-dept17-complet2"><\/script>');
