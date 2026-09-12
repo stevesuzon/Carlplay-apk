@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260912-traveller-markets-v162";
+const CACHE = "carplay-v5-20260913-traveller-show-all-v166";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -35,8 +35,8 @@ const CORE = [
   "/markets-final.css?v=126-favori-fluide",
   "/markets-final-picker.css",
   "/choix-marches-final.html?v=162",
-  "/traveller-markets.html?v=162",
-  "/traveller-markets-data-v162.js?v=162",
+  "/traveller-markets.html?v=166",
+  "/traveller-markets-data-v166.js?v=166",
   "/marches-final.html?v=159",
   "/belgique-marches-final.html?v=159",
   "/market-areas-fr-v159.js?v=159",

@@ -1,4 +1,4 @@
 {
-  "version": "20260912-traveller-beta-shared-v163",
-  "message": "Marchés de voyageurs France et Belgique en BÊTA — à vérifier. Les fiches utilisent maintenant le même système de renseignement/modification que les autres marchés : informations partagées serveur, photo, GPS exact validé sur place, accueil du placier, responsable, tirage et modèle de clients. Les organisateurs sont affichés quand la source les publie et le bouton d'appel apparaît quand un numéro public fiable est disponible."
+  "version": "20260913-traveller-show-all-v166",
+  "message": "Tous les marchés voyageurs intégrés sont maintenant affichés par défaut, y compris les anciennes dates et les fiches dont la date 2026 reste à confirmer. Le filtre ne masque plus la majorité des marchés."
 }
