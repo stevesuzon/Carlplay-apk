@@ -1,5 +1,5 @@
 (function () {
-  if ("serviceWorker" in navigator) addEventListener("load", function () { navigator.serviceWorker.register("/sw.js?v=20260912-email-recovery3").catch(function () {}); });
+  if ("serviceWorker" in navigator) addEventListener("load", function () { navigator.serviceWorker.register("/sw.js?v=20260912-consulter-fiche9").catch(function () {}); });
   var KEY = "carplay_shared_subscription";
   var PAID_KEY = "carplay_paid_activated";
   var EMAIL_KEY = "carplay_recovery_email";
@@ -49,9 +49,10 @@
   function showRequestAnswer(approved) {
     var text=approved?"✅ Votre changement a été accepté par l’administrateur.":"❌ Votre changement a été refusé par l’administrateur.";
     var old=document.getElementById("marketRequestAnswer");if(old)old.remove();
-    var box=document.createElement("div");box.id="marketRequestAnswer";box.textContent=text;box.style.cssText="position:fixed;z-index:2147483647;left:50%;top:22%;transform:translateX(-50%);width:min(560px,92vw);padding:20px;border:4px solid "+(approved?"#55e58c":"#ff6b6b")+";border-radius:20px;background:#07101d;color:#fff;text-align:center;font:950 20px/1.35 Arial;box-shadow:0 18px 60px #000";box.onclick=function(){box.remove()};document.body.appendChild(box);
+    var box=document.createElement("div");box.id="marketRequestAnswer";box.style.cssText="position:fixed;z-index:2147483647;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.82)";box.innerHTML='<div style="width:min(560px,94vw);padding:26px 20px;border:4px solid '+(approved?'#55e58c':'#ff6b6b')+';border-radius:24px;background:#07101d;color:#fff;text-align:center;font:950 22px/1.4 Arial;box-shadow:0 18px 60px #000"><div>'+text+'</div><button type="button" style="width:100%;min-height:62px;margin-top:22px;border:0;border-radius:15px;background:'+(approved?'#168a4e':'#b52f38')+';color:#fff;font:950 21px Arial">OK</button></div>';box.querySelector("button").onclick=function(){box.remove()};document.body.appendChild(box);
     try{if(localStorage.getItem("carplay_notifications_enabled")==="1"&&"serviceWorker" in navigator&&"Notification" in window&&Notification.permission==="granted")navigator.serviceWorker.ready.then(function(r){return r.showNotification(approved?"Changement accepté":"Changement refusé",{body:text,icon:"/carplay-noir-rouge-192.png",badge:"/carplay-noir-rouge-192.png",tag:"market-change-answer"})})}catch(_){}
   }
+  window.CarPlayShowRequestAnswer=showRequestAnswer;
   function checkPendingRequest() {
     var pending=null;try{pending=JSON.parse(localStorage.getItem("carplay_pending_market_request")||"null")}catch(_){}
     if(!pending||!pending.id)return;
