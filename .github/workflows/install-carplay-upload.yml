@@ -2,8 +2,7 @@ name: Install uploaded CarPlay ZIP
 on:
   push:
     paths:
-      - 'CarPlay-TELEPHONE-V5-CORRECTION-IMPORT-MARCHES-IPHONE.zip'
-      - '.github/workflows/install-carplay-upload.yml'
+      - 'CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip'
   workflow_dispatch:
 
 permissions:
@@ -11,24 +10,33 @@ permissions:
 
 jobs:
   install-site:
+    if: github.event_name == 'workflow_dispatch' || github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Replace site with uploaded ZIP
         shell: bash
         run: |
-          ZIP='CarPlay-TELEPHONE-V5-CORRECTION-IMPORT-MARCHES-IPHONE.zip'
+          set -euo pipefail
+          ZIP='CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip'
           if [ ! -f "$ZIP" ]; then
-            echo "ZIP already installed"
-            exit 0
+            echo "ZIP not found"
+            exit 1
           fi
-          rm -rf public src
-          unzip -o "$ZIP"
-          rm "$ZIP"
-          if find public src -type f \( -iname '*MARCHES-PRIVES*' -o -iname '*IMPORT-D1.json' \) | grep -q .; then
+          rm -rf /tmp/carplay-upload
+          mkdir -p /tmp/carplay-upload
+          unzip -q "$ZIP" -d /tmp/carplay-upload
+          if [ ! -d /tmp/carplay-upload/public ] || [ ! -d /tmp/carplay-upload/src ]; then
+            echo "Uploaded ZIP does not contain public/ and src/: deployment stopped"
+            exit 1
+          fi
+          if find /tmp/carplay-upload/public /tmp/carplay-upload/src -type f \( -iname '*MARCHES-PRIVES*' -o -iname '*IMPORT-D1.json' \) | grep -q .; then
             echo "Private market JSON detected: deployment stopped"
             exit 1
           fi
+          rm -rf public src
+          cp -a /tmp/carplay-upload/public ./public
+          cp -a /tmp/carplay-upload/src ./src
       - name: Commit installed site
         shell: bash
         run: |
@@ -38,6 +46,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Installe correction import marchés iPhone"
+          git add public src
+          git commit -m "Installe le ZIP CarPlay envoyé"
           git push
