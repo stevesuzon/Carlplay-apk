@@ -1,4 +1,4 @@
 {
-  "version": "20260913-stable-server-v181",
-  "message": "Serveur de vérification remis exactement sur la version fonctionnelle fournie, en conservant les dernières nouveautés de l’application et le stockage photo R2 MARKET_PHOTOS."
+  "version": "20260913-stay-on-market-v182",
+  "message": "Après modification d’un horaire, administrateur et utilisateurs restent sur la fiche du marché au lieu de revenir automatiquement à la liste."
 }

@@ -687,7 +687,7 @@
         esc(count) +
         '</div><div class="meta">Tirage au sort : ' +
         esc(cleanCardText(s.draw || r[12] || builtInDraw(r))) +
-        '</div><div class="meta">Accueil du placier : ' +
+        '</div><div class="meta">Humeur du placier : ' +
         esc(cleanCardText(s.welcome || "À vérifier")) +
         '</div><div class="meta">Modèle de clients : ' +
         esc(cleanCardText(s.clientModel || "À vérifier")) +

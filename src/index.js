@@ -710,7 +710,7 @@ function normalizedVerification(field, raw) {
     return { norm: key.normalize('NFD').replace(/[\u0300-\u036f]/g,''), display: allowed[key] };
   }
   if (field === "welcome") {
-    const allowed={gentil:"Gentil",correct:"Correct",diable:"Diable","ça dépend de qui place":"Ça dépend de qui place","ca depend de qui place":"Ça dépend de qui place"},key=value.toLowerCase();
+    const allowed={gentil:"Gentil",diable:"Diable","ça dépend de qui place":"Ça dépend de qui place","ca depend de qui place":"Ça dépend de qui place"},key=value.toLowerCase();
     if(!allowed[key]) return null;
     return {norm:key.normalize('NFD').replace(/[\u0300-\u036f]/g,''),display:allowed[key]};
   }

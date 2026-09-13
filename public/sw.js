@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260913-stable-server-v181";
+const CACHE = "carplay-v5-20260913-stay-on-market-v182";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {

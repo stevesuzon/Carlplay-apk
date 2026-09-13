@@ -469,7 +469,7 @@
         esc(count) +
         '</div><div class="meta">Tirage au sort : ' +
         esc(s.draw || r[12] || "À vérifier") +
-        '</div><div class="meta">Accueil du placier : ' +
+        '</div><div class="meta">Humeur du placier : ' +
         esc(s.welcome || "À vérifier") +
         '</div><div class="meta">Placier : ' +
         esc(listText(s.placer)) +
