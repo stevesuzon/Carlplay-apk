@@ -888,12 +888,17 @@ async function submitMarketVerification(request, env) {
   }
   let grantUsed=false;
 
-  for (const field of ["time", "count", "draw", "clientModel", "welcome", "placer"]) {
+  const existingPresence = await env.DB.prepare("SELECT value_norm,value_display FROM market_verification_consensus WHERE market_key=? AND field='exists' LIMIT 1").bind(marketKey).first();
+  if(existingPresence && String(existingPresence.value_norm||'').toLowerCase()==='non' && !isAdminRequest) return json({ok:false,error:'MARCHE_SUPPRIME'},409);
+  let confirmsPresence=false;
+  for (const field of ["time", "count", "draw", "clientModel", "welcome", "placer", "exists"]) {
     const locked = await env.DB.prepare("SELECT field,value_display,confirmations,updated_at FROM market_verification_consensus WHERE market_key=? AND field=?").bind(marketKey,field).first();
     const mayReplaceTime=locked&&isAdminRequest;
     if (locked&&!mayReplaceTime) { results[field]={field,leadingValue:locked.value_display,confirmations:Number(locked.confirmations||1),confirmed:locked,locked:true}; continue; }
     const value = normalizedVerification(field, data.values && data.values[field]);
     if (!value) continue;
+    if(field==='exists' && value.norm!=='oui' && !isAdminRequest) continue;
+    if(field!=='exists'||value.norm==='oui') confirmsPresence=true;
     if(mayReplaceTime){await env.DB.prepare(`INSERT INTO market_verification_consensus(market_key,field,value_norm,value_display,confirmations,updated_at) VALUES(?,?,?,?,1,CURRENT_TIMESTAMP)
       ON CONFLICT(market_key,field) DO UPDATE SET value_norm=excluded.value_norm,value_display=excluded.value_display,confirmations=1,updated_at=CURRENT_TIMESTAMP`).bind(marketKey,field,value.norm,value.display).run();results[field]={field,leadingValue:value.display,confirmations:1,confirmed:{field,value_display:value.display,confirmations:1},locked:true};if(grantRow&&grantRow.scope==='time')grantUsed=true;continue;}
     await env.DB.prepare(`INSERT INTO market_verification_votes(market_key,field,value_norm,value_display,device_id,ip_hash,created_at,updated_at)
@@ -904,6 +909,7 @@ async function submitMarketVerification(request, env) {
   }
 
   let photo = null, locationResult = await refreshMarketLocationConsensus(env,marketKey), locationVote=null;
+  if (data.photo && data.photo.dataUrl) confirmsPresence=true;
   if (data.photo && data.photo.dataUrl) {
     const locationOverride=(isAdminRequest&&requestedScope!=='photo')||!!(grantRow&&grantRow.scope==='gps'),photoOverride=isAdminRequest||locationOverride||!!(grantRow&&grantRow.scope==='photo');
     photo = await saveMarketPhoto(env, marketKey, deviceId, data.photo, locationOverride, photoOverride);
@@ -925,6 +931,7 @@ async function submitMarketVerification(request, env) {
     }
   }
   if(grantUsed&&grantRow)await env.DB.prepare("UPDATE gps_unlock_requests SET consumed=1,status='consumed',updated_at=? WHERE id=? AND consumed=0").bind(Date.now(),grantRow.id).run();
+  if(confirmsPresence){await env.DB.prepare(`INSERT INTO market_verification_consensus(market_key,field,value_norm,value_display,confirmations,updated_at) VALUES(?,'exists','oui','Oui',1,CURRENT_TIMESTAMP) ON CONFLICT(market_key,field) DO UPDATE SET value_norm='oui',value_display='Oui',confirmations=1,updated_at=CURRENT_TIMESTAMP`).bind(marketKey).run();}
   return json({ ok: true, required: 1, locationRequired:1, results, photo, locationResult, locationVote, state: await marketVerificationState(env, marketKey) });
 }
 

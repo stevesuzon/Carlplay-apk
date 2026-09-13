@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260913-marche-existe-v168";
+const CACHE = "carplay-v5-20260913-confirm-bulle-v172";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -25,9 +25,9 @@ const CORE = [
   "/weather-all-pages.js?v=68-notifications-globales",
   "/subscription-web.js?v=158",
   "/subscription-v154-patch.js?v=158",
-  "/modification-profile-v156.js?v=168",
+  "/modification-profile-v156.js?v=172",
   "/sanction-guard-v161.js?v=161",
-  "/special-market-server-v157.js?v=167",
+  "/special-market-server-v157.js?v=171",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
   "/gps-apple-plans-v141.js?v=141",
@@ -35,18 +35,18 @@ const CORE = [
   "/markets-final.css?v=126-favori-fluide",
   "/markets-final-picker.css",
   "/choix-marches-final.html?v=162",
-  "/traveller-markets.html?v=166",
+  "/traveller-markets.html?v=171",
   "/traveller-markets-data-v166.js?v=166",
   "/marches-final.html?v=159",
   "/belgique-marches-final.html?v=159",
   "/market-areas-fr-v159.js?v=159",
   "/market-areas-be-v159.js?v=159",
   "/market-final.js?v=160",
-  "/market-consensus.js?v=167",
-  "/special-marches.html?v=157",
+  "/market-consensus.js?v=170",
+  "/special-marches.html?v=170",
   "/nearby-markets.html?v=167",
-  "/verification-v9.html?v=20260912-consulter-fiche9",
-  "/modification-demande.html?v=168",
+  "/verification-v9.html?v=172",
+  "/modification-demande.html?v=172",
   "/ou-trouver-place.html",
   "/documents-travail.html",
   "/mes-papiers.html",

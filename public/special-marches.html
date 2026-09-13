@@ -34,6 +34,35 @@
         text-decoration: none;
         font-weight: 900;
       }
+      .marketActions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .marketActions .go,
+      .marketActions .verify {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-height: 46px;
+        margin: 0;
+        padding: 8px;
+        border: 0;
+        border-radius: 12px;
+        color: #fff;
+        text-decoration: none;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 950;
+      }
+      .marketActions .go {
+        background: linear-gradient(135deg, #ff9a19, #ff5b00);
+      }
+      .marketActions .verify {
+        background: #087ee5;
+      }
       .hero {
         margin: 16px 0;
         padding: 18px;
@@ -88,7 +117,7 @@
       }
       .favStar {
         position: absolute;
-        right: 32px;
+        right: 42px;
         top: 9px;
         border: 0;
         background: transparent;
@@ -187,9 +216,19 @@
           min-height: 38px;
           padding: 7px;
         }
+        .marketActions {
+          grid-template-columns: 1fr;
+          gap: 6px;
+        }
+        .marketActions .go,
+        .marketActions .verify {
+          min-height: 38px;
+          font-size: 10px;
+          padding: 6px;
+        }
         .favStar {
           font-size: 22px;
-          right: 25px;
+          right: 36px;
           top: 6px;
         }
         .statusDot {
@@ -373,6 +412,44 @@
             return false;
           }
         }
+        function marketIdentity(r) {
+          return [country, r[0], r[2], r[3], r[4], r[8] || ""].join("|");
+        }
+        function marketVerificationKey(r) {
+          return (
+            "marketVerifyV9:" +
+            country +
+            ":" +
+            [r[0], r[1], r[2], r[3], r[4], r[5], r[8] || ""].join("|")
+          );
+        }
+        function marketVerifyUrl(r) {
+          var back =
+            "special-marches.html?country=" +
+            encodeURIComponent(country) +
+            "&type=" +
+            encodeURIComponent(type);
+          return (
+            "verification-v9.html?k=" +
+            encodeURIComponent(marketVerificationKey(r)) +
+            "&n=" +
+            encodeURIComponent(r[2] || "Marché") +
+            "&t=" +
+            encodeURIComponent(r[5] || "") +
+            "&c=" +
+            encodeURIComponent(r[7] || "") +
+            "&mk=" +
+            encodeURIComponent(marketIdentity(r)) +
+            "&country=" +
+            encodeURIComponent(country) +
+            "&lat=" +
+            encodeURIComponent(r[10] == null ? "" : r[10]) +
+            "&lon=" +
+            encodeURIComponent(r[11] == null ? "" : r[11]) +
+            "&back=" +
+            encodeURIComponent(back)
+          );
+        }
         window.toggleSpecialFav = function (id, btn) {
           var r = rows[Number(id)];
           if (!r) return false;
@@ -435,14 +512,17 @@
                 String(r[7] || "").trim() ||
                 "Nombre de places non publié officiellement";
               var fav = isFav(r);
+              var verifyUrl = marketVerifyUrl(r);
               return (
-                '<article class="item"><button class="favStar ' +
+                '<article class="item card" data-market-key="' +
+                esc(marketIdentity(r)) +
+                '"><button class="favStar ' +
                 (fav ? "active" : "") +
                 '" type="button" onclick="return window.toggleSpecialFav(' +
                 idx +
                 ',this)">' +
                 (fav ? "★" : "☆") +
-                '</button><span class="statusDot"></span><h2>' +
+                '</button><h2>' +
                 esc((r[3] || "") + " — " + (r[2] || "")) +
                 "</h2>" +
                 (specialDistanceText(r)
@@ -452,30 +532,34 @@
                   : "") +
                 '<div class="meta">📍 ' +
                 esc(r[8] || "Adresse à vérifier") +
-                "<br>📅 " +
+                '</div><div class="meta">📅 ' +
                 esc(r[4] || "Date / fréquence à vérifier") +
-                "<br>🕒 " +
+                '</div><div class="meta">🕒 ' +
                 esc(r[5] || "Horaire à vérifier") +
-                "<br>👥 " +
+                '</div><div class="meta">👥 Commerçants : ' +
                 esc(String(places).replace(/ officiellement/gi, "")) +
-                "<br>🎲 Tirage : " +
+                '</div><div class="meta">Tirage au sort : ' +
                 esc(
                   String(r[12] || "Non publié").replace(
                     / officiellement/gi,
                     "",
                   ),
                 ) +
+                "</div>" +
                 (r[6]
-                  ? "<br>ℹ️ " +
+                  ? '<div class="meta">ℹ️ ' +
                     esc(
                       String(r[6])
                         .replace(/ officiellement/gi, "")
                         .replace(/GPS à confirmer sur place/gi, ""),
-                    )
+                    ) +
+                    "</div>"
                   : "") +
-                '</div><a class="go" target="_blank" rel="noopener" href="' +
+                '<div class="marketActions"><a class="go" target="_blank" rel="noopener" href="' +
                 maps +
-                '">ALLER AU MARCHÉ</a></article>'
+                '">ALLER AU MARCHÉ</a><a class="verify" href="' +
+                verifyUrl +
+                '">MODIFIER / VÉRIFIER</a></div></article>'
               );
             })
             .join("");
@@ -484,6 +568,7 @@
         render();
       })();
     </script>
+    <script src="market-consensus.js?v=170"></script>
     <script src="new-feature-bubbles.js?v=20260905"></script>
   </body>
 </html>

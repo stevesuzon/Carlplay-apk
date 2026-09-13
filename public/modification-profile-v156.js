@@ -47,7 +47,8 @@ async function init(){
     else if(existenceChoice==='no'){if(editBox)editBox.style.display='none';show('Le marché n’existe pas ce jour-là. Envoyez le signalement : après validation administrateur, il disparaîtra pour ce jour.','pending')}
     complete();
   }
-  if(yes)yes.addEventListener('change',existenceChanged);if(no)no.addEventListener('change',existenceChanged);
+  function guardedExistenceChanged(ev){ev.stopPropagation();var input=ev.currentTarget,choice=input===yes?'yes':'no',ask=window.CarPlayConfirmMarketChoice?window.CarPlayConfirmMarketChoice(choice):Promise.resolve(window.confirm(choice==='yes'?'Êtes-vous sûr que ce marché existe ?':'Êtes-vous sûr que ce marché n’existe pas ce jour ?'));ask.then(function(ok){if(!ok){input.checked=false;existenceChoice='';if(editBox)editBox.style.display='none';show('Aucun choix envoyé.','pending');complete();return}existenceChanged()})}
+  if(yes)yes.addEventListener('change',guardedExistenceChanged);if(no)no.addEventListener('change',guardedExistenceChanged);
   document.addEventListener('input',complete);document.addEventListener('change',complete);
   send.onclick=async function(){
     existenceChoice=chosen();if(!existenceChoice){complete();return}

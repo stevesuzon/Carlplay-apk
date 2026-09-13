@@ -1,4 +1,4 @@
 {
-  "version": "20260913-market-exists-first-v168",
-  "message": "Modifier commence par « Ce marché existe-t-il ce jour-là ? ». Non validé par l’administrateur retire seulement ce jour du serveur ; une modification acceptée confirme le marché et évite de redemander ensuite."
+  "version": "20260913-confirm-bulle-v172",
+  "message": "Ajout d’une confirmation de sécurité avant de confirmer qu’un marché existe ou de signaler qu’il n’existe pas ce jour."
 }
