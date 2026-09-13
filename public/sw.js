@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260913-stay-on-market-v182";
+const CACHE = "carplay-v5-20260913-market-confirmed-v185";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -27,7 +27,7 @@ const CORE = [
   "/subscription-v154-patch.js?v=158",
   "/modification-profile-v156.js?v=173",
   "/sanction-guard-v161.js?v=161",
-  "/special-market-server-v157.js?v=171",
+  "/special-market-server-v157.js?v=184",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
   "/gps-apple-plans-v141.js?v=141",
@@ -41,13 +41,13 @@ const CORE = [
   "/belgique-marches-final.html?v=159",
   "/market-areas-fr-v159.js?v=159",
   "/market-areas-be-v159.js?v=159",
-  "/market-final.js?v=160",
-  "/market-consensus.js?v=177",
+  "/market-final.js?v=184",
+  "/market-consensus.js?v=184",
   "/special-marches.html?v=170",
-  "/nearby-markets.html?v=177",
+  "/nearby-markets.html?v=184",
   "/market-presence-global.js?v=177",
-  "/verification-v9.html?v=179",
-  "/modification-demande.html?v=175",
+  "/verification-v9.html?v=185",
+  "/modification-demande.html?v=184",
   "/ou-trouver-place.html",
   "/documents-travail.html",
   "/mes-papiers.html",

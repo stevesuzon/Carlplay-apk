@@ -471,7 +471,7 @@
         esc(s.draw || r[12] || "À vérifier") +
         '</div><div class="meta">Humeur du placier : ' +
         esc(s.welcome || "À vérifier") +
-        '</div><div class="meta">Placier : ' +
+        '</div><div class="meta">Responsable : ' +
         esc(listText(s.placer)) +
         '</div><div class="meta">Modèle de clients : ' +
         esc(s.clientModel || "À vérifier") +

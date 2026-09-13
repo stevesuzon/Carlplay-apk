@@ -1,4 +1,4 @@
 {
-  "version": "20260913-stay-on-market-v182",
-  "message": "Après modification d’un horaire, administrateur et utilisateurs restent sur la fiche du marché au lieu de revenir automatiquement à la liste."
+  "version": "20260913-market-confirmed-v185",
+  "message": "Après confirmation, la fiche affiche clairement « MARCHÉ CONFIRMÉ » en vert avec un petit bouton Modifier ; les autres validations et modifications restent inchangées."
 }

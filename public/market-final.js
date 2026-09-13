@@ -689,6 +689,8 @@
         esc(cleanCardText(s.draw || r[12] || builtInDraw(r))) +
         '</div><div class="meta">Humeur du placier : ' +
         esc(cleanCardText(s.welcome || "À vérifier")) +
+        '</div><div class="meta">Responsable : ' +
+        esc(cleanCardText(listText(s.placer))) +
         '</div><div class="meta">Modèle de clients : ' +
         esc(cleanCardText(s.clientModel || "À vérifier")) +
         '</div><div id="competition_' +
