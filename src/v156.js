@@ -81,7 +81,7 @@ async function inject(response,url){
   if(!type.includes("text/html"))return response;
   let text=await response.text();
   if(url.pathname.includes("modification-demande")&&!text.includes("modification-profile-v156.js")){
-    const tag='<script src="/modification-profile-v156.js?v=156" defer></script>';
+    const tag='<script src="/modification-profile-v156.js?v=168" defer></script>';
     text=text.includes("</head>")?text.replace("</head>",tag+"</head>"):tag+text;
   }
   const h=new Headers(response.headers);h.set("cache-control","no-store, no-cache, must-revalidate");

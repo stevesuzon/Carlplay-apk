@@ -1,4 +1,4 @@
 {
-  "version": "20260913-traveller-show-all-v166",
-  "message": "Tous les marchés voyageurs intégrés sont maintenant affichés par défaut, y compris les anciennes dates et les fiches dont la date 2026 reste à confirmer. Le filtre ne masque plus la majorité des marchés."
+  "version": "20260913-market-exists-first-v168",
+  "message": "Modifier commence par « Ce marché existe-t-il ce jour-là ? ». Non validé par l’administrateur retire seulement ce jour du serveur ; une modification acceptée confirme le marché et évite de redemander ensuite."
 }

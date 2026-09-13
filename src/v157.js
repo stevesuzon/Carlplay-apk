@@ -219,7 +219,7 @@ async function optimizeHtml(response,url){
       text=text.replace(/window\.__FR_DATA\s*=\s*Array\.isArray\(data\)\s*\?\s*data\.slice\(\)\s*:\s*\[\]\s*;/,'window.__FR_DATA = []; window.data = [];');
     }
     if(!text.includes('special-market-server-v157.js')){
-      const tag='<script src="/special-market-server-v157.js?v=158" defer></script>';
+      const tag='<script src="/special-market-server-v157.js?v=167" defer></script>';
       text=text.includes('</body>')?text.replace('</body>',tag+'</body>'):text+tag;
     }
   }

@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260913-traveller-show-all-v166";
+const CACHE = "carplay-v5-20260913-marche-existe-v168";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -25,9 +25,9 @@ const CORE = [
   "/weather-all-pages.js?v=68-notifications-globales",
   "/subscription-web.js?v=158",
   "/subscription-v154-patch.js?v=158",
-  "/modification-profile-v156.js?v=158",
+  "/modification-profile-v156.js?v=168",
   "/sanction-guard-v161.js?v=161",
-  "/special-market-server-v157.js?v=157",
+  "/special-market-server-v157.js?v=167",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
   "/gps-apple-plans-v141.js?v=141",
@@ -42,11 +42,11 @@ const CORE = [
   "/market-areas-fr-v159.js?v=159",
   "/market-areas-be-v159.js?v=159",
   "/market-final.js?v=160",
-  "/market-consensus.js?v=160",
+  "/market-consensus.js?v=167",
   "/special-marches.html?v=157",
-  "/nearby-markets.html?v=158",
+  "/nearby-markets.html?v=167",
   "/verification-v9.html?v=20260912-consulter-fiche9",
-  "/modification-demande.html?v=161",
+  "/modification-demande.html?v=168",
   "/ou-trouver-place.html",
   "/documents-travail.html",
   "/mes-papiers.html",
@@ -100,7 +100,7 @@ self.addEventListener("push", (e) => {
   e.waitUntil(notificationsEnabled().then((enabled) => {
     if (!enabled) return;
     return self.registration.showNotification("Modification de marché demandée", {
-      body: "Une demande d’horaire, de GPS ou de photo attend votre réponse OUI ou NON pendant 3 minutes.",
+      body: "Une demande de modification ou de présence d’un marché attend votre réponse OUI ou NON pendant 3 minutes.",
       icon: "/carplay-noir-rouge-192.png",
       badge: "/carplay-noir-rouge-192.png",
       tag: "gps-unlock-request",

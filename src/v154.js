@@ -111,7 +111,7 @@ async function gpsRequestWithPushFallback(request, env, ctx) {
     try { data = await backup.json(); } catch (_) {}
     const deviceId = String(data.deviceId || "").trim();
     const marketKey = cleanMarketKey(data.marketKey);
-    const allowed = ["gps", "photo", "time", "count", "draw", "clientModel", "welcome", "placer"];
+    const allowed = ["gps", "photo", "time", "count", "draw", "clientModel", "welcome", "placer", "exists"];
     const scope = allowed.includes(data.scope) ? data.scope : "gps";
     if (!validDevice(deviceId) || !marketKey) return json({ ok: false, error: "SERVEUR_INDISPONIBLE" }, 503);
 
