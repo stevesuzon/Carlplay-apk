@@ -672,6 +672,12 @@ async function ensureMarketVerificationTables(env) {
     market_key TEXT NOT NULL, device_id TEXT NOT NULL, uploaded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (market_key, device_id)
   )`).run();
+  // Secours photo serveur : si le binding R2 MARKET_PHOTOS est momentanément absent,
+  // on conserve la photo dans D1 au lieu de refuser l'envoi.
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_photo_blob_fallback (
+    market_key TEXT PRIMARY KEY, photo_blob BLOB NOT NULL, mime_type TEXT NOT NULL DEFAULT 'image/jpeg',
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_location_votes (
     market_key TEXT NOT NULL, device_id TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, accuracy REAL NOT NULL DEFAULT 0,
     address TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -836,7 +842,7 @@ async function inspectMarketPhoto(env, dataUrl) {
 }
 
 async function saveMarketPhoto(env, marketKey, deviceId, photo, locationOverride = false, photoOverride = false) {
-  if (!env.MARKET_PHOTOS) return { ok: false, error: "STOCKAGE_PHOTO_NON_CONFIGURE" };
+  if (!env.DB) return { ok: false, error: "STOCKAGE_SERVEUR_NON_CONFIGURE" };
   if (photo.generalView !== true) return { ok: false, error: "VUE_GENERALE_NON_CONFIRMEE" };
   const userLat = Number(photo.userLatitude), userLon = Number(photo.userLongitude), accuracy = Number(photo.accuracy);
   if (![userLat, userLon, accuracy].every(Number.isFinite) || accuracy < 0 || accuracy > 150) return { ok: false, error: "GPS_PHOTO_IMPRECIS" };
@@ -867,8 +873,27 @@ async function saveMarketPhoto(env, marketKey, deviceId, photo, locationOverride
     if (Number(inspection.qualityScore||0) <= Number(current.quality_score||0)) return { ok:true, keptExisting:true, message:"LA_PHOTO_EXISTANTE_EST_MEILLEURE_OU_EQUIVALENTE", qualityScore:inspection.qualityScore, stallCount:inspection.stallCount, distanceMeters:Math.round(distance), replacementsUsed, replacementsRemaining:Math.max(0,2-replacementsUsed), validationMode:inspection.validationMode||'ai' };
   }
 
-  const objectKey = `market-photos/${await sha256Text(marketKey)}.jpg`;
-  await env.MARKET_PHOTOS.put(objectKey, bytes, { httpMetadata: { contentType: "image/jpeg", cacheControl: "public, max-age=3600" } });
+  const hash = await sha256Text(marketKey);
+  const r2ObjectKey = `market-photos/${hash}.jpg`;
+  let objectKey = r2ObjectKey;
+  let storageBackend = "r2";
+
+  if (env.MARKET_PHOTOS) {
+    await env.MARKET_PHOTOS.put(r2ObjectKey, bytes, { httpMetadata: { contentType: "image/jpeg", cacheControl: "public, max-age=3600" } });
+    // Si une ancienne copie de secours D1 existe, on la nettoie une fois R2 revenu.
+    try { await env.DB.prepare("DELETE FROM market_photo_blob_fallback WHERE market_key=?").bind(marketKey).run(); } catch (_) {}
+  } else {
+    // R2 absent : stockage de secours dans D1. Cela évite de bloquer l'utilisateur
+    // et la route /api/market-photo saura relire cette copie.
+    storageBackend = "d1";
+    objectKey = `d1:${hash}`;
+    const blob = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    await env.DB.prepare(`INSERT INTO market_photo_blob_fallback(market_key,photo_blob,mime_type,updated_at)
+      VALUES(?,?,?,CURRENT_TIMESTAMP)
+      ON CONFLICT(market_key) DO UPDATE SET photo_blob=excluded.photo_blob,mime_type=excluded.mime_type,updated_at=CURRENT_TIMESTAMP`)
+      .bind(marketKey, blob, "image/jpeg").run();
+  }
+
   const capturedAt = new Date().toISOString(), newReplacementCount=current?replacementsUsed+1:0;
   await env.DB.prepare(`INSERT INTO market_photo_metadata(market_key,object_key,mime_type,device_id,user_latitude,user_longitude,market_latitude,market_longitude,distance_meters,quality_score,stall_count,ai_reason,replacement_count,captured_at,updated_at)
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
@@ -876,105 +901,41 @@ async function saveMarketPhoto(env, marketKey, deviceId, photo, locationOverride
     .bind(marketKey, objectKey, "image/jpeg", deviceId, userLat, userLon, marketLat, marketLon, distance, inspection.qualityScore, inspection.stallCount, inspection.reason, newReplacementCount, capturedAt).run();
   await env.DB.prepare(`INSERT INTO market_photo_uploads(market_key,device_id,uploaded_at) VALUES(?,?,CURRENT_TIMESTAMP)
     ON CONFLICT(market_key,device_id) DO UPDATE SET uploaded_at=CURRENT_TIMESTAMP`).bind(marketKey, deviceId).run();
-  return { ok:true, replaced:!!current, distanceMeters:Math.round(distance), stallCount:inspection.stallCount, qualityScore:inspection.qualityScore, capturedAt, replacementsUsed:newReplacementCount, replacementsRemaining:Math.max(0,2-newReplacementCount), locked:newReplacementCount>=2, validationMode:inspection.validationMode||"ai" };
-}
-
-async function submitMarketVerification(request, env) {
-  if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE" }, 503);
-  await ensureMarketVerificationTables(env);
-  const data = await body(request), marketKey = cleanMarketKey(data.marketKey), deviceId = String(data.deviceId || "").slice(0, 100);
-  if (!marketKey || !validDevice(deviceId)) return json({ ok: false, error: "DONNEES_INVALIDES" }, 400);
-  if (!(await registeredVerificationDevice(env, deviceId))) return json({ ok: false, error: "APPAREIL_NON_ENREGISTRE" }, 403);
-  await ensureGpsUnlockTables(env);
-  const ipHash = await sha256Text(`${env.CODE_PEPPER || "market"}:${request.headers.get("CF-Connecting-IP") || ""}`), results = {};
-  const isAdminRequest = await adminAuthorized(request,env), requestedScope = ["gps","time","photo"].includes(String(data.unlockScope||"")) ? String(data.unlockScope) : "";
-  let grantRow=null;
-  if(!isAdminRequest&&requestedScope&&data.gpsUnlockId&&data.gpsUnlockToken){
-    grantRow=await env.DB.prepare("SELECT id,scope,token_hash,status,grant_expires_at,consumed,market_key,device_id FROM gps_unlock_requests WHERE id=?").bind(String(data.gpsUnlockId)).first();
-    const valid=!!(grantRow&&grantRow.scope===requestedScope&&grantRow.status==='approved'&&!grantRow.consumed&&Date.now()<=Number(grantRow.grant_expires_at||0)&&grantRow.market_key===marketKey&&grantRow.device_id===deviceId&&(await sha256Text(String(data.gpsUnlockToken)))===grantRow.token_hash);
-    if(!valid)grantRow=null;
-  }
-  let grantUsed=false;
-
-  const existingPresence = await env.DB.prepare("SELECT value_norm,value_display FROM market_verification_consensus WHERE market_key=? AND field='exists' LIMIT 1").bind(marketKey).first();
-  if(existingPresence && String(existingPresence.value_norm||'').toLowerCase()==='non' && !isAdminRequest) return json({ok:false,error:'MARCHE_SUPPRIME'},409);
-  let confirmsPresence=false;
-  for (const field of ["time", "count", "draw", "clientModel", "welcome", "placer", "exists"]) {
-    const locked = await env.DB.prepare("SELECT field,value_display,confirmations,updated_at FROM market_verification_consensus WHERE market_key=? AND field=?").bind(marketKey,field).first();
-    const mayReplaceTime=locked&&isAdminRequest;
-    if (locked&&!mayReplaceTime) { results[field]={field,leadingValue:locked.value_display,confirmations:Number(locked.confirmations||1),confirmed:locked,locked:true}; continue; }
-    const value = normalizedVerification(field, data.values && data.values[field]);
-    if (!value) continue;
-    if(field==='exists' && value.norm!=='oui' && !isAdminRequest) continue;
-    if(field!=='exists'||value.norm==='oui') confirmsPresence=true;
-    if(mayReplaceTime){await env.DB.prepare(`INSERT INTO market_verification_consensus(market_key,field,value_norm,value_display,confirmations,updated_at) VALUES(?,?,?,?,1,CURRENT_TIMESTAMP)
-      ON CONFLICT(market_key,field) DO UPDATE SET value_norm=excluded.value_norm,value_display=excluded.value_display,confirmations=1,updated_at=CURRENT_TIMESTAMP`).bind(marketKey,field,value.norm,value.display).run();results[field]={field,leadingValue:value.display,confirmations:1,confirmed:{field,value_display:value.display,confirmations:1},locked:true};if(grantRow&&grantRow.scope==='time')grantUsed=true;continue;}
-    await env.DB.prepare(`INSERT INTO market_verification_votes(market_key,field,value_norm,value_display,device_id,ip_hash,created_at,updated_at)
-      VALUES(?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
-      ON CONFLICT(market_key,field,device_id) DO UPDATE SET value_norm=excluded.value_norm,value_display=excluded.value_display,ip_hash=excluded.ip_hash,updated_at=CURRENT_TIMESTAMP`)
-      .bind(marketKey, field, value.norm, value.display, deviceId, ipHash).run();
-    results[field] = await refreshMarketConsensus(env, marketKey, field);
-  }
-
-  let photo = null, locationResult = await refreshMarketLocationConsensus(env,marketKey), locationVote=null;
-  if (data.photo && data.photo.dataUrl) confirmsPresence=true;
-  if (data.photo && data.photo.dataUrl) {
-    const locationOverride=(isAdminRequest&&requestedScope!=='photo')||!!(grantRow&&grantRow.scope==='gps'),photoOverride=isAdminRequest||locationOverride||!!(grantRow&&grantRow.scope==='photo');
-    photo = await saveMarketPhoto(env, marketKey, deviceId, data.photo, locationOverride, photoOverride);
-    if(photo&&photo.ok&&grantRow&&(grantRow.scope==='gps'||grantRow.scope==='photo'))grantUsed=true;
-    if(photo&&photo.ok&&locationOverride){const la=Number(data.photo.proposedMarketLatitude),lo=Number(data.photo.proposedMarketLongitude),ac=Number(data.photo.accuracy);if(Number.isFinite(la)&&Number.isFinite(lo)){const addr=await reverseMarketAddress(la,lo);await env.DB.prepare(`INSERT INTO market_location_consensus(market_key,latitude,longitude,address,confirmations,updated_at) VALUES(?,?,?,?,1,CURRENT_TIMESTAMP)
-        ON CONFLICT(market_key) DO UPDATE SET latitude=excluded.latitude,longitude=excluded.longitude,address=excluded.address,confirmations=1,updated_at=CURRENT_TIMESTAMP`).bind(marketKey,la,lo,addr).run();locationResult=await refreshMarketLocationConsensus(env,marketKey);locationVote={latitude:la,longitude:lo,accuracy:Number.isFinite(ac)?ac:0,address:addr,locked:true};}}
-    if (photo && photo.ok && !locationResult) {
-      const la=Number(data.photo.proposedMarketLatitude), lo=Number(data.photo.proposedMarketLongitude), ac=Number(data.photo.accuracy);
-      if (Number.isFinite(la)&&Number.isFinite(lo)) {
-        let addr=await reverseMarketAddress(la,lo);
-        await env.DB.prepare(`INSERT INTO market_location_votes(market_key,device_id,latitude,longitude,accuracy,address,created_at,updated_at) VALUES(?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
-          ON CONFLICT(market_key,device_id) DO UPDATE SET latitude=excluded.latitude,longitude=excluded.longitude,accuracy=excluded.accuracy,address=excluded.address,updated_at=CURRENT_TIMESTAMP`)
-          .bind(marketKey,deviceId,la,lo,Number.isFinite(ac)?ac:0,addr).run();
-        locationResult=await refreshMarketLocationConsensus(env,marketKey);
-        locationVote=locationResult?{latitude:locationResult.latitude,longitude:locationResult.longitude,accuracy:Number.isFinite(ac)?ac:0,address:locationResult.address,locked:true}:null;
-      }
-    } else if (photo && photo.ok && locationResult) {
-      locationVote={latitude:locationResult.latitude,longitude:locationResult.longitude,accuracy:Number(data.photo.accuracy||0),address:locationResult.address,locked:true};
-    }
-  }
-  if(grantUsed&&grantRow)await env.DB.prepare("UPDATE gps_unlock_requests SET consumed=1,status='consumed',updated_at=? WHERE id=? AND consumed=0").bind(Date.now(),grantRow.id).run();
-  if(confirmsPresence){await env.DB.prepare(`INSERT INTO market_verification_consensus(market_key,field,value_norm,value_display,confirmations,updated_at) VALUES(?,'exists','oui','Oui',1,CURRENT_TIMESTAMP) ON CONFLICT(market_key,field) DO UPDATE SET value_norm='oui',value_display='Oui',confirmations=1,updated_at=CURRENT_TIMESTAMP`).bind(marketKey).run();}
-  return json({ ok: true, required: 1, locationRequired:1, results, photo, locationResult, locationVote, state: await marketVerificationState(env, marketKey) });
-}
-
-async function getMarketVerification(url, env) {
-  if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE" }, 503);
-  const marketKey = cleanMarketKey(url.searchParams.get("marketKey"));
-  if (!marketKey) return json({ ok: false, error: "MARCHE_INVALIDE" }, 400);
-  return json({ ok: true, ...(await marketVerificationState(env, marketKey)) });
-}
-
-async function batchMarketVerifications(request, env) {
-  if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE" }, 503);
-  await ensureMarketVerificationTables(env);
-  const data = await body(request);
-  const keys = [...new Set((Array.isArray(data.keys) ? data.keys : []).map(cleanMarketKey).filter(Boolean))].slice(0, 200), states = {};
-  for (const key of keys) states[key] = await marketVerificationState(env, key, true);
-  return json({ ok: true, required: MARKET_CONSENSUS_REQUIRED, states });
-}
-
-async function disabledMarketPresence(env) {
-  if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE" }, 503);
-  await ensureMarketVerificationTables(env);
-  const result = await env.DB.prepare("SELECT market_key,updated_at FROM market_verification_consensus WHERE field='exists' AND lower(value_norm)='non' ORDER BY updated_at DESC").all();
-  return json({ ok: true, keys: (result.results || []).map(r => String(r.market_key || '')).filter(Boolean), updatedAt: Date.now() });
+  return { ok:true, replaced:!!current, distanceMeters:Math.round(distance), stallCount:inspection.stallCount, qualityScore:inspection.qualityScore, capturedAt, replacementsUsed:newReplacementCount, replacementsRemaining:Math.max(0,2-newReplacementCount), locked:newReplacementCount>=2, validationMode:inspection.validationMode||"ai", storageBackend };
 }
 
 async function marketPhoto(url, env) {
-  if (!env.DB || !env.MARKET_PHOTOS) return new Response("Photo indisponible", { status: 404, headers: cors });
+  if (!env.DB) return new Response("Photo indisponible", { status: 404, headers: cors });
   await ensureMarketVerificationTables(env);
   const marketKey = cleanMarketKey(url.searchParams.get("marketKey"));
   const row = marketKey && await env.DB.prepare("SELECT object_key,mime_type FROM market_photo_metadata WHERE market_key=?").bind(marketKey).first();
   if (!row) return new Response("Photo indisponible", { status: 404, headers: cors });
-  const object = await env.MARKET_PHOTOS.get(row.object_key);
-  if (!object) return new Response("Photo indisponible", { status: 404, headers: cors });
-  return new Response(object.body, { headers: { ...cors, "content-type": row.mime_type || "image/jpeg", "cache-control": "public, max-age=3600" } });
+
+  // 1) Photo explicitement stockée dans le secours D1, ou R2 indisponible.
+  if (String(row.object_key || "").startsWith("d1:") || !env.MARKET_PHOTOS) {
+    const fallback = await env.DB.prepare("SELECT photo_blob,mime_type FROM market_photo_blob_fallback WHERE market_key=?").bind(marketKey).first();
+    if (fallback && fallback.photo_blob != null) {
+      let payload = fallback.photo_blob;
+      if (Array.isArray(payload)) payload = new Uint8Array(payload);
+      return new Response(payload, { headers: { ...cors, "content-type": fallback.mime_type || row.mime_type || "image/jpeg", "cache-control": "public, max-age=3600" } });
+    }
+    if (!env.MARKET_PHOTOS) return new Response("Photo indisponible", { status: 404, headers: cors });
+  }
+
+  // 2) Stockage principal R2.
+  if (env.MARKET_PHOTOS) {
+    const object = await env.MARKET_PHOTOS.get(row.object_key);
+    if (object) return new Response(object.body, { headers: { ...cors, "content-type": row.mime_type || "image/jpeg", "cache-control": "public, max-age=3600" } });
+  }
+
+  // 3) Dernier secours : si la métadonnée pointe encore vers R2 mais qu'une copie D1 existe.
+  const fallback = await env.DB.prepare("SELECT photo_blob,mime_type FROM market_photo_blob_fallback WHERE market_key=?").bind(marketKey).first();
+  if (fallback && fallback.photo_blob != null) {
+    let payload = fallback.photo_blob;
+    if (Array.isArray(payload)) payload = new Uint8Array(payload);
+    return new Response(payload, { headers: { ...cors, "content-type": fallback.mime_type || row.mime_type || "image/jpeg", "cache-control": "public, max-age=3600" } });
+  }
+  return new Response("Photo indisponible", { status: 404, headers: cors });
 }
 
 async function vigilanceForPlace(url) {

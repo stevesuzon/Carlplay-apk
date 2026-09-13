@@ -1,4 +1,4 @@
 {
-  "version": "20260913-global-market-presence-v176",
-  "message": "Suppression globale par jour : un marché marqué Non est mémorisé sur le serveur et exclu partout pour ce jour, notamment de la liste à moins de 80 km, des fiches, brocantes, marchés spéciaux et marchés voyageurs."
+  "version": "20260913-photo-storage-fallback-v177",
+  "message": "Photos marché : R2 MARKET_PHOTOS reste prioritaire ; si le binding est absent, la photo est enregistrée automatiquement dans D1 au lieu d'être refusée. Les photos restent servies par /api/market-photo."
 }
