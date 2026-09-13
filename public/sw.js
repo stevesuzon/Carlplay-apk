@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260913-global-market-presence-v176";
+const CACHE = "carplay-v5-20260913-stable-server-v181";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -42,11 +42,11 @@ const CORE = [
   "/market-areas-fr-v159.js?v=159",
   "/market-areas-be-v159.js?v=159",
   "/market-final.js?v=160",
-  "/market-consensus.js?v=176",
+  "/market-consensus.js?v=177",
   "/special-marches.html?v=170",
-  "/nearby-markets.html?v=176",
-  "/market-presence-global.js?v=176",
-  "/verification-v9.html?v=175",
+  "/nearby-markets.html?v=177",
+  "/market-presence-global.js?v=177",
+  "/verification-v9.html?v=179",
   "/modification-demande.html?v=175",
   "/ou-trouver-place.html",
   "/documents-travail.html",

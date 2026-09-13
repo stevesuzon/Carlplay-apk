@@ -1,4 +1,4 @@
 {
-  "version": "20260913-global-market-presence-v176",
-  "message": "Suppression globale par jour : un marché marqué Non est mémorisé sur le serveur et exclu partout pour ce jour, notamment de la liste à moins de 80 km, des fiches, brocantes, marchés spéciaux et marchés voyageurs."
+  "version": "20260913-stable-server-v181",
+  "message": "Serveur de vérification remis exactement sur la version fonctionnelle fournie, en conservant les dernières nouveautés de l’application et le stockage photo R2 MARKET_PHOTOS."
 }
