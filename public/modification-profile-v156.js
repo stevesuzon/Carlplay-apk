@@ -23,10 +23,11 @@ async function init(){
   if(identity){var labels=identity.querySelectorAll('.label');if(labels[2])labels[2].textContent='Adresse e-mail de votre abonnement';var w=identity.querySelector('.warning');if(w)w.textContent='✅ Cette adresse e-mail vient automatiquement de votre abonnement. Vous ne devez pas la retaper.'}
   try{
     var sr=await fetch('/api/market-verifications?marketKey='+encodeURIComponent(d.marketKey),{cache:'no-store'}),state=await sr.json();
-    var ev=state&&state.values&&state.values.exists&&state.values.exists.value;
-    if(sr.ok&&norm(ev)==='oui'){existenceKnown=true;if(existenceBox)existenceBox.style.display='none';if(editBox)editBox.style.display='block'}
+    var ev=state&&state.values&&state.values.exists&&state.values.exists.value,evNorm=norm(ev);
+    if(sr.ok&&evNorm==='oui'){existenceKnown=true;if(yes)yes.checked=true;if(no)no.checked=false;if(existenceBox)existenceBox.style.display='block';if(editBox)editBox.style.display='block'}
+    else if(sr.ok&&evNorm==='non'){if(no)no.checked=true;if(yes)yes.checked=false;if(existenceBox)existenceBox.style.display='block';if(editBox)editBox.style.display='none'}
   }catch(_){ }
-  function chosen(){if(existenceKnown)return 'yes';if(no&&no.checked)return 'no';if(yes&&yes.checked)return 'yes';return ''}
+  function chosen(){if(no&&no.checked)return 'no';if(yes&&yes.checked)return 'yes';if(existenceKnown)return 'yes';return ''}
   function actualProposal(){return proposal(d)}
   function complete(){
     existenceChoice=chosen();
@@ -47,7 +48,7 @@ async function init(){
     else if(existenceChoice==='no'){if(editBox)editBox.style.display='none';show('Le marché n’existe pas ce jour-là. Envoyez le signalement : après validation administrateur, il disparaîtra pour ce jour.','pending')}
     complete();
   }
-  function guardedExistenceChanged(ev){ev.stopPropagation();var input=ev.currentTarget,choice=input===yes?'yes':'no',ask=window.CarPlayConfirmMarketChoice?window.CarPlayConfirmMarketChoice(choice):Promise.resolve(window.confirm(choice==='yes'?'Êtes-vous sûr que ce marché existe ?':'Êtes-vous sûr que ce marché n’existe pas ce jour ?'));ask.then(function(ok){if(!ok){input.checked=false;existenceChoice='';if(editBox)editBox.style.display='none';show('Aucun choix envoyé.','pending');complete();return}existenceChanged()})}
+  function guardedExistenceChanged(ev){ev.stopPropagation();var input=ev.currentTarget,choice=input===yes?'yes':'no',previous=existenceChoice||(existenceKnown?'yes':''),ask=window.CarPlayConfirmMarketChoice?window.CarPlayConfirmMarketChoice(choice):Promise.resolve(window.confirm(choice==='yes'?'Êtes-vous sûr que ce marché existe ?':'Êtes-vous sûr que ce marché n’existe pas ce jour ?'));ask.then(function(ok){if(!ok){input.checked=false;if(previous==='yes'&&yes)yes.checked=true;else if(previous==='no'&&no)no.checked=true;existenceChoice=previous;if(editBox)editBox.style.display=previous==='yes'?'block':'none';show('Choix inchangé.','pending');complete();return}existenceChanged()})}
   if(yes)yes.addEventListener('change',guardedExistenceChanged);if(no)no.addEventListener('change',guardedExistenceChanged);
   document.addEventListener('input',complete);document.addEventListener('change',complete);
   send.onclick=async function(){

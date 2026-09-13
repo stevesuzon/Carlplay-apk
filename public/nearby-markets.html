@@ -75,10 +75,23 @@
   const storedNumber = key => { const raw=localStorage.getItem(key); return raw===null||String(raw).trim()===''?NaN:Number(raw); };
   const userLat = storedNumber('return_lat');
   const userLon = storedNumber('return_lon');
+  let disabledKeys = new Set();
+  let disabledSignature = '';
 
   const norm = v => String(v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
   const cleanCardText = v => String(v ?? '').replace(/\s+officiellement\b/gi,'').replace(/\s*[,;:-]?\s*GPS\s+[àa]\s+confirmer\s+sur\s+place\b/gi,'').replace(/\s{2,}/g,' ').trim();
   const identity = (country,row) => [country,row?.[0],row?.[2],row?.[3],row?.[4],row?.[8]||''].join('|');
+  const isServerDisabled = (country,row) => { const key=identity(country,row); if(disabledKeys.has(key)) return true; try{return localStorage.getItem('marketPresenceV174:'+key)==='non'}catch(e){return false} };
+  async function loadDisabledKeys(){
+    try{
+      const r=await fetch('/api/market-presence/disabled',{cache:'no-store'}),j=await r.json();
+      if(!r.ok||!j||!Array.isArray(j.keys))throw 0;
+      const keys=j.keys.map(String).filter(Boolean),sig=keys.slice().sort().join('\n'),changed=sig!==disabledSignature;
+      disabledSignature=sig;disabledKeys=new Set(keys);
+      keys.forEach(k=>{try{localStorage.setItem('marketPresenceV174:'+k,'non')}catch(e){}});
+      return changed;
+    }catch(e){return false}
+  }
   const verificationKey = (country,row) => 'marketVerifyV9:'+country+':'+[row?.[0],row?.[1],row?.[2],row?.[3],row?.[4],row?.[5],row?.[8]||''].join('|');
   const saved = (country,row) => { try { const v=localStorage.getItem(verificationKey(country,row)); return v?JSON.parse(v):null; } catch(e){ return null; } };
   const builtInVerified = row => { const note=norm(row?.[6]); return note.includes('verifie sur le site officiel')||note.includes('verifie officiellement'); };
@@ -166,6 +179,7 @@
       const source=area.country==='fr'?(window.NEAR_FR||[]):(window.NEAR_BE||[]);
       for(const row of source){
         if(!isToday(row)) continue;
+        if(isServerDisabled(area.country,row)) continue;
         const p=validPoint(row);
         if(!p) continue; // sans GPS fiable, impossible de calculer correctement 80 km
         const k=area.country+'|'+norm(row?.[0])+'|'+norm(row?.[2])+'|'+norm(row?.[3])+'|'+norm(row?.[4])+'|'+norm(row?.[8]);
@@ -175,6 +189,7 @@
       }
       const specialSource=area.country==='fr'?(window.SPECIAL_FR||[]):(window.SPECIAL_BE||[]);
       for(const row of specialSource){
+        if(isServerDisabled(area.country,row)) continue;
         const kind=specialKind(row);
         if(!kind||!specialOccursOn(row,kind))continue;
         const p=validPoint(row);
@@ -250,10 +265,16 @@
 
   function wireFavorites(){cards.querySelectorAll('.marketFavoriteStar').forEach(btn=>{if(btn.dataset.wired)return;btn.dataset.wired='1';btn.addEventListener('click',()=>{let on=false;try{on=localStorage.getItem(btn.dataset.favoriteKey)==='1';if(on)localStorage.removeItem(btn.dataset.favoriteKey);else localStorage.setItem(btn.dataset.favoriteKey,'1');on=!on}catch(e){}btn.classList.toggle('active',on);btn.textContent=on?'★':'☆';btn.setAttribute('aria-label',on?'Retirer des favoris':'Ajouter aux favoris');btn.setAttribute('title',on?'Retirer des favoris':'Ajouter aux favoris');});});}
   function wirePhotos(){cards.querySelectorAll('.market-photo').forEach(button=>{if(button.dataset.wired)return;button.dataset.wired='1';button.addEventListener('click',()=>{photoLarge.src=button.dataset.src;photoLarge.alt=button.dataset.caption||'Photo du marché';photoCaption.textContent=button.dataset.caption||'Photo générale du marché';photoModal.classList.add('open');});});}
+  function refreshVisibleStatus(){
+    const n=cards.querySelectorAll('.card').length,period=showTomorrow?'demain':'aujourd’hui';
+    if(!n){status.textContent='Aucun marché prévu '+period+' ('+selectedDay+') à moins de 80 km.';return}
+    status.textContent=n+' marché'+(n>1?'s':'')+' pour '+period+' — '+selectedDay.toUpperCase()+' — à moins de 80 km, du plus proche au plus éloigné.';
+  }
+
   function loadShared(list){
     const keys=list.map(item=>{const r=item.row;return[item.country,r[0],r[2],r[3],r[4],r[8]||''].join('|')});
     fetch('/api/market-verifications/batch',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({keys}),cache:'no-store'}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(result=>{
-      cards.querySelectorAll('[data-market-key]').forEach(card=>{const state=result.states&&result.states[card.dataset.marketKey];if(!state)return;const v=state.values||{};if(v.exists&&String(v.exists.value||'').toLowerCase()==='non'){card.remove();return}const done=v.time&&v.count&&v.draw,inProgress=Object.keys(state.leaders||{}).length>0||!!state.photo,dot=card.querySelector('.marketVerificationDot');if(done||inProgress){if(dot){dot.className='marketVerificationDot '+(done?'green':'orange');dot.title=done?'Fiche vérifiée':'Vérification en cours';dot.setAttribute('aria-label',dot.title)}}if(state.location&&Number.isFinite(Number(state.location.latitude))&&Number.isFinite(Number(state.location.longitude))){const go=card.querySelector('[data-navigation]'),destination={lat:Number(state.location.latitude),lon:Number(state.location.longitude),text:Number(state.location.latitude)+','+Number(state.location.longitude)};if(go)go.href=navigationUrl(destination);try{localStorage.setItem('marketLocalLocationV1:'+card.dataset.marketKey,JSON.stringify({latitude:destination.lat,longitude:destination.lon,address:state.location.address||'',pending:false,updatedAt:Date.now()}))}catch(e){}}if(v.time)card.querySelector('.shared-time').textContent=v.time.value;if(v.count)card.querySelector('.shared-count').textContent=v.count.value+' places';if(v.draw&&card.querySelector('.shared-draw'))card.querySelector('.shared-draw').textContent=v.draw.value;if(v.clientModel&&card.querySelector('.shared-client-model'))card.querySelector('.shared-client-model').textContent=v.clientModel.value;if(state.photo){const add=card.querySelector('.market-photo-add');if(add)add.remove();if(!card.querySelector('.market-photo')){const title=card.querySelector('.name');title.insertAdjacentHTML('afterend','<button type="button" class="market-photo" data-src="'+esc(state.photo.url)+'" data-caption="Vue générale reconnue et liée au point GPS pris sur le marché"><img loading="lazy" src="'+esc(state.photo.url)+'" alt="Vue générale du marché"></button>')}}});wirePhotos();
+      cards.querySelectorAll('[data-market-key]').forEach(card=>{const state=result.states&&result.states[card.dataset.marketKey];if(!state)return;const v=state.values||{};if(v.exists&&String(v.exists.value||'').toLowerCase()==='non'){disabledKeys.add(card.dataset.marketKey);try{localStorage.setItem('marketPresenceV174:'+card.dataset.marketKey,'non')}catch(e){}card.remove();return}else if(v.exists&&String(v.exists.value||'').toLowerCase()==='oui'){disabledKeys.delete(card.dataset.marketKey);try{localStorage.removeItem('marketPresenceV174:'+card.dataset.marketKey)}catch(e){}}const done=v.time&&v.count&&v.draw,inProgress=Object.keys(state.leaders||{}).length>0||!!state.photo,dot=card.querySelector('.marketVerificationDot');if(done||inProgress){if(dot){dot.className='marketVerificationDot '+(done?'green':'orange');dot.title=done?'Fiche vérifiée':'Vérification en cours';dot.setAttribute('aria-label',dot.title)}}if(state.location&&Number.isFinite(Number(state.location.latitude))&&Number.isFinite(Number(state.location.longitude))){const go=card.querySelector('[data-navigation]'),destination={lat:Number(state.location.latitude),lon:Number(state.location.longitude),text:Number(state.location.latitude)+','+Number(state.location.longitude)};if(go)go.href=navigationUrl(destination);try{localStorage.setItem('marketLocalLocationV1:'+card.dataset.marketKey,JSON.stringify({latitude:destination.lat,longitude:destination.lon,address:state.location.address||'',pending:false,updatedAt:Date.now()}))}catch(e){}}if(v.time)card.querySelector('.shared-time').textContent=v.time.value;if(v.count)card.querySelector('.shared-count').textContent=v.count.value+' places';if(v.draw&&card.querySelector('.shared-draw'))card.querySelector('.shared-draw').textContent=v.draw.value;if(v.clientModel&&card.querySelector('.shared-client-model'))card.querySelector('.shared-client-model').textContent=v.clientModel.value;if(state.photo){const add=card.querySelector('.market-photo-add');if(add)add.remove();if(!card.querySelector('.market-photo')){const title=card.querySelector('.name');title.insertAdjacentHTML('afterend','<button type="button" class="market-photo" data-src="'+esc(state.photo.url)+'" data-caption="Vue générale reconnue et liée au point GPS pris sur le marché"><img loading="lazy" src="'+esc(state.photo.url)+'" alt="Vue générale du marché"></button>')}}});wirePhotos();refreshVisibleStatus();
     }).catch(()=>{});
   }
 
@@ -276,13 +297,16 @@
         status.textContent='Position introuvable. Enregistre d’abord « Retourner sur la place » ou autorise le GPS.';
         return;
       }
+      await loadDisabledKeys();
       const todayRows=rowsForToday();
       const nearby=keepWithin80(todayRows,lat,lon);
       render(nearby);
     }catch(e){status.textContent='Impossible de calculer les marchés. Réessaie.';}
   }
   start();
-  setInterval(()=>{
+  setInterval(async()=>{
+    const changed=await loadDisabledKeys();
+    if(changed){start();return;}
     const current=new Date(),tomorrow=current.getHours()>=15,target=new Date(current);
     if(tomorrow)target.setDate(target.getDate()+1);
     const token=target.getFullYear()+'-'+target.getMonth()+'-'+target.getDate()+'-'+(tomorrow?'tomorrow':'today');

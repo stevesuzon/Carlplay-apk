@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260913-confirm-bulle-v172";
+const CACHE = "carplay-v5-20260913-global-market-presence-v176";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -25,7 +25,7 @@ const CORE = [
   "/weather-all-pages.js?v=68-notifications-globales",
   "/subscription-web.js?v=158",
   "/subscription-v154-patch.js?v=158",
-  "/modification-profile-v156.js?v=172",
+  "/modification-profile-v156.js?v=173",
   "/sanction-guard-v161.js?v=161",
   "/special-market-server-v157.js?v=171",
   "/home-work.css?v=64",
@@ -42,11 +42,12 @@ const CORE = [
   "/market-areas-fr-v159.js?v=159",
   "/market-areas-be-v159.js?v=159",
   "/market-final.js?v=160",
-  "/market-consensus.js?v=170",
+  "/market-consensus.js?v=176",
   "/special-marches.html?v=170",
-  "/nearby-markets.html?v=167",
-  "/verification-v9.html?v=172",
-  "/modification-demande.html?v=172",
+  "/nearby-markets.html?v=176",
+  "/market-presence-global.js?v=176",
+  "/verification-v9.html?v=175",
+  "/modification-demande.html?v=175",
   "/ou-trouver-place.html",
   "/documents-travail.html",
   "/mes-papiers.html",

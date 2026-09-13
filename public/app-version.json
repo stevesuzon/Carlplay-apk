@@ -1,4 +1,4 @@
 {
-  "version": "20260913-confirm-bulle-v172",
-  "message": "Ajout d’une confirmation de sécurité avant de confirmer qu’un marché existe ou de signaler qu’il n’existe pas ce jour."
+  "version": "20260913-global-market-presence-v176",
+  "message": "Suppression globale par jour : un marché marqué Non est mémorisé sur le serveur et exclu partout pour ce jour, notamment de la liste à moins de 80 km, des fiches, brocantes, marchés spéciaux et marchés voyageurs."
 }

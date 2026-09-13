@@ -604,8 +604,15 @@ function normalizeMarket(input) {
 
 async function listMarkets(env) {
   await ensureMarketTable(env);
+  await ensureMarketVerificationTables(env);
   const result = await env.DB.prepare("SELECT country,area,kind,name,city,day,hours,address,merchants,draw,registration,note,latitude,longitude FROM imported_markets ORDER BY country,area,day,city,name").all();
-  return json({ ok: true, markets: result.results || [] });
+  const removed = await env.DB.prepare("SELECT market_key FROM market_verification_consensus WHERE field='exists' AND lower(value_norm)='non'").all();
+  const disabled = new Set((removed.results || []).map(r => String(r.market_key || '')));
+  const markets = (result.results || []).filter(m => {
+    const key = [String(m.country || '').toLowerCase(),m.area,m.name,m.city,m.day,m.address || ''].join('|');
+    return !disabled.has(key);
+  });
+  return json({ ok: true, markets });
 }
 
 async function importMarkets(request, env) {
@@ -703,8 +710,9 @@ function normalizedVerification(field, raw) {
     return { norm: key.normalize('NFD').replace(/[\u0300-\u036f]/g,''), display: allowed[key] };
   }
   if (field === "welcome") {
-    const allowed={gentil:"Gentil",correct:"Correct",diable:"Diable"},key=value.toLowerCase();
-    return allowed[key]?{norm:key,display:allowed[key]}:null;
+    const allowed={gentil:"Gentil",correct:"Correct",diable:"Diable","ça dépend de qui place":"Ça dépend de qui place","ca depend de qui place":"Ça dépend de qui place"},key=value.toLowerCase();
+    if(!allowed[key]) return null;
+    return {norm:key.normalize('NFD').replace(/[\u0300-\u036f]/g,''),display:allowed[key]};
   }
   if (field === "placer") {
     const allowed=["Femme","Homme","Municipal"],parts=value.split(",").map(x=>x.trim()).filter(x=>allowed.includes(x));
@@ -951,6 +959,13 @@ async function batchMarketVerifications(request, env) {
   return json({ ok: true, required: MARKET_CONSENSUS_REQUIRED, states });
 }
 
+async function disabledMarketPresence(env) {
+  if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE" }, 503);
+  await ensureMarketVerificationTables(env);
+  const result = await env.DB.prepare("SELECT market_key,updated_at FROM market_verification_consensus WHERE field='exists' AND lower(value_norm)='non' ORDER BY updated_at DESC").all();
+  return json({ ok: true, keys: (result.results || []).map(r => String(r.market_key || '')).filter(Boolean), updatedAt: Date.now() });
+}
+
 async function marketPhoto(url, env) {
   if (!env.DB || !env.MARKET_PHOTOS) return new Response("Photo indisponible", { status: 404, headers: cors });
   await ensureMarketVerificationTables(env);
@@ -999,7 +1014,7 @@ async function vigilanceForPlace(url) {
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=158" defer></script><script src="/home-work.js?v=62" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=158" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script>', { html: true });
   }
 }
 
@@ -1047,6 +1062,7 @@ export default {
     if (url.pathname === "/api/market-verifications" && request.method === "GET") return getMarketVerification(url, env);
     if (url.pathname === "/api/market-verifications" && request.method === "POST") return submitMarketVerification(request, env);
     if (url.pathname === "/api/market-verifications/batch" && request.method === "POST") return batchMarketVerifications(request, env);
+    if (url.pathname === "/api/market-presence/disabled" && request.method === "GET") return disabledMarketPresence(env);
     if (url.pathname === "/api/market-photo" && request.method === "GET") return marketPhoto(url, env);
     if (url.pathname === "/api/vigilance" && request.method === "GET") return vigilanceForPlace(url);
     // Laisser Cloudflare Static Assets résoudre "/" vers index.html.
