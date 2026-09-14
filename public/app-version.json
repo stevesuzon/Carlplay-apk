@@ -1,4 +1,4 @@
 {
-  "version": "20260914-v201-identite-recuperation",
-  "message": "Le nom, le prénom et l’adresse e-mail restent enregistrés avec l’abonnement et restent modifiables sur le téléphone actuel. Sur un nouveau téléphone, le code, l’e-mail, le nom et le prénom doivent correspondre."
+  "version": "20260914-v202-concours-pour-tous",
+  "message": "Toute personne, en période d’essai ou déjà abonnée, accède au concours après avoir confirmé son nom, son prénom et son adresse e-mail. Aucun code n’est demandé pour participer. Ancien cache supprimé."
 }
