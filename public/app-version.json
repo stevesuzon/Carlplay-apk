@@ -1,4 +1,4 @@
 {
-  "version": "20260914-v216-adresse-complete-sans-malhon",
-  "message": "Retourner sur la place : le nom du lieu reste propre sans « Malhon » à la fin. L’adresse postale complète est affichée en petit juste dessous. Pour l’aire de Rennes : 68 avenue Gros Malhon, 35000 Rennes."
+  "version": "20260915-v220-boutons-navigation-restaurants-fastfood",
+  "message": "Chaque restaurant a son bouton Aller au restaurant et chaque fast-food son bouton Aller au fast-food. Aucun lien Google ajouté."
 }

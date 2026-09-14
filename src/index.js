@@ -1226,9 +1226,19 @@ function formatReturnPlacePostalAddress(j){
   return [line1,line2].filter(Boolean).join(', ');
 }
 function cleanReturnPlaceDisplayName(v){return String(v||'').replace(/\s+/g,' ').trim().replace(/\s*(?:[-–—]|\/)\s*(?:Gros\s+)?Malhon\s*$/i,'').trim()}
+function preferredReturnPlaceName(name,fullAddress){
+  let n=cleanReturnPlaceDisplayName(name),a=String(fullAddress||'').replace(/\s+/g,' ').trim();
+  // Si le point GPS est sur une aire d'accueil, ne pas prendre un cimetière/parking voisin comme titre.
+  if(/aire d[’']?accueil des gens du voyage/i.test(a)){
+    if(/rennes/i.test(a))return 'Aire d’accueil des gens du voyage de Rennes';
+    const m=a.match(/(aire d[’']?accueil des gens du voyage[^,;]*)/i);
+    if(m&&m[1])return cleanReturnPlaceDisplayName(m[1]);
+  }
+  return n;
+}
 function officialReturnPlaceAddress(name,address){
-  const n=String(name||''),a=String(address||'').trim();
-  if(/aire d[’']?accueil des gens du voyage/i.test(n)&&/rennes/i.test(n)&&(/gros[ -]?malhon/i.test(a)||!a))return '68 avenue Gros Malhon, 35000 Rennes';
+  const n=String(name||''),a=String(address||'').replace(/\s+/g,' ').trim();
+  if(/aire d[’']?accueil des gens du voyage/i.test(n)&&/rennes/i.test(n)&&(/\b(?:gros[ -]?)?malhon\b/i.test(a)||/aire d[’']?accueil des gens du voyage/i.test(a)||!a))return '68 avenue Gros Malhon, 35000 Rennes';
   return a;
 }
 
@@ -1282,36 +1292,6 @@ async function nearestNamedOsmPlace(lat,lon){
   }catch(_){return ''}
 }
 
-function diningSpecialtyFromGoogle(p,fast){
-  const shown=String(p&&p.primaryTypeDisplayName&&p.primaryTypeDisplayName.text||'').trim();
-  if(shown&&!/^restaurant$/i.test(shown)&&!/fast.?food/i.test(shown))return shown;
-  const type=String(p&&p.primaryType||'').toLowerCase();
-  const labels={italian_restaurant:'Italien',french_restaurant:'Cuisine française',japanese_restaurant:'Japonais',chinese_restaurant:'Chinois',indian_restaurant:'Indien',thai_restaurant:'Thaï',vietnamese_restaurant:'Vietnamien',lebanese_restaurant:'Libanais',mediterranean_restaurant:'Méditerranéen',seafood_restaurant:'Fruits de mer',steak_house:'Grill / viande',pizza_restaurant:'Pizzeria',hamburger_restaurant:'Burgers',sushi_restaurant:'Sushis',vegetarian_restaurant:'Végétarien',vegan_restaurant:'Vegan',breakfast_restaurant:'Petit-déjeuner',brunch_restaurant:'Brunch'};
-  if(labels[type])return labels[type];
-  return fast?'Restauration rapide':'Cuisine / spécialité à voir sur la fiche';
-}
-
-async function googleNearbyPlaces(env,lat,lon,kind){
-  const key=String(env&&env.GOOGLE_PLACES_API_KEY||'').trim();
-  if(!key)return [];
-  const fast=kind==='fastfood',limit=fast?3:5;
-  try{
-    const payload={includedTypes:[fast?'fast_food_restaurant':'restaurant'],maxResultCount:20,rankPreference:fast?'DISTANCE':'POPULARITY',locationRestriction:{circle:{center:{latitude:lat,longitude:lon},radius:10000}},languageCode:'fr'};
-    if(!fast)payload.excludedPrimaryTypes=['fast_food_restaurant'];
-    const mask='places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.primaryType,places.primaryTypeDisplayName,places.types,places.photos';
-    const r=await fetch('https://places.googleapis.com/v1/places:searchNearby',{method:'POST',headers:{'content-type':'application/json','X-Goog-Api-Key':key,'X-Goog-FieldMask':mask},body:JSON.stringify(payload)});
-    if(!r.ok)return [];
-    const j=await r.json();
-    return (j.places||[]).map((p,i)=>{
-      const la=Number(p.location&&p.location.latitude),lo=Number(p.location&&p.location.longitude),name=String(p.displayName&&p.displayName.text||'').trim();
-      if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;
-      const distanceMeters=Math.round(haversineMeters(lat,lon,la,lo)),rating=Number(p.rating||0),ratingCount=Math.max(0,Number(p.userRatingCount||0));
-      const photoName=String(p.photos&&p.photos[0]&&p.photos[0].name||'');
-      return {name,distanceMeters,rating:rating||null,ratingCount,address:String(p.formattedAddress||''),lat:la,lon:lo,source:'google',specialty:diningSpecialtyFromGoogle(p,fast),photoName};
-    }).filter(Boolean).filter(x=>x.distanceMeters<=10000).sort((a,b)=>fast?(a.distanceMeters-b.distanceMeters):((Number(b.rating||0)-Number(a.rating||0))||(Number(b.ratingCount||0)-Number(a.ratingCount||0))||a.distanceMeters-b.distanceMeters)).slice(0,limit);
-  }catch(_){return []}
-}
-
 function osmCuisineLabel(tags,fast){
   const raw=String(tags&&tags.cuisine||'').trim();
   if(!raw)return fast?'Restauration rapide':'Spécialité non indiquée';
@@ -1320,62 +1300,87 @@ function osmCuisineLabel(tags,fast){
   return parts.join(' / ');
 }
 
+function commonsFileUrl(file){
+  file=String(file||'').trim().replace(/^File:/i,'').trim();
+  if(!file)return '';
+  return 'https://commons.wikimedia.org/wiki/Special:FilePath/'+encodeURIComponent(file)+'?width=640';
+}
+function directFreePhoto(tags){
+  tags=tags||{};
+  const image=String(tags.image||'').trim();
+  if(/^https?:\/\//i.test(image))return {url:image,credit:'OpenStreetMap'};
+  if(/^File:/i.test(image))return {url:commonsFileUrl(image),credit:'Wikimedia Commons'};
+  const commons=String(tags.wikimedia_commons||'').trim();
+  if(/^https?:\/\//i.test(commons))return {url:commons,credit:'Wikimedia Commons'};
+  if(/^File:/i.test(commons))return {url:commonsFileUrl(commons),credit:'Wikimedia Commons'};
+  return {url:'',credit:''};
+}
+async function wikidataFreePhoto(qid){
+  qid=String(qid||'').trim();
+  if(!/^Q\d+$/i.test(qid))return {url:'',credit:''};
+  try{
+    const r=await fetch('https://www.wikidata.org/wiki/Special:EntityData/'+encodeURIComponent(qid.toUpperCase())+'.json',{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
+    if(!r.ok)return {url:'',credit:''};
+    const j=await r.json(),e=j&&j.entities&&j.entities[qid.toUpperCase()],claims=e&&e.claims||{};
+    const claim=(claims.P18&&claims.P18[0])||(claims.P154&&claims.P154[0]);
+    const file=String(claim&&claim.mainsnak&&claim.mainsnak.datavalue&&claim.mainsnak.datavalue.value||'').trim();
+    return file?{url:commonsFileUrl(file),credit:'Wikimedia Commons'}:{url:'',credit:''};
+  }catch(_){return {url:'',credit:''}}
+}
+async function wikipediaFreePhoto(tag){
+  tag=String(tag||'').trim();
+  const m=tag.match(/^([a-z-]{2,12}):(.+)$/i);if(!m)return {url:'',credit:''};
+  const lang=m[1].toLowerCase(),title=m[2].trim();if(!title)return {url:'',credit:''};
+  try{
+    const r=await fetch('https://'+lang+'.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(title.replace(/ /g,'_')),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
+    if(!r.ok)return {url:'',credit:''};
+    const j=await r.json(),u=String(j&&((j.thumbnail&&j.thumbnail.source)||(j.originalimage&&j.originalimage.source))||'').trim();
+    return /^https?:\/\//i.test(u)?{url:u,credit:'Wikipédia / Wikimedia'}:{url:'',credit:''};
+  }catch(_){return {url:'',credit:''}}
+}
+async function freeDiningPhoto(tags){
+  const direct=directFreePhoto(tags);if(direct.url)return direct;
+  const ids=[tags&&tags.wikidata,tags&&tags['brand:wikidata']].map(x=>String(x||'').trim()).filter(Boolean);
+  for(const id of ids){const p=await wikidataFreePhoto(id);if(p.url)return p}
+  if(tags&&tags.wikipedia){const p=await wikipediaFreePhoto(tags.wikipedia);if(p.url)return p}
+  return {url:'',credit:''};
+}
+function osmDiningNotability(tags){
+  tags=tags||{};let score=0;
+  if(tags.wikipedia)score+=8;if(tags.wikidata)score+=7;if(tags.wikimedia_commons||tags.image)score+=6;
+  if(tags.website||tags['contact:website'])score+=3;if(tags.phone||tags['contact:phone'])score+=1;
+  if(tags.brand||tags['brand:wikidata'])score+=2;if(tags.opening_hours)score+=1;
+  return score;
+}
+
 async function overpassDining(lat,lon,kind){
   const amenity=kind==='fastfood'?'fast_food':'restaurant',fast=kind==='fastfood',limit=fast?3:5;
   try{
-    const q=`[out:json][timeout:9];nwr(around:10000,${lat},${lon})["name"]["amenity"="${amenity}"];out center tags 120;`;
+    const q=`[out:json][timeout:12];nwr(around:10000,${lat},${lon})["name"]["amenity"="${amenity}"];out center tags 180;`;
     const r=await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
     if(!r.ok)return [];
     const j=await r.json(),seen=new Set();
-    return (j.elements||[]).map(e=>{
+    let rows=(j.elements||[]).map(e=>{
       const la=Number(e.lat??e.center?.lat),lo=Number(e.lon??e.center?.lon),tags=e.tags||{},name=String(tags.name||tags.brand||'').trim();
       if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;
-      const address=[tags['addr:street'],tags['addr:postcode'],tags['addr:city']].filter(Boolean).join(', ');
-      return {name,distanceMeters:Math.round(haversineMeters(lat,lon,la,lo)),rating:null,ratingCount:0,lat:la,lon:lo,address,specialty:osmCuisineLabel(tags,fast),photoName:'',source:'osm'};
-    }).filter(Boolean).filter(x=>x.distanceMeters<=10000).filter(x=>{const k=x.name.toLowerCase();if(seen.has(k))return false;seen.add(k);return true}).sort((a,b)=>a.distanceMeters-b.distanceMeters).slice(0,limit);
+      const street=[tags['addr:housenumber'],tags['addr:street']].filter(Boolean).join(' ').trim();
+      const locality=[tags['addr:postcode'],tags['addr:city']||tags['addr:town']||tags['addr:village']].filter(Boolean).join(' ').trim();
+      const address=[street,locality].filter(Boolean).join(', ');
+      return {name,distanceMeters:Math.round(haversineMeters(lat,lon,la,lo)),rating:null,ratingCount:0,lat:la,lon:lo,address,specialty:osmCuisineLabel(tags,fast),photoName:'',photoUrl:'',photoCredit:'',source:'osm-free',_tags:tags,_rank:osmDiningNotability(tags)};
+    }).filter(Boolean).filter(x=>x.distanceMeters<=10000).filter(x=>{const k=x.name.toLowerCase()+'|'+Math.round(x.lat*10000)+'|'+Math.round(x.lon*10000);if(seen.has(k))return false;seen.add(k);return true});
+    rows.sort((a,b)=>fast?(a.distanceMeters-b.distanceMeters):((b._rank-a._rank)||a.distanceMeters-b.distanceMeters));
+    rows=rows.slice(0,limit);
+    await Promise.all(rows.map(async x=>{const p=await freeDiningPhoto(x._tags);x.photoUrl=p.url;x.photoCredit=p.credit;delete x._tags;delete x._rank;}));
+    return rows;
   }catch(_){return []}
-}
-
-async function googlePlacePhoto(url,env){
-  const key=String(env&&env.GOOGLE_PLACES_API_KEY||'').trim();
-  if(!key)return new Response('Photo indisponible',{status:404});
-  const name=String(url.searchParams.get('name')||'').trim();
-  if(!/^places\/[A-Za-z0-9._~-]+\/photos\/[A-Za-z0-9._~-]+$/.test(name))return new Response('Photo invalide',{status:400});
-  try{
-    const photoUrl=`https://places.googleapis.com/v1/${name}/media?maxWidthPx=640&maxHeightPx=420&key=${encodeURIComponent(key)}`;
-    const r=await fetch(photoUrl,{redirect:'follow'});
-    if(!r.ok)return new Response('Photo indisponible',{status:404});
-    const h=new Headers(r.headers);h.set('cache-control','public, max-age=21600');h.delete('set-cookie');
-    return new Response(r.body,{status:200,headers:h});
-  }catch(_){return new Response('Photo indisponible',{status:404})}
-}
-
-async function googleNearestNamedPlace(env,lat,lon){
-  const key=String(env&&env.GOOGLE_PLACES_API_KEY||'').trim();
-  if(!key)return '';
-  try{
-    const payload={maxResultCount:8,rankPreference:'DISTANCE',locationRestriction:{circle:{center:{latitude:lat,longitude:lon},radius:220}},languageCode:'fr'};
-    const r=await fetch('https://places.googleapis.com/v1/places:searchNearby',{method:'POST',headers:{'content-type':'application/json','X-Goog-Api-Key':key,'X-Goog-FieldMask':'places.displayName,places.location,places.primaryType'},body:JSON.stringify(payload)});
-    if(!r.ok)return '';
-    const j=await r.json(),preferred=/^(rv_park|campground|cemetery|parking|park|tourist_attraction|museum|stadium|sports_complex|hotel|motel|lodging|place_of_worship|community_center|hospital|school|university|city_hall)$/;
-    const rows=(j.places||[]).map((p,i)=>{
-      const la=Number(p.location&&p.location.latitude),lo=Number(p.location&&p.location.longitude),name=String(p.displayName&&p.displayName.text||'').trim(),type=String(p.primaryType||'');
-      if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;
-      const distance=Math.round(haversineMeters(lat,lon,la,lo));
-      return {name,type,distance,score:distance+(preferred.test(type)?-90:40)+(i*0.01)};
-    }).filter(Boolean).filter(x=>x.distance<=220).sort((a,b)=>a.score-b.score||a.distance-b.distance);
-    const best=rows[0];
-    return best&&best.distance<=180?best.name:'';
-  }catch(_){return ''}
 }
 
 async function resolveReturnPlaceDetails(lat,lon,env){
   const exact=await nominatimExactReturnPlace(lat,lon);
-  let name=String(exact.name||'').trim();
-  if(!name)name=await googleNearestNamedPlace(env,lat,lon);
+  let name=preferredReturnPlaceName(exact.name,exact.fullAddress||'');
   if(!name)name=await nearestNamedOsmPlace(lat,lon);
   if(!name)name=exact.address||await contestPlaceLabel(lat,lon);
-  name=cleanReturnPlaceDisplayName(name);
+  name=preferredReturnPlaceName(name,exact.fullAddress||'');
   const fullAddress=officialReturnPlaceAddress(name,exact.fullAddress||'');
   return {name,address:name,fullAddress};
 }
@@ -1396,10 +1401,8 @@ async function reversePlaceContext(url,env){
     const r=await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
     if(r.ok){const j=await r.json(),known=/mcdonald|burger king|leclerc|e\.leclerc|carrefour|auchan|intermarch|lidl|aldi|super u|hyper u|casino|monoprix|total|esso|shell|bp|avia|renault|peugeot|citro[eë]n|ford|toyota|volkswagen|mercedes|bmw|audi/i,seen=new Set();nearby=(j.elements||[]).map(e=>{const la=Number(e.lat??e.center?.lat),lo=Number(e.lon??e.center?.lon),tags=e.tags||{},name=String(tags.name||tags.brand||'').trim();if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;const d=Math.round(haversineMeters(lat,lon,la,lo)),type=String(tags.amenity||tags.shop||tags.tourism||tags.leisure||tags.railway||''),major=/supermarket|mall|department_store|car|car_repair|fuel|hospital|cinema|bus_station|hotel|stadium|sports_centre|station|restaurant/.test(type);return {name,distanceMeters:d,known:known.test(name),major,type};}).filter(Boolean).filter(x=>{const k=x.name.toLowerCase();if(seen.has(k))return false;seen.add(k);return x.distanceMeters<=800&&x.major}).sort((a,b)=>(Number(b.known)-Number(a.known))||a.distanceMeters-b.distanceMeters).slice(0,1).map(({name,distanceMeters,type})=>({name,distanceMeters,type}));}
   }catch(_){ }
-  let restaurants=await googleNearbyPlaces(env,lat,lon,'restaurant'),fastFood=await googleNearbyPlaces(env,lat,lon,'fastfood'),ratingsProvider='google';
-  if(!restaurants.length){restaurants=await overpassDining(lat,lon,'restaurant');ratingsProvider='osm'}
-  if(!fastFood.length){fastFood=await overpassDining(lat,lon,'fastfood');if(ratingsProvider==='google')ratingsProvider='mixed'}
-  return json({ok:true,address,name:place.name,fullAddress:place.fullAddress,nearby,restaurants,fastFood,nearbyRadiusMeters:800,diningRadiusMeters:10000,ratingsProvider,ratingsAvailable:restaurants.some(x=>Number(x.rating)>0)||fastFood.some(x=>Number(x.rating)>0)});
+  const [restaurants,fastFood]=await Promise.all([overpassDining(lat,lon,'restaurant'),overpassDining(lat,lon,'fastfood')]);
+  return json({ok:true,address,name:place.name,fullAddress:place.fullAddress,nearby,restaurants,fastFood,nearbyRadiusMeters:800,diningRadiusMeters:10000,ratingsProvider:'osm-free',ratingsAvailable:false,photoProvider:'wikimedia-free'});
 }
 
 async function contestHomePlace(request,env){
@@ -1637,7 +1640,6 @@ export default {
     if (url.pathname === "/api/vigilance" && request.method === "GET") return vigilanceForPlace(url);
     if (url.pathname === "/api/place-address" && request.method === "GET") return reversePlaceAddress(url, env);
     if (url.pathname === "/api/place-context" && request.method === "GET") return reversePlaceContext(url, env);
-    if (url.pathname === "/api/place-photo" && request.method === "GET") return googlePlacePhoto(url, env);
     if (url.pathname === "/api/contest/status" && request.method === "POST") return contestStatus(request, env);
     if (url.pathname === "/api/contest/communes" && request.method === "GET") return contestCommunes(url);
     if (url.pathname === "/api/contest/register" && request.method === "POST") return contestRegister(request, env);
