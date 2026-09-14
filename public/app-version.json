@@ -1,4 +1,4 @@
 {
-  "version": "20260914-v208-renouvellement-cumul-jours",
-  "message": "Renouvellement d’abonnement : un nouveau code ajoute sa durée aux jours restants. Exemple : 200 jours restants + code 1 an = 565 jours. Si l’abonnement est expiré, les 365 jours repartent à l’activation du nouveau code."
+  "version": "20260914-v209-place-rapide-partage",
+  "message": "Retourner sur la place : le point GPS exact est enregistré une seule fois et réutilisé instantanément jusqu’à effacement. Le lieu affiche le nom précis quand il est reconnu, sinon rue + code postal + ville. Ajout du partage simple par SMS, WhatsApp ou Snap avec le GPS direct et le lien pour télécharger l’application pour les marchés."
 }

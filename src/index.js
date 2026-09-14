@@ -1204,9 +1204,24 @@ async function contestPlaceLabel(lat,lon){
   return "Lieu non identifié";
 }
 
+function formatReturnPlaceNominatim(j){
+  const a=j&&j.address||{},city=a.city||a.town||a.village||a.municipality||a.hamlet||'',pc=a.postcode||'';
+  const generic=new Set([String(city).toLowerCase(),String(a.road||'').toLowerCase(),String(a.pedestrian||'').toLowerCase(),String(a.square||'').toLowerCase(),String(a.place||'').toLowerCase()]);
+  const candidates=[j&&j.name,a.amenity,a.tourism,a.leisure,a.shop,a.office,a.building,a.cemetery,a.historic,a.place].map(x=>String(x||'').trim()).filter(Boolean);
+  let named='';
+  for(const c of candidates){const lc=c.toLowerCase();if(c.length>2&&!generic.has(lc)&&!/^(yes|no|residential|commercial|industrial)$/i.test(c)){named=c;break}}
+  if(named)return named;
+  const road=String(a.road||a.pedestrian||a.square||a.place||'').trim();
+  const line2=[pc,city].filter(Boolean).join(' ');
+  if(road&&line2)return `${road}, ${line2}`;
+  if(road)return road;
+  if(line2)return line2;
+  return String(j&&j.display_name||'').split(',').slice(0,3).join(', ').trim();
+}
+
 async function reversePlaceAddress(url){
   const lat=Number(url.searchParams.get('lat')),lon=Number(url.searchParams.get('lon'));if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return json({ok:false,error:'POSITION_INVALIDE'},400);
-  try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr'}});if(r.ok){const j=await r.json(),a=j.address||{},parts=[];const road=[a.house_number,a.road||a.pedestrian||a.square||a.place].filter(Boolean).join(' ');if(road)parts.push(road);const pc=a.postcode||'',city=a.city||a.town||a.village||a.municipality||a.hamlet||'';if(pc||city)parts.push([pc,city].filter(Boolean).join(' '));if(a.country)parts.push(a.country);const address=parts.join(', ')||String(j.display_name||'').slice(0,240);if(address)return json({ok:true,address})}}catch(_){}
+  try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&namedetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr'}});if(r.ok){const j=await r.json(),address=formatReturnPlaceNominatim(j);if(address)return json({ok:true,address})}}catch(_){}
   return json({ok:true,address:await contestPlaceLabel(lat,lon)});
 }
 
@@ -1215,13 +1230,13 @@ async function reversePlaceContext(url){
   if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return json({ok:false,error:'POSITION_INVALIDE'},400);
   let address='';
   try{
-    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr'}});
-    if(r.ok){const j=await r.json(),a=j.address||{},parts=[];const road=[a.house_number,a.road||a.pedestrian||a.square||a.place].filter(Boolean).join(' ');if(road)parts.push(road);const pc=a.postcode||'',city=a.city||a.town||a.village||a.municipality||a.hamlet||'';if(pc||city)parts.push([pc,city].filter(Boolean).join(' '));if(a.country)parts.push(a.country);address=parts.join(', ')||String(j.display_name||'').slice(0,240)}
+    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&namedetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr'}});
+    if(r.ok){const j=await r.json();address=formatReturnPlaceNominatim(j)}
   }catch(_){ }
   if(!address)address=await contestPlaceLabel(lat,lon);
   let nearby=[];
   try{
-    const q=`[out:json][timeout:8];(nwr(around:3000,${lat},${lon})[\"name\"][\"amenity\"~\"fast_food|cafe|restaurant|fuel\"];nwr(around:3000,${lat},${lon})[\"name\"][\"shop\"~\"supermarket|mall|convenience\"];);out center tags 70;`;
+    const q=`[out:json][timeout:8];(nwr(around:3000,${lat},${lon})["name"]["amenity"~"fast_food|cafe|restaurant|fuel"];nwr(around:3000,${lat},${lon})["name"]["shop"~"supermarket|mall|convenience"];);out center tags 70;`;
     const r=await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
     if(r.ok){const j=await r.json(),known=/mcdonald|burger king|leclerc|e\.leclerc|carrefour|auchan|intermarch|lidl|aldi|super u|hyper u|kfc|quick|flunch|casino|monoprix/i,seen=new Set();nearby=(j.elements||[]).map(e=>{const la=Number(e.lat??e.center?.lat),lo=Number(e.lon??e.center?.lon),name=String(e.tags?.name||e.tags?.brand||'').trim();if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;const d=Math.round(haversineMeters(lat,lon,la,lo));return {name,distanceMeters:d,known:known.test(name),type:String(e.tags?.amenity||e.tags?.shop||'')};}).filter(Boolean).filter(x=>{const k=x.name.toLowerCase();if(seen.has(k))return false;seen.add(k);return x.distanceMeters<=3000}).sort((a,b)=>(Number(b.known)-Number(a.known))||a.distanceMeters-b.distanceMeters).slice(0,3).map(({name,distanceMeters,type})=>({name,distanceMeters,type}));}
   }catch(_){ }
