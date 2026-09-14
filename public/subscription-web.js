@@ -112,7 +112,7 @@
     if(firstName.length<2||lastName.length<2){failed({error:"NOM_PRENOM_OBLIGATOIRES"});return;}
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){failed({error:"EMAIL_OBLIGATOIRE"});return;}
     var real=null;try{real=JSON.parse(localStorage.getItem(KEY)||"null")}catch(_){}
-    if(!real||real.globalFree||!valid(real)){real=real||{};real.email=email;real.firstName=firstName;real.lastName=lastName;localStorage.setItem(KEY,JSON.stringify(real));rememberEmail(email);done({ok:true,email:email,firstName:firstName,lastName:lastName,localOnly:true});return;}
+    if(!real||real.globalFree||!valid(real)){real=real||{};fetch("/api/contest/trial-identity",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email:email,firstName:firstName,lastName:lastName,deviceId:id()})}).then(function(r){return r.json().then(function(j){if(!r.ok)throw j;return j;});}).then(function(j){real.globalFree=true;real.expiresAt=j.expiresAt||real.expiresAt;real.email=j.email||email;real.firstName=j.firstName||firstName;real.lastName=j.lastName||lastName;localStorage.setItem(KEY,JSON.stringify(real));rememberEmail(real.email);done(j);}).catch(failed);return;}
     fetch("/api/subscription-email",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email:email,firstName:firstName,lastName:lastName,deviceId:id(),code:real&&real.code||""})})
       .then(function(r){return r.json().then(function(j){if(!r.ok)throw j;return j;});})
       .then(function(j){if(j&&j.switchRequired){done(j);return;}real.email=j.email||email;real.firstName=j.firstName||firstName;real.lastName=j.lastName||lastName;localStorage.setItem(KEY,JSON.stringify(real));rememberEmail(real.email);done(j);})
