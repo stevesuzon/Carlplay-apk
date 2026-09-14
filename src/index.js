@@ -1084,10 +1084,32 @@ async function ensureContestTables(env){
 
 async function contestSubscription(env,data){
   await ensureSubscriptionEmailColumns(env);const deviceId=String(data.deviceId||""),code=normalizeCode(data.subscriptionCode||data.code||"");let row=null;
-  if(validDevice(deviceId))row=await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) LIMIT 1").bind(deviceId,deviceId).first();
+  if(validDevice(deviceId))row=await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC LIMIT 1").bind(deviceId,deviceId).first();
   if(!row&&validCode(code)){const h=await hashCode(code,env.CODE_PEPPER);row=await env.DB.prepare("SELECT * FROM subscriptions WHERE code_hash=? AND active=1 LIMIT 1").bind(h).first()}
   if(!row)return null;if(!row.lifetime&&(!row.expires_at||Date.parse(row.expires_at)<=Date.now()))return null;return row;
 }
+async function contestTrialIdentity(request,env){
+  const cfg=await ensureContestTables(env),now=Date.now(),freeUntil=Number(cfg.end_at)+CONTEST_APP_FREE_EXTRA_MS;
+  if(now>freeUntil)return json({ok:false,error:"PERIODE_ESSAI_TERMINEE"},403);
+  const data=await body(request),deviceId=String(data.deviceId||""),email=normalizeEmail(data.email),firstName=contestCleanName(data.firstName),lastName=contestCleanName(data.lastName);
+  if(!validDevice(deviceId))return json({ok:false,error:"DONNEES_INVALIDES"},400);
+  if(firstName.length<2||lastName.length<2)return json({ok:false,error:"NOM_PRENOM_OBLIGATOIRES"},400);
+  if(!validEmail(email))return json({ok:false,error:"EMAIL_OBLIGATOIRE"},400);
+  const emailHash=await sha256Text(email);
+  let row=await env.DB.prepare("SELECT * FROM subscriptions WHERE phone_device=? OR autoradio_device=? ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC LIMIT 1").bind(deviceId,deviceId).first();
+  const owner=await activeEmailOwner(env,emailHash,row&&row.id||0);
+  if(owner)return json({ok:false,error:"EMAIL_DEJA_UTILISEE_AUTRE_TELEPHONE"},409);
+  if(row){
+    const stillPaid=!!row.lifetime||(row.expires_at&&Date.parse(row.expires_at)>now);
+    const expiry=stillPaid?row.expires_at:new Date(freeUntil).toISOString();
+    await env.DB.prepare("UPDATE subscriptions SET expires_at=?,active=1,phone_device=?,recovery_email_hash=?,recovery_email_mask=?,account_first_name=?,account_last_name=?,account_updated_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(expiry,deviceId,emailHash,email,firstName,lastName,now,row.id).run();
+  }else{
+    const trialHash=await sha256Text("contest-trial:"+deviceId);
+    await env.DB.prepare("INSERT INTO subscriptions(code_hash,expires_at,lifetime,active,phone_device,recovery_email_hash,recovery_email_mask,account_first_name,account_last_name,account_updated_at) VALUES(?,?,0,1,?,?,?,?,?,?)").bind(trialHash,new Date(freeUntil).toISOString(),deviceId,emailHash,email,firstName,lastName,now).run();
+  }
+  return json({ok:true,trial:true,email,firstName,lastName,expiresAt:new Date(freeUntil).toISOString()});
+}
+
 async function contestPlaceLabel(lat,lon){
   try{const r=await fetch(`https://geo.api.gouv.fr/communes?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&fields=nom,codeDepartement,departement&format=json`,{headers:{accept:"application/json"}});if(r.ok){const a=await r.json(),c=Array.isArray(a)&&a[0];if(c)return `${c.nom}${c.codeDepartement?` (${c.codeDepartement})`:''}`}}catch(_){}
   try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=12`,{headers:{"user-agent":"CarPlay-Contest/1.0"}});if(r.ok){const j=await r.json(),a=j.address||{};return String(a.city||a.town||a.village||a.municipality||j.display_name||"Lieu inconnu").slice(0,120)}}catch(_){}
@@ -1298,7 +1320,7 @@ async function adminContestAction(request,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=199-identite-concours" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=199-identite-concours" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=200-essai-concours" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=200-essai-concours" defer></script>', { html: true });
   }
 }
 
@@ -1326,6 +1348,7 @@ export default {
     if (url.pathname === "/api/status" && request.method === "POST") return subscriptionStatus(request, env);
     if (url.pathname === "/api/recover-code" && request.method === "POST") return recoverSubscriptionCode(request, env);
     if (url.pathname === "/api/subscription-email" && request.method === "POST") return updateSubscriptionEmail(request, env);
+    if (url.pathname === "/api/contest/trial-identity" && request.method === "POST") return contestTrialIdentity(request, env);
     if (url.pathname === "/api/presence" && (request.method === "GET" || request.method === "POST")) return presence(request, env);
     if (url.pathname === "/api/installations" && request.method === "POST") return installations(request, env);
     if (url.pathname === "/api/admin/installations" && request.method === "GET") return adminInstallations(request, env);
