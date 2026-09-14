@@ -277,6 +277,10 @@ async function confirmEmailIdentity(request,env){
   await env.DB.prepare("UPDATE email_identity_challenges SET verified=1 WHERE id=?").bind(id).run();return json({ok:true,email:row.email,emailProof:id});
 }
 
+function subscriptionIdentityKey(value){
+  return String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+}
+
 async function activate(request, env) {
   await ensureSubscriptionEmailColumns(env);
   const data = await body(request);
@@ -296,7 +300,10 @@ async function activate(request, env) {
   const column = type === "autoradio" ? "autoradio_device" : "phone_device";
   const registered = row[column];
   const emailHash=await sha256Text(email),storedEmail=String(row.recovery_email_hash||"");
-  if(storedEmail&&storedEmail!==emailHash&&registered&&registered!==deviceId)return json({ok:false,error:"EMAIL_NE_CORRESPOND_PAS"},403);
+  const changingPhone=!!registered&&registered!==deviceId;
+  if(storedEmail&&storedEmail!==emailHash&&changingPhone)return json({ok:false,error:"EMAIL_NE_CORRESPOND_PAS"},403);
+  const storedFirst=String(row.account_first_name||""),storedLast=String(row.account_last_name||"");
+  if(changingPhone&&storedFirst&&storedLast&&(subscriptionIdentityKey(storedFirst)!==subscriptionIdentityKey(firstName)||subscriptionIdentityKey(storedLast)!==subscriptionIdentityKey(lastName)))return json({ok:false,error:"IDENTITE_NE_CORRESPOND_PAS"},403);
   const emailOwner=await activeEmailOwner(env,emailHash,row.id);
   if(emailOwner)return json({ok:false,error:"EMAIL_DEJA_UTILISEE"},409);
   const recoveryCodeBox=await sealRecoveryCode(code,env);
@@ -1320,7 +1327,7 @@ async function adminContestAction(request,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=200-essai-concours" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=200-essai-concours" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=201-identite-recuperation" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=200-essai-concours" defer></script>', { html: true });
   }
 }
 
