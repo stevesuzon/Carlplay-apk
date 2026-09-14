@@ -1,4 +1,4 @@
 {
-  "version": "20260915-v221-recherche-restaurants-fastfood-fiable",
-  "message": "Recherche restaurants et fast-food fiabilisée : plusieurs serveurs OpenStreetMap + secours Nominatim, 10 km autour du point enregistré."
+  "version": "20260915-v225-menus-sites-officiels",
+  "message": "Restaurants et fast-food à moins de 10 km : quand un site officiel est disponible, l’application cherche automatiquement les pages Carte / Menu / Nos plats et affiche de vrais plats ou spécialités trouvés. Aucun plat n’est inventé. Aucun lien Google payant."
 }

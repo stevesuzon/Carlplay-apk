@@ -12,6 +12,12 @@
   function installerUrl(){return (location.origin&&location.origin!=='null'?location.origin:'https://carplay-telephone.appli-suzon.workers.dev')+'/installer.html'}
   function gpsUrl(lat,lon){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(lat+','+lon)}
   function distanceText(m){m=Math.max(0,Number(m)||0);return m<1000?Math.max(1,Math.round(m))+' m':(m/1000).toFixed(1).replace('.',',')+' km'}
+  function telHref(v){
+    var s=String(v||'').trim();if(!s)return '';
+    s=s.replace(/[^0-9+]/g,'');
+    if(s.indexOf('+')>0)s=s.replace(/\+/g,'');
+    return s?'tel:'+s:'';
+  }
   function isVagueAddress(a){return !a||a==='Emplacement enregistré'||a==='Recherche du nom exact…'||/^\s*\d{5}\s+[^,]+\s*$/i.test(a)}
   function cleanPlaceText(v){return String(v||'').replace(/\s+/g,' ').trim()}
   function cleanPlaceTitle(v){
@@ -87,7 +93,7 @@
   function saveContext(lat,lon,ctx){
     ctx=ctx||{};ctx.lat=Number(lat);ctx.lon=Number(lon);ctx.updatedAt=Date.now();ctx._loaded=true;
     ctx.name=preferredPlaceTitle(ctx.name||ctx.address||'Emplacement enregistré',ctx.fullAddress||'');ctx.address=ctx.name;ctx.fullAddress=officialFullAddress(ctx.name,ctx.fullAddress||'');currentCtx=ctx;
-    try{localStorage.setItem('return_context_v221',JSON.stringify(ctx));}catch(_){ }
+    try{localStorage.setItem('return_context_v224',JSON.stringify(ctx));}catch(_){ }
     if(ctx.name)localStorage.setItem('return_address',String(ctx.name));
     if(ctx.fullAddress)localStorage.setItem('return_full_address',String(ctx.fullAddress));
     try{localStorage.setItem('return_nearby',JSON.stringify(ctx.nearby||[]));}catch(_){ }
@@ -96,7 +102,7 @@
     return ctx;
   }
   function loadContext(lat,lon){
-    var keys=['return_context_v221'];
+    var keys=['return_context_v224'];
     for(var i=0;i<keys.length;i++){
       try{
         var j=JSON.parse(localStorage.getItem(keys[i])||'null');
@@ -163,9 +169,11 @@
     d.style.cssText='position:fixed;z-index:2147483647;inset:0;background:#07111beF;overflow-y:auto;padding:12px;font-family:Arial,sans-serif';
     var cards=items.length?items.map(function(x,i){
       var freePhoto=String(x.photoUrl||'');var img=freePhoto?'<img loading="lazy" src="'+esc(freePhoto)+'" alt="Photo du lieu" referrerpolicy="no-referrer" style="width:112px;height:92px;object-fit:cover;border-radius:13px;background:#0d1824" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">':'',fallback='<div style="'+(freePhoto?'display:none;':'display:flex;')+'width:112px;height:92px;border-radius:13px;background:#22364a;align-items:center;justify-content:center;font-size:38px">'+(kind==='restaurant'?'🍽️':'🍔')+'</div>',credit=x.photoCredit?'<div style="font-size:9px;color:#93a8ba;margin-top:3px">Image : '+esc(x.photoCredit)+'</div>':'';
-      return '<div style="background:#13283b;border:1px solid #29445d;border-radius:17px;padding:10px;margin-top:10px"><div style="display:flex;gap:11px;align-items:flex-start"><div>'+img+fallback+credit+'</div><div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:1000;color:#fff">'+(i+1)+'. '+esc(x.name)+'</div><div style="margin-top:5px;color:#dce8f3;font-size:13px"><b>Spécialité :</b> '+esc(x.specialty||'Non indiquée')+'</div><div style="margin-top:4px;color:#b9cad8;font-size:12px">📍 '+distanceText(x.distanceMeters)+(x.address?' • '+esc(x.address):'')+'</div></div></div><div style="margin-top:9px"><button data-lat="'+esc(x.lat)+'" data-lon="'+esc(x.lon)+'" class="rpGoDining" style="width:100%;min-height:48px;border:0;border-radius:12px;background:#168a4e;color:#fff;font:1000 14px Arial">🧭 '+(kind==='restaurant'?'ALLER AU RESTAURANT':'ALLER AU FAST-FOOD')+'</button></div></div>';
+      var phone=String(x.phone||'').trim(),tel=telHref(phone);
+      var reserve=(kind==='restaurant'&&tel)?'<a href="'+esc(tel)+'" class="rpReserveDining" style="display:flex;width:100%;min-height:48px;margin-top:8px;border:0;border-radius:12px;background:#267bc5;color:#fff;font:1000 14px Arial;text-decoration:none;align-items:center;justify-content:center">📞 RÉSERVER UNE TABLE</a>':'';
+      return '<div style="background:#13283b;border:1px solid #29445d;border-radius:17px;padding:10px;margin-top:10px"><div style="display:flex;gap:11px;align-items:flex-start"><div>'+img+fallback+credit+'</div><div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:1000;color:#fff">'+(i+1)+'. '+esc(x.name)+'</div><div style="margin-top:5px;color:#dce8f3;font-size:13px"><b>Type de cuisine :</b> '+esc(x.specialty||'Non indiquée')+'</div>'+(Array.isArray(x.menuSpecialties)&&x.menuSpecialties.length?'<div style="margin-top:5px;color:#ffd97a;font-size:13px;line-height:1.35"><b>'+(kind==='restaurant'?'🍽️ Spécialités de la carte :':'🍔 Produits / spécialités de la carte :')+'</b> '+esc(x.menuSpecialties.join(' • '))+(x.menuSpecialtiesSource==='Site officiel'?'<div style="margin-top:3px;color:#91a9bb;font-size:10px">Trouvé sur le site officiel</div>':'')+'</div>':'')+'<div style="margin-top:4px;color:#b9cad8;font-size:12px">📍 '+distanceText(x.distanceMeters)+(x.address?' • '+esc(x.address):'')+'</div>'+(phone?'<div style="margin-top:4px;color:#a9d8ff;font-size:12px">☎️ '+esc(phone)+'</div>':'')+'</div></div><div style="margin-top:9px"><button data-lat="'+esc(x.lat)+'" data-lon="'+esc(x.lon)+'" class="rpGoDining" style="width:100%;min-height:48px;border:0;border-radius:12px;background:#168a4e;color:#fff;font:1000 14px Arial">🧭 '+(kind==='restaurant'?'ALLER AU RESTAURANT':'ALLER AU FAST-FOOD')+'</button>'+reserve+'</div></div>';
     }).join(''):'<div style="padding:20px;color:#b9cad8;text-align:center">Aucun résultat disponible pour le moment.</div>';
-    d.innerHTML='<div style="width:min(640px,98vw);margin:0 auto;background:#0d1824;color:#fff;border:4px solid #4dc987;border-radius:24px;padding:14px;box-shadow:0 16px 50px #000"><div style="display:flex;align-items:center;gap:9px"><button id="rpDiningBack" style="min-width:76px;min-height:42px;border:0;border-radius:11px;background:#25394d;color:#fff;font:900 14px Arial">← RETOUR</button><div style="font-size:22px;font-weight:1000;flex:1">'+title+'</div></div><div style="margin-top:7px;color:#aebdcb;font-size:13px">'+(kind==='restaurant'?'Les 5 restaurants trouvés dans un rayon de 10 km. Photos gratuites quand disponibles.':'Les 3 fast-food les plus proches dans un rayon de 10 km. Photos gratuites quand disponibles.')+'</div>'+cards+'</div>';
+    d.innerHTML='<div style="width:min(640px,98vw);margin:0 auto;background:#0d1824;color:#fff;border:4px solid #4dc987;border-radius:24px;padding:14px;box-shadow:0 16px 50px #000"><div style="display:flex;align-items:center;gap:9px"><button id="rpDiningBack" style="min-width:76px;min-height:42px;border:0;border-radius:11px;background:#25394d;color:#fff;font:900 14px Arial">← RETOUR</button><div style="font-size:22px;font-weight:1000;flex:1">'+title+'</div></div><div style="margin-top:7px;color:#aebdcb;font-size:13px">'+(kind==='restaurant'?'Les 5 restaurants les plus proches dans un rayon de 10 km. Quand un site officiel est disponible, l’application cherche automatiquement sa page Carte / Menu / Nos plats pour afficher de vrais plats ou spécialités. Rien n’est inventé. Bouton « Réserver une table » si un numéro est disponible.':'Les 3 fast-food les plus proches dans un rayon de 10 km. Quand un site officiel est disponible, l’application cherche automatiquement la carte/menu pour afficher de vrais produits ou spécialités. Rien n’est inventé.')+'</div>'+cards+'</div>';
     document.body.appendChild(d);
     d.querySelector('#rpDiningBack').onclick=function(){d.remove()};
     Array.from(d.querySelectorAll('.rpGoDining')).forEach(function(b){b.onclick=function(){navTo(Number(b.dataset.lat),Number(b.dataset.lon))}});
@@ -208,7 +216,7 @@
       navigator.geolocation.getCurrentPosition(async function(position){
         var la=position.coords.latitude,lo=position.coords.longitude;
         localStorage.setItem('return_lat',la);localStorage.setItem('return_lon',lo);localStorage.setItem('return_saved_at',String(Date.now()));localStorage.setItem('return_address','Recherche du nom exact…');
-        ['return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_v216','return_context_v217','return_context_v218','return_context_v221','return_context_updated_at','return_nearby','return_full_address'].forEach(function(k){localStorage.removeItem(k)});
+        ['return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_v216','return_context_v217','return_context_v218','return_context_v221','return_context_v222','return_context_v223','return_context_v224','return_context_updated_at','return_nearby','return_full_address'].forEach(function(k){localStorage.removeItem(k)});
         if(typeof window.showStatuses==='function')window.showStatuses();
         window.dispatchEvent(new CustomEvent('carplay-return-place-saved',{detail:{lat:la,lon:lo,address:'Recherche du nom exact…'}}));
         var ctx=await refreshContext(la,lo);
@@ -224,7 +232,7 @@
     if(!ctx._loaded||age>86400000||isVagueAddress(ctx.address))refreshContext(lat,lon);
   };
   window.clearReturnPlace=function(){
-    ['return_lat','return_lon','return_address','return_full_address','return_nearby','return_saved_at','return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_v216','return_context_v217','return_context_v218','return_context_v221','return_context_updated_at'].forEach(function(k){localStorage.removeItem(k)});
+    ['return_lat','return_lon','return_address','return_full_address','return_nearby','return_saved_at','return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_v216','return_context_v217','return_context_v218','return_context_v221','return_context_v222','return_context_v223','return_context_v224','return_context_updated_at'].forEach(function(k){localStorage.removeItem(k)});
     currentCtx=null;
     if(typeof window.showStatuses==='function')window.showStatuses();
     alert('Emplacement de retour effacé. Au prochain appui, un nouveau point GPS sera enregistré.');

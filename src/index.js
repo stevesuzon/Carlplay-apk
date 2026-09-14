@@ -1253,9 +1253,9 @@ function exactNamedNominatim(j){
 async function nominatimExactReturnPlace(lat,lon){
   try{
     const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&namedetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr'}});
-    if(r.ok){const j=await r.json();return {name:exactNamedNominatim(j),address:formatReturnPlaceNominatim(j),fullAddress:formatReturnPlacePostalAddress(j)}}
+    if(r.ok){const j=await r.json(),a=j&&j.address||{};return {name:exactNamedNominatim(j),address:formatReturnPlaceNominatim(j),fullAddress:formatReturnPlacePostalAddress(j),countryCode:String(a.country_code||'').toLowerCase()}}
   }catch(_){ }
-  return {name:'',address:'',fullAddress:''};
+  return {name:'',address:'',fullAddress:'',countryCode:''};
 }
 
 function returnPlacePoiPriority(tags){
@@ -1327,6 +1327,17 @@ async function wikidataFreePhoto(qid){
     return file?{url:commonsFileUrl(file),credit:'Wikimedia Commons'}:{url:'',credit:''};
   }catch(_){return {url:'',credit:''}}
 }
+async function wikidataOfficialWebsite(qid){
+  qid=String(qid||'').trim();
+  if(!/^Q\d+$/i.test(qid))return '';
+  try{
+    const r=await fetch('https://www.wikidata.org/wiki/Special:EntityData/'+encodeURIComponent(qid.toUpperCase())+'.json',{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
+    if(!r.ok)return '';
+    const j=await r.json(),e=j&&j.entities&&j.entities[qid.toUpperCase()],claims=e&&e.claims||{},claim=claims.P856&&claims.P856[0];
+    const u=String(claim&&claim.mainsnak&&claim.mainsnak.datavalue&&claim.mainsnak.datavalue.value||'').trim();
+    return /^https?:\/\//i.test(u)?u:'';
+  }catch(_){return ''}
+}
 async function wikipediaFreePhoto(tag){
   tag=String(tag||'').trim();
   const m=tag.match(/^([a-z-]{2,12}):(.+)$/i);if(!m)return {url:'',credit:''};
@@ -1376,6 +1387,200 @@ function diningAddressFromNominatim(x){
   const locality=[a.postcode,city].filter(Boolean).join(' ').trim();
   return [street,locality].filter(Boolean).join(', ');
 }
+function diningPhone(tags){
+  tags=tags||{};
+  return String(tags['contact:phone']||tags.phone||tags['contact:mobile']||tags.mobile||'').trim();
+}
+function diningWebsite(tags){
+  tags=tags||{};
+  return String(tags['contact:website']||tags.website||tags['contact:menu']||tags.menu||'').trim();
+}
+function stripHtmlToText(v){
+  return String(v||'')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ')
+    .replace(/<[^>]+>/g,' ')
+    .replace(/&nbsp;|&#160;/gi,' ')
+    .replace(/&amp;/gi,'&')
+    .replace(/&quot;/gi,'\"')
+    .replace(/&#39;|&apos;/gi,"'")
+    .replace(/&euro;|&#8364;/gi,'€')
+    .replace(/&agrave;/gi,'à').replace(/&aacute;/gi,'á').replace(/&acirc;/gi,'â').replace(/&auml;/gi,'ä')
+    .replace(/&ccedil;/gi,'ç').replace(/&egrave;/gi,'è').replace(/&eacute;/gi,'é').replace(/&ecirc;/gi,'ê').replace(/&euml;/gi,'ë')
+    .replace(/&icirc;/gi,'î').replace(/&iuml;/gi,'ï').replace(/&ocirc;/gi,'ô').replace(/&ouml;/gi,'ö').replace(/&ugrave;/gi,'ù').replace(/&ucirc;/gi,'û').replace(/&uuml;/gi,'ü')
+    .replace(/&oelig;/gi,'œ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function menuSpecialtiesFromText(text){
+  // On n'affiche que des plats réellement repérés dans une source publique : jamais de plat inventé à partir du type de cuisine.
+  const src=String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if(!src)return [];
+  const dishes=[
+    ['Andouillette',/\bandouillette(?:s)?\b/],
+    ['Galette-saucisse',/\bgalette[ -]saucisse(?:s)?\b/],
+    ['Galettes',/\bgalette(?:s)?\b/],
+    ['Crêpes',/\bcrepe(?:s)?\b/],
+    ['Moules-frites',/\bmoules?[ -](?:frites?|frite)\b|\bmoules?\b[^.]{0,35}\bfrites?\b/],
+    ['Moules',/\bmoules?\b/],
+    ['Fruits de mer',/\bfruits? de mer\b/],
+    ['Huîtres',/\bhuitre(?:s)?\b/],
+    ['Homard',/\bhomard(?:s)?\b/],
+    ['Poissons',/\bpoisson(?:s)?\b/],
+    ['Choucroute',/\bchoucroute(?:s)?\b/],
+    ['Cassoulet',/\bcassoulet(?:s)?\b/],
+    ['Bœuf bourguignon',/\bboeuf bourguignon\b/],
+    ['Blanquette de veau',/\bblanquette de veau\b/],
+    ['Pot-au-feu',/\bpot[ -]au[ -]feu\b/],
+    ['Coq au vin',/\bcoq au vin\b/],
+    ['Confit de canard',/\bconfit de canard\b/],
+    ['Magret de canard',/\bmagret de canard\b/],
+    ['Foie gras',/\bfoie gras\b/],
+    ['Escargots',/\bescargot(?:s)?\b/],
+    ['Steak tartare',/\bsteak tartare\b|\btartare de boeuf\b/],
+    ['Entrecôte',/\bentrecote(?:s)?\b/],
+    ['Côte de bœuf',/\bcote de boeuf\b/],
+    ['Burger',/\bburger(?:s)?\b/],
+    ['Pizza',/\bpizza(?:s)?\b/],
+    ['Pâtes',/\bpates?\b|\bpasta\b/],
+    ['Lasagnes',/\blasagne(?:s)?\b/],
+    ['Risotto',/\brisotto(?:s)?\b/],
+    ['Couscous',/\bcouscous\b/],
+    ['Tajine',/\btajine(?:s)?\b/],
+    ['Kebab',/\bkebab(?:s)?\b/],
+    ['Sushi',/\bsushi(?:s)?\b/],
+    ['Sashimi',/\bsashimi(?:s)?\b/],
+    ['Ramen',/\bramen\b/],
+    ['Pad thaï',/\bpad thai\b/],
+    ['Curry',/\bcurry\b/],
+    ['Nems',/\bnem(?:s)?\b/],
+    ['Pho',/\bpho\b/],
+    ['Paella',/\bpaella(?:s)?\b/],
+    ['Tapas',/\btapas\b/],
+    ['Grillades',/\bgrillade(?:s)?\b/],
+    ['Poulet rôti',/\bpoulet roti\b/],
+    ['Tacos',/\btacos?\b/],
+    ['Fish and chips',/\bfish (?:and|&) chips\b/]
+  ];
+  const out=[];
+  for(const [label,re] of dishes){if(re.test(src)&&!out.includes(label))out.push(label);if(out.length>=8)break}
+  if(out.includes('Galette-saucisse')){const i=out.indexOf('Galettes');if(i>=0)out.splice(i,1)}
+  if(out.includes('Moules-frites')){const i=out.indexOf('Moules');if(i>=0)out.splice(i,1)}
+  return out.slice(0,8);
+}
+function menuSpecialtiesFromTags(tags){
+  tags=tags||{};
+  const raw=[tags.description,tags.note,tags['description:fr'],tags['menu:description'],tags.menu,tags['contact:menu']]
+    .map(x=>String(x||'')).filter(x=>x&&!/^https?:\/\//i.test(x)).join(' | ');
+  return menuSpecialtiesFromText(raw);
+}
+function decodeDiningHtml(v){
+  return String(v||'').replace(/&nbsp;|&#160;/gi,' ').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/&euro;|&#8364;/gi,'€').replace(/&oelig;/gi,'œ').replace(/&agrave;/gi,'à').replace(/&aacute;/gi,'á').replace(/&acirc;/gi,'â').replace(/&auml;/gi,'ä').replace(/&ccedil;/gi,'ç').replace(/&egrave;/gi,'è').replace(/&eacute;/gi,'é').replace(/&ecirc;/gi,'ê').replace(/&euml;/gi,'ë').replace(/&icirc;/gi,'î').replace(/&iuml;/gi,'ï').replace(/&ocirc;/gi,'ô').replace(/&ouml;/gi,'ö').replace(/&ugrave;/gi,'ù').replace(/&ucirc;/gi,'û').replace(/&uuml;/gi,'ü');
+}
+function cleanDiningMenuItem(v){
+  let x=decodeDiningHtml(String(v||'')).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+  x=x.replace(/^[\s•·|–—-]+|[\s•·|–—-]+$/g,'').replace(/\s+(?:\d{1,3}(?:[,.]\d{1,2})?\s*(?:€|eur(?:os?)?))\s*$/i,'').trim();
+  if(x.length<3||x.length>90)return '';
+  if(/^https?:|www\.|@|\+?\d[\d\s().-]{7,}$/i.test(x))return '';
+  if(/^(accueil|home|menu|menus|la carte|notre carte|carte|restaurant|réserver|reservation|contact|horaires|mentions légales|politique|cookies?|entrée?s?|plats?|desserts?|boissons?|formules?|nos produits|nos menus)$/i.test(x))return '';
+  if(/(?:télécharger|download|commander|livraison|click\s*&?\s*collect|instagram|facebook|tripadvisor|copyright)/i.test(x))return '';
+  if((x.match(/[A-Za-zÀ-ÿ]/g)||[]).length<3)return '';
+  return x;
+}
+function uniqueDiningMenuItems(items,limit=8){
+  const out=[],seen=new Set();
+  for(const item of items||[]){const x=cleanDiningMenuItem(item);if(!x)continue;const k=x.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ');if(!k||seen.has(k))continue;seen.add(k);out.push(x);if(out.length>=limit)break}
+  return out;
+}
+function jsonLdDiningMenuItems(html){
+  const out=[];let m;
+  const re=/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  const walk=(v,depth)=>{if(depth>18||v==null)return;if(Array.isArray(v)){for(const x of v)walk(x,depth+1);return}if(typeof v!=='object')return;const t=Array.isArray(v['@type'])?v['@type'].join(' '):String(v['@type']||'');if(/MenuItem/i.test(t)&&v.name)out.push(String(v.name));for(const [k,val] of Object.entries(v)){if(k==='name'&&/MenuItem/i.test(t))continue;if(/^(itemListElement|hasMenu|hasMenuSection|hasMenuItem|mainEntity|subjectOf|@graph)$/i.test(k)||typeof val==='object')walk(val,depth+1)}};
+  while((m=re.exec(String(html||'')))&&out.length<24){try{walk(JSON.parse(decodeDiningHtml(m[1]).replace(/^\s*<!--|-->\s*$/g,'')),0)}catch(_){}}
+  return uniqueDiningMenuItems(out,12);
+}
+function pricedDiningMenuItems(html){
+  let t=String(html||'')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'\n')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,'\n')
+    .replace(/<(?:br|\/p|\/div|\/li|\/h[1-6]|\/tr|\/section|\/article)\b[^>]*>/gi,'\n')
+    .replace(/<[^>]+>/g,' ');
+  t=decodeDiningHtml(t).replace(/\r/g,'\n');
+  const lines=t.split(/\n+/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean),out=[];
+  const price=/\b\d{1,3}(?:[,.]\d{1,2})?\s*(?:€|EUR|euros?)\b/i;
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    if(price.test(line)){
+      let before=line.split(price)[0].replace(/[.:·•|–—-]+$/g,'').trim();
+      if(before&&before.length<=90)out.push(before);
+      else if(i>0)out.push(lines[i-1]);
+    }else if(i+1<lines.length&&price.test(lines[i+1])&&line.length<=90)out.push(line);
+    if(out.length>=18)break;
+  }
+  return uniqueDiningMenuItems(out,10);
+}
+function menuPageLinks(html,baseUrl){
+  const scored=[];let m;const seen=new Set();
+  const re=/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  while((m=re.exec(String(html||'')))){
+    const href=decodeDiningHtml(m[1]).trim(),text=stripHtmlToText(m[2]).slice(0,120),hay=(href+' '+text).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    if(!/(?:\bmenu\b|\bcarte\b|specialit|nos[-_ ]?plats|a[-_ ]?la[-_ ]?carte|food[-_ ]?menu)/i.test(hay))continue;
+    try{const u=new URL(href,baseUrl),b=new URL(baseUrl);if(!safePublicDiningUrl(u.href)||u.hostname!==b.hostname)continue;u.hash='';const k=u.href;if(seen.has(k))continue;seen.add(k);let score=0;if(/(?:^|[\/_-])(menu|carte|menus)(?:[\/_-]|$)/i.test(u.pathname))score+=5;if(/notre|la[-_ ]?carte|specialit|nos[-_ ]?plats/i.test(hay))score+=3;if(/pdf/i.test(u.pathname))score-=4;scored.push({url:k,score})}catch(_){ }
+  }
+  return scored.sort((a,b)=>b.score-a.score).slice(0,2).map(x=>x.url);
+}
+function safePublicDiningUrl(url){
+  try{
+    const u=new URL(url);if(!/^https?:$/.test(u.protocol))return false;
+    const h=u.hostname.toLowerCase().replace(/^\[|\]$/g,'');
+    if(!h||h==='localhost'||h.endsWith('.local')||h==='::1'||h==='0.0.0.0'||h==='169.254.169.254')return false;
+    if(/^127\.|^10\.|^192\.168\.|^169\.254\./.test(h))return false;
+    const m=h.match(/^172\.(\d{1,3})\./);if(m&&Number(m[1])>=16&&Number(m[1])<=31)return false;
+    return true;
+  }catch(_){return false}
+}
+function likelyOfficialDiningWebsite(url){
+  if(!safePublicDiningUrl(url))return false;
+  try{const h=new URL(url).hostname.toLowerCase().replace(/^www\./,'');return !/(^|\.)(facebook\.com|instagram\.com|tripadvisor\.[a-z.]+|thefork\.[a-z.]+|lafourchette\.[a-z.]+|ubereats\.com|deliveroo\.[a-z.]+|justeat\.[a-z.]+|pagesjaunes\.fr|google\.[a-z.]+|maps\.[a-z.]+|linktr\.ee|tiktok\.com|youtube\.com)$/i.test(h)}catch(_){return false}
+}
+async function fetchDiningSitePage(url,timeoutMs=1900){
+  try{
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
+    const r=await fetch(url,{headers:{'user-agent':'Mozilla/5.0 (compatible; CarPlayRestaurantMenu/1.0)','accept':'text/html,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.2','accept-language':'fr-FR,fr;q=0.9'},redirect:'follow',signal:controller.signal});
+    clearTimeout(timer);
+    if(!r.ok)return null;
+    const type=String(r.headers.get('content-type')||'').toLowerCase();if(type&&!/text\/html|application\/xhtml\+xml|text\/plain/.test(type))return null;
+    const html=(await r.text()).slice(0,500000);return {html,url:r.url||url};
+  }catch(_){return null}
+}
+function menuItemsFromPublicPage(html){
+  const exact=menuSpecialtiesFromText(stripHtmlToText(html));
+  const structured=jsonLdDiningMenuItems(html);
+  const priced=pricedDiningMenuItems(html);
+  return uniqueDiningMenuItems([...(exact||[]),...(structured||[]),...(priced||[])],12);
+}
+async function fetchPublicMenuSpecialties(row){
+  const already=Array.isArray(row&&row.menuSpecialties)?row.menuSpecialties.filter(Boolean):[];
+  if(already.length)return {items:already.slice(0,6),source:'Données publiques'};
+  const website=String(row&&row.website||'').trim(),menuRaw=String(row&&row.menuUrl||'').trim();
+  let homeUrl='';
+  if(/^https?:\/\//i.test(website)&&likelyOfficialDiningWebsite(website))homeUrl=website;
+  let directMenu='';
+  try{if(menuRaw){directMenu=new URL(menuRaw,homeUrl||undefined).href;if(!likelyOfficialDiningWebsite(directMenu))directMenu=''}}catch(_){directMenu=''}
+  const urls=[];if(directMenu)urls.push(directMenu);if(homeUrl&&!urls.includes(homeUrl))urls.push(homeUrl);
+  if(!urls.length)return {items:[],source:''};
+  const found=[];let source='';
+  for(const firstUrl of urls.slice(0,2)){
+    const page=await fetchDiningSitePage(firstUrl);if(!page)continue;
+    found.push(...menuItemsFromPublicPage(page.html));source='Site officiel';
+    if(found.length<6&&homeUrl&&firstUrl===homeUrl){
+      const links=menuPageLinks(page.html,page.url||homeUrl);
+      for(const link of links){const p=await fetchDiningSitePage(link,1600);if(!p)continue;found.push(...menuItemsFromPublicPage(p.html));if(found.length>=8)break}
+    }
+    if(found.length>=8)break;
+  }
+  return {items:uniqueDiningMenuItems(found,6),source:found.length?source:''};
+}
 async function nominatimDining(lat,lon,kind,limit){
   const fast=kind==='fastfood';
   const latDelta=0.10,lonDelta=0.10/Math.max(0.25,Math.cos(Number(lat)*Math.PI/180));
@@ -1400,12 +1605,80 @@ async function nominatimDining(lat,lon,kind,limit){
     const key=name.toLowerCase()+'|'+Math.round(la*10000)+'|'+Math.round(lo*10000);if(seen.has(key))continue;seen.add(key);
     const tags={...(x.extratags||{})};
     if(x.namedetails&&x.namedetails.brand&&!tags.brand)tags.brand=x.namedetails.brand;
-    const row={name,distanceMeters:d,rating:null,ratingCount:0,lat:la,lon:lo,address:diningAddressFromNominatim(x),specialty:osmCuisineLabel(tags,fast),photoName:'',photoUrl:'',photoCredit:'',source:'osm-nominatim-free',_tags:tags,_rank:(Number(x.importance)||0)*100+osmDiningNotability(tags)};
+    const row={name,distanceMeters:d,rating:null,ratingCount:0,lat:la,lon:lo,address:diningAddressFromNominatim(x),specialty:osmCuisineLabel(tags,fast),menuSpecialties:menuSpecialtiesFromTags(tags),website:diningWebsite(tags),menuUrl:String(tags['contact:menu']||tags.menu||'').trim(),phone:diningPhone(tags),wikidataId:String(tags.wikidata||tags['brand:wikidata']||'').trim(),photoName:'',photoUrl:'',photoCredit:'',source:'osm-nominatim-free',_tags:tags,_rank:(Number(x.importance)||0)*100+osmDiningNotability(tags)};
     rows.push(row);
   }
   rows.sort((a,b)=>fast?(a.distanceMeters-b.distanceMeters):((b._rank-a._rank)||a.distanceMeters-b.distanceMeters));
   return rows.slice(0,Math.max(limit,8));
 }
+function normalizeDiningName(v){
+  return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+}
+function sireneDiningName(company,e){
+  const enseignes=Array.isArray(e&&e.liste_enseignes)?e.liste_enseignes.filter(Boolean):[];
+  return String((enseignes&&enseignes[0])||(e&&e.nom_commercial)||(company&&company.nom_complet)||(company&&company.nom_raison_sociale)||'').trim();
+}
+function sireneDiningAddress(e){
+  if(e&&e.adresse)return String(e.adresse).trim();
+  const street=[e&&e.numero_voie,e&&e.type_voie,e&&e.libelle_voie].filter(Boolean).join(' ').trim();
+  const locality=[e&&e.code_postal,e&&e.libelle_commune].filter(Boolean).join(' ').trim();
+  return [street,locality].filter(Boolean).join(', ');
+}
+function isSireneDiningActivity(e,company,kind){
+  const oldCode=String((e&&e.activite_principale)||(company&&company.activite_principale)||'').toUpperCase();
+  const newCode=String((e&&e.activite_principale_naf25)||(company&&company.activite_principale_naf25)||'').toUpperCase();
+  if(kind==='fastfood')return oldCode==='56.10C'||newCode==='56.11J';
+  return oldCode==='56.10A'||oldCode==='56.10B'||newCode==='56.11G'||newCode==='56.11H';
+}
+async function sireneDining(lat,lon,kind){
+  // Source officielle française, ouverte et sans clé. Elle complète OSM avec les établissements SIRENE/RNE.
+  const oldCodes=kind==='fastfood'?'56.10C':'56.10A,56.10B';
+  try{
+    const u='https://recherche-entreprises.api.gouv.fr/near_point?lat='+encodeURIComponent(lat)+'&long='+encodeURIComponent(lon)+'&radius=10&per_page=25&page=1&limite_matching_etablissements=100&activite_principale='+encodeURIComponent(oldCodes);
+    const r=await fetch(u,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept':'application/json'}});
+    if(!r.ok)return [];
+    const j=await r.json(),rows=[];
+    for(const company of (j&&j.results||[])){
+      for(const e of (company&&company.matching_etablissements||[])){
+        if(String(e&&e.etat_administratif||'A').toUpperCase()!=='A')continue;
+        if(!isSireneDiningActivity(e,company,kind))continue;
+        const la=Number(e&&e.latitude),lo=Number(e&&e.longitude);if(!Number.isFinite(la)||!Number.isFinite(lo))continue;
+        const d=Math.round(haversineMeters(lat,lon,la,lo));if(d>10000)continue;
+        const name=sireneDiningName(company,e);if(!name)continue;
+        rows.push({name,distanceMeters:d,rating:null,ratingCount:0,lat:la,lon:lo,address:sireneDiningAddress(e),specialty:kind==='fastfood'?'Restauration rapide':'Restaurant',menuSpecialties:[],website:'',menuUrl:'',phone:'',photoName:'',photoUrl:'',photoCredit:'',source:'sirene-gouv-free',_rank:0});
+      }
+    }
+    const seen=new Set();
+    return rows.filter(x=>{const k=normalizeDiningName(x.name)+'|'+Math.round(x.lat*10000)+'|'+Math.round(x.lon*10000);if(seen.has(k))return false;seen.add(k);return true}).sort((a,b)=>a.distanceMeters-b.distanceMeters).slice(0,30);
+  }catch(_){return []}
+}
+function mergeDiningRows(primary,extra){
+  const out=[];
+  for(const row of [...(primary||[]),...(extra||[])]){
+    if(!row||!Number.isFinite(Number(row.lat))||!Number.isFinite(Number(row.lon)))continue;
+    const n=normalizeDiningName(row.name),la=Number(row.lat),lo=Number(row.lon);
+    let dup=null;
+    for(const x of out){
+      const close=haversineMeters(la,lo,Number(x.lat),Number(x.lon))<=120;
+      const sameName=n&&normalizeDiningName(x.name)===n;
+      if(close&&sameName){dup=x;break}
+    }
+    if(!dup){out.push({...row});continue}
+    if(!dup.address&&row.address)dup.address=row.address;
+    if(!dup.specialty&&row.specialty)dup.specialty=row.specialty;
+    if((!dup.menuSpecialties||!dup.menuSpecialties.length)&&row.menuSpecialties&&row.menuSpecialties.length)dup.menuSpecialties=row.menuSpecialties;
+    if(!dup.website&&row.website)dup.website=row.website;
+    if(!dup.menuUrl&&row.menuUrl)dup.menuUrl=row.menuUrl;
+    if(!dup.phone&&row.phone)dup.phone=row.phone;
+    if(!dup.wikidataId&&row.wikidataId)dup.wikidataId=row.wikidataId;
+    if(!dup.photoUrl&&row.photoUrl){dup.photoUrl=row.photoUrl;dup.photoCredit=row.photoCredit||dup.photoCredit}
+    const sources=new Set(String(dup.source||'').split('+').filter(Boolean).concat(String(row.source||'').split('+').filter(Boolean)));
+    dup.source=[...sources].join('+');
+    dup.distanceMeters=Math.min(Number(dup.distanceMeters)||Infinity,Number(row.distanceMeters)||Infinity);
+  }
+  return out;
+}
+
 async function overpassDining(lat,lon,kind){
   const amenity=kind==='fastfood'?'fast_food':'restaurant',fast=kind==='fastfood',limit=fast?3:5;
   let rows=[];
@@ -1419,7 +1692,7 @@ async function overpassDining(lat,lon,kind){
         const street=[tags['addr:housenumber'],tags['addr:street']].filter(Boolean).join(' ').trim();
         const locality=[tags['addr:postcode'],tags['addr:city']||tags['addr:town']||tags['addr:village']].filter(Boolean).join(' ').trim();
         const address=[street,locality].filter(Boolean).join(', ');
-        return {name,distanceMeters:Math.round(haversineMeters(lat,lon,la,lo)),rating:null,ratingCount:0,lat:la,lon:lo,address,specialty:osmCuisineLabel(tags,fast),photoName:'',photoUrl:'',photoCredit:'',source:'osm-overpass-free',_tags:tags,_rank:osmDiningNotability(tags)};
+        return {name,distanceMeters:Math.round(haversineMeters(lat,lon,la,lo)),rating:null,ratingCount:0,lat:la,lon:lo,address,specialty:osmCuisineLabel(tags,fast),menuSpecialties:menuSpecialtiesFromTags(tags),website:diningWebsite(tags),menuUrl:String(tags['contact:menu']||tags.menu||'').trim(),phone:diningPhone(tags),wikidataId:String(tags.wikidata||tags['brand:wikidata']||'').trim(),photoName:'',photoUrl:'',photoCredit:'',source:'osm-overpass-free',_tags:tags,_rank:osmDiningNotability(tags)};
       }).filter(Boolean).filter(x=>x.distanceMeters<=10000).filter(x=>{const k=x.name.toLowerCase()+'|'+Math.round(x.lat*10000)+'|'+Math.round(x.lon*10000);if(seen.has(k))return false;seen.add(k);return true});
     }
   }catch(_){rows=[]}
@@ -1429,10 +1702,34 @@ async function overpassDining(lat,lon,kind){
     const keys=new Set(rows.map(x=>x.name.toLowerCase()+'|'+Math.round(x.lat*1000)+'|'+Math.round(x.lon*1000)));
     for(const x of fallback){const k=x.name.toLowerCase()+'|'+Math.round(x.lat*1000)+'|'+Math.round(x.lon*1000);if(!keys.has(k)){keys.add(k);rows.push(x)}}
   }
-  rows.sort((a,b)=>fast?(a.distanceMeters-b.distanceMeters):((b._rank-a._rank)||a.distanceMeters-b.distanceMeters));
-  rows=rows.slice(0,limit);
+  rows.sort((a,b)=>a.distanceMeters-b.distanceMeters);
+  rows=rows.slice(0,Math.max(limit,12));
   await Promise.all(rows.map(async x=>{const p=await freeDiningPhoto(x._tags||{});x.photoUrl=p.url;x.photoCredit=p.credit;delete x._tags;delete x._rank;}));
   return rows;
+}
+
+async function combinedDining(lat,lon,kind,countryCode){
+  const limit=kind==='fastfood'?3:5;
+  const osmPromise=overpassDining(lat,lon,kind);
+  const officialPromise=countryCode==='fr'?sireneDining(lat,lon,kind):Promise.resolve([]);
+  const [osm,official]=await Promise.all([osmPromise,officialPromise]);
+  const selected=mergeDiningRows(osm,official).filter(x=>Number(x.distanceMeters)<=10000).sort((a,b)=>a.distanceMeters-b.distanceMeters).slice(0,limit);
+  await Promise.all(selected.map(async row=>{
+    if(!Array.isArray(row.menuSpecialties))row.menuSpecialties=[];
+    if(row.menuSpecialties.length){
+      row.menuSpecialties=row.menuSpecialties.slice(0,6);
+      row.menuSpecialtiesSource=row.menuSpecialtiesSource||'Données publiques';
+      return;
+    }
+    if(!row.website&&row.wikidataId){
+      const wdSite=await wikidataOfficialWebsite(row.wikidataId);
+      if(wdSite)row.website=wdSite;
+    }
+    const info=await fetchPublicMenuSpecialties(row);
+    row.menuSpecialties=(info&&info.items||[]).slice(0,6);
+    row.menuSpecialtiesSource=String(info&&info.source||'');
+  }));
+  return selected;
 }
 
 async function resolveReturnPlaceDetails(lat,lon,env){
@@ -1442,7 +1739,7 @@ async function resolveReturnPlaceDetails(lat,lon,env){
   if(!name)name=exact.address||await contestPlaceLabel(lat,lon);
   name=preferredReturnPlaceName(name,exact.fullAddress||'');
   const fullAddress=officialReturnPlaceAddress(name,exact.fullAddress||'');
-  return {name,address:name,fullAddress};
+  return {name,address:name,fullAddress,countryCode:exact.countryCode||''};
 }
 async function resolveReturnPlaceAddress(lat,lon,env){return (await resolveReturnPlaceDetails(lat,lon,env)).name}
 
@@ -1461,8 +1758,8 @@ async function reversePlaceContext(url,env){
     const r=await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
     if(r.ok){const j=await r.json(),known=/mcdonald|burger king|leclerc|e\.leclerc|carrefour|auchan|intermarch|lidl|aldi|super u|hyper u|casino|monoprix|total|esso|shell|bp|avia|renault|peugeot|citro[eë]n|ford|toyota|volkswagen|mercedes|bmw|audi/i,seen=new Set();nearby=(j.elements||[]).map(e=>{const la=Number(e.lat??e.center?.lat),lo=Number(e.lon??e.center?.lon),tags=e.tags||{},name=String(tags.name||tags.brand||'').trim();if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;const d=Math.round(haversineMeters(lat,lon,la,lo)),type=String(tags.amenity||tags.shop||tags.tourism||tags.leisure||tags.railway||''),major=/supermarket|mall|department_store|car|car_repair|fuel|hospital|cinema|bus_station|hotel|stadium|sports_centre|station|restaurant/.test(type);return {name,distanceMeters:d,known:known.test(name),major,type};}).filter(Boolean).filter(x=>{const k=x.name.toLowerCase();if(seen.has(k))return false;seen.add(k);return x.distanceMeters<=800&&x.major}).sort((a,b)=>(Number(b.known)-Number(a.known))||a.distanceMeters-b.distanceMeters).slice(0,1).map(({name,distanceMeters,type})=>({name,distanceMeters,type}));}
   }catch(_){ }
-  const [restaurants,fastFood]=await Promise.all([overpassDining(lat,lon,'restaurant'),overpassDining(lat,lon,'fastfood')]);
-  return json({ok:true,address,name:place.name,fullAddress:place.fullAddress,nearby,restaurants,fastFood,nearbyRadiusMeters:800,diningRadiusMeters:10000,ratingsProvider:'osm-free',ratingsAvailable:false,photoProvider:'wikimedia-free'});
+  const [restaurants,fastFood]=await Promise.all([combinedDining(lat,lon,'restaurant',place.countryCode),combinedDining(lat,lon,'fastfood',place.countryCode)]);
+  return json({ok:true,address,name:place.name,fullAddress:place.fullAddress,nearby,restaurants,fastFood,nearbyRadiusMeters:800,diningRadiusMeters:10000,ratingsProvider:'free-multi-source',ratingsAvailable:false,photoProvider:'wikimedia-free',diningProviders:place.countryCode==='fr'?['OpenStreetMap','API Recherche d’Entreprises (DINUM/Sirene-RNE)','Wikidata/Wikimedia','Sites officiels publics (carte/menu)']:['OpenStreetMap','Wikidata/Wikimedia','Sites officiels publics (carte/menu)']});
 }
 
 async function contestHomePlace(request,env){
