@@ -33,7 +33,7 @@ h1{margin:6px 0 5px;color:#ffd84f;font-size:clamp(34px,10vw,56px);line-height:1;
 </head>
 <body>
 <main>
-<a class="poster" href="/index.html?concours=1" aria-label="Participer au jeu concours">
+<div class="poster">
 <div class="trophy">🏆</div>
 <h1>JEU CONCOURS</h1>
 <div class="sub">COMMENT PARTICIPER ?</div>
@@ -44,10 +44,10 @@ h1{margin:6px 0 5px;color:#ffd84f;font-size:clamp(34px,10vw,56px);line-height:1;
 <p>1er et 2e : abonnement à vie</p>
 <p>3e, 4e et 5e : 1 an gratuit</p>
 </section>
-<div class="cta">🏆 PARTICIPER AU CONCOURS</div>
-<div class="hint">Appuyez ici pour ouvrir directement le concours</div>
-</a>
-<button id="shareContest" class="share" type="button">📤 PARTAGER LE CONCOURS</button>
+<a class="cta" href="/installer.html">📲 TÉLÉCHARGER / OUVRIR L’APPLICATION</a>
+<div class="hint">Appuyez ici pour regarder la présentation puis ouvrir l’application</div>
+<button id="shareContest" class="share" type="button">📤 ENVOYER LE CONCOURS À UN AMI</button>
+</div>
 </main>
 <script>
 document.getElementById('shareContest').onclick=async function(){
