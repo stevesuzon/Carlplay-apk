@@ -83,7 +83,7 @@
     fetch("/api/gps-unlock-status?id="+encodeURIComponent(pending.id)+"&deviceId="+encodeURIComponent(id()),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.status==="completed"||j.status==="approved"||j.status==="denied"){localStorage.removeItem("carplay_pending_market_request");showRequestAnswer(j.status!=="denied")}else if(j.status==="expired"||j.status==="consumed")localStorage.removeItem("carplay_pending_market_request")}).catch(function(){});
   }
   function messageFor(e) {
-    if (e && e.error === "NOM_ET_PRENOM_OBLIGATOIRES") return "ÉCRIVEZ VOTRE NOM ET VOTRE PRÉNOM";
+    if (e && (e.error === "NOM_ET_PRENOM_OBLIGATOIRES" || e.error === "NOM_PRENOM_OBLIGATOIRES")) return "ÉCRIVEZ VOTRE NOM ET VOTRE PRÉNOM";
     if (e && e.error === "EMAIL_OBLIGATOIRE") return "METTEZ VOTRE ADRESSE E-MAIL AVANT LE CODE, POUR RÉCUPÉRER L’ABONNEMENT SI L’APPLICATION EST EFFACÉE";
     if (e && e.error === "EMAIL_NE_CORRESPOND_PAS") return "CETTE ADRESSE E-MAIL NE CORRESPOND PAS À CET ABONNEMENT";
     if (e && e.error === "EMAIL_NON_CONFIRMEE") return "CONFIRMEZ D’ABORD VOTRE ADRESSE E-MAIL";
