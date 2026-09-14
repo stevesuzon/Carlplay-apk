@@ -3,7 +3,11 @@
   var KEY = "carplay_shared_subscription";
   var PAID_KEY = "carplay_paid_activated";
   var EMAIL_KEY = "carplay_recovery_email";
-  var FREE_UNTIL = "2026-11-25T23:59:59+01:00";
+  var FREE_UNTIL_CACHE_KEY = "carplay_contest_app_free_until_ms";
+  var FREE_UNTIL_MS = Number(localStorage.getItem(FREE_UNTIL_CACHE_KEY) || 0);
+  var FREE_UNTIL_KNOWN = FREE_UNTIL_MS > 0;
+  var SNAP_USERNAME = "steve_suzon";
+  var SNAP_URL = "https://www.snapchat.com/add/" + SNAP_USERNAME;
   function cleanCode(v) {
     return String(v || "").toUpperCase()
       .replace(/[^A-Z0-9]/g, "")
@@ -11,8 +15,10 @@
       .slice(0, 6);
   }
 
-  function freeAccess() { return Date.now() <= Date.parse(FREE_UNTIL); }
-  function freeSubscription() { return { ok: true, globalFree: true, lifetime: false, expiresAt: FREE_UNTIL }; }
+  // Tant que la date serveur n'a jamais pu être récupérée, on ne coupe pas l'application
+  // par erreur. Dès qu'elle a été reçue, elle reste mémorisée sur le téléphone.
+  function freeAccess() { return !FREE_UNTIL_KNOWN || Date.now() <= FREE_UNTIL_MS; }
+  function freeSubscription() { return { ok: true, globalFree: true, lifetime: false, expiresAt: FREE_UNTIL_KNOWN ? new Date(FREE_UNTIL_MS).toISOString() : null }; }
 
   function id() {
     var v = localStorage.getItem("carplay_device_id");
@@ -22,6 +28,23 @@
     }
     return v;
   }
+  function syncContestFreeUntil() {
+    fetch("/api/contest/status", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ deviceId: id() }),
+      cache: "no-store"
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      var ms = Number(j && j.appFreeUntil || 0);
+      if (!ms) return;
+      FREE_UNTIL_MS = ms;
+      FREE_UNTIL_KNOWN = true;
+      try { localStorage.setItem(FREE_UNTIL_CACHE_KEY, String(ms)); } catch (_) {}
+      try { window.dispatchEvent(new Event("carplay-free-until-updated")); } catch (_) {}
+    }).catch(function () {});
+  }
+  syncContestFreeUntil();
+
   function saved() {
     var real = null;
     try { real = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (_) {}
@@ -154,53 +177,12 @@
     if (document.getElementById("subscriptionGate")) return;
     var box = document.createElement("div");
     box.id = "subscriptionGate";
-    box.innerHTML = '<div class="sub-card"><button class="sub-close" aria-label="Fermer">×</button><h1>🔒 FONCTION BLOQUÉE</h1><p>' + feature + ' nécessite un abonnement.</p><label id="subEmailLabel" for="subEmail"><b>1. ÉCRIVEZ VOTRE ADRESSE E-MAIL COMPLÈTE</b></label><input id="subEmail" class="sub-full-email" type="email" inputmode="email" autocomplete="email" placeholder="Exemple : prenom.nom@gmail.com"><button id="subConfirmEmail" type="button">CONFIRMER MON ADRESSE E-MAIL</button><div id="subEmailConfirmed" class="sub-email-complete" style="display:none;color:#55e58c;font-weight:900;margin:8px 0"></div><small id="subEmailWarning" style="display:none;color:#ffd166">⚠️ Attention : si l’adresse e-mail est incorrecte, aucune récupération du compte ne sera possible.</small><label for="subLastName"><b>NOM</b></label><input id="subLastName" autocomplete="family-name" placeholder="Votre nom"><label for="subFirstName"><b>PRÉNOM</b></label><input id="subFirstName" autocomplete="given-name" placeholder="Votre prénom"><button id="subChangeEmail" type="button" style="display:none">MODIFIER L’ADRESSE E-MAIL</button><button id="subRecoverCode" type="button">ENVOYER MON CODE D’ABONNEMENT</button><small class="sub-recovery-help">Application effacée ou nouveau téléphone ? Entrez la même adresse e-mail, puis appuyez ici pour recevoir votre code actuel.</small><label for="subCode"><b>2. ENTREZ VOTRE CODE D’ABONNEMENT</b></label><input id="subCode" disabled inputmode="text" autocapitalize="characters" maxlength="6" placeholder="CODE 6 LETTRES / CHIFFRES"><div class="sub-types"><button data-type="autoradio">AUTORADIO / TABLETTE</button><button data-type="phone">TÉLÉPHONE</button></div><button id="subActivate" disabled>DÉBLOQUER AVEC MON CODE</button><div id="subMessage"></div><small>Le même code active 1 autoradio ou tablette + 1 téléphone Android ou iPhone.</small></div>';
+    box.innerHTML = '<div class="sub-card"><button class="sub-close" aria-label="Fermer">×</button><h1>🔒 ABONNEMENT REQUIS</h1><p style="margin:8px 0 4px">Votre période d’essai est terminée.</p><div style="margin:14px 0;padding:14px;border:2px solid #f39b19;border-radius:16px;background:#15100a"><div style="font:950 28px Arial;color:#ffd166">ABONNEMENT : 30 €</div><div style="margin-top:7px;font:900 16px/1.35 Arial;color:#fff">Pour déverrouiller l’application, contactez Steve Suzon sur Snapchat.</div></div><div style="font:950 21px Arial;color:#59d4ff;margin:10px 0">👻 Snapchat : '+SNAP_USERNAME+'</div><a id="openSnapchatSubscription" href="'+SNAP_URL+'" target="_blank" rel="noopener" style="box-sizing:border-box;display:flex;align-items:center;justify-content:center;width:100%;min-height:62px;margin-top:14px;border-radius:15px;background:#fffc00;color:#000;text-decoration:none;font:950 20px Arial">👻 OUVRIR SNAPCHAT</a><button id="closeSubscriptionGate" type="button" style="width:100%;min-height:54px;margin-top:10px;border:0;border-radius:14px;background:#293448;color:#fff;font:900 17px Arial">FERMER</button></div>';
     document.documentElement.appendChild(box);
-    var deviceType = detectedType();
-    var emailProof="";
-    var codeInput = box.querySelector("#subCode");
-    var restoredEmail=rememberedEmail();
-    if(restoredEmail){
-      box.querySelector("#subEmail").value=restoredEmail;
-      emailProof="adresse-confirmee";
-      box.querySelector("#subEmail").style.display="none";
-      box.querySelector("#subEmailLabel").style.display="none";
-      box.querySelector("#subConfirmEmail").style.display="none";
-      box.querySelector("#subEmailConfirmed").style.display="block";
-      box.querySelector("#subEmailConfirmed").textContent="✅ ADRESSE E-MAIL VALIDÉE : "+restoredEmail;
-      box.querySelector("#subEmailWarning").style.display="block";
-      box.querySelector("#subChangeEmail").style.display="block";
-      codeInput.disabled=false;
-      box.querySelector("#subActivate").disabled=false;
-    }
-    codeInput.addEventListener("input", function(){ codeInput.value = cleanCode(codeInput.value); });
-    box.querySelector(".sub-close").onclick = function () { box.remove(); if (location.pathname !== "/" && location.pathname !== "/index.html") history.back(); };
-    box.querySelectorAll("[data-type]").forEach(function (b) {
-      b.onclick = function () {
-        deviceType = "phone";
-        box.querySelectorAll("[data-type]").forEach(function (x) { x.classList.toggle("chosen", x === b); });
-      };
-      if (b.dataset.type === "autoradio") b.style.display = "none";
-      if (b.dataset.type === deviceType) b.classList.add("chosen");
-    });
-    box.querySelector("#subConfirmEmail").onclick=function(){var email=String(box.querySelector("#subEmail").value||"").trim(),msg=box.querySelector("#subMessage");if(!email||email.indexOf("@")<1){msg.textContent="ÉCRIVEZ VOTRE ADRESSE E-MAIL COMPLÈTE";return}confirmEmail(email,function(result){emailProof=result.emailProof;box.querySelector("#subEmail").style.display="none";box.querySelector("#subEmailLabel").style.display="none";box.querySelector("#subConfirmEmail").style.display="none";box.querySelector("#subEmailConfirmed").style.display="block";box.querySelector("#subEmailConfirmed").textContent="✅ ADRESSE E-MAIL VALIDÉE : "+result.email;box.querySelector("#subEmailWarning").style.display="block";box.querySelector("#subChangeEmail").style.display="block";box.querySelector("#subCode").disabled=false;box.querySelector("#subActivate").disabled=false;msg.textContent="VOUS POUVEZ MAINTENANT ENTRER LE CODE D’ABONNEMENT.";},function(e){msg.textContent=messageFor(e)});};
-    box.querySelector("#subChangeEmail").onclick=function(){emailProof="";box.querySelector("#subEmail").style.display="block";box.querySelector("#subEmailLabel").style.display="block";box.querySelector("#subEmail").focus();box.querySelector("#subConfirmEmail").style.display="block";box.querySelector("#subEmailConfirmed").style.display="none";box.querySelector("#subEmailWarning").style.display="none";this.style.display="none";box.querySelector("#subCode").disabled=true;box.querySelector("#subActivate").disabled=true;};
-    box.querySelector("#subRecoverCode").onclick=function(){var email=String(box.querySelector("#subEmail").value||"").trim(),msg=box.querySelector("#subMessage"),button=this;msg.textContent="VÉRIFICATION DE L’ADRESSE…";sendRecoveryCode(email,button,function(){emailProof="adresse-confirmee";rememberEmail(email);box.querySelector("#subEmailConfirmed").style.display="block";box.querySelector("#subEmailConfirmed").textContent="✅ ADRESSE E-MAIL : "+email;box.querySelector("#subCode").disabled=false;box.querySelector("#subActivate").disabled=false;msg.textContent="✅ VOTRE CODE D’ABONNEMENT A ÉTÉ ENVOYÉ À "+email+". ENTREZ-LE CI-DESSOUS.";},function(e){msg.textContent=messageFor(e)});};
-    box.querySelector("#subActivate").onclick = function () {
-      var code = cleanCode(box.querySelector("#subCode").value);
-      var email = String(box.querySelector("#subEmail").value || "").trim();
-      var firstName=String(box.querySelector("#subFirstName").value||"").trim(),lastName=String(box.querySelector("#subLastName").value||"").trim();
-      var msg = box.querySelector("#subMessage");
-      if (!email) { msg.textContent = "METTEZ VOTRE ADRESSE E-MAIL AVANT LE CODE"; return; }
-      if(firstName.length<2||lastName.length<2){msg.textContent="NOM ET PRÉNOM OBLIGATOIRES";return;}
-      if (code.length !== 6) { msg.textContent = "ENTREZ EXACTEMENT 6 CARACTÈRES"; return; }
-      msg.textContent = "VÉRIFICATION…";
-      if(!emailProof){msg.textContent="CONFIRMEZ D’ABORD VOTRE ADRESSE E-MAIL";return;}
-      activate(code,email,emailProof,firstName,lastName, deviceType, function () {
-        msg.textContent = "ABONNEMENT ACTIVÉ — FONCTIONS DÉBLOQUÉES";
-        setTimeout(function () { location.reload(); }, 650);
-      }, function (e) { msg.textContent = messageFor(e); });
-    };
+    function closeGate(){box.remove();if(location.pathname!=="/"&&location.pathname!=="/index.html")history.back();}
+    var close=box.querySelector(".sub-close"),close2=box.querySelector("#closeSubscriptionGate");
+    if(close)close.onclick=closeGate;
+    if(close2)close2.onclick=closeGate;
   }
 
   function addLock(target, text) {
@@ -212,40 +194,54 @@
     target.appendChild(badge);
   }
 
+  function applyAddressReadOnly() {
+    if (unlocked()) return;
+    window.CarPlayAddressReadOnly = true;
+    if (document.body) document.body.classList.add("subscription-address-readonly");
+    if (!document.getElementById("subscriptionAddressReadOnlyStyle")) {
+      var st=document.createElement("style");
+      st.id="subscriptionAddressReadOnlyStyle";
+      st.textContent='body.subscription-address-readonly #addressBookAdd,body.subscription-address-readonly #addressAddSection,body.subscription-address-readonly .savedAddressActions{display:none!important}body.subscription-address-readonly #addressCreatorModal:before{content:"🔒 CARNET EN LECTURE SEULE — vos anciennes adresses restent consultables";display:block;position:fixed;z-index:2147483647;left:50%;top:10px;transform:translateX(-50%);width:min(720px,92vw);box-sizing:border-box;padding:9px 12px;border:2px solid #61ddff;border-radius:12px;background:#07111dee;color:#fff;text-align:center;font:900 12px/1.25 Arial;pointer-events:none}';
+      document.head.appendChild(st);
+    }
+  }
+
+  function featureName(t) {
+    if (!t) return "Cette fonction";
+    if (t.id === "contactMailButton") return "Mail";
+    if (t.id === "housePhotoButton") return "Mesurer une maison";
+    if (t.id === "nearby80Button") return "Marchés à moins de 80 km";
+    if (t.matches && t.matches(".card.blue")) return "Marchés";
+    if (t.matches && t.matches(".directBtn.place")) return "Mes papiers";
+    if (t.matches && t.matches(".directBtn.docs")) return "Démarches pro";
+    if (t.matches && t.matches(".small.green")) return "Retourner sur la place";
+    if (t.matches && t.matches(".small.red")) return "Effacer l’emplacement";
+    return "Cette fonction";
+  }
+
   function protectFeatures() {
     if (unlocked()) return;
-    var market = document.querySelector(".card.blue");
-    var china = document.querySelector(".card.orange");
-    var returning = document.querySelector(".small.green");
-    var pro = document.querySelector(".directBtn.docs");
-    addLock(market, "ABONNEMENT");
-    addLock(china, "ABONNEMENT");
-    addLock(returning, "ABONNEMENT");
-    addLock(pro, "ABONNEMENT");
+    applyAddressReadOnly();
+    var selectors="#contactMailButton,#housePhotoButton,#nearby80Button,.card.blue,.directBtn.place,.directBtn.docs,.small.green,.small.red";
+    document.querySelectorAll(selectors).forEach(function (el) { addLock(el, "VERROUILLÉ"); });
     document.addEventListener("click", function (e) {
-      var t = e.target.closest ? e.target.closest(".card.blue,.card.orange,.small.green,.directBtn.docs,button") : null;
-      if (!t || unlocked()) return;
-      if (t.matches(".card.blue")) {
-        e.preventDefault(); e.stopImmediatePropagation(); lockModal("Les marchés France et Belgique");
-      } else if (t.matches(".card.orange")) {
-        e.preventDefault(); e.stopImmediatePropagation(); lockModal("Retrouver son Coin de Chine");
-      } else if (t.matches(".small.green")) {
-        e.preventDefault(); e.stopImmediatePropagation(); lockModal("Retourner sur la place enregistrée");
-      } else if (t.matches(".directBtn.docs")) {
-        e.preventDefault(); e.stopImmediatePropagation(); lockModal("Démarches pro");
-      } else if ((t.getAttribute("onclick") || "").indexOf("savePlace") !== -1) {
-        e.preventDefault(); e.stopImmediatePropagation(); lockModal("Créer une nouvelle fiche Coin de Chine");
-      }
+      if (unlocked()) return;
+      var allowed=e.target.closest?e.target.closest("#settings,.gear,#directArticle,#directArticleModal,#homeAddressBookBtn,#addressCountryChooser,#addressCreatorModal,#subscriptionGate"):null;
+      if (allowed) return;
+      var p=location.pathname.toLowerCase();
+      if (p!=="/"&&p!=="/index.html") return;
+      var t=e.target.closest?e.target.closest("a,button,.card,.small,.directBtn,[onclick]"):null;
+      if(!t)return;
+      e.preventDefault();e.stopImmediatePropagation();lockModal(featureName(t));
     }, true);
-    document.querySelectorAll('button[onclick*="savePlace"]').forEach(function (b) { addLock(b, "ABONNEMENT"); });
   }
 
   function blockDirectMarketPage() {
     if (unlocked()) return;
     var p = location.pathname.toLowerCase();
-    if (p.indexOf("marches") !== -1 && p.indexOf("admin") === -1 && p !== "/index.html") lockModal("Les marchés France et Belgique");
-    if (p.indexOf("coin-de-chine") !== -1) lockModal("Retrouver son Coin de Chine");
-    if (p.indexOf("documents-travail") !== -1) lockModal("Démarches pro");
+    if (p === "/" || p === "/index.html" || p.indexOf("admin") !== -1) return;
+    var blocked = ["march", "coin-de-chine", "documents-travail", "mes-papiers", "verification", "modification-demande", "special", "traveller", "ou-trouver-place", "nearby"];
+    if (blocked.some(function(k){return p.indexOf(k)!==-1;})) lockModal("Cette fonction");
   }
 
   function settingsPanel() {

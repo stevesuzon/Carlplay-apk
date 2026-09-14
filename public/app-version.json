@@ -1,4 +1,4 @@
 {
-  "version": "20260914-concours-v189",
-  "message": "Concours 5 mois avec résultats visibles 3 jours puis retour du bouton Mail. Confirmation Oui/Non avant Aller au marché avec avertissement si le même métier est déjà présent. Toutes les fiches et données restent conservées après le concours."
+  "version": "20260914-concours-v190-compact",
+  "message": "Page concours compacte : classement affiché directement après inscription, petits boutons Bonus, Points, Commune, Bug/Idée et Règles. Bonus affichés seulement après déclenchement avec temps restant et gains ; conditions cachées pour garder la surprise."
 }

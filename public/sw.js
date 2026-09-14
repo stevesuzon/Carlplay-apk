@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260914-concours-v189";
+const CACHE = "carplay-v5-20260914-v194-fin-essai-verrouillage";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -23,14 +23,14 @@ const CORE = [
   "/carplay-noir-rouge-512.png",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=68-notifications-globales",
-  "/subscription-web.js?v=158",
+  "/subscription-web.js?v=194",
   "/subscription-v154-patch.js?v=158",
   "/modification-profile-v156.js?v=173",
   "/sanction-guard-v161.js?v=161",
   "/special-market-server-v157.js?v=184",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
-  "/gps-apple-plans-v141.js?v=141",
+  "/gps-apple-plans-v141.js?v=192",
   "/location-permission-v20260911.js?v=20260911",
   "/markets-final.css?v=126-favori-fluide",
   "/markets-final-picker.css",
