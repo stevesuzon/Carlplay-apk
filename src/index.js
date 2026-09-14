@@ -478,6 +478,31 @@ async function adminPresenceAction(request, env) {
   return json({ ok: true, active: !!active });
 }
 
+async function marketLivePresence(request,env){
+  if(!env.DB)return json({ok:false,error:"DB_INDISPONIBLE",count:0},503);
+  await ensureMarketTable(env);
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_live_presence(
+    device_id TEXT PRIMARY KEY,
+    market_key TEXT NOT NULL,
+    market_name TEXT NOT NULL,
+    market_kind TEXT NOT NULL DEFAULT 'marche',
+    distance_meters REAL NOT NULL DEFAULT 0,
+    last_seen INTEGER NOT NULL
+  )`).run();
+  const data=await body(request),deviceId=String(data.deviceId||"").slice(0,100),lat=Number(data.latitude),lon=Number(data.longitude),now=Math.floor(Date.now()/1000);
+  if(!deviceId||!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return json({ok:false,error:"POSITION_INVALIDE",count:0},400);
+  const latDelta=0.002,lonDelta=Math.min(0.004,0.002/Math.max(0.35,Math.cos(lat*Math.PI/180)));
+  const rows=(await env.DB.prepare("SELECT fingerprint,name,city,kind,latitude,longitude FROM imported_markets WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND latitude BETWEEN ? AND ? AND longitude BETWEEN ? AND ? LIMIT 80").bind(lat-latDelta,lat+latDelta,lon-lonDelta,lon+lonDelta).all()).results||[];
+  let nearest=null,distance=Infinity;
+  for(const m of rows){const d=haversineMeters(lat,lon,Number(m.latitude),Number(m.longitude));if(d<distance){distance=d;nearest=m}}
+  await env.DB.prepare("DELETE FROM market_live_presence WHERE last_seen<?").bind(now-600).run();
+  if(!nearest||distance>100){await env.DB.prepare("DELETE FROM market_live_presence WHERE device_id=?").bind(deviceId).run();return json({ok:true,count:0,atMarket:false,maxDistance:100})}
+  const marketKey=String(nearest.fingerprint||""),marketName=String(nearest.name||nearest.city||"Marché"),kind=String(nearest.kind||"marche");
+  await env.DB.prepare("INSERT INTO market_live_presence(device_id,market_key,market_name,market_kind,distance_meters,last_seen) VALUES(?,?,?,?,?,?) ON CONFLICT(device_id) DO UPDATE SET market_key=excluded.market_key,market_name=excluded.market_name,market_kind=excluded.market_kind,distance_meters=excluded.distance_meters,last_seen=excluded.last_seen").bind(deviceId,marketKey,marketName,kind,distance,now).run();
+  const total=await env.DB.prepare("SELECT COUNT(*) AS n FROM market_live_presence WHERE market_key=? AND last_seen>=?").bind(marketKey,now-600).first();
+  return json({ok:true,atMarket:true,count:Number(total&&total.n||0),marketKey,marketName,kind,distanceMeters:Math.round(distance),maxDistance:100,activeMinutes:10});
+}
+
 async function presence(request, env) {
   if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE", count: 0 }, 503);
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS app_presence (
@@ -1354,6 +1379,7 @@ export default {
     if (url.pathname === "/api/subscription-email" && request.method === "POST") return updateSubscriptionEmail(request, env);
     if (url.pathname === "/api/contest/trial-identity" && request.method === "POST") return contestTrialIdentity(request, env);
     if (url.pathname === "/api/presence" && (request.method === "GET" || request.method === "POST")) return presence(request, env);
+    if (url.pathname === "/api/market-live-presence" && request.method === "POST") return marketLivePresence(request, env);
     if (url.pathname === "/api/installations" && request.method === "POST") return installations(request, env);
     if (url.pathname === "/api/admin/installations" && request.method === "GET") return adminInstallations(request, env);
     if (url.pathname === "/api/admin/presence" && request.method === "GET") return adminPresenceStatus(env);
