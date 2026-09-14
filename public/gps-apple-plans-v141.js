@@ -27,7 +27,7 @@
   }
   function saveContext(lat,lon,ctx){
     ctx=ctx||{};ctx.lat=Number(lat);ctx.lon=Number(lon);ctx.updatedAt=Date.now();ctx._loaded=true;currentCtx=ctx;
-    try{localStorage.setItem('return_context_v213',JSON.stringify(ctx));}catch(_){ }
+    try{localStorage.setItem('return_context_v214',JSON.stringify(ctx));}catch(_){ }
     if(ctx.address)localStorage.setItem('return_address',String(ctx.address));
     try{localStorage.setItem('return_nearby',JSON.stringify(ctx.nearby||[]));}catch(_){ }
     localStorage.setItem('return_context_updated_at',String(Date.now()));
@@ -35,7 +35,7 @@
     return ctx;
   }
   function loadContext(lat,lon){
-    var keys=['return_context_v213','return_context_v212','return_context_v211'];
+    var keys=['return_context_v214'];
     for(var i=0;i<keys.length;i++){
       try{
         var j=JSON.parse(localStorage.getItem(keys[i])||'null');
@@ -84,48 +84,39 @@
     var x=items[0],kind=landmarkTypeLabel(x.type);
     return '<div style="margin-top:6px;font-size:14px"><b>'+esc(kind)+'</b> — '+esc(x.name)+' — <b>'+distanceText(x.distanceMeters)+'</b></div>';
   }
-  function ratingsText(x){
-    if(Number(x&&x.rating)>0)return '⭐ '+Number(x.rating).toFixed(1).replace('.',',')+(Number(x.ratingCount)>0?' ('+Math.round(Number(x.ratingCount))+' avis)':'');
-    return 'Avis non disponibles';
-  }
-  function diningSummary(items,kind,hasRatings){
-    var count=(items||[]).length;
-    if(!count)return 'Recherche en cours…';
-    if(kind==='restaurant')return count+' restaurant'+(count>1?'s':'')+(hasRatings?' • classés du mieux noté au moins bien noté':' • avis indisponibles');
-    return count+' fast-food'+(count>1?'s':'')+' à moins de 10 km';
+  function diningSummary(items,kind){
+    return kind==='restaurant'?'Restaurants réputés à moins de 10 km':'Fast-food à moins de 10 km';
   }
   function showDiningPage(kind){
-    var ctx=currentCtx||{},items=(kind==='restaurant'?ctx.restaurants:ctx.fastFood)||[],title=kind==='restaurant'?'⭐ Restaurants réputés':'🍔 Fast-food';
-    var old=document.getElementById('rpDiningPageV212');if(old)old.remove();
-    var d=document.createElement('div');d.id='rpDiningPageV212';
+    var ctx=currentCtx||{},items=(kind==='restaurant'?ctx.restaurants:ctx.fastFood)||[],title=kind==='restaurant'?'⭐ Restaurants réputés à moins de 10 km':'🍔 Fast-food à moins de 10 km';
+    var old=document.getElementById('rpDiningPageV214');if(old)old.remove();
+    var d=document.createElement('div');d.id='rpDiningPageV214';
     d.style.cssText='position:fixed;z-index:2147483647;inset:0;background:#07111beF;overflow-y:auto;padding:12px;font-family:Arial,sans-serif';
     var cards=items.length?items.map(function(x,i){
-      var img=x.photoName?'<img src="'+esc(photoUrl(x.photoName))+'" alt="Photo du restaurant" style="width:112px;height:92px;object-fit:cover;border-radius:13px;background:#0d1824" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">':'',fallback='<div style="'+(x.photoName?'display:none;':'display:flex;')+'width:112px;height:92px;border-radius:13px;background:#22364a;align-items:center;justify-content:center;font-size:38px">'+(kind==='restaurant'?'🍽️':'🍔')+'</div>';
-      var rating=Number(x.rating)>0?'<div style="color:#ffd24a;font-weight:1000;margin-top:3px">'+esc(ratingsText(x))+'</div>':'<div style="color:#91a4b7;font-size:12px;margin-top:3px">Avis non disponibles</div>';
-      return '<div style="background:#13283b;border:1px solid #29445d;border-radius:17px;padding:10px;margin-top:10px"><div style="display:flex;gap:11px;align-items:flex-start">'+img+fallback+'<div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:1000;color:#fff">'+(i+1)+'. '+esc(x.name)+'</div>'+rating+'<div style="margin-top:5px;color:#dce8f3;font-size:13px"><b>Spécialité :</b> '+esc(x.specialty||'Non indiquée')+'</div><div style="margin-top:4px;color:#b9cad8;font-size:12px">📍 '+distanceText(x.distanceMeters)+(x.address?' • '+esc(x.address):'')+'</div></div></div><button data-lat="'+esc(x.lat)+'" data-lon="'+esc(x.lon)+'" class="rpGoDining" style="width:100%;min-height:48px;margin-top:9px;border:0;border-radius:12px;background:#168a4e;color:#fff;font:1000 15px Arial">🧭 ALLER AU '+(kind==='restaurant'?'RESTAURANT':'FAST-FOOD')+'</button></div>';
+      var img=x.photoName?'<img src="'+esc(photoUrl(x.photoName))+'" alt="Photo" style="width:112px;height:92px;object-fit:cover;border-radius:13px;background:#0d1824" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">':'',fallback='<div style="'+(x.photoName?'display:none;':'display:flex;')+'width:112px;height:92px;border-radius:13px;background:#22364a;align-items:center;justify-content:center;font-size:38px">'+(kind==='restaurant'?'🍽️':'🍔')+'</div>';
+      return '<div style="background:#13283b;border:1px solid #29445d;border-radius:17px;padding:10px;margin-top:10px"><div style="display:flex;gap:11px;align-items:flex-start">'+img+fallback+'<div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:1000;color:#fff">'+(i+1)+'. '+esc(x.name)+'</div><div style="margin-top:5px;color:#dce8f3;font-size:13px"><b>Spécialité :</b> '+esc(x.specialty||'Non indiquée')+'</div><div style="margin-top:4px;color:#b9cad8;font-size:12px">📍 '+distanceText(x.distanceMeters)+(x.address?' • '+esc(x.address):'')+'</div></div></div><button data-lat="'+esc(x.lat)+'" data-lon="'+esc(x.lon)+'" class="rpGoDining" style="width:100%;min-height:48px;margin-top:9px;border:0;border-radius:12px;background:#168a4e;color:#fff;font:1000 15px Arial">🧭 ALLER AU '+(kind==='restaurant'?'RESTAURANT':'FAST-FOOD')+'</button></div>';
     }).join(''):'<div style="padding:20px;color:#b9cad8;text-align:center">Aucun résultat disponible pour le moment.</div>';
-    d.innerHTML='<div style="width:min(640px,98vw);margin:0 auto;background:#0d1824;color:#fff;border:4px solid #4dc987;border-radius:24px;padding:14px;box-shadow:0 16px 50px #000"><div style="display:flex;align-items:center;gap:9px"><button id="rpDiningBack" style="min-width:76px;min-height:42px;border:0;border-radius:11px;background:#25394d;color:#fff;font:900 14px Arial">← RETOUR</button><div style="font-size:22px;font-weight:1000;flex:1">'+title+'</div></div><div style="margin-top:7px;color:#aebdcb;font-size:13px">À moins de 10 km de votre place enregistrée.</div>'+cards+'</div>';
+    d.innerHTML='<div style="width:min(640px,98vw);margin:0 auto;background:#0d1824;color:#fff;border:4px solid #4dc987;border-radius:24px;padding:14px;box-shadow:0 16px 50px #000"><div style="display:flex;align-items:center;gap:9px"><button id="rpDiningBack" style="min-width:76px;min-height:42px;border:0;border-radius:11px;background:#25394d;color:#fff;font:900 14px Arial">← RETOUR</button><div style="font-size:22px;font-weight:1000;flex:1">'+title+'</div></div><div style="margin-top:7px;color:#aebdcb;font-size:13px">'+(kind==='restaurant'?'5 restaurants sélectionnés dans un rayon de 10 km.':'Les 3 fast-food les plus proches dans un rayon de 10 km.')+'</div>'+cards+'</div>';
     document.body.appendChild(d);
     d.querySelector('#rpDiningBack').onclick=function(){d.remove()};
     Array.from(d.querySelectorAll('.rpGoDining')).forEach(function(b){b.onclick=function(){navTo(Number(b.dataset.lat),Number(b.dataset.lon))}});
   }
   function updateBubbleContext(ctx){
     currentCtx=ctx||currentCtx;
-    var a=document.getElementById('rpAddressText'),near=document.getElementById('rpNearbyRows'),nearBox=document.getElementById('rpNearbyBox'),rest=document.getElementById('rpRestaurantSummary'),fast=document.getElementById('rpFastFoodSummary'),note=document.getElementById('rpRatingNote');
+    var a=document.getElementById('rpAddressText'),near=document.getElementById('rpNearbyRows'),nearBox=document.getElementById('rpNearbyBox'),rest=document.getElementById('rpRestaurantSummary'),fast=document.getElementById('rpFastFoodSummary');
     if(a)a.textContent=ctx.address||'Emplacement enregistré';
     var landmarks=closeLandmarks(ctx.nearby||[]);
     if(near)near.innerHTML=simpleRows(landmarks);
     if(nearBox)nearBox.style.display=landmarks.length?'block':'none';
-    if(rest)rest.textContent=diningSummary(ctx.restaurants||[],'restaurant',!!ctx.ratingsAvailable);
-    if(fast)fast.textContent=diningSummary(ctx.fastFood||[],'fastfood',!!ctx.ratingsAvailable);
-    if(note)note.textContent=ctx.ratingsAvailable?'Notes et avis récupérés pour classer les restaurants.':'Si les notes ne sont pas disponibles, l’application n’en invente pas.';
+    if(rest)rest.textContent=diningSummary(ctx.restaurants||[],'restaurant');
+    if(fast)fast.textContent=diningSummary(ctx.fastFood||[],'fastfood');
   }
   function showReturnBubble(lat,lon,ctx){
     currentCtx=ctx;
-    var old=document.getElementById('returnPlaceConfirmV212');if(old)old.remove();
-    var d=document.createElement('div');d.id='returnPlaceConfirmV212';
+    var old=document.getElementById('returnPlaceConfirmV214');if(old)old.remove();
+    var d=document.createElement('div');d.id='returnPlaceConfirmV214';
     d.style.cssText='position:fixed;z-index:2147483647;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;padding:12px;font-family:Arial,sans-serif';
-    d.innerHTML='<div style="width:min(580px,97vw);max-height:94vh;overflow-y:auto;background:#0d1824;color:#fff;border:4px solid #4dc987;border-radius:24px;padding:16px;text-align:center;box-shadow:0 16px 50px #000"><div style="font-size:25px;font-weight:1000;margin-bottom:8px">🚐 Retourner sur la place</div><div style="font-size:18px;font-weight:900">Voulez-vous retourner à cet emplacement ?</div><div style="margin-top:10px;padding:10px;border-radius:13px;background:#13283b;font-size:16px"><b>Lieu enregistré :</b><br><span id="rpAddressText">'+esc(ctx.address||'Emplacement enregistré')+'</span></div><div id="rpNearbyBox" style="margin-top:9px;padding:10px;border-radius:13px;background:#172536;text-align:left;font-size:14px;display:'+(closeLandmarks(ctx.nearby||[]).length?'block':'none')+'"><b style="color:#ffd24a">🧭 REPÈRE DE LA PLACE</b><div id="rpNearbyRows">'+simpleRows(ctx.nearby||[])+'</div></div><button id="rpRestaurantTile" style="width:100%;margin-top:9px;padding:12px;border:2px solid #ffd24a;border-radius:14px;background:#172536;color:#fff;text-align:left"><div style="font:1000 17px Arial;color:#ffd24a">⭐ RESTAURANTS RÉPUTÉS</div><div id="rpRestaurantSummary" style="font:700 13px Arial;margin-top:4px;color:#dce8f3">'+esc(diningSummary(ctx.restaurants||[],'restaurant',!!ctx.ratingsAvailable))+'</div><div style="font:900 12px Arial;margin-top:5px;color:#74c5ff">VOIR LES RESTAURANTS →</div></button><button id="rpFastFoodTile" style="width:100%;margin-top:9px;padding:12px;border:2px solid #f59b23;border-radius:14px;background:#172536;color:#fff;text-align:left"><div style="font:1000 17px Arial;color:#f7ae45">🍔 FAST-FOOD</div><div id="rpFastFoodSummary" style="font:700 13px Arial;margin-top:4px;color:#dce8f3">'+esc(diningSummary(ctx.fastFood||[],'fastfood',!!ctx.ratingsAvailable))+'</div><div style="font:900 12px Arial;margin-top:5px;color:#74c5ff">VOIR LES FAST-FOOD →</div></button><div id="rpRatingNote" style="margin-top:6px;font-size:11px;color:#91a4b7"></div><button id="rpShare" style="width:100%;min-height:50px;margin-top:10px;border:0;border-radius:13px;background:#267bc5;color:#fff;font:1000 16px Arial">📤 ENVOYER L’EMPLACEMENT</button><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px"><button id="rpYes" style="min-height:54px;border:0;border-radius:13px;background:#168a4e;color:#fff;font:900 18px Arial">OUI</button><button id="rpNo" style="min-height:54px;border:0;border-radius:13px;background:#b3343a;color:#fff;font:900 18px Arial">NON</button></div></div>';
+    d.innerHTML='<div style="width:min(580px,97vw);max-height:94vh;overflow-y:auto;background:#0d1824;color:#fff;border:4px solid #4dc987;border-radius:24px;padding:16px;text-align:center;box-shadow:0 16px 50px #000"><div style="font-size:25px;font-weight:1000;margin-bottom:8px">🚐 Retourner sur la place</div><div style="font-size:18px;font-weight:900">Voulez-vous retourner à cet emplacement ?</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px"><button id="rpRestaurantTile" style="min-width:0;padding:12px 10px;border:2px solid #ffd24a;border-radius:14px;background:#172536;color:#fff;text-align:left"><div style="font:1000 16px Arial;color:#ffd24a">⭐ RESTAURANTS RÉPUTÉS</div><div id="rpRestaurantSummary" style="font:800 12px Arial;margin-top:6px;color:#dce8f3">'+esc(diningSummary(ctx.restaurants||[],'restaurant'))+'</div><div style="font:900 11px Arial;margin-top:7px;color:#74c5ff">VOIR →</div></button><button id="rpFastFoodTile" style="min-width:0;padding:12px 10px;border:2px solid #f59b23;border-radius:14px;background:#172536;color:#fff;text-align:left"><div style="font:1000 16px Arial;color:#f7ae45">🍔 FAST-FOOD</div><div id="rpFastFoodSummary" style="font:800 12px Arial;margin-top:6px;color:#dce8f3">'+esc(diningSummary(ctx.fastFood||[],'fastfood'))+'</div><div style="font:900 11px Arial;margin-top:7px;color:#74c5ff">VOIR →</div></button></div><div style="margin-top:10px;padding:12px 14px;border-radius:13px;background:#13283b;font-size:16px;text-align:left"><b>📍 Lieu enregistré :</b><br><span id="rpAddressText" style="display:block;margin-top:4px;font-size:20px;font-weight:1000">'+esc(ctx.address||'Emplacement enregistré')+'</span></div><div id="rpNearbyBox" style="margin-top:9px;padding:11px 14px;border-radius:13px;background:#172536;text-align:left;font-size:14px;display:'+(closeLandmarks(ctx.nearby||[]).length?'block':'none')+'"><b style="color:#ffd24a">🧭 REPÈRE DE LA PLACE</b><div id="rpNearbyRows">'+simpleRows(ctx.nearby||[])+'</div></div><button id="rpShare" style="width:100%;min-height:50px;margin-top:10px;border:0;border-radius:13px;background:#267bc5;color:#fff;font:1000 16px Arial">📤 ENVOYER L’EMPLACEMENT</button><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px"><button id="rpYes" style="min-height:54px;border:0;border-radius:13px;background:#168a4e;color:#fff;font:900 18px Arial">OUI</button><button id="rpNo" style="min-height:54px;border:0;border-radius:13px;background:#b3343a;color:#fff;font:900 18px Arial">NON</button></div></div>';
     document.body.appendChild(d);updateBubbleContext(ctx);
     d.querySelector('#rpNo').onclick=function(){d.remove()};
     d.querySelector('#rpYes').onclick=function(){d.remove();navTo(lat,lon)};
@@ -146,7 +137,7 @@
       navigator.geolocation.getCurrentPosition(async function(position){
         var la=position.coords.latitude,lo=position.coords.longitude;
         localStorage.setItem('return_lat',la);localStorage.setItem('return_lon',lo);localStorage.setItem('return_saved_at',String(Date.now()));localStorage.setItem('return_address','Recherche du nom exact…');
-        ['return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_updated_at','return_nearby'].forEach(function(k){localStorage.removeItem(k)});
+        ['return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_updated_at','return_nearby'].forEach(function(k){localStorage.removeItem(k)});
         if(typeof window.showStatuses==='function')window.showStatuses();
         window.dispatchEvent(new CustomEvent('carplay-return-place-saved',{detail:{lat:la,lon:lo,address:'Recherche du nom exact…'}}));
         var ctx=await refreshContext(la,lo);
@@ -161,7 +152,7 @@
     if(!ctx._loaded||age>86400000||isVagueAddress(ctx.address))refreshContext(lat,lon);
   };
   window.clearReturnPlace=function(){
-    ['return_lat','return_lon','return_address','return_nearby','return_saved_at','return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_updated_at'].forEach(function(k){localStorage.removeItem(k)});
+    ['return_lat','return_lon','return_address','return_nearby','return_saved_at','return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_updated_at'].forEach(function(k){localStorage.removeItem(k)});
     currentCtx=null;
     if(typeof window.showStatuses==='function')window.showStatuses();
     alert('Emplacement de retour effacé. Au prochain appui, un nouveau point GPS sera enregistré.');

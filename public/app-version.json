@@ -1,4 +1,4 @@
 {
-  "version": "20260914-v213-repere-place-distance",
-  "message": "Retourner sur la place : affiche un seul repère principal facile à reconnaître à moins de 800 m, juste sous le lieu enregistré, avec son type (station-service, garage, supermarché, etc.), son nom et sa distance. Restaurants réputés et Fast-food restent séparés. Le GPS exact reste conservé jusqu’à effacement."
+  "version": "20260914-v214-restaurants-fastfood-10km",
+  "message": "Retourner sur la place : deux cases côte à côte. Restaurants réputés à moins de 10 km, sans affichage des avis. Fast-food à moins de 10 km : les 3 plus proches (McDonald’s, Quick, Burger King, kebab et autres restauration rapide selon les données disponibles). Lieu enregistré bien visible avec le repère juste dessous."
 }

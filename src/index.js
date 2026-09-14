@@ -1283,7 +1283,7 @@ async function googleNearbyPlaces(env,lat,lon,kind){
   if(!key)return [];
   const fast=kind==='fastfood',limit=fast?3:5;
   try{
-    const payload={includedTypes:[fast?'fast_food_restaurant':'restaurant'],maxResultCount:20,rankPreference:'POPULARITY',locationRestriction:{circle:{center:{latitude:lat,longitude:lon},radius:10000}},languageCode:'fr'};
+    const payload={includedTypes:[fast?'fast_food_restaurant':'restaurant'],maxResultCount:20,rankPreference:fast?'DISTANCE':'POPULARITY',locationRestriction:{circle:{center:{latitude:lat,longitude:lon},radius:10000}},languageCode:'fr'};
     if(!fast)payload.excludedPrimaryTypes=['fast_food_restaurant'];
     const mask='places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.primaryType,places.primaryTypeDisplayName,places.types,places.photos';
     const r=await fetch('https://places.googleapis.com/v1/places:searchNearby',{method:'POST',headers:{'content-type':'application/json','X-Goog-Api-Key':key,'X-Goog-FieldMask':mask},body:JSON.stringify(payload)});
@@ -1295,7 +1295,7 @@ async function googleNearbyPlaces(env,lat,lon,kind){
       const distanceMeters=Math.round(haversineMeters(lat,lon,la,lo)),rating=Number(p.rating||0),ratingCount=Math.max(0,Number(p.userRatingCount||0));
       const photoName=String(p.photos&&p.photos[0]&&p.photos[0].name||'');
       return {name,distanceMeters,rating:rating||null,ratingCount,address:String(p.formattedAddress||''),lat:la,lon:lo,source:'google',specialty:diningSpecialtyFromGoogle(p,fast),photoName};
-    }).filter(Boolean).filter(x=>x.distanceMeters<=10000).sort((a,b)=>(Number(b.rating||0)-Number(a.rating||0))||(Number(b.ratingCount||0)-Number(a.ratingCount||0))||a.distanceMeters-b.distanceMeters).slice(0,limit);
+    }).filter(Boolean).filter(x=>x.distanceMeters<=10000).sort((a,b)=>fast?(a.distanceMeters-b.distanceMeters):((Number(b.rating||0)-Number(a.rating||0))||(Number(b.ratingCount||0)-Number(a.ratingCount||0))||a.distanceMeters-b.distanceMeters)).slice(0,limit);
   }catch(_){return []}
 }
 
