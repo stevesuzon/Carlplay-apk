@@ -820,8 +820,7 @@ border-radius:10px;
 padding:4px 7px;
 backdrop-filter:blur(3px);
 -webkit-backdrop-filter:blur(3px);
-pointer-events:auto;
-cursor:pointer;
+pointer-events:none;
 opacity:.9;
 ">● <span id="connectedUsersCount">0</span> connecté(s)</div>
 <div class="wrap">
@@ -1743,28 +1742,51 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 
 <script>
 (function(){
-  const el=document.getElementById('connectedUsersCount');
-  const badge=document.getElementById('connectedUsersBadge');
-  if(!el||!badge)return;
-  let last={atMarket:false,count:0,marketName:'',distanceMeters:0};
-  function deviceId(){let v=localStorage.getItem('carplay_device_id');if(!v){v=crypto.randomUUID?crypto.randomUUID():'dev-'+Date.now()+'-'+Math.random().toString(36).slice(2);localStorage.setItem('carplay_device_id',v)}return v}
-  function locate(){return new Promise(function(resolve,reject){if(!navigator.geolocation)return reject(new Error('GPS indisponible'));navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:12000,maximumAge:30000})})}
-  function paint(data){last=data||last;el.textContent=String(Number(last.count||0));badge.title=last.atMarket?(last.marketName+' — '+last.count+' personne(s) détectée(s) à moins de 100 m'):'Aucun marché détecté à moins de 100 m'}
+  const el = document.getElementById('connectedUsersCount');
+  if(!el) return;
+
   async function refreshConnectedUsers(){
-    try{
-      const pos=await locate();
-      const r=await fetch('/api/market-live-presence',{method:'POST',headers:{'content-type':'application/json'},cache:'no-store',body:JSON.stringify({deviceId:deviceId(),latitude:pos.coords.latitude,longitude:pos.coords.longitude,accuracy:pos.coords.accuracy})});
-      const j=await r.json();if(!r.ok)throw j;paint(j);
-    }catch(e){paint({atMarket:false,count:0,marketName:'',distanceMeters:0})}
+    let value = null;
+
+    // 1) variable/fonction existante éventuelle
+    try {
+      if (typeof window.getConnectedUsersCount === 'function') {
+        const v = await window.getConnectedUsersCount();
+        if (Number.isFinite(Number(v))) value = Number(v);
+      }
+    } catch(e){}
+
+    // 2) endpoints possibles déjà utilisés par certaines versions
+    if (value === null) {
+      const urls = ['/api/presence','/api/online-count','/api/active-users','/api/presence/count','/api/users/online'];
+      for (const u of urls) {
+        try {
+          const r = await fetch(u, {cache:'no-store'});
+          if (!r.ok) continue;
+          const j = await r.json();
+          const v = j.count ?? j.total ?? j.online ?? j.active ?? j.users;
+          if (Number.isFinite(Number(v))) { value = Number(v); break; }
+        } catch(e){}
+      }
+    }
+
+    // 3) variable globale mise à jour ailleurs
+    if (value === null) {
+      const globals = ['connectedUsers','onlineUsers','activeUsersCount','presenceCount'];
+      for (const k of globals) {
+        const v = window[k];
+        if (Number.isFinite(Number(v))) { value = Number(v); break; }
+      }
+    }
+
+    if (value !== null) {
+      el.textContent = String(value);
+      document.getElementById('connectedUsersBadge').style.display = '';
+    }
   }
-  badge.onclick=function(){
-    if(last.atMarket)alert('📍 '+last.marketName+'\n'+Number(last.count||0)+' personne(s) avec l’application détectée(s) à moins de 100 mètres.\nUne personne reste comptée 10 minutes après sa dernière détection.');
-    else alert('Aucun marché enregistré détecté à moins de 100 mètres.\nLes personnes sans l’application ne peuvent pas être comptées.');
-  };
+
   refreshConnectedUsers();
-  setInterval(refreshConnectedUsers,30000);
-  window.addEventListener('focus',refreshConnectedUsers);
-  document.addEventListener('visibilitychange',function(){if(!document.hidden)refreshConnectedUsers()});
+  setInterval(refreshConnectedUsers, 30000);
 })();
 </script>
 
