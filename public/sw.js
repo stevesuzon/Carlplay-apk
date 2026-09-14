@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260914-v194-fin-essai-verrouillage";
+const CACHE = "carplay-v5-20260914-v202-reparation-acces";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -23,7 +23,7 @@ const CORE = [
   "/carplay-noir-rouge-512.png",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=68-notifications-globales",
-  "/subscription-web.js?v=194",
+  "/subscription-web.js?v=202-reparation-acces",
   "/subscription-v154-patch.js?v=158",
   "/modification-profile-v156.js?v=173",
   "/sanction-guard-v161.js?v=161",
