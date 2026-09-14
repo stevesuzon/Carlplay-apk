@@ -1,4 +1,4 @@
 {
-  "version": "20260914-v200-essai-concours",
-  "message": "Pendant la période d’essai, le concours se débloque sans code après confirmation du nom, du prénom et de l’adresse e-mail. L’accès d’essai expire automatiquement à la date prévue."
+  "version": "20260914-v201-identite-recuperation",
+  "message": "Le nom, le prénom et l’adresse e-mail restent enregistrés avec l’abonnement et restent modifiables sur le téléphone actuel. Sur un nouveau téléphone, le code, l’e-mail, le nom et le prénom doivent correspondre."
 }
