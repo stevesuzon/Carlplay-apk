@@ -3,7 +3,7 @@
 var KEY='carplay_shared_subscription';
 function deviceId(){var v=localStorage.getItem('carplay_device_id');if(!v){v=crypto.randomUUID?crypto.randomUUID():'dev-'+Date.now()+'-'+Math.random().toString(36).slice(2);localStorage.setItem('carplay_device_id',v)}return v}
 function subCode(){try{var s=JSON.parse(localStorage.getItem(KEY)||'null');return s&&s.code||''}catch(_){return ''}}
-function payload(extra){return Object.assign({deviceId:deviceId(),subscriptionCode:subCode()},extra||{})}
+function payload(extra){var identity={};try{identity=JSON.parse(localStorage.getItem(KEY)||'null')||{}}catch(_){}return Object.assign({deviceId:deviceId(),subscriptionCode:subCode(),firstName:identity.firstName||'',lastName:identity.lastName||'',email:identity.email||''},extra||{})}
 async function api(path,opts){opts=opts||{};if(opts.body&&typeof opts.body!=='string')opts.body=JSON.stringify(payload(opts.body));opts.headers=Object.assign({'content-type':'application/json'},opts.headers||{});var r=await fetch(path,opts),j=await r.json().catch(function(){return {}});if(!r.ok)throw j;return j}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function style(){if(document.getElementById('contestStyleV188'))return;var e=document.createElement('style');e.id='contestStyleV188';e.textContent=`
