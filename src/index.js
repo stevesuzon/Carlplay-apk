@@ -1219,29 +1219,172 @@ function formatReturnPlaceNominatim(j){
   return String(j&&j.display_name||'').split(',').slice(0,3).join(', ').trim();
 }
 
-async function reversePlaceAddress(url){
-  const lat=Number(url.searchParams.get('lat')),lon=Number(url.searchParams.get('lon'));if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return json({ok:false,error:'POSITION_INVALIDE'},400);
-  try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&namedetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr'}});if(r.ok){const j=await r.json(),address=formatReturnPlaceNominatim(j);if(address)return json({ok:true,address})}}catch(_){}
-  return json({ok:true,address:await contestPlaceLabel(lat,lon)});
+function exactNamedNominatim(j){
+  const a=j&&j.address||{},city=String(a.city||a.town||a.village||a.municipality||a.hamlet||'').trim(),road=String(a.road||a.pedestrian||a.square||a.place||'').trim();
+  const generic=new Set([city.toLowerCase(),road.toLowerCase(),String(a.postcode||'').toLowerCase()]);
+  const candidates=[j&&j.name,a.amenity,a.tourism,a.leisure,a.cemetery,a.historic,a.building,a.shop,a.office].map(x=>String(x||'').trim()).filter(Boolean);
+  for(const c of candidates){const lc=c.toLowerCase();if(c.length>2&&!/^\d+$/.test(c)&&!generic.has(lc)&&!/^(yes|no|residential|commercial|industrial|house|apartments)$/i.test(c))return c}
+  return '';
 }
 
-async function reversePlaceContext(url){
-  const lat=Number(url.searchParams.get('lat')),lon=Number(url.searchParams.get('lon'));
-  if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return json({ok:false,error:'POSITION_INVALIDE'},400);
-  let address='';
+async function nominatimExactReturnPlace(lat,lon){
   try{
     const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&namedetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr'}});
-    if(r.ok){const j=await r.json();address=formatReturnPlaceNominatim(j)}
+    if(r.ok){const j=await r.json();return {name:exactNamedNominatim(j),address:formatReturnPlaceNominatim(j)}}
   }catch(_){ }
-  if(!address)address=await contestPlaceLabel(lat,lon);
+  return {name:'',address:''};
+}
+
+function returnPlacePoiPriority(tags){
+  tags=tags||{};
+  const tourism=String(tags.tourism||''),amenity=String(tags.amenity||''),leisure=String(tags.leisure||''),landuse=String(tags.landuse||''),historic=String(tags.historic||''),place=String(tags.place||''),shop=String(tags.shop||''),office=String(tags.office||''),building=String(tags.building||'');
+  if(/camp_site|caravan_site|camp_pitch/i.test(tourism))return -140;
+  if(/grave_yard|parking|hospital|clinic|school|college|university|townhall|community_centre|place_of_worship/i.test(amenity))return -100;
+  if(/cemetery/i.test(landuse)||/cemetery|memorial|monument/i.test(historic))return -110;
+  if(/park|stadium|sports_centre|nature_reserve/i.test(leisure))return -85;
+  if(/attraction|museum|hotel|hostel|motel|guest_house/i.test(tourism))return -75;
+  if(place)return -65;
+  if(shop||office)return 35;
+  if(/restaurant|fast_food|cafe|bar|pub/i.test(amenity))return 55;
+  if(building&&building!=='yes')return 5;
+  return 20;
+}
+
+async function nearestNamedOsmPlace(lat,lon){
+  try{
+    const q=`[out:json][timeout:7];nwr(around:250,${lat},${lon})["name"];out center tags 100;`;
+    const r=await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
+    if(!r.ok)return '';
+    const j=await r.json();
+    const rows=(j.elements||[]).map(e=>{
+      const la=Number(e.lat??e.center?.lat),lo=Number(e.lon??e.center?.lon),tags=e.tags||{},name=String(tags.name||'').trim();
+      if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;
+      const useful=tags.amenity||tags.tourism||tags.leisure||tags.landuse||tags.historic||tags.place||tags.shop||tags.office||tags.building||tags.man_made;
+      if(!useful)return null;
+      const distance=Math.round(haversineMeters(lat,lon,la,lo));
+      return {name,distance,score:distance+returnPlacePoiPriority(tags)};
+    }).filter(Boolean).filter(x=>x.distance<=250).sort((a,b)=>a.score-b.score||a.distance-b.distance);
+    const best=rows[0];
+    return best&&best.distance<=220?best.name:'';
+  }catch(_){return ''}
+}
+
+function diningSpecialtyFromGoogle(p,fast){
+  const shown=String(p&&p.primaryTypeDisplayName&&p.primaryTypeDisplayName.text||'').trim();
+  if(shown&&!/^restaurant$/i.test(shown)&&!/fast.?food/i.test(shown))return shown;
+  const type=String(p&&p.primaryType||'').toLowerCase();
+  const labels={italian_restaurant:'Italien',french_restaurant:'Cuisine française',japanese_restaurant:'Japonais',chinese_restaurant:'Chinois',indian_restaurant:'Indien',thai_restaurant:'Thaï',vietnamese_restaurant:'Vietnamien',lebanese_restaurant:'Libanais',mediterranean_restaurant:'Méditerranéen',seafood_restaurant:'Fruits de mer',steak_house:'Grill / viande',pizza_restaurant:'Pizzeria',hamburger_restaurant:'Burgers',sushi_restaurant:'Sushis',vegetarian_restaurant:'Végétarien',vegan_restaurant:'Vegan',breakfast_restaurant:'Petit-déjeuner',brunch_restaurant:'Brunch'};
+  if(labels[type])return labels[type];
+  return fast?'Restauration rapide':'Cuisine / spécialité à voir sur la fiche';
+}
+
+async function googleNearbyPlaces(env,lat,lon,kind){
+  const key=String(env&&env.GOOGLE_PLACES_API_KEY||'').trim();
+  if(!key)return [];
+  const fast=kind==='fastfood',limit=fast?3:5;
+  try{
+    const payload={includedTypes:[fast?'fast_food_restaurant':'restaurant'],maxResultCount:20,rankPreference:'POPULARITY',locationRestriction:{circle:{center:{latitude:lat,longitude:lon},radius:10000}},languageCode:'fr'};
+    if(!fast)payload.excludedPrimaryTypes=['fast_food_restaurant'];
+    const mask='places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.primaryType,places.primaryTypeDisplayName,places.types,places.photos';
+    const r=await fetch('https://places.googleapis.com/v1/places:searchNearby',{method:'POST',headers:{'content-type':'application/json','X-Goog-Api-Key':key,'X-Goog-FieldMask':mask},body:JSON.stringify(payload)});
+    if(!r.ok)return [];
+    const j=await r.json();
+    return (j.places||[]).map((p,i)=>{
+      const la=Number(p.location&&p.location.latitude),lo=Number(p.location&&p.location.longitude),name=String(p.displayName&&p.displayName.text||'').trim();
+      if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;
+      const distanceMeters=Math.round(haversineMeters(lat,lon,la,lo)),rating=Number(p.rating||0),ratingCount=Math.max(0,Number(p.userRatingCount||0));
+      const photoName=String(p.photos&&p.photos[0]&&p.photos[0].name||'');
+      return {name,distanceMeters,rating:rating||null,ratingCount,address:String(p.formattedAddress||''),lat:la,lon:lo,source:'google',specialty:diningSpecialtyFromGoogle(p,fast),photoName};
+    }).filter(Boolean).filter(x=>x.distanceMeters<=10000).sort((a,b)=>(Number(b.rating||0)-Number(a.rating||0))||(Number(b.ratingCount||0)-Number(a.ratingCount||0))||a.distanceMeters-b.distanceMeters).slice(0,limit);
+  }catch(_){return []}
+}
+
+function osmCuisineLabel(tags,fast){
+  const raw=String(tags&&tags.cuisine||'').trim();
+  if(!raw)return fast?'Restauration rapide':'Spécialité non indiquée';
+  const labels={french:'Cuisine française',italian:'Italien',pizza:'Pizzeria',burger:'Burgers',japanese:'Japonais',sushi:'Sushis',chinese:'Chinois',indian:'Indien',thai:'Thaï',vietnamese:'Vietnamien',lebanese:'Libanais',mediterranean:'Méditerranéen',seafood:'Fruits de mer',kebab:'Kebab',regional:'Cuisine régionale',vegetarian:'Végétarien'};
+  const parts=raw.split(/[;,]/).map(x=>x.trim()).filter(Boolean).slice(0,2).map(x=>labels[x.toLowerCase()]||x.replace(/_/g,' '));
+  return parts.join(' / ');
+}
+
+async function overpassDining(lat,lon,kind){
+  const amenity=kind==='fastfood'?'fast_food':'restaurant',fast=kind==='fastfood',limit=fast?3:5;
+  try{
+    const q=`[out:json][timeout:9];nwr(around:10000,${lat},${lon})["name"]["amenity"="${amenity}"];out center tags 120;`;
+    const r=await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
+    if(!r.ok)return [];
+    const j=await r.json(),seen=new Set();
+    return (j.elements||[]).map(e=>{
+      const la=Number(e.lat??e.center?.lat),lo=Number(e.lon??e.center?.lon),tags=e.tags||{},name=String(tags.name||tags.brand||'').trim();
+      if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;
+      const address=[tags['addr:street'],tags['addr:postcode'],tags['addr:city']].filter(Boolean).join(', ');
+      return {name,distanceMeters:Math.round(haversineMeters(lat,lon,la,lo)),rating:null,ratingCount:0,lat:la,lon:lo,address,specialty:osmCuisineLabel(tags,fast),photoName:'',source:'osm'};
+    }).filter(Boolean).filter(x=>x.distanceMeters<=10000).filter(x=>{const k=x.name.toLowerCase();if(seen.has(k))return false;seen.add(k);return true}).sort((a,b)=>a.distanceMeters-b.distanceMeters).slice(0,limit);
+  }catch(_){return []}
+}
+
+async function googlePlacePhoto(url,env){
+  const key=String(env&&env.GOOGLE_PLACES_API_KEY||'').trim();
+  if(!key)return new Response('Photo indisponible',{status:404});
+  const name=String(url.searchParams.get('name')||'').trim();
+  if(!/^places\/[A-Za-z0-9._~-]+\/photos\/[A-Za-z0-9._~-]+$/.test(name))return new Response('Photo invalide',{status:400});
+  try{
+    const photoUrl=`https://places.googleapis.com/v1/${name}/media?maxWidthPx=640&maxHeightPx=420&key=${encodeURIComponent(key)}`;
+    const r=await fetch(photoUrl,{redirect:'follow'});
+    if(!r.ok)return new Response('Photo indisponible',{status:404});
+    const h=new Headers(r.headers);h.set('cache-control','public, max-age=21600');h.delete('set-cookie');
+    return new Response(r.body,{status:200,headers:h});
+  }catch(_){return new Response('Photo indisponible',{status:404})}
+}
+
+async function googleNearestNamedPlace(env,lat,lon){
+  const key=String(env&&env.GOOGLE_PLACES_API_KEY||'').trim();
+  if(!key)return '';
+  try{
+    const payload={maxResultCount:8,rankPreference:'DISTANCE',locationRestriction:{circle:{center:{latitude:lat,longitude:lon},radius:220}},languageCode:'fr'};
+    const r=await fetch('https://places.googleapis.com/v1/places:searchNearby',{method:'POST',headers:{'content-type':'application/json','X-Goog-Api-Key':key,'X-Goog-FieldMask':'places.displayName,places.location,places.primaryType'},body:JSON.stringify(payload)});
+    if(!r.ok)return '';
+    const j=await r.json(),preferred=/^(rv_park|campground|cemetery|parking|park|tourist_attraction|museum|stadium|sports_complex|hotel|motel|lodging|place_of_worship|community_center|hospital|school|university|city_hall)$/;
+    const rows=(j.places||[]).map((p,i)=>{
+      const la=Number(p.location&&p.location.latitude),lo=Number(p.location&&p.location.longitude),name=String(p.displayName&&p.displayName.text||'').trim(),type=String(p.primaryType||'');
+      if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;
+      const distance=Math.round(haversineMeters(lat,lon,la,lo));
+      return {name,type,distance,score:distance+(preferred.test(type)?-90:40)+(i*0.01)};
+    }).filter(Boolean).filter(x=>x.distance<=220).sort((a,b)=>a.score-b.score||a.distance-b.distance);
+    const best=rows[0];
+    return best&&best.distance<=180?best.name:'';
+  }catch(_){return ''}
+}
+
+async function resolveReturnPlaceAddress(lat,lon,env){
+  const exact=await nominatimExactReturnPlace(lat,lon);if(exact.name)return exact.name;
+  const googleName=await googleNearestNamedPlace(env,lat,lon);if(googleName)return googleName;
+  const osmName=await nearestNamedOsmPlace(lat,lon);if(osmName)return osmName;
+  if(exact.address)return exact.address;
+  return await contestPlaceLabel(lat,lon);
+}
+
+async function reversePlaceAddress(url,env){
+  const lat=Number(url.searchParams.get('lat')),lon=Number(url.searchParams.get('lon'));if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return json({ok:false,error:'POSITION_INVALIDE'},400);
+  return json({ok:true,address:await resolveReturnPlaceAddress(lat,lon,env)});
+}
+
+async function reversePlaceContext(url,env){
+  const lat=Number(url.searchParams.get('lat')),lon=Number(url.searchParams.get('lon'));
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return json({ok:false,error:'POSITION_INVALIDE'},400);
+  const address=await resolveReturnPlaceAddress(lat,lon,env);
   let nearby=[];
   try{
-    const q=`[out:json][timeout:8];(nwr(around:3000,${lat},${lon})["name"]["amenity"~"fast_food|cafe|restaurant|fuel"];nwr(around:3000,${lat},${lon})["name"]["shop"~"supermarket|mall|convenience"];);out center tags 70;`;
+    const q=`[out:json][timeout:9];(nwr(around:800,${lat},${lon})["name"]["amenity"~"restaurant|fuel|hospital|police|townhall|cinema|bus_station"];nwr(around:800,${lat},${lon})["name"]["shop"~"supermarket|mall|department_store|car|car_repair"];nwr(around:800,${lat},${lon})["name"]["tourism"~"attraction|hotel|museum"];nwr(around:800,${lat},${lon})["name"]["leisure"~"stadium|sports_centre"];nwr(around:800,${lat},${lon})["name"]["railway"="station"];);out center tags 110;`;
     const r=await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
-    if(r.ok){const j=await r.json(),known=/mcdonald|burger king|leclerc|e\.leclerc|carrefour|auchan|intermarch|lidl|aldi|super u|hyper u|kfc|quick|flunch|casino|monoprix/i,seen=new Set();nearby=(j.elements||[]).map(e=>{const la=Number(e.lat??e.center?.lat),lo=Number(e.lon??e.center?.lon),name=String(e.tags?.name||e.tags?.brand||'').trim();if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;const d=Math.round(haversineMeters(lat,lon,la,lo));return {name,distanceMeters:d,known:known.test(name),type:String(e.tags?.amenity||e.tags?.shop||'')};}).filter(Boolean).filter(x=>{const k=x.name.toLowerCase();if(seen.has(k))return false;seen.add(k);return x.distanceMeters<=3000}).sort((a,b)=>(Number(b.known)-Number(a.known))||a.distanceMeters-b.distanceMeters).slice(0,3).map(({name,distanceMeters,type})=>({name,distanceMeters,type}));}
+    if(r.ok){const j=await r.json(),known=/mcdonald|burger king|leclerc|e\.leclerc|carrefour|auchan|intermarch|lidl|aldi|super u|hyper u|casino|monoprix|total|esso|shell|bp|avia|renault|peugeot|citro[eë]n|ford|toyota|volkswagen|mercedes|bmw|audi/i,seen=new Set();nearby=(j.elements||[]).map(e=>{const la=Number(e.lat??e.center?.lat),lo=Number(e.lon??e.center?.lon),tags=e.tags||{},name=String(tags.name||tags.brand||'').trim();if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;const d=Math.round(haversineMeters(lat,lon,la,lo)),type=String(tags.amenity||tags.shop||tags.tourism||tags.leisure||tags.railway||''),major=/supermarket|mall|department_store|car|car_repair|fuel|hospital|cinema|bus_station|hotel|stadium|sports_centre|station|restaurant/.test(type);return {name,distanceMeters:d,known:known.test(name),major,type};}).filter(Boolean).filter(x=>{const k=x.name.toLowerCase();if(seen.has(k))return false;seen.add(k);return x.distanceMeters<=800&&x.major}).sort((a,b)=>(Number(b.known)-Number(a.known))||a.distanceMeters-b.distanceMeters).slice(0,1).map(({name,distanceMeters,type})=>({name,distanceMeters,type}));}
   }catch(_){ }
-  return json({ok:true,address,nearby,radiusMeters:3000});
+  let restaurants=await googleNearbyPlaces(env,lat,lon,'restaurant'),fastFood=await googleNearbyPlaces(env,lat,lon,'fastfood'),ratingsProvider='google';
+  if(!restaurants.length){restaurants=await overpassDining(lat,lon,'restaurant');ratingsProvider='osm'}
+  if(!fastFood.length){fastFood=await overpassDining(lat,lon,'fastfood');if(ratingsProvider==='google')ratingsProvider='mixed'}
+  return json({ok:true,address,nearby,restaurants,fastFood,nearbyRadiusMeters:800,diningRadiusMeters:10000,ratingsProvider,ratingsAvailable:restaurants.some(x=>Number(x.rating)>0)||fastFood.some(x=>Number(x.rating)>0)});
 }
+
 async function contestHomePlace(request,env){
   await ensureContestTables(env);const data=await body(request),sub=await contestSubscription(env,data);if(!sub)return json({ok:false,error:'ABONNEMENT_REQUIS'},403);const p=await env.DB.prepare("SELECT * FROM contest_participants WHERE subscription_id=? AND banned=0").bind(sub.id).first();if(!p)return json({ok:true,participant:false});
   const lat=Number(data.lat),lon=Number(data.lon);if(!Number.isFinite(lat)||!Number.isFinite(lon))return json({ok:false,error:'POSITION_INVALIDE'},400);let label=String(data.address||'').trim().slice(0,240);if(!label)label=await contestPlaceLabel(lat,lon);
@@ -1475,8 +1618,9 @@ export default {
     if (url.pathname === "/api/market-presence/disabled" && request.method === "GET") return disabledMarketPresence(env);
     if (url.pathname === "/api/market-photo" && request.method === "GET") return marketPhoto(url, env);
     if (url.pathname === "/api/vigilance" && request.method === "GET") return vigilanceForPlace(url);
-    if (url.pathname === "/api/place-address" && request.method === "GET") return reversePlaceAddress(url);
-    if (url.pathname === "/api/place-context" && request.method === "GET") return reversePlaceContext(url);
+    if (url.pathname === "/api/place-address" && request.method === "GET") return reversePlaceAddress(url, env);
+    if (url.pathname === "/api/place-context" && request.method === "GET") return reversePlaceContext(url, env);
+    if (url.pathname === "/api/place-photo" && request.method === "GET") return googlePlacePhoto(url, env);
     if (url.pathname === "/api/contest/status" && request.method === "POST") return contestStatus(request, env);
     if (url.pathname === "/api/contest/communes" && request.method === "GET") return contestCommunes(url);
     if (url.pathname === "/api/contest/register" && request.method === "POST") return contestRegister(request, env);

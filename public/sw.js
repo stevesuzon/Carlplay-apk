@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260914-v209-place-rapide-partage";
+const CACHE = "carplay-v5-20260914-v213-repere-place-distance";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -30,7 +30,7 @@ const CORE = [
   "/special-market-server-v157.js?v=184",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
-  "/gps-apple-plans-v141.js?v=209",
+  "/gps-apple-plans-v141.js?v=213",
   "/location-permission-v20260911.js?v=20260911",
   "/markets-final.css?v=126-favori-fluide",
   "/markets-final-picker.css",
