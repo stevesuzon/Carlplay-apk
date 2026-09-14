@@ -1,4 +1,4 @@
 {
-  "version": "20260915-v220-boutons-navigation-restaurants-fastfood",
-  "message": "Chaque restaurant a son bouton Aller au restaurant et chaque fast-food son bouton Aller au fast-food. Aucun lien Google ajouté."
+  "version": "20260915-v221-recherche-restaurants-fastfood-fiable",
+  "message": "Recherche restaurants et fast-food fiabilisée : plusieurs serveurs OpenStreetMap + secours Nominatim, 10 km autour du point enregistré."
 }

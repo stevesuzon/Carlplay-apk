@@ -1353,26 +1353,86 @@ function osmDiningNotability(tags){
   return score;
 }
 
+async function fetchOverpassJson(q){
+  const endpoints=[
+    'https://overpass.private.coffee/api/interpreter',
+    'https://overpass-api.de/api/interpreter',
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+  ];
+  for(const endpoint of endpoints){
+    try{
+      const r=await fetch(endpoint,{method:'POST',headers:{'user-agent':'CarPlay-ReturnPlace/1.0','content-type':'application/x-www-form-urlencoded;charset=UTF-8','accept':'application/json'},body:'data='+encodeURIComponent(q)});
+      if(!r.ok)continue;
+      const j=await r.json();
+      if(j&&Array.isArray(j.elements))return j;
+    }catch(_){ }
+  }
+  return null;
+}
+function diningAddressFromNominatim(x){
+  const a=x&&x.address||{};
+  const street=[a.house_number,a.road||a.pedestrian||a.square||a.place].filter(Boolean).join(' ').trim();
+  const city=a.city||a.town||a.village||a.municipality||a.suburb||'';
+  const locality=[a.postcode,city].filter(Boolean).join(' ').trim();
+  return [street,locality].filter(Boolean).join(', ');
+}
+async function nominatimDining(lat,lon,kind,limit){
+  const fast=kind==='fastfood';
+  const latDelta=0.10,lonDelta=0.10/Math.max(0.25,Math.cos(Number(lat)*Math.PI/180));
+  const viewbox=[Number(lon)-lonDelta,Number(lat)+latDelta,Number(lon)+lonDelta,Number(lat)-latDelta].join(',');
+  const terms=fast?['[fast food]','[fast_food]']:['[restaurant]'];
+  let all=[];
+  for(const term of terms){
+    try{
+      const u='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&namedetails=1&dedupe=1&bounded=1&limit=40&viewbox='+encodeURIComponent(viewbox)+'&q='+encodeURIComponent(term);
+      const r=await fetch(u,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr','accept':'application/json'}});
+      if(!r.ok)continue;
+      const j=await r.json();if(Array.isArray(j))all=all.concat(j);
+      if(all.length>=limit)break;
+    }catch(_){ }
+  }
+  const seen=new Set(),rows=[];
+  for(const x of all){
+    const la=Number(x.lat),lo=Number(x.lon);if(!Number.isFinite(la)||!Number.isFinite(lo))continue;
+    const d=Math.round(haversineMeters(lat,lon,la,lo));if(d>10000)continue;
+    const display=String(x.name||(x.namedetails&&x.namedetails.name)||x.display_name||'').trim();
+    const name=String(display.split(',')[0]||'').trim();if(!name)continue;
+    const key=name.toLowerCase()+'|'+Math.round(la*10000)+'|'+Math.round(lo*10000);if(seen.has(key))continue;seen.add(key);
+    const tags={...(x.extratags||{})};
+    if(x.namedetails&&x.namedetails.brand&&!tags.brand)tags.brand=x.namedetails.brand;
+    const row={name,distanceMeters:d,rating:null,ratingCount:0,lat:la,lon:lo,address:diningAddressFromNominatim(x),specialty:osmCuisineLabel(tags,fast),photoName:'',photoUrl:'',photoCredit:'',source:'osm-nominatim-free',_tags:tags,_rank:(Number(x.importance)||0)*100+osmDiningNotability(tags)};
+    rows.push(row);
+  }
+  rows.sort((a,b)=>fast?(a.distanceMeters-b.distanceMeters):((b._rank-a._rank)||a.distanceMeters-b.distanceMeters));
+  return rows.slice(0,Math.max(limit,8));
+}
 async function overpassDining(lat,lon,kind){
   const amenity=kind==='fastfood'?'fast_food':'restaurant',fast=kind==='fastfood',limit=fast?3:5;
+  let rows=[];
   try{
-    const q=`[out:json][timeout:12];nwr(around:10000,${lat},${lon})["name"]["amenity"="${amenity}"];out center tags 180;`;
-    const r=await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
-    if(!r.ok)return [];
-    const j=await r.json(),seen=new Set();
-    let rows=(j.elements||[]).map(e=>{
-      const la=Number(e.lat??e.center?.lat),lo=Number(e.lon??e.center?.lon),tags=e.tags||{},name=String(tags.name||tags.brand||'').trim();
-      if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;
-      const street=[tags['addr:housenumber'],tags['addr:street']].filter(Boolean).join(' ').trim();
-      const locality=[tags['addr:postcode'],tags['addr:city']||tags['addr:town']||tags['addr:village']].filter(Boolean).join(' ').trim();
-      const address=[street,locality].filter(Boolean).join(', ');
-      return {name,distanceMeters:Math.round(haversineMeters(lat,lon,la,lo)),rating:null,ratingCount:0,lat:la,lon:lo,address,specialty:osmCuisineLabel(tags,fast),photoName:'',photoUrl:'',photoCredit:'',source:'osm-free',_tags:tags,_rank:osmDiningNotability(tags)};
-    }).filter(Boolean).filter(x=>x.distanceMeters<=10000).filter(x=>{const k=x.name.toLowerCase()+'|'+Math.round(x.lat*10000)+'|'+Math.round(x.lon*10000);if(seen.has(k))return false;seen.add(k);return true});
-    rows.sort((a,b)=>fast?(a.distanceMeters-b.distanceMeters):((b._rank-a._rank)||a.distanceMeters-b.distanceMeters));
-    rows=rows.slice(0,limit);
-    await Promise.all(rows.map(async x=>{const p=await freeDiningPhoto(x._tags);x.photoUrl=p.url;x.photoCredit=p.credit;delete x._tags;delete x._rank;}));
-    return rows;
-  }catch(_){return []}
+    const q=`[out:json][timeout:10];nwr(around:10000,${lat},${lon})["amenity"="${amenity}"];out center tags 120;`;
+    const j=await fetchOverpassJson(q),seen=new Set();
+    if(j){
+      rows=(j.elements||[]).map(e=>{
+        const la=Number(e.lat??e.center?.lat),lo=Number(e.lon??e.center?.lon),tags=e.tags||{},name=String(tags.name||tags.brand||tags.operator||'').trim();
+        if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;
+        const street=[tags['addr:housenumber'],tags['addr:street']].filter(Boolean).join(' ').trim();
+        const locality=[tags['addr:postcode'],tags['addr:city']||tags['addr:town']||tags['addr:village']].filter(Boolean).join(' ').trim();
+        const address=[street,locality].filter(Boolean).join(', ');
+        return {name,distanceMeters:Math.round(haversineMeters(lat,lon,la,lo)),rating:null,ratingCount:0,lat:la,lon:lo,address,specialty:osmCuisineLabel(tags,fast),photoName:'',photoUrl:'',photoCredit:'',source:'osm-overpass-free',_tags:tags,_rank:osmDiningNotability(tags)};
+      }).filter(Boolean).filter(x=>x.distanceMeters<=10000).filter(x=>{const k=x.name.toLowerCase()+'|'+Math.round(x.lat*10000)+'|'+Math.round(x.lon*10000);if(seen.has(k))return false;seen.add(k);return true});
+    }
+  }catch(_){rows=[]}
+  // Si Overpass est chargé ou indisponible, Nominatim prend automatiquement le relais.
+  if(rows.length<limit){
+    const fallback=await nominatimDining(lat,lon,kind,limit);
+    const keys=new Set(rows.map(x=>x.name.toLowerCase()+'|'+Math.round(x.lat*1000)+'|'+Math.round(x.lon*1000)));
+    for(const x of fallback){const k=x.name.toLowerCase()+'|'+Math.round(x.lat*1000)+'|'+Math.round(x.lon*1000);if(!keys.has(k)){keys.add(k);rows.push(x)}}
+  }
+  rows.sort((a,b)=>fast?(a.distanceMeters-b.distanceMeters):((b._rank-a._rank)||a.distanceMeters-b.distanceMeters));
+  rows=rows.slice(0,limit);
+  await Promise.all(rows.map(async x=>{const p=await freeDiningPhoto(x._tags||{});x.photoUrl=p.url;x.photoCredit=p.credit;delete x._tags;delete x._rank;}));
+  return rows;
 }
 
 async function resolveReturnPlaceDetails(lat,lon,env){

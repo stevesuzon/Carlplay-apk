@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260915-v220-boutons-navigation-restaurants-fastfood";
+const CACHE = "carplay-v5-20260915-v221-recherche-restaurants-fastfood-fiable";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -30,7 +30,7 @@ const CORE = [
   "/special-market-server-v157.js?v=184",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
-  "/gps-apple-plans-v141.js?v=220",
+  "/gps-apple-plans-v141.js?v=221",
   "/location-permission-v20260911.js?v=20260911",
   "/markets-final.css?v=126-favori-fluide",
   "/markets-final-picker.css",
