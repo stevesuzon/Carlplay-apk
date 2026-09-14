@@ -1,4 +1,4 @@
 {
-  "version": "20260914-v197-messages-bonus",
-  "message": "Messagerie simplifiée avec bouton Nouveau message en haut du concours. Les idées acceptées peuvent recevoir un multiplicateur ×2, ×5 ou ×10 pendant 3 jours."
+  "version": "20260914-v198-bonus-automatique",
+  "message": "Messagerie simplifiée avec bouton Nouveau message. À l’acceptation d’une idée, l’application détermine automatiquement un bonus ×2, ×5 ou ×10 selon l’importance du sujet."
 }
