@@ -253,10 +253,17 @@
       if (row === keepPanel) continue;
       var head = row.querySelector(".settingHead");
       var label = String(head ? head.textContent : row.textContent || "").toUpperCase().replace(/\s+/g, " ").trim();
-      var isOldInfo = (label === "INFOS" || label === "ℹ️ INFOS" || label === "ℹ INFOS");
+      var isOldInfo = label.indexOf("INFOS") !== -1 && label.indexOf("INFORMATIONS ET CONTACT") === -1;
       var isOldRenew = label.indexOf("RENOUVELER ABONNEMENT") !== -1 || label.indexOf("RENOUVELER L’ABONNEMENT") !== -1 || label.indexOf("RENOUVELER L'ABONNEMENT") !== -1;
       if (isOldInfo || isOldRenew) row.remove();
     }
+  }
+
+  function addAdminMessageCounter() {
+    if(localStorage.getItem("carplay_admin_here")!=="1")return;var settings=document.getElementById("settings"),secret=localStorage.getItem("carplay_admin_secret")||"";if(!settings||!secret||document.getElementById("adminMessageCounter"))return;
+    var row=document.createElement("div");row.className="settingRow";row.id="adminMessageCounter";row.innerHTML='<button class="settingHead" type="button"><span>💬 VOUS AVEZ <b>0</b> MESSAGE</span><span>›</span></button>';
+    var a=document.getElementById("adminSettingRow");if(a)a.parentNode.insertBefore(row,a.nextSibling);else settings.appendChild(row);row.querySelector("button").onclick=function(){location.href="/admin.html#appMessagesBox"};
+    Promise.all([fetch("/api/admin/app-messages",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{messages:[]}}),fetch("/api/admin/contest",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{reports:[]}})]).then(function(x){var n=(x[0].messages||[]).length+(x[1].reports||[]).length;row.querySelector("span").innerHTML='💬 VOUS AVEZ <b>'+n+'</b> MESSAGE'+(n>1?'S':'')}).catch(function(){});
   }
 
   function settingsPanel() {
@@ -332,6 +339,7 @@
     verifySaved(function () {
       homeStatus();
       settingsPanel();
+      addAdminMessageCounter();
       adaptPhoneSettings();
       protectFeatures();
       blockDirectMarketPage();

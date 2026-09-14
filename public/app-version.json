@@ -1,4 +1,4 @@
 {
-  "version": "20260914-v195-nettoyage-reglages-abonnement",
-  "message": "Nettoyage des Réglages : suppression des doublons INFOS et Renouveler abonnement, abonnement unique placé en haut avec nom/prénom obligatoires et contact Snapchat. Le bouton Concours s’affiche immédiatement sans passage par Mail."
+  "version": "20260914-v196-messagerie-admin",
+  "message": "Nettoyage définitif des Réglages, classement affiché dans l’en-tête, règles raccourcies, formulaire Bug/Problème/Idée corrigé et messagerie interne administrateur avec compteur, nom, prénom et adresse."
 }
