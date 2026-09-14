@@ -93,7 +93,7 @@
   function saveContext(lat,lon,ctx){
     ctx=ctx||{};ctx.lat=Number(lat);ctx.lon=Number(lon);ctx.updatedAt=Date.now();ctx._loaded=true;
     ctx.name=preferredPlaceTitle(ctx.name||ctx.address||'Emplacement enregistré',ctx.fullAddress||'');ctx.address=ctx.name;ctx.fullAddress=officialFullAddress(ctx.name,ctx.fullAddress||'');currentCtx=ctx;
-    try{localStorage.setItem('return_context_v227',JSON.stringify(ctx));}catch(_){ }
+    try{localStorage.setItem('return_context_v230',JSON.stringify(ctx));}catch(_){ }
     if(ctx.name)localStorage.setItem('return_address',String(ctx.name));
     if(ctx.fullAddress)localStorage.setItem('return_full_address',String(ctx.fullAddress));
     try{localStorage.setItem('return_nearby',JSON.stringify(ctx.nearby||[]));}catch(_){ }
@@ -102,7 +102,7 @@
     return ctx;
   }
   function loadContext(lat,lon){
-    var keys=['return_context_v227'];
+    var keys=['return_context_v230','return_context_v227'];
     for(var i=0;i<keys.length;i++){
       try{
         var j=JSON.parse(localStorage.getItem(keys[i])||'null');
@@ -159,10 +159,26 @@
   async function showDiningPage(kind){
     var lat=localStorage.getItem('return_lat'),lon=localStorage.getItem('return_lon'),ctx=currentCtx||{};
     var initial=(kind==='restaurant'?ctx.restaurants:ctx.fastFood)||[];
-    var stale=Date.now()-Number(ctx.updatedAt||0)>300000;
-    if(lat&&lon&&(stale||!initial.length)){
-      var fresh=await refreshContext(lat,lon);if(fresh)ctx=fresh;
+    var loading=null,timedOut=false;
+    // Tant que la place GPS n'a pas changé, on garde les résultats en mémoire et on les affiche immédiatement.
+    // On ne relance donc plus une recherche toutes les 5 minutes.
+    if(!initial.length){
+      var oldLoading=document.getElementById('rpDiningLoadingV230');if(oldLoading)oldLoading.remove();
+      loading=document.createElement('div');loading.id='rpDiningLoadingV230';
+      loading.style.cssText='position:fixed;z-index:2147483647;inset:0;background:#07111bf2;display:flex;align-items:center;justify-content:center;padding:18px;font-family:Arial,sans-serif';
+      loading.innerHTML='<div style="width:min(420px,92vw);background:#0d1824;color:#fff;border:4px solid '+(kind==='restaurant'?'#ffd24a':'#f59b23')+';border-radius:22px;padding:24px;text-align:center;box-shadow:0 16px 50px #000"><div style="font-size:44px;margin-bottom:10px">'+(kind==='restaurant'?'🔎🍽️':'🔎🍔')+'</div><div style="font:1000 21px Arial">'+(kind==='restaurant'?'Recherche des restaurants…':'Recherche des fast-foods…')+'</div><div style="margin-top:8px;color:#c9d7e3;font:800 13px Arial">Autour de la place enregistrée • rayon 10 km</div><div style="margin-top:7px;color:#7fd4ff;font:800 12px Arial">Première recherche uniquement — ensuite la liste reste mémorisée.</div></div>';
+      document.body.appendChild(loading);
+      if(lat&&lon){
+        var timeoutToken={timeout:true};
+        var fresh=await Promise.race([
+          refreshContext(lat,lon),
+          new Promise(function(resolve){setTimeout(function(){resolve(timeoutToken)},15000)})
+        ]);
+        if(fresh===timeoutToken)timedOut=true;
+        else if(fresh)ctx=fresh;
+      }
     }
+    if(loading&&loading.parentNode)loading.remove();
     var items=(kind==='restaurant'?ctx.restaurants:ctx.fastFood)||[],title=kind==='restaurant'?'⭐ Restaurants à moins de 10 km':'🍔 Restauration rapide · Fast-food à moins de 10 km';
     var old=document.getElementById('rpDiningPageV214');if(old)old.remove();
     var d=document.createElement('div');d.id='rpDiningPageV214';
@@ -172,7 +188,7 @@
       var phone=String(x.phone||'').trim(),tel=telHref(phone);
       var reserve=(kind==='restaurant'&&tel)?'<a href="'+esc(tel)+'" class="rpReserveDining" style="display:flex;width:100%;min-height:48px;margin-top:8px;border:0;border-radius:12px;background:#267bc5;color:#fff;font:1000 14px Arial;text-decoration:none;align-items:center;justify-content:center">📞 RÉSERVER UNE TABLE</a>':'';
       return '<div style="background:#13283b;border:1px solid #29445d;border-radius:17px;padding:10px;margin-top:10px"><div style="display:flex;gap:11px;align-items:flex-start"><div>'+img+fallback+credit+'</div><div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:1000;color:#fff">'+(i+1)+'. '+esc(x.name)+'</div><div style="margin-top:5px;color:#dce8f3;font-size:13px"><b>'+(kind==='restaurant'?'Type de cuisine :':'Catégorie :')+'</b> '+esc(kind==='restaurant'?(x.specialty||'Non indiquée'):'Restauration rapide')+'</div>'+(Array.isArray(x.menuSpecialties)&&x.menuSpecialties.length?'<div style="margin-top:5px;color:#ffd97a;font-size:13px;line-height:1.35"><b>'+(kind==='restaurant'?'🍽️ Spécialités de la carte :':'🍔 Produits / spécialités de la carte :')+'</b> '+esc(x.menuSpecialties.join(' • '))+(x.menuSpecialtiesSource==='Site officiel'?'<div style="margin-top:3px;color:#91a9bb;font-size:10px">Trouvé sur le site officiel</div>':'')+'</div>':'')+'<div style="margin-top:4px;color:#b9cad8;font-size:12px">📍 '+distanceText(x.distanceMeters)+(x.address?' • '+esc(x.address):'')+'</div>'+'</div></div><div style="margin-top:9px"><button data-lat="'+esc(x.lat)+'" data-lon="'+esc(x.lon)+'" class="rpGoDining" style="width:100%;min-height:48px;border:0;border-radius:12px;background:#168a4e;color:#fff;font:1000 14px Arial">🧭 '+(kind==='restaurant'?'ALLER AU RESTAURANT':'ALLER AU FAST-FOOD')+'</button>'+reserve+'</div></div>';
-    }).join(''):'<div style="padding:20px;color:#b9cad8;text-align:center">Aucun résultat disponible pour le moment.</div>';
+    }).join(''):'<div style="padding:20px;color:#b9cad8;text-align:center">'+(timedOut?'La recherche prend plus de temps que prévu. Elle continue en arrière-plan. Fermez puis rouvrez dans quelques secondes.':'Aucun résultat disponible pour le moment.')+'</div>';
     d.innerHTML='<div style="width:min(640px,98vw);margin:0 auto;background:#0d1824;color:#fff;border:4px solid #4dc987;border-radius:24px;padding:14px;box-shadow:0 16px 50px #000"><div style="display:flex;align-items:center;gap:9px"><button id="rpDiningBack" style="min-width:76px;min-height:42px;border:0;border-radius:11px;background:#25394d;color:#fff;font:900 14px Arial">← RETOUR</button><div style="font-size:22px;font-weight:1000;flex:1">'+title+'</div></div><div style="margin-top:7px;color:#aebdcb;font-size:13px">'+(kind==='restaurant'?'Les 5 restaurants les plus proches dans un rayon de 10 km. Quand un site officiel est disponible, l’application cherche automatiquement sa page Carte / Menu / Nos plats pour afficher de vrais plats ou spécialités. Rien n’est inventé. Bouton « Réserver une table » si un numéro est disponible.':'Les 5 établissements de restauration rapide (fast-food) affichés dans un rayon de 10 km. McDonald’s et Burger King sont inclus quand ils existent dans ce rayon, puis les autres résultats sont choisis au plus proche. Ils restent séparés des restaurants classiques. Quand un site officiel est disponible, l’application cherche automatiquement la carte/menu pour afficher de vrais produits ou spécialités. Rien n’est inventé.')+'</div>'+cards+'</div>';
     document.body.appendChild(d);
     d.querySelector('#rpDiningBack').onclick=function(){d.remove()};
@@ -216,7 +232,7 @@
       navigator.geolocation.getCurrentPosition(async function(position){
         var la=position.coords.latitude,lo=position.coords.longitude;
         localStorage.setItem('return_lat',la);localStorage.setItem('return_lon',lo);localStorage.setItem('return_saved_at',String(Date.now()));localStorage.setItem('return_address','Recherche du nom exact…');
-        ['return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_v216','return_context_v217','return_context_v218','return_context_v221','return_context_v222','return_context_v223','return_context_v224','return_context_v227','return_context_updated_at','return_nearby','return_full_address'].forEach(function(k){localStorage.removeItem(k)});
+        ['return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_v216','return_context_v217','return_context_v218','return_context_v221','return_context_v222','return_context_v223','return_context_v224','return_context_v227','return_context_v230','return_context_updated_at','return_nearby','return_full_address'].forEach(function(k){localStorage.removeItem(k)});
         if(typeof window.showStatuses==='function')window.showStatuses();
         window.dispatchEvent(new CustomEvent('carplay-return-place-saved',{detail:{lat:la,lon:lo,address:'Recherche du nom exact…'}}));
         var ctx=await refreshContext(la,lo);
@@ -232,7 +248,7 @@
     if(!ctx._loaded||age>86400000||isVagueAddress(ctx.address))refreshContext(lat,lon);
   };
   window.clearReturnPlace=function(){
-    ['return_lat','return_lon','return_address','return_full_address','return_nearby','return_saved_at','return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_v216','return_context_v217','return_context_v218','return_context_v221','return_context_v222','return_context_v223','return_context_v224','return_context_v227','return_context_updated_at'].forEach(function(k){localStorage.removeItem(k)});
+    ['return_lat','return_lon','return_address','return_full_address','return_nearby','return_saved_at','return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_v216','return_context_v217','return_context_v218','return_context_v221','return_context_v222','return_context_v223','return_context_v224','return_context_v227','return_context_v230','return_context_updated_at'].forEach(function(k){localStorage.removeItem(k)});
     currentCtx=null;
     if(typeof window.showStatuses==='function')window.showStatuses();
     alert('Emplacement de retour effacé. Au prochain appui, un nouveau point GPS sera enregistré.');

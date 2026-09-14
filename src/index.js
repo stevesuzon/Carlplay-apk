@@ -1252,7 +1252,7 @@ function exactNamedNominatim(j){
 
 async function nominatimExactReturnPlace(lat,lon){
   try{
-    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&namedetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr'}});
+    const r=await fetchDiningWithTimeout(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&namedetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr'}},3200);
     if(r.ok){const j=await r.json(),a=j&&j.address||{};return {name:exactNamedNominatim(j),address:formatReturnPlaceNominatim(j),fullAddress:formatReturnPlacePostalAddress(j),countryCode:String(a.country_code||'').toLowerCase()}}
   }catch(_){ }
   return {name:'',address:'',fullAddress:'',countryCode:''};
@@ -1276,7 +1276,7 @@ function returnPlacePoiPriority(tags){
 async function nearestNamedOsmPlace(lat,lon){
   try{
     const q=`[out:json][timeout:7];nwr(around:250,${lat},${lon})["name"];out center tags 100;`;
-    const r=await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
+    const r=await fetchDiningWithTimeout('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}},3500);
     if(!r.ok)return '';
     const j=await r.json();
     const rows=(j.elements||[]).map(e=>{
@@ -1319,7 +1319,7 @@ async function wikidataFreePhoto(qid){
   qid=String(qid||'').trim();
   if(!/^Q\d+$/i.test(qid))return {url:'',credit:''};
   try{
-    const r=await fetch('https://www.wikidata.org/wiki/Special:EntityData/'+encodeURIComponent(qid.toUpperCase())+'.json',{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
+    const r=await fetchDiningWithTimeout('https://www.wikidata.org/wiki/Special:EntityData/'+encodeURIComponent(qid.toUpperCase())+'.json',{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}},1800);
     if(!r.ok)return {url:'',credit:''};
     const j=await r.json(),e=j&&j.entities&&j.entities[qid.toUpperCase()],claims=e&&e.claims||{};
     const claim=(claims.P18&&claims.P18[0])||(claims.P154&&claims.P154[0]);
@@ -1331,7 +1331,7 @@ async function wikidataOfficialWebsite(qid){
   qid=String(qid||'').trim();
   if(!/^Q\d+$/i.test(qid))return '';
   try{
-    const r=await fetch('https://www.wikidata.org/wiki/Special:EntityData/'+encodeURIComponent(qid.toUpperCase())+'.json',{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
+    const r=await fetchDiningWithTimeout('https://www.wikidata.org/wiki/Special:EntityData/'+encodeURIComponent(qid.toUpperCase())+'.json',{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}},1800);
     if(!r.ok)return '';
     const j=await r.json(),e=j&&j.entities&&j.entities[qid.toUpperCase()],claims=e&&e.claims||{},claim=claims.P856&&claims.P856[0];
     const u=String(claim&&claim.mainsnak&&claim.mainsnak.datavalue&&claim.mainsnak.datavalue.value||'').trim();
@@ -1343,7 +1343,7 @@ async function wikipediaFreePhoto(tag){
   const m=tag.match(/^([a-z-]{2,12}):(.+)$/i);if(!m)return {url:'',credit:''};
   const lang=m[1].toLowerCase(),title=m[2].trim();if(!title)return {url:'',credit:''};
   try{
-    const r=await fetch('https://'+lang+'.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(title.replace(/ /g,'_')),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
+    const r=await fetchDiningWithTimeout('https://'+lang+'.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(title.replace(/ /g,'_')),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}},1800);
     if(!r.ok)return {url:'',credit:''};
     const j=await r.json(),u=String(j&&((j.thumbnail&&j.thumbnail.source)||(j.originalimage&&j.originalimage.source))||'').trim();
     return /^https?:\/\//i.test(u)?{url:u,credit:'Wikipédia / Wikimedia'}:{url:'',credit:''};
@@ -1364,6 +1364,12 @@ function osmDiningNotability(tags){
   return score;
 }
 
+async function fetchDiningWithTimeout(url,options={},timeoutMs=4000){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
+  try{return await fetch(url,{...options,signal:controller.signal})}
+  finally{clearTimeout(timer)}
+}
+
 async function fetchOverpassJson(q){
   const endpoints=[
     'https://overpass.private.coffee/api/interpreter',
@@ -1372,7 +1378,7 @@ async function fetchOverpassJson(q){
   ];
   for(const endpoint of endpoints){
     try{
-      const r=await fetch(endpoint,{method:'POST',headers:{'user-agent':'CarPlay-ReturnPlace/1.0','content-type':'application/x-www-form-urlencoded;charset=UTF-8','accept':'application/json'},body:'data='+encodeURIComponent(q)});
+      const r=await fetchDiningWithTimeout(endpoint,{method:'POST',headers:{'user-agent':'CarPlay-ReturnPlace/1.0','content-type':'application/x-www-form-urlencoded;charset=UTF-8','accept':'application/json'},body:'data='+encodeURIComponent(q)},4200);
       if(!r.ok)continue;
       const j=await r.json();
       if(j&&Array.isArray(j.elements))return j;
@@ -1543,7 +1549,7 @@ function likelyOfficialDiningWebsite(url){
   if(!safePublicDiningUrl(url))return false;
   try{const h=new URL(url).hostname.toLowerCase().replace(/^www\./,'');return !/(^|\.)(facebook\.com|instagram\.com|tripadvisor\.[a-z.]+|thefork\.[a-z.]+|lafourchette\.[a-z.]+|ubereats\.com|deliveroo\.[a-z.]+|justeat\.[a-z.]+|pagesjaunes\.fr|google\.[a-z.]+|maps\.[a-z.]+|linktr\.ee|tiktok\.com|youtube\.com)$/i.test(h)}catch(_){return false}
 }
-async function fetchDiningSitePage(url,timeoutMs=1900){
+async function fetchDiningSitePage(url,timeoutMs=1400){
   try{
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
     const r=await fetch(url,{headers:{'user-agent':'Mozilla/5.0 (compatible; CarPlayRestaurantMenu/1.0)','accept':'text/html,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.2','accept-language':'fr-FR,fr;q=0.9'},redirect:'follow',signal:controller.signal});
@@ -1575,7 +1581,7 @@ async function fetchPublicMenuSpecialties(row){
     found.push(...menuItemsFromPublicPage(page.html));source='Site officiel';
     if(found.length<6&&homeUrl&&firstUrl===homeUrl){
       const links=menuPageLinks(page.html,page.url||homeUrl);
-      for(const link of links){const p=await fetchDiningSitePage(link,1600);if(!p)continue;found.push(...menuItemsFromPublicPage(p.html));if(found.length>=8)break}
+      for(const link of links){const p=await fetchDiningSitePage(link,1200);if(!p)continue;found.push(...menuItemsFromPublicPage(p.html));if(found.length>=8)break}
     }
     if(found.length>=8)break;
   }
@@ -1590,7 +1596,7 @@ async function nominatimDining(lat,lon,kind,limit){
   for(const term of terms){
     try{
       const u='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&namedetails=1&dedupe=1&bounded=1&limit=40&viewbox='+encodeURIComponent(viewbox)+'&q='+encodeURIComponent(term);
-      const r=await fetch(u,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr','accept':'application/json'}});
+      const r=await fetchDiningWithTimeout(u,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr','accept':'application/json'}},3200);
       if(!r.ok)continue;
       const j=await r.json();if(Array.isArray(j))all=all.concat(j);
       if(all.length>=limit)break;
@@ -1643,7 +1649,7 @@ async function sireneDining(lat,lon,kind){
   const oldCodes=kind==='fastfood'?'56.10C':'56.10A,56.10B';
   try{
     const u='https://recherche-entreprises.api.gouv.fr/near_point?lat='+encodeURIComponent(lat)+'&long='+encodeURIComponent(lon)+'&radius=10&per_page=25&page=1&limite_matching_etablissements=100&activite_principale='+encodeURIComponent(oldCodes);
-    const r=await fetch(u,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept':'application/json'}});
+    const r=await fetchDiningWithTimeout(u,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept':'application/json'}},3500);
     if(!r.ok)return [];
     const j=await r.json(),rows=[];
     for(const company of (j&&j.results||[])){
@@ -1786,10 +1792,11 @@ async function reversePlaceContext(url,env){
   let nearby=[];
   try{
     const q=`[out:json][timeout:9];(nwr(around:800,${lat},${lon})["name"]["amenity"~"restaurant|fuel|hospital|police|townhall|cinema|bus_station"];nwr(around:800,${lat},${lon})["name"]["shop"~"supermarket|mall|department_store|car|car_repair"];nwr(around:800,${lat},${lon})["name"]["tourism"~"attraction|hotel|museum"];nwr(around:800,${lat},${lon})["name"]["leisure"~"stadium|sports_centre"];nwr(around:800,${lat},${lon})["name"]["railway"="station"];);out center tags 110;`;
-    const r=await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
+    const r=await fetchDiningWithTimeout('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}},3500);
     if(r.ok){const j=await r.json(),known=/mcdonald|burger king|leclerc|e\.leclerc|carrefour|auchan|intermarch|lidl|aldi|super u|hyper u|casino|monoprix|total|esso|shell|bp|avia|renault|peugeot|citro[eë]n|ford|toyota|volkswagen|mercedes|bmw|audi/i,seen=new Set();nearby=(j.elements||[]).map(e=>{const la=Number(e.lat??e.center?.lat),lo=Number(e.lon??e.center?.lon),tags=e.tags||{},name=String(tags.name||tags.brand||'').trim();if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;const d=Math.round(haversineMeters(lat,lon,la,lo)),type=String(tags.amenity||tags.shop||tags.tourism||tags.leisure||tags.railway||''),major=/supermarket|mall|department_store|car|car_repair|fuel|hospital|cinema|bus_station|hotel|stadium|sports_centre|station|restaurant/.test(type);return {name,distanceMeters:d,known:known.test(name),major,type};}).filter(Boolean).filter(x=>{const k=x.name.toLowerCase();if(seen.has(k))return false;seen.add(k);return x.distanceMeters<=800&&x.major}).sort((a,b)=>(Number(b.known)-Number(a.known))||a.distanceMeters-b.distanceMeters).slice(0,1).map(({name,distanceMeters,type})=>({name,distanceMeters,type}));}
   }catch(_){ }
-  let [restaurants,fastFood]=await Promise.all([combinedDining(lat,lon,'restaurant',place.countryCode),combinedDining(lat,lon,'fastfood',place.countryCode)]);
+  const diningTimeout=new Promise(resolve=>setTimeout(()=>resolve([[],[]]),14000));
+  let [restaurants,fastFood]=await Promise.race([Promise.all([combinedDining(lat,lon,'restaurant',place.countryCode),combinedDining(lat,lon,'fastfood',place.countryCode)]),diningTimeout]);
   // Séparation stricte : un même établissement ne peut jamais apparaître dans Restaurant et Fast-food.
   restaurants=restaurants.filter(r=>!obviousFastFoodName(r.name)&&!fastFood.some(f=>normalizeDiningName(f.name)===normalizeDiningName(r.name)&&haversineMeters(Number(f.lat),Number(f.lon),Number(r.lat),Number(r.lon))<=180));
   return json({ok:true,address,name:place.name,fullAddress:place.fullAddress,nearby,restaurants,fastFood,nearbyRadiusMeters:800,diningRadiusMeters:10000,ratingsProvider:'free-multi-source',ratingsAvailable:false,photoProvider:'wikimedia-free',diningProviders:place.countryCode==='fr'?['OpenStreetMap','API Recherche d’Entreprises (DINUM/Sirene-RNE)','Wikidata/Wikimedia','Sites officiels publics (carte/menu)']:['OpenStreetMap','Wikidata/Wikimedia','Sites officiels publics (carte/menu)']});

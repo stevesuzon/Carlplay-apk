@@ -1,4 +1,4 @@
 {
-  "version": "20260915-v227-5-fastfood-chaines",
-  "message": "Restaurants : 5 résultats. Restauration rapide : 5 résultats aussi. La recherche gratuite scanne explicitement McDonald’s et Burger King dans les 10 km pour éviter de les manquer, tout en gardant les autres fast-food au plus proche."
+  "version": "V229",
+  "message": "Pendant la recherche, un écran court affiche « Recherche des restaurants… » ou « Recherche des fast-foods… », autour de la place enregistrée dans un rayon de 10 km."
 }
