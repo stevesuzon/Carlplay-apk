@@ -1219,6 +1219,19 @@ function formatReturnPlaceNominatim(j){
   return String(j&&j.display_name||'').split(',').slice(0,3).join(', ').trim();
 }
 
+function formatReturnPlacePostalAddress(j){
+  const a=j&&j.address||{},city=String(a.city||a.town||a.village||a.municipality||a.hamlet||'').trim(),pc=String(a.postcode||'').trim();
+  const road=String(a.road||a.pedestrian||a.residential||a.path||a.square||a.place||'').trim(),number=String(a.house_number||'').trim();
+  const line1=[number,road].filter(Boolean).join(' ').trim(),line2=[pc,city].filter(Boolean).join(' ').trim();
+  return [line1,line2].filter(Boolean).join(', ');
+}
+function cleanReturnPlaceDisplayName(v){return String(v||'').replace(/\s+/g,' ').trim().replace(/\s*(?:[-–—]|\/)\s*(?:Gros\s+)?Malhon\s*$/i,'').trim()}
+function officialReturnPlaceAddress(name,address){
+  const n=String(name||''),a=String(address||'').trim();
+  if(/aire d[’']?accueil des gens du voyage/i.test(n)&&/rennes/i.test(n)&&(/gros[ -]?malhon/i.test(a)||!a))return '68 avenue Gros Malhon, 35000 Rennes';
+  return a;
+}
+
 function exactNamedNominatim(j){
   const a=j&&j.address||{},city=String(a.city||a.town||a.village||a.municipality||a.hamlet||'').trim(),road=String(a.road||a.pedestrian||a.square||a.place||'').trim();
   const generic=new Set([city.toLowerCase(),road.toLowerCase(),String(a.postcode||'').toLowerCase()]);
@@ -1230,9 +1243,9 @@ function exactNamedNominatim(j){
 async function nominatimExactReturnPlace(lat,lon){
   try{
     const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&namedetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr'}});
-    if(r.ok){const j=await r.json();return {name:exactNamedNominatim(j),address:formatReturnPlaceNominatim(j)}}
+    if(r.ok){const j=await r.json();return {name:exactNamedNominatim(j),address:formatReturnPlaceNominatim(j),fullAddress:formatReturnPlacePostalAddress(j)}}
   }catch(_){ }
-  return {name:'',address:''};
+  return {name:'',address:'',fullAddress:''};
 }
 
 function returnPlacePoiPriority(tags){
@@ -1356,23 +1369,27 @@ async function googleNearestNamedPlace(env,lat,lon){
   }catch(_){return ''}
 }
 
-async function resolveReturnPlaceAddress(lat,lon,env){
-  const exact=await nominatimExactReturnPlace(lat,lon);if(exact.name)return exact.name;
-  const googleName=await googleNearestNamedPlace(env,lat,lon);if(googleName)return googleName;
-  const osmName=await nearestNamedOsmPlace(lat,lon);if(osmName)return osmName;
-  if(exact.address)return exact.address;
-  return await contestPlaceLabel(lat,lon);
+async function resolveReturnPlaceDetails(lat,lon,env){
+  const exact=await nominatimExactReturnPlace(lat,lon);
+  let name=String(exact.name||'').trim();
+  if(!name)name=await googleNearestNamedPlace(env,lat,lon);
+  if(!name)name=await nearestNamedOsmPlace(lat,lon);
+  if(!name)name=exact.address||await contestPlaceLabel(lat,lon);
+  name=cleanReturnPlaceDisplayName(name);
+  const fullAddress=officialReturnPlaceAddress(name,exact.fullAddress||'');
+  return {name,address:name,fullAddress};
 }
+async function resolveReturnPlaceAddress(lat,lon,env){return (await resolveReturnPlaceDetails(lat,lon,env)).name}
 
 async function reversePlaceAddress(url,env){
   const lat=Number(url.searchParams.get('lat')),lon=Number(url.searchParams.get('lon'));if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return json({ok:false,error:'POSITION_INVALIDE'},400);
-  return json({ok:true,address:await resolveReturnPlaceAddress(lat,lon,env)});
+  return json({ok:true,...await resolveReturnPlaceDetails(lat,lon,env)});
 }
 
 async function reversePlaceContext(url,env){
   const lat=Number(url.searchParams.get('lat')),lon=Number(url.searchParams.get('lon'));
   if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return json({ok:false,error:'POSITION_INVALIDE'},400);
-  const address=await resolveReturnPlaceAddress(lat,lon,env);
+  const place=await resolveReturnPlaceDetails(lat,lon,env),address=place.name;
   let nearby=[];
   try{
     const q=`[out:json][timeout:9];(nwr(around:800,${lat},${lon})["name"]["amenity"~"restaurant|fuel|hospital|police|townhall|cinema|bus_station"];nwr(around:800,${lat},${lon})["name"]["shop"~"supermarket|mall|department_store|car|car_repair"];nwr(around:800,${lat},${lon})["name"]["tourism"~"attraction|hotel|museum"];nwr(around:800,${lat},${lon})["name"]["leisure"~"stadium|sports_centre"];nwr(around:800,${lat},${lon})["name"]["railway"="station"];);out center tags 110;`;
@@ -1382,7 +1399,7 @@ async function reversePlaceContext(url,env){
   let restaurants=await googleNearbyPlaces(env,lat,lon,'restaurant'),fastFood=await googleNearbyPlaces(env,lat,lon,'fastfood'),ratingsProvider='google';
   if(!restaurants.length){restaurants=await overpassDining(lat,lon,'restaurant');ratingsProvider='osm'}
   if(!fastFood.length){fastFood=await overpassDining(lat,lon,'fastfood');if(ratingsProvider==='google')ratingsProvider='mixed'}
-  return json({ok:true,address,nearby,restaurants,fastFood,nearbyRadiusMeters:800,diningRadiusMeters:10000,ratingsProvider,ratingsAvailable:restaurants.some(x=>Number(x.rating)>0)||fastFood.some(x=>Number(x.rating)>0)});
+  return json({ok:true,address,name:place.name,fullAddress:place.fullAddress,nearby,restaurants,fastFood,nearbyRadiusMeters:800,diningRadiusMeters:10000,ratingsProvider,ratingsAvailable:restaurants.some(x=>Number(x.rating)>0)||fastFood.some(x=>Number(x.rating)>0)});
 }
 
 async function contestHomePlace(request,env){

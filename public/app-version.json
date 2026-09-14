@@ -1,4 +1,4 @@
 {
-  "version": "20260914-v214-restaurants-fastfood-10km",
-  "message": "Retourner sur la place : deux cases côte à côte. Restaurants réputés à moins de 10 km, sans affichage des avis. Fast-food à moins de 10 km : les 3 plus proches (McDonald’s, Quick, Burger King, kebab et autres restauration rapide selon les données disponibles). Lieu enregistré bien visible avec le repère juste dessous."
+  "version": "20260914-v216-adresse-complete-sans-malhon",
+  "message": "Retourner sur la place : le nom du lieu reste propre sans « Malhon » à la fin. L’adresse postale complète est affichée en petit juste dessous. Pour l’aire de Rennes : 68 avenue Gros Malhon, 35000 Rennes."
 }

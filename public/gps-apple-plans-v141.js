@@ -15,58 +15,88 @@
   function isVagueAddress(a){return !a||a==='Emplacement enregistré'||a==='Recherche du nom exact…'||/^\s*\d{5}\s+[^,]+\s*$/i.test(a)}
   function photoUrl(name){return name?'/api/place-photo?name='+encodeURIComponent(name):''}
   function cleanPlaceText(v){return String(v||'').replace(/\s+/g,' ').trim()}
-  async function addressBookReverseLabel(lat,lon){
+  function cleanPlaceTitle(v){
+    var s=cleanPlaceText(v);
+    // Le nom du lieu reste lisible : le secteur « Malhon » appartient à l'adresse, pas au titre.
+    s=s.replace(/\s*(?:[-–—]|\/)\s*(?:Gros\s+)?Malhon\s*$/i,'').trim();
+    return s;
+  }
+  function officialFullAddress(name,address){
+    var n=cleanPlaceText(name),a=cleanPlaceText(address);
+    // Adresse officielle de l'aire de Rennes quand le géocodeur omet le numéro.
+    if(/aire d[’']?accueil des gens du voyage/i.test(n)&&/rennes/i.test(n)&&(/gros[ -]?malhon/i.test(a)||!a))return '68 avenue Gros Malhon, 35000 Rennes';
+    return a;
+  }
+  async function addressBookReverseDetails(lat,lon){
     try{
       var r=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&namedetails=1&lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{headers:{'Accept-Language':'fr'},cache:'no-store'});
       if(!r.ok)throw 0;
       var j=await r.json(),a=j.address||{};
       var pc=cleanPlaceText(a.postcode||''),city=cleanPlaceText(a.city||a.town||a.village||a.municipality||a.suburb||a.hamlet||'');
       var road=cleanPlaceText(a.road||a.pedestrian||a.residential||a.path||a.square||a.place||'');
-      var namedCandidates=[j&&j.name,a.amenity,a.tourism,a.leisure,a.cemetery,a.historic,a.shop,a.office].map(cleanPlaceText).filter(Boolean);
+      var number=cleanPlaceText(a.house_number||'');
+      var line1=cleanPlaceText([number,road].filter(Boolean).join(' ')),line2=cleanPlaceText([pc,city].filter(Boolean).join(' '));
+      var fullAddress=[line1,line2].filter(Boolean).join(', ');
+      var namedCandidates=[j&&j.name,a.amenity,a.tourism,a.leisure,a.cemetery,a.historic,a.shop,a.office].map(cleanPlaceText).filter(Boolean),name='';
       for(var i=0;i<namedCandidates.length;i++){
         var n=namedCandidates[i],lc=n.toLowerCase();
-        if(n.length>2&&lc!==city.toLowerCase()&&lc!==road.toLowerCase()&&!/^(yes|no|residential|commercial|industrial|house|apartments)$/i.test(n))return n;
+        if(n.length>2&&lc!==city.toLowerCase()&&lc!==road.toLowerCase()&&!/^(yes|no|residential|commercial|industrial|house|apartments)$/i.test(n)){name=n;break;}
       }
       // Même logique pratique que le Carnet d'adresses : si Nominatim renvoie le lieu dans « road », on le garde.
-      if(road&&/(aire d[’']?accueil|aire de|gens du voyage|camping|camp site|caravan|cimeti[eè]re|parking|gare|stade|parc|centre commercial|h[oô]tel|hopital|hôpital|clinique|march[eé]|place)/i.test(road))return road;
-      if(road){var tail=[pc,city].filter(Boolean).join(' ');return tail?road+', '+tail:road}
-      return [pc,city].filter(Boolean).join(' ');
-    }catch(_){return ''}
+      if(!name&&road&&/(aire d[’']?accueil|aire de|gens du voyage|camping|camp site|caravan|cimeti[eè]re|parking|gare|stade|parc|centre commercial|h[oô]tel|hopital|hôpital|clinique|march[eé]|place)/i.test(road))name=road;
+      if(!name&&road)name=fullAddress||road;
+      if(!name)name=line2;
+      name=cleanPlaceTitle(name);
+      fullAddress=officialFullAddress(name,fullAddress);
+      return {name:name,fullAddress:fullAddress};
+    }catch(_){return {name:'',fullAddress:''}}
   }
   async function placeContext(lat,lon){
-    var bookLabel='';
-    try{bookLabel=await addressBookReverseLabel(lat,lon)}catch(_){bookLabel=''}
+    var book={name:'',fullAddress:''};
+    try{book=await addressBookReverseDetails(lat,lon)}catch(_){book={name:'',fullAddress:''}}
     try{
       var r=await fetch('/api/place-context?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{cache:'no-store'}),j=await r.json();
-      if(r.ok&&j&&j.ok){if(bookLabel&&!isVagueAddress(bookLabel))j.address=bookLabel;return j}
+      if(r.ok&&j&&j.ok){
+        var serverName=cleanPlaceTitle(j.name||j.address||'');
+        if((!serverName||isVagueAddress(serverName))&&book.name&&!isVagueAddress(book.name))serverName=book.name;
+        j.name=serverName||'Emplacement enregistré';
+        j.address=j.name;
+        j.fullAddress=officialFullAddress(j.name,j.fullAddress||book.fullAddress||'');
+        return j;
+      }
     }catch(_){ }
     try{
       var r2=await fetch('/api/place-address?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{cache:'no-store'}),j2=await r2.json();
-      var fallback=bookLabel||(r2.ok&&j2&&j2.address?j2.address:'');
-      if(fallback)return {ok:true,address:fallback,nearby:[],restaurants:[],fastFood:[],ratingsAvailable:false};
+      var fallback=cleanPlaceTitle(book.name||(r2.ok&&j2&&(j2.name||j2.address)?(j2.name||j2.address):''));
+      var full=officialFullAddress(fallback,(r2.ok&&j2&&j2.fullAddress?j2.fullAddress:'')||book.fullAddress||'');
+      if(fallback||full)return {ok:true,name:fallback||full,address:fallback||full,fullAddress:full,nearby:[],restaurants:[],fastFood:[],ratingsAvailable:false};
     }catch(_){ }
-    return {ok:true,address:bookLabel||'Emplacement enregistré',nearby:[],restaurants:[],fastFood:[],ratingsAvailable:false};
+    return {ok:true,name:book.name||'Emplacement enregistré',address:book.name||'Emplacement enregistré',fullAddress:officialFullAddress(book.name,book.fullAddress),nearby:[],restaurants:[],fastFood:[],ratingsAvailable:false};
   }
   function saveContext(lat,lon,ctx){
-    ctx=ctx||{};ctx.lat=Number(lat);ctx.lon=Number(lon);ctx.updatedAt=Date.now();ctx._loaded=true;currentCtx=ctx;
-    try{localStorage.setItem('return_context_v215',JSON.stringify(ctx));}catch(_){ }
-    if(ctx.address)localStorage.setItem('return_address',String(ctx.address));
+    ctx=ctx||{};ctx.lat=Number(lat);ctx.lon=Number(lon);ctx.updatedAt=Date.now();ctx._loaded=true;
+    ctx.name=cleanPlaceTitle(ctx.name||ctx.address||'Emplacement enregistré');ctx.address=ctx.name;ctx.fullAddress=officialFullAddress(ctx.name,ctx.fullAddress||'');currentCtx=ctx;
+    try{localStorage.setItem('return_context_v216',JSON.stringify(ctx));}catch(_){ }
+    if(ctx.name)localStorage.setItem('return_address',String(ctx.name));
+    if(ctx.fullAddress)localStorage.setItem('return_full_address',String(ctx.fullAddress));
     try{localStorage.setItem('return_nearby',JSON.stringify(ctx.nearby||[]));}catch(_){ }
     localStorage.setItem('return_context_updated_at',String(Date.now()));
     if(typeof window.showStatuses==='function')window.showStatuses();
     return ctx;
   }
   function loadContext(lat,lon){
-    var keys=['return_context_v215','return_context_v214'];
+    var keys=['return_context_v216','return_context_v215','return_context_v214'];
     for(var i=0;i<keys.length;i++){
       try{
         var j=JSON.parse(localStorage.getItem(keys[i])||'null');
-        if(j&&Math.abs(Number(j.lat)-Number(lat))<0.00001&&Math.abs(Number(j.lon)-Number(lon))<0.00001){j._loaded=true;currentCtx=j;return j;}
+        if(j&&Math.abs(Number(j.lat)-Number(lat))<0.00001&&Math.abs(Number(j.lon)-Number(lon))<0.00001){
+          j.name=cleanPlaceTitle(j.name||j.address||'Emplacement enregistré');j.address=j.name;j.fullAddress=officialFullAddress(j.name,j.fullAddress||localStorage.getItem('return_full_address')||'');j._loaded=true;currentCtx=j;return j;
+        }
       }catch(_){ }
     }
     var near=[];try{near=JSON.parse(localStorage.getItem('return_nearby')||'[]');if(!Array.isArray(near))near=[]}catch(_){near=[]}
-    var savedAddress=localStorage.getItem('return_address')||'Emplacement enregistré';
-    currentCtx={ok:true,address:isVagueAddress(savedAddress)?'Recherche du nom exact…':savedAddress,nearby:near,restaurants:[],fastFood:[],ratingsAvailable:false,_loaded:false,updatedAt:0};
+    var savedAddress=cleanPlaceTitle(localStorage.getItem('return_address')||'Emplacement enregistré');
+    currentCtx={ok:true,name:isVagueAddress(savedAddress)?'Recherche du nom exact…':savedAddress,address:isVagueAddress(savedAddress)?'Recherche du nom exact…':savedAddress,fullAddress:officialFullAddress(savedAddress,localStorage.getItem('return_full_address')||''),nearby:near,restaurants:[],fastFood:[],ratingsAvailable:false,_loaded:false,updatedAt:0};
     return currentCtx;
   }
   function navTo(lat,lon){
@@ -75,16 +105,16 @@
     else if(pref==='Plans Apple')location.href='https://maps.apple.com/?daddr='+encodeURIComponent(point)+'&dirflg=d';
     else location.href='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(point)+'&travelmode=driving&dir_action=navigate';
   }
-  function shareText(lat,lon,address){
-    return '📍 Emplacement partagé depuis CarPlay Marchés\n'+(address||'Emplacement enregistré')+'\n'+gpsUrl(lat,lon)+'\n\n📲 Télécharger cette application pour les marchés :\n'+installerUrl();
+  function shareText(lat,lon,address,fullAddress){
+    return '📍 Emplacement partagé depuis CarPlay Marchés\n'+(address||'Emplacement enregistré')+(fullAddress?'\n'+fullAddress:'')+'\n'+gpsUrl(lat,lon)+'\n\n📲 Télécharger cette application pour les marchés :\n'+installerUrl();
   }
-  function openShareMenu(lat,lon,address){
+  function openShareMenu(lat,lon,address,fullAddress){
     var old=document.getElementById('returnPlaceShareV212');if(old)old.remove();
     var d=document.createElement('div');d.id='returnPlaceShareV212';
     d.style.cssText='position:fixed;z-index:2147483647;inset:0;background:#000d;display:flex;align-items:center;justify-content:center;padding:18px;font-family:Arial,sans-serif';
     d.innerHTML='<div style="width:min(520px,96vw);background:#0d1824;color:#fff;border:4px solid #3aa7ff;border-radius:24px;padding:20px;text-align:center;box-shadow:0 16px 50px #000"><div style="font-size:24px;font-weight:1000;margin-bottom:8px">📤 Partager la place</div><div style="font-size:15px;color:#dce8f3;margin-bottom:14px">Le message contient le point GPS exact et le lien pour télécharger l’application pour les marchés.</div><div style="display:grid;grid-template-columns:1fr;gap:10px"><button id="rpSms" style="min-height:56px;border:0;border-radius:14px;background:#2f9c52;color:#fff;font:1000 19px Arial">💬 SMS</button><button id="rpWhatsapp" style="min-height:56px;border:0;border-radius:14px;background:#22a85a;color:#fff;font:1000 19px Arial">🟢 WHATSAPP</button><button id="rpSnap" style="min-height:56px;border:0;border-radius:14px;background:#fffc00;color:#111;font:1000 19px Arial">👻 SNAP</button><button id="rpShareClose" style="min-height:48px;border:2px solid #65788b;border-radius:14px;background:#172536;color:#fff;font:900 17px Arial">RETOUR</button></div></div>';
     document.body.appendChild(d);
-    var text=shareText(lat,lon,address),encoded=encodeURIComponent(text);
+    var text=shareText(lat,lon,address,fullAddress),encoded=encodeURIComponent(text);
     d.querySelector('#rpShareClose').onclick=function(){d.remove()};
     d.querySelector('#rpSms').onclick=function(){var ios=/iphone|ipad|ipod/i.test(navigator.userAgent);location.href=(ios?'sms:&body=':'sms:?body=')+encoded};
     d.querySelector('#rpWhatsapp').onclick=function(){location.href='https://wa.me/?text='+encoded};
@@ -125,8 +155,10 @@
   }
   function updateBubbleContext(ctx){
     currentCtx=ctx||currentCtx;
-    var a=document.getElementById('rpAddressText'),near=document.getElementById('rpNearbyRows'),nearBox=document.getElementById('rpNearbyBox'),rest=document.getElementById('rpRestaurantSummary'),fast=document.getElementById('rpFastFoodSummary');
-    if(a)a.textContent=ctx.address||'Emplacement enregistré';
+    var a=document.getElementById('rpAddressText'),full=document.getElementById('rpFullAddressText'),near=document.getElementById('rpNearbyRows'),nearBox=document.getElementById('rpNearbyBox'),rest=document.getElementById('rpRestaurantSummary'),fast=document.getElementById('rpFastFoodSummary');
+    var title=cleanPlaceTitle(ctx.name||ctx.address||'Emplacement enregistré'),fullAddress=officialFullAddress(title,ctx.fullAddress||'');
+    if(a)a.textContent=title;
+    if(full){full.textContent=fullAddress;full.style.display=fullAddress?'block':'none';}
     var landmarks=closeLandmarks(ctx.nearby||[]);
     if(near)near.innerHTML=simpleRows(landmarks);
     if(nearBox)nearBox.style.display=landmarks.length?'block':'none';
@@ -138,11 +170,11 @@
     var old=document.getElementById('returnPlaceConfirmV214');if(old)old.remove();
     var d=document.createElement('div');d.id='returnPlaceConfirmV214';
     d.style.cssText='position:fixed;z-index:2147483647;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;padding:12px;font-family:Arial,sans-serif';
-    d.innerHTML='<div style="width:min(580px,97vw);max-height:94vh;overflow-y:auto;background:#0d1824;color:#fff;border:4px solid #4dc987;border-radius:24px;padding:16px;text-align:center;box-shadow:0 16px 50px #000"><div style="font-size:25px;font-weight:1000;margin-bottom:8px">🚐 Retourner sur la place</div><div style="font-size:18px;font-weight:900">Voulez-vous retourner à cet emplacement ?</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px"><button id="rpRestaurantTile" style="min-width:0;padding:12px 10px;border:2px solid #ffd24a;border-radius:14px;background:#172536;color:#fff;text-align:left"><div style="font:1000 16px Arial;color:#ffd24a">⭐ RESTAURANTS RÉPUTÉS</div><div id="rpRestaurantSummary" style="font:800 12px Arial;margin-top:6px;color:#dce8f3">'+esc(diningSummary(ctx.restaurants||[],'restaurant'))+'</div><div style="font:900 11px Arial;margin-top:7px;color:#74c5ff">VOIR →</div></button><button id="rpFastFoodTile" style="min-width:0;padding:12px 10px;border:2px solid #f59b23;border-radius:14px;background:#172536;color:#fff;text-align:left"><div style="font:1000 16px Arial;color:#f7ae45">🍔 FAST-FOOD</div><div id="rpFastFoodSummary" style="font:800 12px Arial;margin-top:6px;color:#dce8f3">'+esc(diningSummary(ctx.fastFood||[],'fastfood'))+'</div><div style="font:900 11px Arial;margin-top:7px;color:#74c5ff">VOIR →</div></button></div><div style="margin-top:10px;padding:12px 14px;border-radius:13px;background:#13283b;font-size:16px;text-align:left"><b>📍 Lieu enregistré :</b><br><span id="rpAddressText" style="display:block;margin-top:4px;font-size:20px;font-weight:1000">'+esc(ctx.address||'Emplacement enregistré')+'</span></div><div id="rpNearbyBox" style="margin-top:9px;padding:11px 14px;border-radius:13px;background:#172536;text-align:left;font-size:14px;display:'+(closeLandmarks(ctx.nearby||[]).length?'block':'none')+'"><b style="color:#ffd24a">🧭 REPÈRE DE LA PLACE</b><div id="rpNearbyRows">'+simpleRows(ctx.nearby||[])+'</div></div><button id="rpShare" style="width:100%;min-height:50px;margin-top:10px;border:0;border-radius:13px;background:#267bc5;color:#fff;font:1000 16px Arial">📤 ENVOYER L’EMPLACEMENT</button><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px"><button id="rpYes" style="min-height:54px;border:0;border-radius:13px;background:#168a4e;color:#fff;font:900 18px Arial">OUI</button><button id="rpNo" style="min-height:54px;border:0;border-radius:13px;background:#b3343a;color:#fff;font:900 18px Arial">NON</button></div></div>';
+    d.innerHTML='<div style="width:min(580px,97vw);max-height:94vh;overflow-y:auto;background:#0d1824;color:#fff;border:4px solid #4dc987;border-radius:24px;padding:16px;text-align:center;box-shadow:0 16px 50px #000"><div style="font-size:25px;font-weight:1000;margin-bottom:8px">🚐 Retourner sur la place</div><div style="font-size:18px;font-weight:900">Voulez-vous retourner à cet emplacement ?</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px"><button id="rpRestaurantTile" style="min-width:0;padding:12px 10px;border:2px solid #ffd24a;border-radius:14px;background:#172536;color:#fff;text-align:left"><div style="font:1000 16px Arial;color:#ffd24a">⭐ RESTAURANTS RÉPUTÉS</div><div id="rpRestaurantSummary" style="font:800 12px Arial;margin-top:6px;color:#dce8f3">'+esc(diningSummary(ctx.restaurants||[],'restaurant'))+'</div><div style="font:900 11px Arial;margin-top:7px;color:#74c5ff">VOIR →</div></button><button id="rpFastFoodTile" style="min-width:0;padding:12px 10px;border:2px solid #f59b23;border-radius:14px;background:#172536;color:#fff;text-align:left"><div style="font:1000 16px Arial;color:#f7ae45">🍔 FAST-FOOD</div><div id="rpFastFoodSummary" style="font:800 12px Arial;margin-top:6px;color:#dce8f3">'+esc(diningSummary(ctx.fastFood||[],'fastfood'))+'</div><div style="font:900 11px Arial;margin-top:7px;color:#74c5ff">VOIR →</div></button></div><div style="margin-top:10px;padding:12px 14px;border-radius:13px;background:#13283b;font-size:16px;text-align:left"><b>📍 Lieu enregistré :</b><br><span id="rpAddressText" style="display:block;margin-top:4px;font-size:20px;font-weight:1000">'+esc(cleanPlaceTitle(ctx.name||ctx.address||'Emplacement enregistré'))+'</span><span id="rpFullAddressText" style="display:'+(ctx.fullAddress?'block':'none')+';margin-top:4px;font-size:13px;line-height:1.3;font-weight:700;color:#c9d7e3">'+esc(officialFullAddress(ctx.name||ctx.address||'',ctx.fullAddress||''))+'</span></div><div id="rpNearbyBox" style="margin-top:9px;padding:11px 14px;border-radius:13px;background:#172536;text-align:left;font-size:14px;display:'+(closeLandmarks(ctx.nearby||[]).length?'block':'none')+'"><b style="color:#ffd24a">🧭 REPÈRE DE LA PLACE</b><div id="rpNearbyRows">'+simpleRows(ctx.nearby||[])+'</div></div><button id="rpShare" style="width:100%;min-height:50px;margin-top:10px;border:0;border-radius:13px;background:#267bc5;color:#fff;font:1000 16px Arial">📤 ENVOYER L’EMPLACEMENT</button><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px"><button id="rpYes" style="min-height:54px;border:0;border-radius:13px;background:#168a4e;color:#fff;font:900 18px Arial">OUI</button><button id="rpNo" style="min-height:54px;border:0;border-radius:13px;background:#b3343a;color:#fff;font:900 18px Arial">NON</button></div></div>';
     document.body.appendChild(d);updateBubbleContext(ctx);
     d.querySelector('#rpNo').onclick=function(){d.remove()};
     d.querySelector('#rpYes').onclick=function(){d.remove();navTo(lat,lon)};
-    d.querySelector('#rpShare').onclick=function(){openShareMenu(lat,lon,localStorage.getItem('return_address')||ctx.address)};
+    d.querySelector('#rpShare').onclick=function(){openShareMenu(lat,lon,localStorage.getItem('return_address')||ctx.name||ctx.address,localStorage.getItem('return_full_address')||ctx.fullAddress||'')};
     d.querySelector('#rpRestaurantTile').onclick=function(){showDiningPage('restaurant')};
     d.querySelector('#rpFastFoodTile').onclick=function(){showDiningPage('fastfood')};
   }
@@ -159,12 +191,13 @@
       navigator.geolocation.getCurrentPosition(async function(position){
         var la=position.coords.latitude,lo=position.coords.longitude;
         localStorage.setItem('return_lat',la);localStorage.setItem('return_lon',lo);localStorage.setItem('return_saved_at',String(Date.now()));localStorage.setItem('return_address','Recherche du nom exact…');
-        ['return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_updated_at','return_nearby'].forEach(function(k){localStorage.removeItem(k)});
+        ['return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_v216','return_context_updated_at','return_nearby','return_full_address'].forEach(function(k){localStorage.removeItem(k)});
         if(typeof window.showStatuses==='function')window.showStatuses();
         window.dispatchEvent(new CustomEvent('carplay-return-place-saved',{detail:{lat:la,lon:lo,address:'Recherche du nom exact…'}}));
         var ctx=await refreshContext(la,lo);
-        var exact=ctx&&ctx.address&&!isVagueAddress(ctx.address)?ctx.address:'Point GPS exact enregistré';
-        alert('✅ Emplacement enregistré\n\n'+exact+'\n\nLe GPS exact est maintenant gardé jusqu’à ce que vous appuyiez sur « Effacer l’emplacement ».');
+        var exact=ctx&&ctx.name&&!isVagueAddress(ctx.name)?ctx.name:(ctx&&ctx.address&&!isVagueAddress(ctx.address)?cleanPlaceTitle(ctx.address):'Point GPS exact enregistré');
+        var postal=ctx&&ctx.fullAddress?ctx.fullAddress:'';
+        alert('✅ Emplacement enregistré\n\n'+exact+(postal?'\n'+postal:'')+'\n\nLe GPS exact est maintenant gardé jusqu’à ce que vous appuyiez sur « Effacer l’emplacement ».');
         if(ctx)window.dispatchEvent(new CustomEvent('carplay-return-place-context-ready',{detail:ctx}));
       },function(e){var m=window.CarPlayLocation?window.CarPlayLocation.showHelp(e):'Impossible de récupérer votre position.';alert(m)},{enableHighAccuracy:true,timeout:15000,maximumAge:0});
       return;
@@ -174,7 +207,7 @@
     if(!ctx._loaded||age>86400000||isVagueAddress(ctx.address))refreshContext(lat,lon);
   };
   window.clearReturnPlace=function(){
-    ['return_lat','return_lon','return_address','return_nearby','return_saved_at','return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_updated_at'].forEach(function(k){localStorage.removeItem(k)});
+    ['return_lat','return_lon','return_address','return_full_address','return_nearby','return_saved_at','return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_v216','return_context_updated_at'].forEach(function(k){localStorage.removeItem(k)});
     currentCtx=null;
     if(typeof window.showStatuses==='function')window.showStatuses();
     alert('Emplacement de retour effacé. Au prochain appui, un nouveau point GPS sera enregistré.');
