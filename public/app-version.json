@@ -1,4 +1,4 @@
 {
-  "version": "20260914-concours-v190-compact",
-  "message": "Page concours compacte : classement affiché directement après inscription, petits boutons Bonus, Points, Commune, Bug/Idée et Règles. Bonus affichés seulement après déclenchement avec temps restant et gains ; conditions cachées pour garder la surprise."
+  "version": "20260914-v195-nettoyage-reglages-abonnement",
+  "message": "Nettoyage des Réglages : suppression des doublons INFOS et Renouveler abonnement, abonnement unique placé en haut avec nom/prénom obligatoires et contact Snapchat. Le bouton Concours s’affiche immédiatement sans passage par Mail."
 }
