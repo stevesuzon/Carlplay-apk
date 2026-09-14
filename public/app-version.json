@@ -1,4 +1,4 @@
 {
-  "version": "20260914-v199-identite-abonnement-concours",
-  "message": "Nom, prénom et adresse e-mail obligatoires pour les abonnés existants et nouveaux. Le bouton Confirmer les informations enregistre la même identité pour l’abonnement et le concours, puis ouvre le concours."
+  "version": "20260914-v200-essai-concours",
+  "message": "Pendant la période d’essai, le concours se débloque sans code après confirmation du nom, du prénom et de l’adresse e-mail. L’accès d’essai expire automatiquement à la date prévue."
 }
