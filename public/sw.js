@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260914-v202-reparation-acces";
+const CACHE = "carplay-v5-20260914-v208-renouvellement-cumul-jours";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -23,8 +23,8 @@ const CORE = [
   "/carplay-noir-rouge-512.png",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=68-notifications-globales",
-  "/subscription-web.js?v=202-reparation-acces",
-  "/subscription-v154-patch.js?v=158",
+  "/subscription-web.js?v=208-renouvellement-cumul-jours",
+  "/subscription-v154-patch.js?v=203",
   "/modification-profile-v156.js?v=173",
   "/sanction-guard-v161.js?v=161",
   "/special-market-server-v157.js?v=184",
@@ -117,9 +117,10 @@ self.addEventListener("message", (e) => {
   }
 });
 self.addEventListener("notificationclick", (e) => {
+  const target = e.notification && e.notification.data && e.notification.data.url ? e.notification.data.url : "/admin.html#gps-requests";
   e.notification.close();
   e.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(list=>{
-    for(const client of list) if("focus" in client){client.navigate("/admin.html#gps-requests");return client.focus();}
-    return clients.openWindow("/admin.html#gps-requests");
+    for(const client of list) if("focus" in client){client.navigate(target);return client.focus();}
+    return clients.openWindow(target);
   }));
 });

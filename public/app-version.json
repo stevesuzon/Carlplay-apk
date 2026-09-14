@@ -1,4 +1,4 @@
 {
-  "version": "20260914-v204-presence-marche-gps",
-  "message": "Le compteur vert affiche uniquement les personnes ayant ouvert l’application à moins de 100 mètres du même marché, brocante ou autre. Un appui sur le compteur affiche le marché détecté et le détail."
+  "version": "20260914-v208-renouvellement-cumul-jours",
+  "message": "Renouvellement d’abonnement : un nouveau code ajoute sa durée aux jours restants. Exemple : 200 jours restants + code 1 an = 565 jours. Si l’abonnement est expiré, les 365 jours repartent à l’activation du nouveau code."
 }

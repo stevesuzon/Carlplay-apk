@@ -220,6 +220,8 @@ async function ensureSubscriptionEmailColumns(env){
   try{await env.DB.prepare("ALTER TABLE subscriptions ADD COLUMN account_first_name TEXT").run()}catch(_){}
   try{await env.DB.prepare("ALTER TABLE subscriptions ADD COLUMN account_last_name TEXT").run()}catch(_){}
   try{await env.DB.prepare("ALTER TABLE subscriptions ADD COLUMN account_updated_at INTEGER").run()}catch(_){}
+  try{await env.DB.prepare("ALTER TABLE subscriptions ADD COLUMN duration_days INTEGER").run()}catch(_){}
+  try{await env.DB.prepare("ALTER TABLE subscriptions ADD COLUMN redeemed_at INTEGER").run()}catch(_){}
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS subscription_email_challenges(id TEXT PRIMARY KEY,subscription_id INTEGER NOT NULL,email TEXT NOT NULL,email_hash TEXT NOT NULL,device_id TEXT NOT NULL,device_type TEXT NOT NULL,code_hash TEXT NOT NULL,expires_at INTEGER NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL,consumed INTEGER NOT NULL DEFAULT 0)`).run();
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_email_challenge_device ON subscription_email_challenges(device_id,created_at)").run();
   await env.DB.prepare("CREATE TABLE IF NOT EXISTS brevo_daily_usage(day TEXT PRIMARY KEY, sent_count INTEGER NOT NULL DEFAULT 0)").run();
@@ -234,10 +236,22 @@ async function sendBrevoCode(env,email,code){
   const response=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{accept:"application/json","content-type":"application/json","api-key":env.BREVO_API_KEY},body:JSON.stringify({sender:{name:"CarPlay Téléphone",email:String(env.BREVO_SENDER_EMAIL)},to:[{email}],subject:"Votre code de confirmation CarPlay",textContent:"Votre code de confirmation CarPlay est : "+code+". Il est valable 10 minutes.",htmlContent:'<div style="font-family:Arial,sans-serif"><h2>CarPlay Téléphone</h2><p>Votre code de confirmation est :</p><p style="font-size:32px;font-weight:bold;letter-spacing:7px">'+code+'</p><p>Ce code est valable 10 minutes.</p></div>'})});
   if(!response.ok)throw new Error("EMAIL_SEND");
 }
-async function sendBrevoSubscriptionCode(env,email,code){
+function subscriptionRemainingInfo(row,now=Date.now()){
+  if(row&&Number(row.lifetime))return {lifetime:true,remainingDays:null,expiresAt:null,endDate:"",label:"Abonnement à vie"};
+  const expiresAt=String(row&&row.expires_at||"");
+  const expiresMs=Date.parse(expiresAt);
+  const remainingDays=Number.isFinite(expiresMs)?Math.max(0,Math.ceil((expiresMs-now)/86400000)):0;
+  const endDate=Number.isFinite(expiresMs)?new Intl.DateTimeFormat("fr-FR",{timeZone:"Europe/Paris",day:"2-digit",month:"2-digit",year:"numeric"}).format(new Date(expiresMs)):"";
+  return {lifetime:false,remainingDays,expiresAt:expiresAt||null,endDate,label:remainingDays+" jour"+(remainingDays>1?"s":"")+" restant"+(remainingDays>1?"s":"")};
+}
+async function sendBrevoSubscriptionCode(env,email,code,row,now=Date.now()){
   if(!env.BREVO_API_KEY||!env.BREVO_SENDER_EMAIL)throw new Error("EMAIL_CONFIG");
-  const response=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{accept:"application/json","content-type":"application/json","api-key":env.BREVO_API_KEY},body:JSON.stringify({sender:{name:"CarPlay Téléphone",email:String(env.BREVO_SENDER_EMAIL)},to:[{email}],subject:"Votre code d’abonnement CarPlay",textContent:"Votre code d’abonnement CarPlay est : "+code+". Entrez ce même code sur votre nouveau téléphone pour récupérer votre abonnement. L’ancien téléphone sera automatiquement remplacé pour cet abonnement.",htmlContent:'<div style="font-family:Arial,sans-serif"><h2>CarPlay Téléphone</h2><p>Voici le code rattaché à votre abonnement :</p><p style="font-size:32px;font-weight:bold;letter-spacing:7px">'+code+'</p><p>Entrez ce même code sur votre nouveau téléphone pour récupérer votre abonnement. L’ancien téléphone sera automatiquement remplacé pour cet abonnement.</p></div>'})});
+  const info=subscriptionRemainingInfo(row,now);
+  const remainingText=info.lifetime?"Abonnement à vie":"Jours restants : "+info.remainingDays+(info.endDate?"\nDate de fin : "+info.endDate:"");
+  const remainingHtml=info.lifetime?'<p style="font-size:20px;font-weight:bold;color:#16803a">Abonnement à vie</p>':'<p style="font-size:20px;font-weight:bold">Jours restants : '+info.remainingDays+'</p>'+(info.endDate?'<p>Date de fin : <strong>'+info.endDate+'</strong></p>':'');
+  const response=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{accept:"application/json","content-type":"application/json","api-key":env.BREVO_API_KEY},body:JSON.stringify({sender:{name:"CarPlay Téléphone",email:String(env.BREVO_SENDER_EMAIL)},to:[{email}],subject:"Votre code d’abonnement CarPlay et vos jours restants",textContent:"Votre code d’abonnement CarPlay est : "+code+".\n\n"+remainingText+".\n\nEntrez ce même code sur votre nouveau téléphone pour récupérer votre abonnement. L’ancien téléphone sera automatiquement remplacé pour cet abonnement.",htmlContent:'<div style="font-family:Arial,sans-serif;line-height:1.45"><h2>CarPlay Téléphone</h2><p>Voici le code rattaché à votre abonnement :</p><p style="font-size:32px;font-weight:bold;letter-spacing:7px">'+code+'</p>'+remainingHtml+'<p>Entrez ce même code sur votre nouveau téléphone pour récupérer votre abonnement. L’ancien téléphone sera automatiquement remplacé pour cet abonnement.</p></div>'})});
   if(!response.ok)throw new Error("EMAIL_SEND");
+  return info;
 }
 async function recoverSubscriptionCode(request,env){
   await ensureSubscriptionEmailColumns(env);
@@ -253,12 +267,13 @@ async function recoverSubscriptionCode(request,env){
   if(Number(usage?.sent_count||0)>=200)return json({ok:false,error:'QUOTA_EMAIL_JOURNALIER'},429);
   let code='';
   try{code=await openRecoveryCode(row.recovery_code_box,env)}catch(_){return json({ok:false,error:'CODE_RECUPERATION_NON_INITIALISE'},409)}
-  try{await sendBrevoSubscriptionCode(env,email,code)}catch(_){return json({ok:false,error:'EMAIL_ENVOI_INDISPONIBLE'},503)}
+  let remainingInfo;
+  try{remainingInfo=await sendBrevoSubscriptionCode(env,email,code,row,now)}catch(_){return json({ok:false,error:'EMAIL_ENVOI_INDISPONIBLE'},503)}
   await env.DB.batch([
     env.DB.prepare("UPDATE subscriptions SET last_recovery_sent_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(now,row.id),
     env.DB.prepare("INSERT INTO brevo_daily_usage(day,sent_count) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET sent_count=sent_count+1").bind(day)
   ]);
-  return json({ok:true,email});
+  return json({ok:true,email,lifetime:remainingInfo.lifetime,remainingDays:remainingInfo.remainingDays,expiresAt:remainingInfo.expiresAt});
 }
 
 async function startEmailIdentity(request,env){
@@ -285,30 +300,99 @@ async function activate(request, env) {
   await ensureSubscriptionEmailColumns(env);
   const data = await body(request);
   const code = normalizeCode(data.code);
-  const email=normalizeEmail(data.email);
-  const emailProof=String(data.emailProof||"");
+  const email = normalizeEmail(data.email);
   const deviceId = String(data.deviceId || "");
   const type = data.deviceType === "autoradio" ? "autoradio" : "phone";
-  const firstName=String(data.firstName||"").trim().replace(/\s+/g," ").slice(0,60), lastName=String(data.lastName||"").trim().replace(/\s+/g," ").slice(0,60);
+  const firstName = String(data.firstName || "").trim().replace(/\s+/g," ").slice(0,60);
+  const lastName = String(data.lastName || "").trim().replace(/\s+/g," ").slice(0,60);
   if (!validEmail(email)) return json({ok:false,error:"EMAIL_OBLIGATOIRE"},400);
-  if (firstName.length<2 || lastName.length<2) return json({ok:false,error:"NOM_ET_PRENOM_OBLIGATOIRES"},400);
-  if (!validCode(code) || !validDevice(deviceId)) return json({ ok: false, error: "DONNEES_INVALIDES" }, 400);
+  if (firstName.length < 2 || lastName.length < 2) return json({ok:false,error:"NOM_ET_PRENOM_OBLIGATOIRES"},400);
+  if (!validCode(code) || !validDevice(deviceId)) return json({ok:false,error:"DONNEES_INVALIDES"},400);
+
+  const now = Date.now();
   const codeHash = await hashCode(code, env.CODE_PEPPER);
-  const row = await env.DB.prepare("SELECT * FROM subscriptions WHERE code_hash = ? AND active = 1").bind(codeHash).first();
-  if (!row) return json({ ok: false, error: "CODE_INCORRECT" }, 403);
-  if (!row.lifetime && (!row.expires_at || Date.parse(row.expires_at) <= Date.now())) return json({ ok: false, error: "ABONNEMENT_EXPIRE" }, 403);
+  const row = await env.DB.prepare("SELECT * FROM subscriptions WHERE code_hash=? AND active=1").bind(codeHash).first();
+  if (!row) return json({ok:false,error:"CODE_INCORRECT"},403);
+
+  const emailHash = await sha256Text(email);
   const column = type === "autoradio" ? "autoradio_device" : "phone_device";
-  const registered = row[column];
-  const emailHash=await sha256Text(email),storedEmail=String(row.recovery_email_hash||"");
-  const changingPhone=!!registered&&registered!==deviceId;
-  if(storedEmail&&storedEmail!==emailHash&&changingPhone)return json({ok:false,error:"EMAIL_NE_CORRESPOND_PAS"},403);
-  const storedFirst=String(row.account_first_name||""),storedLast=String(row.account_last_name||"");
-  if(changingPhone&&storedFirst&&storedLast&&(subscriptionIdentityKey(storedFirst)!==subscriptionIdentityKey(firstName)||subscriptionIdentityKey(storedLast)!==subscriptionIdentityKey(lastName)))return json({ok:false,error:"IDENTITE_NE_CORRESPOND_PAS"},403);
-  const emailOwner=await activeEmailOwner(env,emailHash,row.id);
-  if(emailOwner)return json({ok:false,error:"EMAIL_DEJA_UTILISEE"},409);
-  const recoveryCodeBox=await sealRecoveryCode(code,env);
-  await env.DB.prepare(`UPDATE subscriptions SET recovery_email_hash=?,recovery_email_mask=?,recovery_code_box=?,account_first_name=?,account_last_name=?,account_updated_at=?,${column}=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(emailHash,email,recoveryCodeBox,firstName,lastName,Date.now(),deviceId,row.id).run();
-  return json({ok:true,lifetime:!!row.lifetime,expiresAt:row.expires_at||null,deviceType:type,email,firstName,lastName});
+  const freshCode = !row.recovery_email_hash && !row.phone_device && !row.autoradio_device && !row.account_first_name && !row.account_last_name;
+  const durationDays = Math.max(1, Math.min(3650, Number(row.duration_days) || 365));
+
+  // Un code neuf sert aussi de recharge. Si ce nom/e-mail ou ce téléphone possède déjà
+  // un abonnement, on conserve le même compte et on ajoute la durée du nouveau code.
+  if (freshCode) {
+    const candidates = await env.DB.prepare(
+      `SELECT * FROM subscriptions
+       WHERE id<>? AND (recovery_email_hash=? OR phone_device=? OR autoradio_device=?)
+       ORDER BY CASE WHEN recovery_email_hash=? THEN 0 ELSE 1 END,
+                CASE WHEN active=1 THEN 0 ELSE 1 END,
+                COALESCE(account_updated_at,0) DESC, id DESC
+       LIMIT 1`
+    ).bind(row.id,emailHash,deviceId,deviceId,emailHash).first();
+
+    if (candidates) {
+      const account = candidates;
+      const storedEmail = String(account.recovery_email_hash || "");
+      const storedFirst = String(account.account_first_name || "");
+      const storedLast = String(account.account_last_name || "");
+      if (storedEmail && storedEmail !== emailHash) return json({ok:false,error:"EMAIL_NE_CORRESPOND_PAS"},403);
+      if (storedFirst && storedLast && (subscriptionIdentityKey(storedFirst)!==subscriptionIdentityKey(firstName) || subscriptionIdentityKey(storedLast)!==subscriptionIdentityKey(lastName))) {
+        return json({ok:false,error:"IDENTITE_NE_CORRESPOND_PAS"},403);
+      }
+      if (Number(account.lifetime)) return json({ok:false,error:"ABONNEMENT_DEJA_A_VIE"},409);
+
+      const recoveryCodeBox = await sealRecoveryCode(code,env);
+      const oldEnd = account.expires_at ? Date.parse(account.expires_at) : 0;
+      const base = Number.isFinite(oldEnd) && oldEnd > now ? oldEnd : now;
+      const becomesLifetime = Number(row.lifetime) === 1;
+      const newExpires = becomesLifetime ? null : new Date(base + durationDays * 86400000).toISOString();
+
+      // D1 batch est transactionnel : on libère d'abord le nouveau code, puis on le
+      // rattache à l'ancien compte afin de garder le même subscription_id et ses données.
+      await env.DB.batch([
+        env.DB.prepare("DELETE FROM subscriptions WHERE id=?").bind(row.id),
+        env.DB.prepare(`UPDATE subscriptions SET code_hash=?,recovery_code_box=?,expires_at=?,lifetime=?,active=1,
+          recovery_email_hash=?,recovery_email_mask=?,account_first_name=?,account_last_name=?,account_updated_at=?,
+          duration_days=?,redeemed_at=?,${column}=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+          .bind(codeHash,recoveryCodeBox,newExpires,becomesLifetime?1:0,emailHash,email,firstName,lastName,now,durationDays,now,deviceId,account.id)
+      ]);
+
+      const info = subscriptionRemainingInfo({lifetime:becomesLifetime?1:0,expires_at:newExpires},now);
+      return json({ok:true,lifetime:becomesLifetime,expiresAt:newExpires,deviceType:type,email,firstName,lastName,renewed:true,addedDays:becomesLifetime?null:durationDays,remainingDays:info.remainingDays});
+    }
+
+    // Première activation d'un code neuf : la durée commence le jour de l'activation,
+    // et non le jour où l'administrateur a créé le code.
+    const owner = await activeEmailOwner(env,emailHash,row.id);
+    if (owner) return json({ok:false,error:"EMAIL_DEJA_UTILISEE"},409);
+    const recoveryCodeBox = await sealRecoveryCode(code,env);
+    const becomesLifetime = Number(row.lifetime) === 1;
+    const expiresAt = becomesLifetime ? null : new Date(now + durationDays * 86400000).toISOString();
+    await env.DB.prepare(`UPDATE subscriptions SET expires_at=?,recovery_email_hash=?,recovery_email_mask=?,recovery_code_box=?,
+      account_first_name=?,account_last_name=?,account_updated_at=?,duration_days=?,redeemed_at=?,${column}=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+      .bind(expiresAt,emailHash,email,recoveryCodeBox,firstName,lastName,now,durationDays,now,deviceId,row.id).run();
+    const info = subscriptionRemainingInfo({lifetime:becomesLifetime?1:0,expires_at:expiresAt},now);
+    return json({ok:true,lifetime:becomesLifetime,expiresAt,deviceType:type,email,firstName,lastName,renewed:false,addedDays:becomesLifetime?null:durationDays,remainingDays:info.remainingDays});
+  }
+
+  // Code déjà rattaché à un compte : connexion/récupération normale, sans ajouter
+  // une seconde fois les 365 jours.
+  if (!row.lifetime && (!row.expires_at || Date.parse(row.expires_at) <= now)) return json({ok:false,error:"ABONNEMENT_EXPIRE"},403);
+  const storedEmail = String(row.recovery_email_hash || "");
+  const storedFirst = String(row.account_first_name || "");
+  const storedLast = String(row.account_last_name || "");
+  if (storedEmail && storedEmail !== emailHash) return json({ok:false,error:"EMAIL_NE_CORRESPOND_PAS"},403);
+  if (storedFirst && storedLast && (subscriptionIdentityKey(storedFirst)!==subscriptionIdentityKey(firstName) || subscriptionIdentityKey(storedLast)!==subscriptionIdentityKey(lastName))) {
+    return json({ok:false,error:"IDENTITE_NE_CORRESPOND_PAS"},403);
+  }
+  const emailOwner = await activeEmailOwner(env,emailHash,row.id);
+  if (emailOwner) return json({ok:false,error:"EMAIL_DEJA_UTILISEE"},409);
+  const recoveryCodeBox = await sealRecoveryCode(code,env);
+  await env.DB.prepare(`UPDATE subscriptions SET recovery_email_hash=?,recovery_email_mask=?,recovery_code_box=?,account_first_name=?,account_last_name=?,account_updated_at=?,redeemed_at=COALESCE(redeemed_at,?),${column}=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .bind(emailHash,email,recoveryCodeBox,firstName,lastName,now,now,deviceId,row.id).run();
+  const info = subscriptionRemainingInfo(row,now);
+  return json({ok:true,lifetime:!!row.lifetime,expiresAt:row.expires_at||null,deviceType:type,email,firstName,lastName,renewed:false,remainingDays:info.remainingDays});
 }
 
 async function updateSubscriptionEmail(request, env) {
@@ -364,33 +448,33 @@ async function subscriptionStatus(request, env) {
 }
 
 async function createSubscription(request, env) {
-  if (!(await adminAuthorized(request, env))) return json({ ok: false, error: "SECRET_INCORRECT" }, 401);
+  if (!(await adminAuthorized(request, env))) return json({ok:false,error:"SECRET_INCORRECT"},401);
   await ensureSubscriptionEmailColumns(env);
   const data = await body(request);
   const code = normalizeCode(data.code);
-  if (!validCode(code)) return json({ ok: false, error: "CODE_6_CARACTERES_REQUIS" }, 400);
+  if (!validCode(code)) return json({ok:false,error:"CODE_6_CARACTERES_REQUIS"},400);
   const lifetime = data.lifetime === true;
   const days = Math.max(1, Math.min(3650, Number(data.days) || 365));
+  // expires_at sert d'affichage provisoire dans l'administration. Lors de la première
+  // activation, le compteur repart bien pour la durée complète (365 jours par défaut).
   const expires = lifetime ? null : new Date(Date.now() + days * 86400000).toISOString();
-  const codeHash = await hashCode(code, env.CODE_PEPPER);
-  const recoveryCodeBox = await sealRecoveryCode(code, env);
-  const existing = await env.DB.prepare("SELECT * FROM subscriptions WHERE code_hash = ?").bind(codeHash).first();
+  const codeHash = await hashCode(code,env.CODE_PEPPER);
+  const recoveryCodeBox = await sealRecoveryCode(code,env);
+  const existing = await env.DB.prepare("SELECT * FROM subscriptions WHERE code_hash=?").bind(codeHash).first();
 
   if (existing) {
-    const stillReserved = !!existing.lifetime || (existing.expires_at && Date.parse(existing.expires_at) > Date.now());
-    if (stillReserved) return json({ ok: false, error: "CODE_DEJA_UTILISE" }, 409);
-
-    await env.DB.prepare(
-      "UPDATE subscriptions SET expires_at=?, lifetime=?, active=1, recovery_code_box=?, updated_at=CURRENT_TIMESTAMP WHERE id=?"
-    ).bind(expires, lifetime ? 1 : 0, recoveryCodeBox, existing.id).run();
-
-    return json({ ok: true, code, lifetime, expiresAt: expires, renewed: true });
+    const stillReserved = !!existing.lifetime || (!!(existing.redeemed_at || existing.recovery_email_hash || existing.phone_device || existing.autoradio_device || existing.account_first_name || existing.account_last_name) && !!existing.expires_at && Date.parse(existing.expires_at) > Date.now());
+    if (stillReserved) return json({ok:false,error:"CODE_DEJA_UTILISE"},409);
+    await env.DB.prepare(`UPDATE subscriptions SET expires_at=?,lifetime=?,active=1,recovery_code_box=?,duration_days=?,redeemed_at=NULL,
+      phone_device=NULL,autoradio_device=NULL,recovery_email_hash=NULL,recovery_email_mask=NULL,account_first_name=NULL,account_last_name=NULL,account_updated_at=NULL,
+      updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+      .bind(expires,lifetime?1:0,recoveryCodeBox,days,existing.id).run();
+    return json({ok:true,code,lifetime,expiresAt:expires,durationDays:days,renewed:true});
   }
 
-  await env.DB.prepare("INSERT INTO subscriptions(code_hash, expires_at, lifetime, active, recovery_code_box) VALUES (?, ?, ?, 1, ?)")
-    .bind(codeHash, expires, lifetime ? 1 : 0, recoveryCodeBox).run();
-
-  return json({ ok: true, code, lifetime, expiresAt: expires, renewed: false });
+  await env.DB.prepare("INSERT INTO subscriptions(code_hash,expires_at,lifetime,active,recovery_code_box,duration_days,redeemed_at) VALUES(?,?,?,1,?,?,NULL)")
+    .bind(codeHash,expires,lifetime?1:0,recoveryCodeBox,days).run();
+  return json({ok:true,code,lifetime,expiresAt:expires,durationDays:days,renewed:false});
 }
 
 async function subscriptionAction(request, env) {
@@ -1324,7 +1408,7 @@ async function adminContestAction(request,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=202-reparation-acces" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=203-bienvenue" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=208-renouvellement-cumul-jours" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=203-bienvenue" defer></script>', { html: true });
   }
 }
 

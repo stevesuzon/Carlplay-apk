@@ -1,5 +1,6 @@
 (function(){
   const key='carplay_notifications_enabled';
+  const introKey='carplay_notifications_intro_answered_v207';
   function enabled(){return localStorage.getItem(key)==='1'}
   function update(){
     const on=enabled(),box=document.getElementById('appNotificationToggle'),status=document.getElementById('appNotificationStatus');
@@ -45,10 +46,40 @@
     const registration=await navigator.serviceWorker.ready;await registration.showNotification(title,options||{});return true;
   }
   window.CarPlayNotifications={enabled:enabled,enable:enable,disable:disable,sync:sync,notify:notify};
+  function showFirstNotificationIntro(){
+    try{
+      if(!('Notification' in window)||!('serviceWorker' in navigator))return;
+      if(Notification.permission==='granted'){
+        localStorage.setItem(key,'1');localStorage.setItem(introKey,'1');update();sync().catch(function(){});return;
+      }
+      if(Notification.permission==='denied'){
+        localStorage.setItem(key,'0');localStorage.setItem(introKey,'1');update();return;
+      }
+      if(localStorage.getItem(introKey)==='1')return;
+      if(localStorage.getItem(key)===null)localStorage.setItem(key,'1');
+      const veil=document.createElement('div');
+      veil.id='carplayNotificationIntroVeil';
+      veil.style.cssText='position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:18px;font-family:Arial,sans-serif';
+      const bubble=document.createElement('div');
+      bubble.setAttribute('role','button');bubble.setAttribute('tabindex','0');bubble.setAttribute('aria-label','Continuer vers la demande de notifications de l’iPhone');
+      bubble.style.cssText='width:min(520px,94vw);background:#101923;border:4px solid #ff9f13;border-radius:26px;padding:22px 20px;color:#fff;text-align:center;box-shadow:0 18px 55px #000;font-size:18px;font-weight:800;line-height:1.38;cursor:pointer';
+      bubble.innerHTML='<div style="font-size:30px;margin-bottom:7px">🔔 NOTIFICATIONS</div><div>Activez-les pour recevoir les mises à jour des <b>marchés hebdomadaires</b>, <b>brocantes</b>, <b>marchés de Noël</b>, les changements d’horaires ou de lieu, les nouveautés importantes et les rappels avant la fin de votre abonnement.</div><div style="margin-top:13px;color:#ffd36a;font-size:16px">Touchez cette bulle : l’iPhone vous demandera ensuite si vous voulez autoriser les notifications.</div>';
+      veil.appendChild(bubble);document.body.appendChild(veil);
+      let busy=false;
+      async function ask(){
+        if(busy)return;busy=true;
+        try{await enable();}
+        catch(e){localStorage.setItem(key,'0');update();}
+        finally{localStorage.setItem(introKey,'1');veil.remove();busy=false;}
+      }
+      bubble.addEventListener('click',ask);
+      bubble.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();ask();}});
+    }catch(e){}
+  }
   addEventListener('DOMContentLoaded',function(){
-    if(enabled()&&(!('Notification'in window)||Notification.permission!=='granted'))localStorage.setItem(key,'0');
+    if(enabled()&&'Notification'in window&&Notification.permission==='denied')localStorage.setItem(key,'0');
     const box=document.getElementById('appNotificationToggle');
     if(box)box.onchange=async function(){this.disabled=true;try{this.checked?await enable():await disable()}catch(e){localStorage.setItem(key,'0');alert(e.message||e)}finally{this.disabled=false;update()}};
-    update();sync().catch(function(){});
+    update();sync().catch(function(){});setTimeout(showFirstNotificationIntro,500);
   });
 })();
