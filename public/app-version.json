@@ -1,4 +1,4 @@
 {
-  "version": "20260914-v196-messagerie-admin",
-  "message": "Nettoyage définitif des Réglages, classement affiché dans l’en-tête, règles raccourcies, formulaire Bug/Problème/Idée corrigé et messagerie interne administrateur avec compteur, nom, prénom et adresse."
+  "version": "20260914-v197-messages-bonus",
+  "message": "Messagerie simplifiée avec bouton Nouveau message en haut du concours. Les idées acceptées peuvent recevoir un multiplicateur ×2, ×5 ou ×10 pendant 3 jours."
 }
