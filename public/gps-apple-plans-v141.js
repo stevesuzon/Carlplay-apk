@@ -14,20 +14,42 @@
   function distanceText(m){m=Math.max(0,Number(m)||0);return m<1000?Math.max(1,Math.round(m))+' m':(m/1000).toFixed(1).replace('.',',')+' km'}
   function isVagueAddress(a){return !a||a==='Emplacement enregistré'||a==='Recherche du nom exact…'||/^\s*\d{5}\s+[^,]+\s*$/i.test(a)}
   function photoUrl(name){return name?'/api/place-photo?name='+encodeURIComponent(name):''}
+  function cleanPlaceText(v){return String(v||'').replace(/\s+/g,' ').trim()}
+  async function addressBookReverseLabel(lat,lon){
+    try{
+      var r=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&namedetails=1&lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{headers:{'Accept-Language':'fr'},cache:'no-store'});
+      if(!r.ok)throw 0;
+      var j=await r.json(),a=j.address||{};
+      var pc=cleanPlaceText(a.postcode||''),city=cleanPlaceText(a.city||a.town||a.village||a.municipality||a.suburb||a.hamlet||'');
+      var road=cleanPlaceText(a.road||a.pedestrian||a.residential||a.path||a.square||a.place||'');
+      var namedCandidates=[j&&j.name,a.amenity,a.tourism,a.leisure,a.cemetery,a.historic,a.shop,a.office].map(cleanPlaceText).filter(Boolean);
+      for(var i=0;i<namedCandidates.length;i++){
+        var n=namedCandidates[i],lc=n.toLowerCase();
+        if(n.length>2&&lc!==city.toLowerCase()&&lc!==road.toLowerCase()&&!/^(yes|no|residential|commercial|industrial|house|apartments)$/i.test(n))return n;
+      }
+      // Même logique pratique que le Carnet d'adresses : si Nominatim renvoie le lieu dans « road », on le garde.
+      if(road&&/(aire d[’']?accueil|aire de|gens du voyage|camping|camp site|caravan|cimeti[eè]re|parking|gare|stade|parc|centre commercial|h[oô]tel|hopital|hôpital|clinique|march[eé]|place)/i.test(road))return road;
+      if(road){var tail=[pc,city].filter(Boolean).join(' ');return tail?road+', '+tail:road}
+      return [pc,city].filter(Boolean).join(' ');
+    }catch(_){return ''}
+  }
   async function placeContext(lat,lon){
+    var bookLabel='';
+    try{bookLabel=await addressBookReverseLabel(lat,lon)}catch(_){bookLabel=''}
     try{
       var r=await fetch('/api/place-context?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{cache:'no-store'}),j=await r.json();
-      if(r.ok&&j&&j.ok)return j;
+      if(r.ok&&j&&j.ok){if(bookLabel&&!isVagueAddress(bookLabel))j.address=bookLabel;return j}
     }catch(_){ }
     try{
       var r2=await fetch('/api/place-address?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{cache:'no-store'}),j2=await r2.json();
-      if(r2.ok&&j2&&j2.address)return {ok:true,address:j2.address,nearby:[],restaurants:[],fastFood:[],ratingsAvailable:false};
+      var fallback=bookLabel||(r2.ok&&j2&&j2.address?j2.address:'');
+      if(fallback)return {ok:true,address:fallback,nearby:[],restaurants:[],fastFood:[],ratingsAvailable:false};
     }catch(_){ }
-    return {ok:true,address:'Emplacement enregistré',nearby:[],restaurants:[],fastFood:[],ratingsAvailable:false};
+    return {ok:true,address:bookLabel||'Emplacement enregistré',nearby:[],restaurants:[],fastFood:[],ratingsAvailable:false};
   }
   function saveContext(lat,lon,ctx){
     ctx=ctx||{};ctx.lat=Number(lat);ctx.lon=Number(lon);ctx.updatedAt=Date.now();ctx._loaded=true;currentCtx=ctx;
-    try{localStorage.setItem('return_context_v214',JSON.stringify(ctx));}catch(_){ }
+    try{localStorage.setItem('return_context_v215',JSON.stringify(ctx));}catch(_){ }
     if(ctx.address)localStorage.setItem('return_address',String(ctx.address));
     try{localStorage.setItem('return_nearby',JSON.stringify(ctx.nearby||[]));}catch(_){ }
     localStorage.setItem('return_context_updated_at',String(Date.now()));
@@ -35,7 +57,7 @@
     return ctx;
   }
   function loadContext(lat,lon){
-    var keys=['return_context_v214'];
+    var keys=['return_context_v215','return_context_v214'];
     for(var i=0;i<keys.length;i++){
       try{
         var j=JSON.parse(localStorage.getItem(keys[i])||'null');
@@ -137,7 +159,7 @@
       navigator.geolocation.getCurrentPosition(async function(position){
         var la=position.coords.latitude,lo=position.coords.longitude;
         localStorage.setItem('return_lat',la);localStorage.setItem('return_lon',lo);localStorage.setItem('return_saved_at',String(Date.now()));localStorage.setItem('return_address','Recherche du nom exact…');
-        ['return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_updated_at','return_nearby'].forEach(function(k){localStorage.removeItem(k)});
+        ['return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_updated_at','return_nearby'].forEach(function(k){localStorage.removeItem(k)});
         if(typeof window.showStatuses==='function')window.showStatuses();
         window.dispatchEvent(new CustomEvent('carplay-return-place-saved',{detail:{lat:la,lon:lo,address:'Recherche du nom exact…'}}));
         var ctx=await refreshContext(la,lo);
@@ -152,7 +174,7 @@
     if(!ctx._loaded||age>86400000||isVagueAddress(ctx.address))refreshContext(lat,lon);
   };
   window.clearReturnPlace=function(){
-    ['return_lat','return_lon','return_address','return_nearby','return_saved_at','return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_updated_at'].forEach(function(k){localStorage.removeItem(k)});
+    ['return_lat','return_lon','return_address','return_nearby','return_saved_at','return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_updated_at'].forEach(function(k){localStorage.removeItem(k)});
     currentCtx=null;
     if(typeof window.showStatuses==='function')window.showStatuses();
     alert('Emplacement de retour effacé. Au prochain appui, un nouveau point GPS sera enregistré.');
