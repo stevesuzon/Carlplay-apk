@@ -1,4 +1,4 @@
 {
-  "version": "20260914-v198-bonus-automatique",
-  "message": "Messagerie simplifiée avec bouton Nouveau message. À l’acceptation d’une idée, l’application détermine automatiquement un bonus ×2, ×5 ou ×10 selon l’importance du sujet."
+  "version": "20260914-v199-identite-abonnement-concours",
+  "message": "Nom, prénom et adresse e-mail obligatoires pour les abonnés existants et nouveaux. Le bouton Confirmer les informations enregistre la même identité pour l’abonnement et le concours, puis ouvre le concours."
 }
