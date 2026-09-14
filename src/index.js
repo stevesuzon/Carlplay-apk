@@ -217,6 +217,9 @@ async function ensureSubscriptionEmailColumns(env){
   try{await env.DB.prepare("ALTER TABLE subscriptions ADD COLUMN recovery_email_mask TEXT").run()}catch(_){}
   try{await env.DB.prepare("ALTER TABLE subscriptions ADD COLUMN recovery_code_box TEXT").run()}catch(_){}
   try{await env.DB.prepare("ALTER TABLE subscriptions ADD COLUMN last_recovery_sent_at INTEGER").run()}catch(_){}
+  try{await env.DB.prepare("ALTER TABLE subscriptions ADD COLUMN account_first_name TEXT").run()}catch(_){}
+  try{await env.DB.prepare("ALTER TABLE subscriptions ADD COLUMN account_last_name TEXT").run()}catch(_){}
+  try{await env.DB.prepare("ALTER TABLE subscriptions ADD COLUMN account_updated_at INTEGER").run()}catch(_){}
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS subscription_email_challenges(id TEXT PRIMARY KEY,subscription_id INTEGER NOT NULL,email TEXT NOT NULL,email_hash TEXT NOT NULL,device_id TEXT NOT NULL,device_type TEXT NOT NULL,code_hash TEXT NOT NULL,expires_at INTEGER NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL,consumed INTEGER NOT NULL DEFAULT 0)`).run();
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_email_challenge_device ON subscription_email_challenges(device_id,created_at)").run();
   await env.DB.prepare("CREATE TABLE IF NOT EXISTS brevo_daily_usage(day TEXT PRIMARY KEY, sent_count INTEGER NOT NULL DEFAULT 0)").run();
@@ -282,7 +285,9 @@ async function activate(request, env) {
   const emailProof=String(data.emailProof||"");
   const deviceId = String(data.deviceId || "");
   const type = data.deviceType === "autoradio" ? "autoradio" : "phone";
+  const firstName=String(data.firstName||"").trim().replace(/\s+/g," ").slice(0,60), lastName=String(data.lastName||"").trim().replace(/\s+/g," ").slice(0,60);
   if (!validEmail(email)) return json({ok:false,error:"EMAIL_OBLIGATOIRE"},400);
+  if (firstName.length<2 || lastName.length<2) return json({ok:false,error:"NOM_ET_PRENOM_OBLIGATOIRES"},400);
   if (!validCode(code) || !validDevice(deviceId)) return json({ ok: false, error: "DONNEES_INVALIDES" }, 400);
   const codeHash = await hashCode(code, env.CODE_PEPPER);
   const row = await env.DB.prepare("SELECT * FROM subscriptions WHERE code_hash = ? AND active = 1").bind(codeHash).first();
@@ -295,8 +300,8 @@ async function activate(request, env) {
   const emailOwner=await activeEmailOwner(env,emailHash,row.id);
   if(emailOwner)return json({ok:false,error:"EMAIL_DEJA_UTILISEE"},409);
   const recoveryCodeBox=await sealRecoveryCode(code,env);
-  await env.DB.prepare(`UPDATE subscriptions SET recovery_email_hash=?,recovery_email_mask=?,recovery_code_box=?,${column}=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(emailHash,email,recoveryCodeBox,deviceId,row.id).run();
-  return json({ok:true,lifetime:!!row.lifetime,expiresAt:row.expires_at||null,deviceType:type,email});
+  await env.DB.prepare(`UPDATE subscriptions SET recovery_email_hash=?,recovery_email_mask=?,recovery_code_box=?,account_first_name=?,account_last_name=?,account_updated_at=?,${column}=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(emailHash,email,recoveryCodeBox,firstName,lastName,Date.now(),deviceId,row.id).run();
+  return json({ok:true,lifetime:!!row.lifetime,expiresAt:row.expires_at||null,deviceType:type,email,firstName,lastName});
 }
 
 async function updateSubscriptionEmail(request, env) {
@@ -940,6 +945,7 @@ async function submitMarketVerification(request, env) {
   }
   if(grantUsed&&grantRow)await env.DB.prepare("UPDATE gps_unlock_requests SET consumed=1,status='consumed',updated_at=? WHERE id=? AND consumed=0").bind(Date.now(),grantRow.id).run();
   if(confirmsPresence){await env.DB.prepare(`INSERT INTO market_verification_consensus(market_key,field,value_norm,value_display,confirmations,updated_at) VALUES(?,'exists','oui','Oui',1,CURRENT_TIMESTAMP) ON CONFLICT(market_key,field) DO UPDATE SET value_norm='oui',value_display='Oui',confirmations=1,updated_at=CURRENT_TIMESTAMP`).bind(marketKey).run();}
+  if(photo&&photo.ok&&!isAdminRequest) await queueContestMarketReview(env,deviceId,marketKey,String(data.marketName||'Marché'),photo);
   return json({ ok: true, required: 1, locationRequired:1, results, photo, locationResult, locationVote, state: await marketVerificationState(env, marketKey) });
 }
 
@@ -1012,9 +1018,227 @@ async function vigilanceForPlace(url) {
   }
 }
 
+
+// ===== JEU CONCOURS V189 =====
+function contestCleanName(v){return String(v||"").trim().replace(/\s+/g," ").slice(0,80)}
+function contestId(){return crypto.randomUUID()}
+function contestKm(a,b,c,d){return haversineMeters(Number(a),Number(b),Number(c),Number(d))/1000}
+function contestFiveMonthEnd(start){const d=new Date(Number(start)||Date.now());d.setMonth(d.getMonth()+5);return d.getTime()}
+const CONTEST_BONUS_MS=3*86400000;
+const CONTEST_LONG_TRIP_BONUS_MS=2*86400000;
+const CONTEST_RESULTS_MS=3*86400000;
+const CONTEST_DIESEL_PRICE=2.23;
+// Valeur technique volontairement cachée dans l'interface : elle sert seulement au calcul carburant.
+const CONTEST_REFERENCE_L_PER_100KM=7;
+function contestDistanceFuel(km){
+  const hundredths=Math.max(0,Math.floor((Number(km)||0)*100+1e-9));
+  const usedKm=hundredths/100;
+  // 2,23 €/L × 7 L/100 km = 0,1561 point par km. Le résultat garde ses décimales, sans arrondi à l'entier.
+  const points=(hundredths*1561)/1000000;
+  return {usedKm,points};
+}
+function contestNumberText(v){
+  const n=Number(v)||0;
+  return n.toFixed(6).replace(/0+$/,'').replace(/\.$/,'');
+}
+function contestDurationText(ms){const h=Math.max(1,Math.round(Number(ms||0)/3600000));return h%24===0?(h/24)+" jour"+((h/24)>1?"s":""):h+" heures"}
+
+async function ensureContestTables(env){
+  await ensureSubscriptionEmailColumns(env);
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS contest_config(id INTEGER PRIMARY KEY CHECK(id=1),start_at INTEGER NOT NULL,end_at INTEGER NOT NULL,finalized_at INTEGER,results_until INTEGER,rules_version INTEGER NOT NULL DEFAULT 189)`).run();
+  try{await env.DB.prepare("ALTER TABLE contest_config ADD COLUMN rules_version INTEGER NOT NULL DEFAULT 186").run()}catch(_){}
+  try{await env.DB.prepare("ALTER TABLE contest_config ADD COLUMN results_until INTEGER").run()}catch(_){}
+  let cfg=await env.DB.prepare("SELECT * FROM contest_config WHERE id=1").first();
+  if(!cfg){const start=Date.now(),end=contestFiveMonthEnd(start);await env.DB.prepare("INSERT INTO contest_config(id,start_at,end_at,rules_version) VALUES(1,?,?,189)").bind(start,end).run();cfg={id:1,start_at:start,end_at:end,finalized_at:null,results_until:null,rules_version:189}}
+  else{
+    const prior=Number(cfg.rules_version||186);
+    if(prior<188&&!cfg.finalized_at){const end=prior<187?contestFiveMonthEnd(cfg.start_at):Number(cfg.end_at);await env.DB.prepare("UPDATE contest_config SET end_at=? WHERE id=1").bind(end).run()}
+    if(cfg.finalized_at&&!cfg.results_until)await env.DB.prepare("UPDATE contest_config SET results_until=? WHERE id=1").bind(Number(cfg.finalized_at)+CONTEST_RESULTS_MS).run();
+    if(prior<189)await env.DB.prepare("UPDATE contest_config SET rules_version=189 WHERE id=1").run();
+    cfg=await env.DB.prepare("SELECT * FROM contest_config WHERE id=1").first();
+  }
+
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS contest_participants(subscription_id INTEGER PRIMARY KEY,device_id TEXT NOT NULL,first_name TEXT NOT NULL,last_name TEXT NOT NULL,email_hash TEXT NOT NULL DEFAULT '',home_country TEXT NOT NULL DEFAULT 'FR',home_area TEXT NOT NULL,home_commune TEXT NOT NULL,home_lat REAL NOT NULL,home_lon REAL NOT NULL,return_place_lat REAL,return_place_lon REAL,return_place_label TEXT NOT NULL DEFAULT '',points REAL NOT NULL DEFAULT 0,banned INTEGER NOT NULL DEFAULT 0,alert_count INTEGER NOT NULL DEFAULT 0,change_allowed INTEGER NOT NULL DEFAULT 0,joined_at INTEGER NOT NULL,updated_at INTEGER NOT NULL)`).run();
+  for(const sql of ["ALTER TABLE contest_participants ADD COLUMN return_place_lat REAL","ALTER TABLE contest_participants ADD COLUMN return_place_lon REAL","ALTER TABLE contest_participants ADD COLUMN return_place_label TEXT NOT NULL DEFAULT ''"])try{await env.DB.prepare(sql).run()}catch(_){}
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS contest_market_points(id INTEGER PRIMARY KEY AUTOINCREMENT,subscription_id INTEGER NOT NULL,market_key TEXT NOT NULL,market_name TEXT NOT NULL,distance_km REAL NOT NULL,points REAL NOT NULL,base_points REAL NOT NULL DEFAULT 0,multiplier INTEGER NOT NULL DEFAULT 1,breakdown_json TEXT NOT NULL DEFAULT '{}',market_lat REAL,market_lon REAL,place_label TEXT NOT NULL DEFAULT '',awarded_at INTEGER NOT NULL,UNIQUE(subscription_id,market_key))`).run();
+  for(const sql of ["ALTER TABLE contest_market_points ADD COLUMN base_points INTEGER NOT NULL DEFAULT 0","ALTER TABLE contest_market_points ADD COLUMN multiplier INTEGER NOT NULL DEFAULT 1","ALTER TABLE contest_market_points ADD COLUMN breakdown_json TEXT NOT NULL DEFAULT '{}'"])try{await env.DB.prepare(sql).run()}catch(_){}
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS contest_market_reviews(id TEXT PRIMARY KEY,subscription_id INTEGER NOT NULL,market_key TEXT NOT NULL,market_name TEXT NOT NULL,device_id TEXT NOT NULL,market_lat REAL NOT NULL,market_lon REAL NOT NULL,place_label TEXT NOT NULL DEFAULT '',photo_captured_at TEXT NOT NULL DEFAULT '',distance_km REAL NOT NULL,base_points INTEGER NOT NULL DEFAULT 0,multiplier INTEGER NOT NULL DEFAULT 1,points INTEGER NOT NULL,breakdown_json TEXT NOT NULL DEFAULT '{}',unusual INTEGER NOT NULL DEFAULT 0,previous_place TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'pending',created_at INTEGER NOT NULL,decided_at INTEGER,UNIQUE(subscription_id,market_key))`).run();
+  for(const sql of ["ALTER TABLE contest_market_reviews ADD COLUMN base_points INTEGER NOT NULL DEFAULT 0","ALTER TABLE contest_market_reviews ADD COLUMN multiplier INTEGER NOT NULL DEFAULT 1","ALTER TABLE contest_market_reviews ADD COLUMN breakdown_json TEXT NOT NULL DEFAULT '{}'"])try{await env.DB.prepare(sql).run()}catch(_){}
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS contest_reports(id TEXT PRIMARY KEY,subscription_id INTEGER NOT NULL,kind TEXT NOT NULL,description TEXT NOT NULL,fingerprint TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'pending',points REAL NOT NULL DEFAULT 0,created_at INTEGER NOT NULL,decided_at INTEGER)`).run();
+  try{await env.DB.prepare("ALTER TABLE contest_reports ADD COLUMN fingerprint TEXT NOT NULL DEFAULT ''").run()}catch(_){}
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS contest_commune_requests(id TEXT PRIMARY KEY,subscription_id INTEGER NOT NULL,status TEXT NOT NULL DEFAULT 'pending',created_at INTEGER NOT NULL,decided_at INTEGER)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS contest_travel_alerts(id TEXT PRIMARY KEY,subscription_id INTEGER NOT NULL,review_id TEXT NOT NULL,new_place TEXT NOT NULL,previous_place TEXT NOT NULL,message TEXT NOT NULL,user_answer TEXT NOT NULL DEFAULT '',answer_place TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'pending',created_at INTEGER NOT NULL,answered_at INTEGER)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS contest_messages(id TEXT PRIMARY KEY,subscription_id INTEGER NOT NULL,kind TEXT NOT NULL DEFAULT 'info',message TEXT NOT NULL,created_at INTEGER NOT NULL,read_at INTEGER)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS contest_results(rank INTEGER PRIMARY KEY,subscription_id INTEGER NOT NULL,first_name TEXT NOT NULL,last_name TEXT NOT NULL,points INTEGER NOT NULL,reward TEXT NOT NULL)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS contest_score_events(id TEXT PRIMARY KEY,subscription_id INTEGER NOT NULL,source_type TEXT NOT NULL,source_id TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',base_points INTEGER NOT NULL DEFAULT 0,multiplier INTEGER NOT NULL DEFAULT 1,awarded_points REAL NOT NULL DEFAULT 0,created_at INTEGER NOT NULL,UNIQUE(subscription_id,source_type,source_id))`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS contest_bonus_periods(id TEXT PRIMARY KEY,subscription_id INTEGER NOT NULL,multiplier INTEGER NOT NULL,reason TEXT NOT NULL,source_key TEXT NOT NULL,duration_ms INTEGER NOT NULL DEFAULT 259200000,status TEXT NOT NULL DEFAULT 'queued',created_at INTEGER NOT NULL,start_at INTEGER,end_at INTEGER,finished_at INTEGER,UNIQUE(subscription_id,source_key))`).run();
+  try{await env.DB.prepare("ALTER TABLE contest_bonus_periods ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 259200000").run()}catch(_){}
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS contest_bonus_status_idx ON contest_bonus_periods(subscription_id,status,created_at)").run();
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS contest_score_events_idx ON contest_score_events(subscription_id,created_at)").run();
+  return cfg;
+}
+
+async function contestSubscription(env,data){
+  await ensureSubscriptionEmailColumns(env);const deviceId=String(data.deviceId||""),code=normalizeCode(data.subscriptionCode||data.code||"");let row=null;
+  if(validDevice(deviceId))row=await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) LIMIT 1").bind(deviceId,deviceId).first();
+  if(!row&&validCode(code)){const h=await hashCode(code,env.CODE_PEPPER);row=await env.DB.prepare("SELECT * FROM subscriptions WHERE code_hash=? AND active=1 LIMIT 1").bind(h).first()}
+  if(!row)return null;if(!row.lifetime&&(!row.expires_at||Date.parse(row.expires_at)<=Date.now()))return null;return row;
+}
+async function contestPlaceLabel(lat,lon){
+  try{const r=await fetch(`https://geo.api.gouv.fr/communes?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&fields=nom,codeDepartement,departement&format=json`,{headers:{accept:"application/json"}});if(r.ok){const a=await r.json(),c=Array.isArray(a)&&a[0];if(c)return `${c.nom}${c.codeDepartement?` (${c.codeDepartement})`:''}`}}catch(_){}
+  try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=12`,{headers:{"user-agent":"CarPlay-Contest/1.0"}});if(r.ok){const j=await r.json(),a=j.address||{};return String(a.city||a.town||a.village||a.municipality||j.display_name||"Lieu inconnu").slice(0,120)}}catch(_){}
+  return "Lieu non identifié";
+}
+
+async function reversePlaceAddress(url){
+  const lat=Number(url.searchParams.get('lat')),lon=Number(url.searchParams.get('lon'));if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return json({ok:false,error:'POSITION_INVALIDE'},400);
+  try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr'}});if(r.ok){const j=await r.json(),a=j.address||{},parts=[];const road=[a.house_number,a.road||a.pedestrian||a.square||a.place].filter(Boolean).join(' ');if(road)parts.push(road);const pc=a.postcode||'',city=a.city||a.town||a.village||a.municipality||a.hamlet||'';if(pc||city)parts.push([pc,city].filter(Boolean).join(' '));if(a.country)parts.push(a.country);const address=parts.join(', ')||String(j.display_name||'').slice(0,240);if(address)return json({ok:true,address})}}catch(_){}
+  return json({ok:true,address:await contestPlaceLabel(lat,lon)});
+}
+async function contestHomePlace(request,env){
+  await ensureContestTables(env);const data=await body(request),sub=await contestSubscription(env,data);if(!sub)return json({ok:false,error:'ABONNEMENT_REQUIS'},403);const p=await env.DB.prepare("SELECT * FROM contest_participants WHERE subscription_id=? AND banned=0").bind(sub.id).first();if(!p)return json({ok:true,participant:false});
+  const lat=Number(data.lat),lon=Number(data.lon);if(!Number.isFinite(lat)||!Number.isFinite(lon))return json({ok:false,error:'POSITION_INVALIDE'},400);let label=String(data.address||'').trim().slice(0,240);if(!label)label=await contestPlaceLabel(lat,lon);
+  const already=Number.isFinite(Number(p.return_place_lat))&&Number.isFinite(Number(p.return_place_lon))&&String(p.return_place_label||'').trim();
+  if(!already){await env.DB.prepare("UPDATE contest_participants SET return_place_lat=?,return_place_lon=?,return_place_label=?,updated_at=? WHERE subscription_id=?").bind(lat,lon,label,Date.now(),sub.id).run()}
+  const installed=await registeredVerificationDevice(env,String(data.deviceId||'')),identity=!!(String(sub.account_first_name||'').trim()&&String(sub.account_last_name||'').trim()&&String(sub.recovery_email_hash||'').trim());
+  if(installed&&identity){await contestEnqueueBonus(env,sub.id,2,"application ajoutée à l’écran d’accueil + identité renseignée + emplacement « Retourner sur la place » enregistré","onboarding-home-place",CONTEST_BONUS_MS)}
+  return json({ok:true,participant:true,address:already?String(p.return_place_label):label,bonusEligible:installed&&identity});
+}
+
+async function contestPushMessage(env,subscriptionId,message,kind="info"){await env.DB.prepare("INSERT INTO contest_messages(id,subscription_id,kind,message,created_at) VALUES(?,?,?,?,?)").bind(contestId(),subscriptionId,kind,String(message).slice(0,800),Date.now()).run()}
+async function sendContestMail(env,email,subject,text){if(!validEmail(email)||!env.BREVO_API_KEY||!env.BREVO_SENDER_EMAIL)return false;try{const r=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{accept:"application/json","content-type":"application/json","api-key":env.BREVO_API_KEY},body:JSON.stringify({sender:{name:"CarPlay Téléphone",email:String(env.BREVO_SENDER_EMAIL)},to:[{email}],subject,textContent:text,htmlContent:`<div style="font-family:Arial,sans-serif"><h2>🏆 Jeu concours CarPlay</h2><p>${String(text).replace(/\n/g,"<br>")}</p></div>`})});return r.ok}catch(_){return false}}
+
+async function contestRefreshBonusState(env,subscriptionId){
+  const now=Date.now();let active=await env.DB.prepare("SELECT * FROM contest_bonus_periods WHERE subscription_id=? AND status='active' ORDER BY start_at LIMIT 1").bind(subscriptionId).first();
+  if(active&&Number(active.end_at||0)<=now){await env.DB.prepare("UPDATE contest_bonus_periods SET status='finished',finished_at=? WHERE id=? AND status='active'").bind(now,active.id).run();await contestPushMessage(env,subscriptionId,`⏱️ BONUS ×${active.multiplier} TERMINÉ — vos nouveaux points reviennent à la valeur normale.`,`bonus-ended`);active=null}
+  if(!active){const next=await env.DB.prepare("SELECT * FROM contest_bonus_periods WHERE subscription_id=? AND status='queued' ORDER BY created_at LIMIT 1").bind(subscriptionId).first();if(next){const duration=Math.max(3600000,Number(next.duration_ms||CONTEST_BONUS_MS)),end=now+duration;await env.DB.prepare("UPDATE contest_bonus_periods SET status='active',start_at=?,end_at=? WHERE id=? AND status='queued'").bind(now,end,next.id).run();active={...next,status:'active',start_at:now,end_at:end};await contestPushMessage(env,subscriptionId,`🎁 BONUS ×${next.multiplier} ACTIVÉ — pendant ${contestDurationText(duration)}, seuls vos nouveaux points gagnés sont multipliés par ${next.multiplier}.`,`bonus-started`)}}
+  const queued=(await env.DB.prepare("SELECT multiplier,reason,duration_ms,created_at FROM contest_bonus_periods WHERE subscription_id=? AND status='queued' ORDER BY created_at").bind(subscriptionId).all()).results||[];
+  return {active,queued};
+}
+async function contestEnqueueBonus(env,subscriptionId,multiplier,reason,sourceKey,durationMs=CONTEST_BONUS_MS,extendSame=false){
+  durationMs=Math.max(3600000,Number(durationMs||CONTEST_BONUS_MS));
+  if(extendSame){const active=await env.DB.prepare("SELECT * FROM contest_bonus_periods WHERE subscription_id=? AND status='active' ORDER BY start_at LIMIT 1").bind(subscriptionId).first();if(active&&Number(active.multiplier)===Number(multiplier)){const end=Math.max(Number(active.end_at||0),Date.now()+durationMs);await env.DB.prepare("UPDATE contest_bonus_periods SET end_at=? WHERE id=?").bind(end,active.id).run();await contestPushMessage(env,subscriptionId,`🔥 BONUS ×${multiplier} PROLONGÉ — il reste au moins ${contestDurationText(durationMs)} à partir de maintenant.`,`bonus-extended`);return contestRefreshBonusState(env,subscriptionId)}}
+  const r=await env.DB.prepare("INSERT OR IGNORE INTO contest_bonus_periods(id,subscription_id,multiplier,reason,source_key,duration_ms,status,created_at) VALUES(?,?,?,?,?,?,'queued',?)").bind(contestId(),subscriptionId,multiplier,String(reason).slice(0,160),sourceKey,durationMs,Date.now()).run();
+  if(r.meta&&Number(r.meta.changes)>0){await contestPushMessage(env,subscriptionId,`🎁 Vous avez gagné un BONUS ×${multiplier} pendant ${contestDurationText(durationMs)} : ${reason}.`,`bonus-won`)}
+  return contestRefreshBonusState(env,subscriptionId);
+}
+async function contestApplyMarketMilestones(env,subscriptionId){
+  const row=await env.DB.prepare("SELECT COUNT(*) AS n FROM contest_market_points WHERE subscription_id=?").bind(subscriptionId).first(),n=Number(row&&row.n||0);
+  if(n>=5)await contestEnqueueBonus(env,subscriptionId,2,"5 fiches validées","market-milestone-5");
+  if(n>=15)await contestEnqueueBonus(env,subscriptionId,3,"10 nouvelles fiches validées après le premier bonus","market-milestone-15");
+  if(n>=40)await contestEnqueueBonus(env,subscriptionId,5,"25 nouvelles fiches validées après le bonus ×3","market-milestone-40");
+  return n;
+}
+function contestBonusProgress(n){n=Number(n||0);if(n<5)return {done:false,label:"Bonus ×2",current:n,target:5,remaining:5-n};if(n<15)return {done:false,label:"Bonus ×3",current:n-5,target:10,remaining:15-n};if(n<40)return {done:false,label:"Bonus ×5",current:n-15,target:25,remaining:40-n};return {done:true,label:"Tous les bonus fiches ont été gagnés",current:25,target:25,remaining:0}}
+
+async function contestAddScoreEvent(env,subscriptionId,sourceType,sourceId,description,basePoints,multiplier,awardedPoints){
+  const r=await env.DB.prepare("INSERT OR IGNORE INTO contest_score_events(id,subscription_id,source_type,source_id,description,base_points,multiplier,awarded_points,created_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(contestId(),subscriptionId,sourceType,sourceId,String(description||"").slice(0,200),Number(basePoints||0),Number(multiplier||1),Number(awardedPoints||0),Date.now()).run();
+  if(r.meta&&Number(r.meta.changes)>0){await env.DB.prepare("UPDATE contest_participants SET points=points+?,updated_at=? WHERE subscription_id=?").bind(Number(awardedPoints||0),Date.now(),subscriptionId).run();return true}return false;
+}
+async function contestScoreSummary(env,subscriptionId){
+  const events=(await env.DB.prepare("SELECT source_type,base_points,multiplier,awarded_points FROM contest_score_events WHERE subscription_id=?").bind(subscriptionId).all()).results||[];
+  let bugPoints=0,bugEvents=0;for(const e of events){if(e.source_type==='bug'){bugEvents++;bugPoints+=Number(e.awarded_points||0)}}
+  const markets=(await env.DB.prepare("SELECT points,base_points,breakdown_json FROM contest_market_points WHERE subscription_id=?").bind(subscriptionId).all()).results||[];
+  let marketAwarded=0,marketBase=0,distanceBase=0;for(const r of markets){marketAwarded+=Number(r.points||0);marketBase+=Number(r.base_points||r.points||0);try{const a=JSON.parse(r.breakdown_json||'[]');for(const it of a)if(it&&it.key==='distance')distanceBase+=Number(it.points||0)}catch(_){}}
+  const idea=await env.DB.prepare("SELECT COUNT(*) AS n FROM contest_reports WHERE subscription_id=? AND kind='idee' AND status='approved'").bind(subscriptionId).first();
+  const p=await env.DB.prepare("SELECT points FROM contest_participants WHERE subscription_id=?").bind(subscriptionId).first();const total=Number(p&&p.points||0),known=marketAwarded+bugPoints;
+  return {total,marketCount:markets.length,marketBasePoints:marketBase,marketInfoPoints:Math.max(0,marketBase-distanceBase),distancePoints:distanceBase,marketAwardedPoints:marketAwarded,bonusExtraPoints:Math.max(0,marketAwarded-marketBase),bugCount:bugEvents,bugPoints,ideaCount:Number(idea&&idea.n||0),otherPoints:Math.max(0,total-known)};
+}
+
+async function contestMarketBreakdown(env,deviceId,marketKey,distanceKm){
+  const rows=(await env.DB.prepare("SELECT field,value_norm FROM market_verification_votes WHERE market_key=? AND device_id=?").bind(marketKey,deviceId).all()).results||[],fields={};for(const r of rows)fields[r.field]=String(r.value_norm||"");
+  const upload=await env.DB.prepare("SELECT uploaded_at FROM market_photo_uploads WHERE market_key=? AND device_id=?").bind(marketKey,deviceId).first();
+  const meta=await env.DB.prepare("SELECT device_id FROM market_photo_metadata WHERE market_key=?").bind(marketKey).first();
+  const gpsVote=await env.DB.prepare("SELECT address FROM market_location_votes WHERE market_key=? AND device_id=?").bind(marketKey,deviceId).first();
+  const gpsConsensus=await env.DB.prepare("SELECT address FROM market_location_consensus WHERE market_key=?").bind(marketKey).first();
+  const ownPhoto=!!upload||!!(meta&&String(meta.device_id)===String(deviceId)),ownGps=!!gpsVote||!!(meta&&String(meta.device_id)===String(deviceId)),hasAddress=ownGps&&!!String((gpsVote&&gpsVote.address)||(gpsConsensus&&gpsConsensus.address)||"").trim();
+  const items=[];let total=0;const add=(key,label,points,ok)=>{if(ok){items.push({key,label,points});total+=points;return true}return false};
+  const a=add('exists','Marché confirmé',7,fields.exists==='oui'),b=add('time','Horaire renseigné',4,!!fields.time),c=add('count','Nombre de commerçants',4,!!fields.count),d=add('draw','Tirage au sort',3,!!fields.draw),e=add('clientModel','Modèle de clients',3,!!fields.clientModel),f=add('welcome','Humeur du placier',3,!!fields.welcome),g=add('placer','Responsable Femme/Homme/Municipal',3,!!fields.placer),h=add('photo','Photo valide prise sur place',10,ownPhoto),i=add('gps','GPS valide sur place',10,ownGps),j=add('address','Lieu/adresse exacte confirmée',5,hasAddress);
+  const fuel=contestDistanceFuel(distanceKm);add('distance',`Trajet aller ${contestNumberText(fuel.usedKm)} km — gasoil 2,23 €/L`,fuel.points,ownPhoto&&ownGps);
+  const complete=a&&b&&c&&d&&e&&f&&g&&h&&i&&j;add('complete','Fiche entièrement complétée',10,complete);
+  return {basePoints:total,items,complete,distanceKm:fuel.usedKm,distancePoints:fuel.points};
+}
+
+async function finalizeContestIfNeeded(env){
+  const cfg=await ensureContestTables(env);if(Date.now()<Number(cfg.end_at)||cfg.finalized_at)return cfg;
+  const top=await env.DB.prepare("SELECT * FROM contest_participants WHERE banned=0 ORDER BY points DESC, joined_at ASC LIMIT 5").all();let rank=0;
+  for(const p of top.results||[]){rank++;const reward=rank<=2?"Abonnement à vie":"1 an d’abonnement gratuit";await env.DB.prepare("INSERT OR REPLACE INTO contest_results(rank,subscription_id,first_name,last_name,points,reward) VALUES(?,?,?,?,?,?)").bind(rank,p.subscription_id,p.first_name,p.last_name,p.points,reward).run();const sub=await env.DB.prepare("SELECT * FROM subscriptions WHERE id=?").bind(p.subscription_id).first();if(sub){if(rank<=2)await env.DB.prepare("UPDATE subscriptions SET lifetime=1,expires_at=NULL,active=1,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(sub.id).run();else if(!sub.lifetime){const base=Math.max(Date.now(),sub.expires_at?Date.parse(sub.expires_at):0),d=new Date(base);d.setFullYear(d.getFullYear()+1);await env.DB.prepare("UPDATE subscriptions SET expires_at=?,active=1,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(d.toISOString(),sub.id).run()}const email=String(sub.recovery_email_mask||"");if(validEmail(email)&&!email.includes("***"))await sendContestMail(env,email,"Félicitations — vous êtes gagnant du concours CarPlay",`Félicitations ${p.first_name} ${p.last_name} !\nVous terminez n°${rank} du concours avec ${p.points} points.\nVotre gain : ${reward}.`)}}
+  const finalizedAt=Date.now();await env.DB.prepare("UPDATE contest_config SET finalized_at=?,results_until=? WHERE id=1").bind(finalizedAt,finalizedAt+CONTEST_RESULTS_MS).run();return await env.DB.prepare("SELECT * FROM contest_config WHERE id=1").first();
+}
+
+async function contestStatus(request,env){
+  const data=await body(request),cfg=await finalizeContestIfNeeded(env),sub=await contestSubscription(env,data),now=Date.now(),ended=now>=Number(cfg.end_at),resultsUntil=Number(cfg.results_until||((cfg.finalized_at||0)+CONTEST_RESULTS_MS)),resultsVisible=!!cfg.finalized_at&&ended&&now<resultsUntil,closed=ended&&!resultsVisible;let profile=null,participant=null,messages=[],questions=[],scoreSummary=null,bonusState=null,bonusProgress=null;
+  let onboarding=null;
+  if(sub){profile={firstName:String(sub.account_first_name||""),lastName:String(sub.account_last_name||""),email:String(sub.recovery_email_mask||"")};participant=await env.DB.prepare("SELECT subscription_id,first_name,last_name,home_country,home_area,home_commune,return_place_lat,return_place_lon,return_place_label,points,banned,alert_count,change_allowed,joined_at FROM contest_participants WHERE subscription_id=?").bind(sub.id).first();const installed=await registeredVerificationDevice(env,String(data.deviceId||""));if(participant){bonusState=await contestRefreshBonusState(env,sub.id);scoreSummary=await contestScoreSummary(env,sub.id);bonusProgress=contestBonusProgress(scoreSummary.marketCount);const ob=await env.DB.prepare("SELECT status,start_at,end_at FROM contest_bonus_periods WHERE subscription_id=? AND source_key='onboarding-home-place' LIMIT 1").bind(sub.id).first();onboarding={installed,identity:!!(String(sub.account_first_name||'').trim()&&String(sub.account_last_name||'').trim()&&String(sub.recovery_email_hash||'').trim()),returnPlaceSaved:!!String(participant.return_place_label||'').trim(),bonusWon:!!ob,bonusStatus:ob&&ob.status||''};const m=await env.DB.prepare("SELECT id,kind,message,created_at FROM contest_messages WHERE subscription_id=? AND read_at IS NULL ORDER BY created_at DESC LIMIT 8").bind(sub.id).all();messages=m.results||[];const q=await env.DB.prepare("SELECT id,new_place,previous_place,message,user_answer,status,created_at FROM contest_travel_alerts WHERE subscription_id=? AND status='pending' AND user_answer='' ORDER BY created_at DESC").bind(sub.id).all();questions=q.results||[]}}
+  const ranking=await env.DB.prepare("SELECT first_name,last_name,points,joined_at FROM contest_participants WHERE banned=0 ORDER BY points DESC,joined_at ASC").all();const results=resultsVisible?(await env.DB.prepare("SELECT * FROM contest_results ORDER BY rank").all()).results||[]:[];
+  return json({ok:true,active:!ended,ended,resultsVisible,closed,phase:!ended?"active":resultsVisible?"results":"closed",startAt:Number(cfg.start_at),endAt:Number(cfg.end_at),resultsUntil,daysRemaining:Math.max(0,Math.ceil((Number(cfg.end_at)-now)/86400000)),profile,participant,ranking:ranking.results||[],messages,questions,results,scoreSummary,bonusState,bonusProgress,onboarding});
+}
+async function contestCommunes(url){
+  const country=String(url.searchParams.get("country")||"FR").toUpperCase(),area=String(url.searchParams.get("area")||"").trim(),q=String(url.searchParams.get("q")||"").trim();
+  if(country==="FR"){if(!/^[0-9A-Z]{2,3}$/i.test(area))return json({ok:false,error:"DEPARTEMENT_INVALIDE"},400);try{const r=await fetch(`https://geo.api.gouv.fr/departements/${encodeURIComponent(area)}/communes?fields=nom,code,centre,codesPostaux&format=json&geometry=centre`,{headers:{accept:"application/json"}});if(!r.ok)throw 0;const a=await r.json();return json({ok:true,communes:(a||[]).map(c=>({name:c.nom,code:c.code,lat:c.centre&&c.centre.coordinates?Number(c.centre.coordinates[1]):null,lon:c.centre&&c.centre.coordinates?Number(c.centre.coordinates[0]):null})).filter(c=>Number.isFinite(c.lat)&&Number.isFinite(c.lon)).sort((a,b)=>a.name.localeCompare(b.name,"fr"))})}catch(_){return json({ok:false,error:"COMMUNES_INDISPONIBLES"},503)}}
+  if(country==="BE"){if(q.length<2)return json({ok:true,communes:[]});try{const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&country=Belgium&q=${encodeURIComponent(q+(area?", "+area:""))}&limit=12`,{headers:{"user-agent":"CarPlay-Contest/1.0"}});if(!r.ok)throw 0;const a=await r.json();return json({ok:true,communes:(a||[]).map(x=>({name:String(x.display_name||q).split(",")[0],code:"",lat:Number(x.lat),lon:Number(x.lon)})).filter(c=>Number.isFinite(c.lat)&&Number.isFinite(c.lon))})}catch(_){return json({ok:false,error:"COMMUNES_INDISPONIBLES"},503)}}
+  return json({ok:false,error:"PAYS_INVALIDE"},400);
+}
+async function contestRegister(request,env){
+  const cfg=await ensureContestTables(env);if(Date.now()>=Number(cfg.end_at))return json({ok:false,error:"CONCOURS_TERMINE"},409);const data=await body(request),sub=await contestSubscription(env,data);if(!sub)return json({ok:false,error:"ABONNEMENT_REQUIS"},403);
+  const first=contestCleanName(sub.account_first_name||data.firstName),last=contestCleanName(sub.account_last_name||data.lastName),country=String(data.country||"FR").toUpperCase(),area=String(data.area||"").trim().slice(0,80),commune=String(data.commune||"").trim().slice(0,120),lat=Number(data.lat),lon=Number(data.lon);if(first.length<2||last.length<2)return json({ok:false,error:"NOM_ET_PRENOM_OBLIGATOIRES"},400);if(!area||!commune||!Number.isFinite(lat)||!Number.isFinite(lon))return json({ok:false,error:"COMMUNE_OBLIGATOIRE"},400);
+  const old=await env.DB.prepare("SELECT * FROM contest_participants WHERE subscription_id=?").bind(sub.id).first();if(old&&!old.change_allowed)return json({ok:false,error:"COMMUNE_VERROUILLEE"},409);const emailHash=String(sub.recovery_email_hash||"");
+  await env.DB.prepare("UPDATE subscriptions SET account_first_name=?,account_last_name=?,account_updated_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(first,last,Date.now(),sub.id).run();
+  if(old)await env.DB.prepare("UPDATE contest_participants SET device_id=?,first_name=?,last_name=?,home_country=?,home_area=?,home_commune=?,home_lat=?,home_lon=?,return_place_lat=NULL,return_place_lon=NULL,return_place_label='',change_allowed=0,updated_at=? WHERE subscription_id=?").bind(String(data.deviceId||""),first,last,country,area,commune,lat,lon,Date.now(),sub.id).run();else await env.DB.prepare("INSERT INTO contest_participants(subscription_id,device_id,first_name,last_name,email_hash,home_country,home_area,home_commune,home_lat,home_lon,joined_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").bind(sub.id,String(data.deviceId||""),first,last,emailHash,country,area,commune,lat,lon,Date.now(),Date.now()).run();
+  return json({ok:true,message:"Bravo, vous participez au concours !"});
+}
+async function contestReport(request,env){const cfg=await ensureContestTables(env);if(Date.now()>=Number(cfg.end_at))return json({ok:false,error:"CONCOURS_TERMINE"},409);const data=await body(request),sub=await contestSubscription(env,data);if(!sub)return json({ok:false,error:"ABONNEMENT_REQUIS"},403);const p=await env.DB.prepare("SELECT * FROM contest_participants WHERE subscription_id=? AND banned=0").bind(sub.id).first();if(!p)return json({ok:false,error:"INSCRIPTION_CONCOURS_REQUISE"},403);const kind=["bug","probleme","idee"].includes(String(data.kind))?String(data.kind):"idee",desc=String(data.description||"").trim().slice(0,1500);if(desc.length<5)return json({ok:false,error:"DESCRIPTION_TROP_COURTE"},400);const fp=await sha256Text(kind+":"+desc.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," "));const dup=await env.DB.prepare("SELECT id FROM contest_reports WHERE fingerprint=? AND status IN ('pending','approved') LIMIT 1").bind(fp).first();if(dup)return json({ok:false,error:"SIGNALEMENT_DEJA_CONNU"},409);await env.DB.prepare("INSERT INTO contest_reports(id,subscription_id,kind,description,fingerprint,created_at) VALUES(?,?,?,?,?,?)").bind(contestId(),sub.id,kind,desc,fp,Date.now()).run();return json({ok:true})}
+async function contestCommuneRequest(request,env){const data=await body(request),sub=await contestSubscription(env,data);if(!sub)return json({ok:false,error:"ABONNEMENT_REQUIS"},403);const p=await env.DB.prepare("SELECT * FROM contest_participants WHERE subscription_id=? AND banned=0").bind(sub.id).first();if(!p)return json({ok:false,error:"INSCRIPTION_CONCOURS_REQUISE"},403);const exists=await env.DB.prepare("SELECT id FROM contest_commune_requests WHERE subscription_id=? AND status='pending' LIMIT 1").bind(sub.id).first();if(exists)return json({ok:true,already:true});await env.DB.prepare("INSERT INTO contest_commune_requests(id,subscription_id,created_at) VALUES(?,?,?)").bind(contestId(),sub.id,Date.now()).run();return json({ok:true})}
+async function contestTravelAnswer(request,env){const data=await body(request),sub=await contestSubscription(env,data);if(!sub)return json({ok:false,error:"ABONNEMENT_REQUIS"},403);const id=String(data.id||""),ans=String(data.answer||"").toLowerCase();const row=await env.DB.prepare("SELECT * FROM contest_travel_alerts WHERE id=? AND subscription_id=? AND status='pending'").bind(id,sub.id).first();if(!row)return json({ok:false,error:"ALERTE_INTROUVABLE"},404);let place="";if(ans==="non"&&Number.isFinite(Number(data.lat))&&Number.isFinite(Number(data.lon)))place=await contestPlaceLabel(Number(data.lat),Number(data.lon));await env.DB.prepare("UPDATE contest_travel_alerts SET user_answer=?,answer_place=?,answered_at=? WHERE id=?").bind(ans==="oui"?"oui":"non",place,Date.now(),id).run();return json({ok:true,place})}
+async function contestReadMessages(request,env){const data=await body(request),sub=await contestSubscription(env,data);if(!sub)return json({ok:false,error:"ABONNEMENT_REQUIS"},403);await env.DB.prepare("UPDATE contest_messages SET read_at=? WHERE subscription_id=? AND read_at IS NULL").bind(Date.now(),sub.id).run();return json({ok:true})}
+
+async function queueContestMarketReview(env,deviceId,marketKey,marketName,photo){
+  try{
+    const cfg=await ensureContestTables(env);if(Date.now()>=Number(cfg.end_at))return;
+    const p=await env.DB.prepare("SELECT * FROM contest_participants WHERE device_id=? AND banned=0 LIMIT 1").bind(deviceId).first();if(!p)return;
+    if(await env.DB.prepare("SELECT id FROM contest_market_points WHERE subscription_id=? AND market_key=?").bind(p.subscription_id,marketKey).first())return;
+    if(await env.DB.prepare("SELECT id FROM contest_market_reviews WHERE subscription_id=? AND market_key=?").bind(p.subscription_id,marketKey).first())return;
+    const meta=await env.DB.prepare("SELECT market_latitude,market_longitude,captured_at,device_id FROM market_photo_metadata WHERE market_key=?").bind(marketKey).first();if(!meta||String(meta.device_id)!==String(deviceId))return;
+    const lat=Number(meta.market_latitude),lon=Number(meta.market_longitude);if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
+    const startLat=Number.isFinite(Number(p.return_place_lat))?Number(p.return_place_lat):Number(p.home_lat),startLon=Number.isFinite(Number(p.return_place_lon))?Number(p.return_place_lon):Number(p.home_lon);
+    const rawKm=contestKm(startLat,startLon,lat,lon),score=await contestMarketBreakdown(env,deviceId,marketKey,rawKm),bonus=await contestRefreshBonusState(env,p.subscription_id),multiplier=bonus.active?Math.max(1,Number(bonus.active.multiplier||1)):1,pts=score.basePoints*multiplier,place=await contestPlaceLabel(lat,lon);
+    const prevRows=await env.DB.prepare("SELECT market_lat,market_lon,place_label FROM contest_market_points WHERE subscription_id=? ORDER BY awarded_at DESC LIMIT 5").bind(p.subscription_id).all();const prev=(prevRows.results||[])[0];let unusual=0,previousPlace="";if(prev&&(prevRows.results||[]).length>=3){const jump=contestKm(prev.market_lat,prev.market_lon,lat,lon);if(jump>=350){unusual=1;previousPlace=prev.place_label||await contestPlaceLabel(prev.market_lat,prev.market_lon)}}
+    const rid=contestId();await env.DB.prepare("INSERT INTO contest_market_reviews(id,subscription_id,market_key,market_name,device_id,market_lat,market_lon,place_label,photo_captured_at,distance_km,base_points,multiplier,points,breakdown_json,unusual,previous_place,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(rid,p.subscription_id,marketKey,String(marketName||"Marché").slice(0,160),deviceId,lat,lon,place,String(meta.captured_at||photo&&photo.capturedAt||""),score.distanceKm,score.basePoints,multiplier,pts,JSON.stringify(score.items),unusual,previousPlace,Date.now()).run();
+    if(unusual){const msg=`Nous avons détecté un déplacement inhabituel. Êtes-vous toujours à ${place} avec votre caravane ? Surveillez bien votre réponse : un troisième déplacement inhabituel non justifié peut entraîner votre exclusion du concours.`;await env.DB.prepare("INSERT INTO contest_travel_alerts(id,subscription_id,review_id,new_place,previous_place,message,created_at) VALUES(?,?,?,?,?,?,?)").bind(contestId(),p.subscription_id,rid,place,previousPlace,msg,Date.now()).run()}
+    else if(Number(score.distanceKm)>150){await contestEnqueueBonus(env,p.subscription_id,2,"trajet aller de plus de 150 km","long-trip:"+marketKey,CONTEST_LONG_TRIP_BONUS_MS,true)}
+  }catch(_){}
+}
+
+async function adminContest(request,env){
+  if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);const cfg=await finalizeContestIfNeeded(env);const participants=(await env.DB.prepare("SELECT subscription_id,first_name,last_name,home_commune,home_area,points,banned,alert_count,joined_at FROM contest_participants ORDER BY points DESC,joined_at ASC").all()).results||[];for(const p of participants){const b=await contestRefreshBonusState(env,p.subscription_id);p.active_bonus=b.active?{multiplier:b.active.multiplier,end_at:b.active.end_at}:null}
+  const reviews=(await env.DB.prepare("SELECT r.*,p.first_name,p.last_name,p.alert_count FROM contest_market_reviews r JOIN contest_participants p ON p.subscription_id=r.subscription_id WHERE r.status='pending' ORDER BY r.created_at DESC").all()).results||[];for(const r of reviews){try{r.breakdown=JSON.parse(r.breakdown_json||'[]')}catch(_){r.breakdown=[]}}
+  const reports=(await env.DB.prepare("SELECT r.*,p.first_name,p.last_name FROM contest_reports r JOIN contest_participants p ON p.subscription_id=r.subscription_id WHERE r.status='pending' ORDER BY r.created_at DESC").all()).results||[];const communes=(await env.DB.prepare("SELECT c.*,p.first_name,p.last_name,p.home_commune,p.home_area FROM contest_commune_requests c JOIN contest_participants p ON p.subscription_id=c.subscription_id WHERE c.status='pending' ORDER BY c.created_at DESC").all()).results||[];const alerts=(await env.DB.prepare("SELECT a.*,p.first_name,p.last_name,p.alert_count FROM contest_travel_alerts a JOIN contest_participants p ON p.subscription_id=a.subscription_id WHERE a.status='pending' ORDER BY a.created_at DESC").all()).results||[];return json({ok:true,config:cfg,participants,reviews,reports,communes,alerts})
+}
+function contestCongratsMessage(r,awarded){
+  let items=[];try{items=JSON.parse(r.breakdown_json||'[]')}catch(_){}const dist=items.find(x=>x&&x.key==='distance'),distancePts=Number(dist&&dist.points||0),base=Number(r.base_points||0),info=Math.max(0,base-distancePts),mult=Math.max(1,Number(r.multiplier||1));
+  return `🎉 BRAVO !\nFiche renseignée : +${contestNumberText(info)} points\nTrajet aller : ${contestNumberText(r.distance_km)} km\nGasoil : 2,23 €/L\nDéplacement : +${contestNumberText(distancePts)} points${mult>1?`\nBonus ×${mult} actif`:''}\n🏆 TOTAL GAGNÉ : +${contestNumberText(awarded)} POINTS`;
+}
+
+async function adminContestAction(request,env){
+  if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);await ensureContestTables(env);const d=await body(request),type=String(d.type||""),id=String(d.id||""),approve=d.approve===true;
+  if(type==="review"){
+    const r=await env.DB.prepare("SELECT * FROM contest_market_reviews WHERE id=? AND status='pending'").bind(id).first();if(!r)return json({ok:false,error:"DEMANDE_INTROUVABLE"},404);
+    if(approve){const duplicate=await env.DB.prepare("SELECT id FROM contest_market_points WHERE subscription_id=? AND market_key=?").bind(r.subscription_id,r.market_key).first();let awarded=Number(r.points||0);if(!duplicate){const base=Number(r.base_points||r.points||0),mult=Math.max(1,Number(r.multiplier||1));awarded=Number(r.points||base*mult);await env.DB.prepare("INSERT INTO contest_market_points(subscription_id,market_key,market_name,distance_km,points,base_points,multiplier,breakdown_json,market_lat,market_lon,place_label,awarded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").bind(r.subscription_id,r.market_key,r.market_name,r.distance_km,awarded,base,mult,r.breakdown_json||'[]',r.market_lat,r.market_lon,r.place_label,Date.now()).run();await contestAddScoreEvent(env,r.subscription_id,'market',r.market_key,r.market_name,base,mult,awarded);await contestApplyMarketMilestones(env,r.subscription_id);if(Number(r.distance_km)>150&&Number(r.unusual))await contestEnqueueBonus(env,r.subscription_id,2,"trajet aller de plus de 150 km validé par l’administrateur","long-trip:"+r.market_key,CONTEST_LONG_TRIP_BONUS_MS,true)}await contestPushMessage(env,r.subscription_id,contestCongratsMessage(r,awarded),"approved")}
+    else{if(Number(r.unusual)){await env.DB.prepare("UPDATE contest_participants SET alert_count=alert_count+1,updated_at=? WHERE subscription_id=?").bind(Date.now(),r.subscription_id).run();const p=await env.DB.prepare("SELECT alert_count FROM contest_participants WHERE subscription_id=?").bind(r.subscription_id).first();if(Number(p&&p.alert_count||0)>=3)await env.DB.prepare("UPDATE contest_participants SET banned=1 WHERE subscription_id=?").bind(r.subscription_id).run()}await contestPushMessage(env,r.subscription_id,`❌ Votre demande pour ${r.market_name} a été refusée — aucun point ajouté.`,`denied`)}
+    await env.DB.prepare("UPDATE contest_market_reviews SET status=?,decided_at=? WHERE id=?").bind(approve?"approved":"denied",Date.now(),id).run();return json({ok:true});
+  }
+  if(type==="report"){const r=await env.DB.prepare("SELECT * FROM contest_reports WHERE id=? AND status='pending'").bind(id).first();if(!r)return json({ok:false,error:"DEMANDE_INTROUVABLE"},404);if(approve){if(r.kind==='idee'){await env.DB.prepare("UPDATE contest_reports SET status='approved',points=0,decided_at=? WHERE id=?").bind(Date.now(),id).run();await contestPushMessage(env,r.subscription_id,"✅ Votre idée a été acceptée par l’administrateur.","approved");await contestEnqueueBonus(env,r.subscription_id,2,"idée acceptée par l’administrateur","idea:"+r.id)}else{await contestAddScoreEvent(env,r.subscription_id,'bug',r.id,r.description,153,1,153);await env.DB.prepare("UPDATE contest_reports SET status='approved',points=153,decided_at=? WHERE id=?").bind(Date.now(),id).run();await contestPushMessage(env,r.subscription_id,"✅ Votre bug / problème a été confirmé — +153 points.","approved")}}else{await contestPushMessage(env,r.subscription_id,"❌ Votre signalement / idée a été refusé — aucun point ajouté.","denied");await env.DB.prepare("UPDATE contest_reports SET status='denied',points=0,decided_at=? WHERE id=?").bind(Date.now(),id).run()}return json({ok:true})}
+  if(type==="commune"){const r=await env.DB.prepare("SELECT * FROM contest_commune_requests WHERE id=? AND status='pending'").bind(id).first();if(!r)return json({ok:false,error:"DEMANDE_INTROUVABLE"},404);await env.DB.prepare("UPDATE contest_commune_requests SET status=?,decided_at=? WHERE id=?").bind(approve?"approved":"denied",Date.now(),id).run();if(approve)await env.DB.prepare("UPDATE contest_participants SET change_allowed=1,updated_at=? WHERE subscription_id=?").bind(Date.now(),r.subscription_id).run();await contestPushMessage(env,r.subscription_id,approve?"✅ Votre demande est acceptée. Vous pouvez maintenant changer votre commune dans le jeu concours.":"❌ Votre demande de changement de commune a été refusée.",approve?"approved":"denied");return json({ok:true})}
+  if(type==="message"){const sid=Number(d.subscriptionId);if(!sid)return json({ok:false,error:"PARTICIPANT_INVALIDE"},400);await contestPushMessage(env,sid,String(d.message||"").trim()||"Message de l’administrateur.","admin");return json({ok:true})}
+  if(type==="travel-question"){const a=await env.DB.prepare("SELECT * FROM contest_travel_alerts WHERE id=? AND status='pending'").bind(id).first();if(!a)return json({ok:false,error:"ALERTE_INTROUVABLE"},404);await contestPushMessage(env,a.subscription_id,a.message,"travel");return json({ok:true})}
+  if(type==="travel-close"){await env.DB.prepare("UPDATE contest_travel_alerts SET status='closed' WHERE id=?").bind(id).run();return json({ok:true})}
+  return json({ok:false,error:"ACTION_INCONNUE"},400)
+}
+// ===== FIN JEU CONCOURS V189 =====
+
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=158" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=158" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=189" defer></script>', { html: true });
   }
 }
 
@@ -1065,6 +1289,17 @@ export default {
     if (url.pathname === "/api/market-presence/disabled" && request.method === "GET") return disabledMarketPresence(env);
     if (url.pathname === "/api/market-photo" && request.method === "GET") return marketPhoto(url, env);
     if (url.pathname === "/api/vigilance" && request.method === "GET") return vigilanceForPlace(url);
+    if (url.pathname === "/api/place-address" && request.method === "GET") return reversePlaceAddress(url);
+    if (url.pathname === "/api/contest/status" && request.method === "POST") return contestStatus(request, env);
+    if (url.pathname === "/api/contest/communes" && request.method === "GET") return contestCommunes(url);
+    if (url.pathname === "/api/contest/register" && request.method === "POST") return contestRegister(request, env);
+    if (url.pathname === "/api/contest/home-place" && request.method === "POST") return contestHomePlace(request, env);
+    if (url.pathname === "/api/contest/report" && request.method === "POST") return contestReport(request, env);
+    if (url.pathname === "/api/contest/change-commune-request" && request.method === "POST") return contestCommuneRequest(request, env);
+    if (url.pathname === "/api/contest/travel-answer" && request.method === "POST") return contestTravelAnswer(request, env);
+    if (url.pathname === "/api/contest/read-messages" && request.method === "POST") return contestReadMessages(request, env);
+    if (url.pathname === "/api/admin/contest" && request.method === "GET") return adminContest(request, env);
+    if (url.pathname === "/api/admin/contest/action" && request.method === "POST") return adminContestAction(request, env);
     // Laisser Cloudflare Static Assets résoudre "/" vers index.html.
     // Ne pas réécrire "/" en "/index.html" ici : avec html_handling automatique,
     // cela peut créer une boucle / <-> /index.html.

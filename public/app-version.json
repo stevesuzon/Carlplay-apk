@@ -1,4 +1,4 @@
 {
-  "version": "20260913-market-confirmed-v185",
-  "message": "Après confirmation, la fiche affiche clairement « MARCHÉ CONFIRMÉ » en vert avec un petit bouton Modifier ; les autres validations et modifications restent inchangées."
+  "version": "20260914-concours-v189",
+  "message": "Concours 5 mois avec résultats visibles 3 jours puis retour du bouton Mail. Confirmation Oui/Non avant Aller au marché avec avertissement si le même métier est déjà présent. Toutes les fiches et données restent conservées après le concours."
 }

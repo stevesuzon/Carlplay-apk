@@ -445,46 +445,48 @@
   function goDirect(index) {
     var r = marketRows()[index],
       trade = currentTrade(),
-      date,
-      opened = false,
-      timer,
-      request;
+      date;
     if (!r) return;
     if (!trade) {
       askTrade();
       return;
     }
     date = countDate(currentDay);
-    function openGps() {
-      if (opened) return;
-      opened = true;
-      clearTimeout(timer);
+    function goNow() {
+      try {
+        fetch(server + "/api/choose", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            device: deviceId(),
+            market: identity(r),
+            date: date,
+            trade: trade,
+          }),
+          keepalive: true,
+        }).catch(function () {});
+      } catch (e) {}
+      closeBubble();
       gps(r);
     }
-    timer = setTimeout(openGps, 2500);
+    function ask(count) {
+      var city = String(r[3] || r[2] || "ce marché"),
+        warning = Number(count) > 0
+          ? '<p style="color:#ffd36d;font-weight:950">⚠️ Il y a déjà <b>' + Number(count) + '</b> marchand' + (Number(count)>1?'s':'') + ' de <b>' + esc(trade) + '</b> inscrit' + (Number(count)>1?'s':'') + ' pour ce marché.</p>'
+          : '';
+      bubble(
+        '<h2>CONFIRMATION</h2><p>Êtes-vous sûr de vouloir aller au marché de <b>' + esc(city) + '</b> ?</p>' + warning +
+        '<div class="bubbleBtns"><button id="newOther" class="red">NON</button><button id="newGps" class="blue">OUI</button></div>'
+      );
+      bindTap(el("newOther"), closeBubble);
+      bindTap(el("newGps"), goNow);
+    }
+    var finished = false,
+      timer = setTimeout(function(){ if(!finished){finished=true;ask(null)} },1800),
+      url = server + "/api/count?market=" + encodeURIComponent(identity(r)) + "&date=" + encodeURIComponent(date) + "&trade=" + encodeURIComponent(trade.toLowerCase());
     try {
-      request = fetch(server + "/api/choose", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          device: deviceId(),
-          market: identity(r),
-          date: date,
-          trade: trade,
-        }),
-        keepalive: true,
-      });
-      if (request && request.then) {
-        request
-          .then(function () {
-            loadCounts(marketRows());
-          })
-          .catch(function () {})
-          .then(openGps);
-        return;
-      }
-    } catch (e) {}
-    openGps();
+      fetch(url,{cache:"no-store"}).then(function(res){if(!res.ok)throw 0;return res.json()}).then(function(j){if(finished)return;finished=true;clearTimeout(timer);ask(Number(j.count||0))}).catch(function(){if(finished)return;finished=true;clearTimeout(timer);ask(null)});
+    } catch(e) { if(!finished){finished=true;clearTimeout(timer);ask(null)} }
   }
   window.goMarket = goDirect;
   function countNote() {

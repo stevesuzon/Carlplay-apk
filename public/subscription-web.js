@@ -113,11 +113,11 @@
       .then(function(r){return r.json().then(function(j){if(!r.ok)throw j;return j;});})
       .then(done).catch(failed);
   }
-  function activate(code, email, emailProof, deviceType, done, failed) {
+  function activate(code, email, emailProof, firstName, lastName, deviceType, done, failed) {
     fetch("/api/activate", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ code: code, email: email, emailProof:emailProof, deviceId: id(), deviceType: deviceType })
+      body: JSON.stringify({ code: code, email: email, emailProof:emailProof, firstName:firstName, lastName:lastName, deviceId: id(), deviceType: deviceType })
     }).then(function (r) {
       return r.json().then(function (j) { if (!r.ok) throw j; return j; });
     }).then(function (j) {
@@ -154,7 +154,7 @@
     if (document.getElementById("subscriptionGate")) return;
     var box = document.createElement("div");
     box.id = "subscriptionGate";
-    box.innerHTML = '<div class="sub-card"><button class="sub-close" aria-label="Fermer">×</button><h1>🔒 FONCTION BLOQUÉE</h1><p>' + feature + ' nécessite un abonnement.</p><label id="subEmailLabel" for="subEmail"><b>1. ÉCRIVEZ VOTRE ADRESSE E-MAIL COMPLÈTE</b></label><input id="subEmail" class="sub-full-email" type="email" inputmode="email" autocomplete="email" placeholder="Exemple : prenom.nom@gmail.com"><button id="subConfirmEmail" type="button">CONFIRMER MON ADRESSE E-MAIL</button><div id="subEmailConfirmed" class="sub-email-complete" style="display:none;color:#55e58c;font-weight:900;margin:8px 0"></div><small id="subEmailWarning" style="display:none;color:#ffd166">⚠️ Attention : si l’adresse e-mail est incorrecte, aucune récupération du compte ne sera possible.</small><button id="subChangeEmail" type="button" style="display:none">MODIFIER L’ADRESSE E-MAIL</button><button id="subRecoverCode" type="button">ENVOYER MON CODE D’ABONNEMENT</button><small class="sub-recovery-help">Application effacée ou nouveau téléphone ? Entrez la même adresse e-mail, puis appuyez ici pour recevoir votre code actuel.</small><label for="subCode"><b>2. ENTREZ VOTRE CODE D’ABONNEMENT</b></label><input id="subCode" disabled inputmode="text" autocapitalize="characters" maxlength="6" placeholder="CODE 6 LETTRES / CHIFFRES"><div class="sub-types"><button data-type="autoradio">AUTORADIO / TABLETTE</button><button data-type="phone">TÉLÉPHONE</button></div><button id="subActivate" disabled>DÉBLOQUER AVEC MON CODE</button><div id="subMessage"></div><small>Le même code active 1 autoradio ou tablette + 1 téléphone Android ou iPhone.</small></div>';
+    box.innerHTML = '<div class="sub-card"><button class="sub-close" aria-label="Fermer">×</button><h1>🔒 FONCTION BLOQUÉE</h1><p>' + feature + ' nécessite un abonnement.</p><label id="subEmailLabel" for="subEmail"><b>1. ÉCRIVEZ VOTRE ADRESSE E-MAIL COMPLÈTE</b></label><input id="subEmail" class="sub-full-email" type="email" inputmode="email" autocomplete="email" placeholder="Exemple : prenom.nom@gmail.com"><button id="subConfirmEmail" type="button">CONFIRMER MON ADRESSE E-MAIL</button><div id="subEmailConfirmed" class="sub-email-complete" style="display:none;color:#55e58c;font-weight:900;margin:8px 0"></div><small id="subEmailWarning" style="display:none;color:#ffd166">⚠️ Attention : si l’adresse e-mail est incorrecte, aucune récupération du compte ne sera possible.</small><label for="subLastName"><b>NOM</b></label><input id="subLastName" autocomplete="family-name" placeholder="Votre nom"><label for="subFirstName"><b>PRÉNOM</b></label><input id="subFirstName" autocomplete="given-name" placeholder="Votre prénom"><button id="subChangeEmail" type="button" style="display:none">MODIFIER L’ADRESSE E-MAIL</button><button id="subRecoverCode" type="button">ENVOYER MON CODE D’ABONNEMENT</button><small class="sub-recovery-help">Application effacée ou nouveau téléphone ? Entrez la même adresse e-mail, puis appuyez ici pour recevoir votre code actuel.</small><label for="subCode"><b>2. ENTREZ VOTRE CODE D’ABONNEMENT</b></label><input id="subCode" disabled inputmode="text" autocapitalize="characters" maxlength="6" placeholder="CODE 6 LETTRES / CHIFFRES"><div class="sub-types"><button data-type="autoradio">AUTORADIO / TABLETTE</button><button data-type="phone">TÉLÉPHONE</button></div><button id="subActivate" disabled>DÉBLOQUER AVEC MON CODE</button><div id="subMessage"></div><small>Le même code active 1 autoradio ou tablette + 1 téléphone Android ou iPhone.</small></div>';
     document.documentElement.appendChild(box);
     var deviceType = detectedType();
     var emailProof="";
@@ -189,12 +189,14 @@
     box.querySelector("#subActivate").onclick = function () {
       var code = cleanCode(box.querySelector("#subCode").value);
       var email = String(box.querySelector("#subEmail").value || "").trim();
+      var firstName=String(box.querySelector("#subFirstName").value||"").trim(),lastName=String(box.querySelector("#subLastName").value||"").trim();
       var msg = box.querySelector("#subMessage");
       if (!email) { msg.textContent = "METTEZ VOTRE ADRESSE E-MAIL AVANT LE CODE"; return; }
+      if(firstName.length<2||lastName.length<2){msg.textContent="NOM ET PRÉNOM OBLIGATOIRES";return;}
       if (code.length !== 6) { msg.textContent = "ENTREZ EXACTEMENT 6 CARACTÈRES"; return; }
       msg.textContent = "VÉRIFICATION…";
       if(!emailProof){msg.textContent="CONFIRMEZ D’ABORD VOTRE ADRESSE E-MAIL";return;}
-      activate(code,email,emailProof, deviceType, function () {
+      activate(code,email,emailProof,firstName,lastName, deviceType, function () {
         msg.textContent = "ABONNEMENT ACTIVÉ — FONCTIONS DÉBLOQUÉES";
         setTimeout(function () { location.reload(); }, 650);
       }, function (e) { msg.textContent = messageFor(e); });

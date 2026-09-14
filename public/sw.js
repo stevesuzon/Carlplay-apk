@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260913-market-confirmed-v185";
+const CACHE = "carplay-v5-20260914-concours-v189";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -41,7 +41,8 @@ const CORE = [
   "/belgique-marches-final.html?v=159",
   "/market-areas-fr-v159.js?v=159",
   "/market-areas-be-v159.js?v=159",
-  "/market-final.js?v=184",
+  "/market-final.js?v=189",
+  "/market-navigation-confirm-v189.js?v=189",
   "/market-consensus.js?v=184",
   "/special-marches.html?v=170",
   "/nearby-markets.html?v=184",
