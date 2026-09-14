@@ -1,4 +1,4 @@
 {
-  "version": "20260915-v225-menus-sites-officiels",
-  "message": "Restaurants et fast-food à moins de 10 km : quand un site officiel est disponible, l’application cherche automatiquement les pages Carte / Menu / Nos plats et affiche de vrais plats ou spécialités trouvés. Aucun plat n’est inventé. Aucun lien Google payant."
+  "version": "20260915-v227-5-fastfood-chaines",
+  "message": "Restaurants : 5 résultats. Restauration rapide : 5 résultats aussi. La recherche gratuite scanne explicitement McDonald’s et Burger King dans les 10 km pour éviter de les manquer, tout en gardant les autres fast-food au plus proche."
 }

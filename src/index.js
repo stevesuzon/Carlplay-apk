@@ -1605,7 +1605,11 @@ async function nominatimDining(lat,lon,kind,limit){
     const key=name.toLowerCase()+'|'+Math.round(la*10000)+'|'+Math.round(lo*10000);if(seen.has(key))continue;seen.add(key);
     const tags={...(x.extratags||{})};
     if(x.namedetails&&x.namedetails.brand&&!tags.brand)tags.brand=x.namedetails.brand;
-    const row={name,distanceMeters:d,rating:null,ratingCount:0,lat:la,lon:lo,address:diningAddressFromNominatim(x),specialty:osmCuisineLabel(tags,fast),menuSpecialties:menuSpecialtiesFromTags(tags),website:diningWebsite(tags),menuUrl:String(tags['contact:menu']||tags.menu||'').trim(),phone:diningPhone(tags),wikidataId:String(tags.wikidata||tags['brand:wikidata']||'').trim(),photoName:'',photoUrl:'',photoCredit:'',source:'osm-nominatim-free',_tags:tags,_rank:(Number(x.importance)||0)*100+osmDiningNotability(tags)};
+    const osmType=String(tags.amenity||x.type||'').toLowerCase().replace(/\s+/g,'_');
+    // Ne mélange jamais les deux catégories : restaurant assis d'un côté, restauration rapide de l'autre.
+    if(!fast&&(osmType==='fast_food'||obviousFastFoodName(name)))continue;
+    if(fast&&osmType&&osmType!=='fast_food'&&osmType!=='restaurant'&&!obviousFastFoodName(name))continue;
+    const row={name,distanceMeters:d,rating:null,ratingCount:0,lat:la,lon:lo,address:diningAddressFromNominatim(x),specialty:fast?'Restauration rapide':osmCuisineLabel(tags,false),menuSpecialties:menuSpecialtiesFromTags(tags),website:diningWebsite(tags),menuUrl:String(tags['contact:menu']||tags.menu||'').trim(),phone:diningPhone(tags),wikidataId:String(tags.wikidata||tags['brand:wikidata']||'').trim(),photoName:'',photoUrl:'',photoCredit:'',source:'osm-nominatim-free',diningKind:fast?'fastfood':'restaurant',_tags:tags,_rank:(Number(x.importance)||0)*100+osmDiningNotability(tags)};
     rows.push(row);
   }
   rows.sort((a,b)=>fast?(a.distanceMeters-b.distanceMeters):((b._rank-a._rank)||a.distanceMeters-b.distanceMeters));
@@ -1613,6 +1617,10 @@ async function nominatimDining(lat,lon,kind,limit){
 }
 function normalizeDiningName(v){
   return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+}
+function obviousFastFoodName(v){
+  const n=normalizeDiningName(v);
+  return /(?:^| )(?:mcdonalds?|burger king|quick|kfc|subway|five guys|o tacos|otacos|dominos?|pizza hut|popeyes|kebab|snack|fast food|tacos)(?: |$)/i.test(n);
 }
 function sireneDiningName(company,e){
   const enseignes=Array.isArray(e&&e.liste_enseignes)?e.liste_enseignes.filter(Boolean):[];
@@ -1645,7 +1653,7 @@ async function sireneDining(lat,lon,kind){
         const la=Number(e&&e.latitude),lo=Number(e&&e.longitude);if(!Number.isFinite(la)||!Number.isFinite(lo))continue;
         const d=Math.round(haversineMeters(lat,lon,la,lo));if(d>10000)continue;
         const name=sireneDiningName(company,e);if(!name)continue;
-        rows.push({name,distanceMeters:d,rating:null,ratingCount:0,lat:la,lon:lo,address:sireneDiningAddress(e),specialty:kind==='fastfood'?'Restauration rapide':'Restaurant',menuSpecialties:[],website:'',menuUrl:'',phone:'',photoName:'',photoUrl:'',photoCredit:'',source:'sirene-gouv-free',_rank:0});
+        rows.push({name,distanceMeters:d,rating:null,ratingCount:0,lat:la,lon:lo,address:sireneDiningAddress(e),specialty:kind==='fastfood'?'Restauration rapide':'Restaurant',menuSpecialties:[],diningKind:kind==='fastfood'?'fastfood':'restaurant',website:'',menuUrl:'',phone:'',photoName:'',photoUrl:'',photoCredit:'',source:'sirene-gouv-free',_rank:0});
       }
     }
     const seen=new Set();
@@ -1680,10 +1688,12 @@ function mergeDiningRows(primary,extra){
 }
 
 async function overpassDining(lat,lon,kind){
-  const amenity=kind==='fastfood'?'fast_food':'restaurant',fast=kind==='fastfood',limit=fast?3:5;
+  const amenity=kind==='fastfood'?'fast_food':'restaurant',fast=kind==='fastfood',limit=5;
   let rows=[];
   try{
-    const q=`[out:json][timeout:10];nwr(around:10000,${lat},${lon})["amenity"="${amenity}"];out center tags 120;`;
+    const q=fast
+      ? `[out:json][timeout:12];(nwr(around:10000,${lat},${lon})["amenity"="fast_food"];nwr(around:10000,${lat},${lon})["brand"~"McDonald.?s|Burger King",i];nwr(around:10000,${lat},${lon})["name"~"McDonald.?s|Burger King",i];);out center tags 350;`
+      : `[out:json][timeout:12];nwr(around:10000,${lat},${lon})["amenity"="restaurant"];out center tags 350;`;
     const j=await fetchOverpassJson(q),seen=new Set();
     if(j){
       rows=(j.elements||[]).map(e=>{
@@ -1692,7 +1702,7 @@ async function overpassDining(lat,lon,kind){
         const street=[tags['addr:housenumber'],tags['addr:street']].filter(Boolean).join(' ').trim();
         const locality=[tags['addr:postcode'],tags['addr:city']||tags['addr:town']||tags['addr:village']].filter(Boolean).join(' ').trim();
         const address=[street,locality].filter(Boolean).join(', ');
-        return {name,distanceMeters:Math.round(haversineMeters(lat,lon,la,lo)),rating:null,ratingCount:0,lat:la,lon:lo,address,specialty:osmCuisineLabel(tags,fast),menuSpecialties:menuSpecialtiesFromTags(tags),website:diningWebsite(tags),menuUrl:String(tags['contact:menu']||tags.menu||'').trim(),phone:diningPhone(tags),wikidataId:String(tags.wikidata||tags['brand:wikidata']||'').trim(),photoName:'',photoUrl:'',photoCredit:'',source:'osm-overpass-free',_tags:tags,_rank:osmDiningNotability(tags)};
+        return {name,distanceMeters:Math.round(haversineMeters(lat,lon,la,lo)),rating:null,ratingCount:0,lat:la,lon:lo,address,specialty:fast?'Restauration rapide':osmCuisineLabel(tags,false),menuSpecialties:menuSpecialtiesFromTags(tags),website:diningWebsite(tags),menuUrl:String(tags['contact:menu']||tags.menu||'').trim(),phone:diningPhone(tags),wikidataId:String(tags.wikidata||tags['brand:wikidata']||'').trim(),photoName:'',photoUrl:'',photoCredit:'',source:'osm-overpass-free',diningKind:fast?'fastfood':'restaurant',_tags:tags,_rank:osmDiningNotability(tags)};
       }).filter(Boolean).filter(x=>x.distanceMeters<=10000).filter(x=>{const k=x.name.toLowerCase()+'|'+Math.round(x.lat*10000)+'|'+Math.round(x.lon*10000);if(seen.has(k))return false;seen.add(k);return true});
     }
   }catch(_){rows=[]}
@@ -1709,11 +1719,32 @@ async function overpassDining(lat,lon,kind){
 }
 
 async function combinedDining(lat,lon,kind,countryCode){
-  const limit=kind==='fastfood'?3:5;
+  const limit=5;
   const osmPromise=overpassDining(lat,lon,kind);
   const officialPromise=countryCode==='fr'?sireneDining(lat,lon,kind):Promise.resolve([]);
   const [osm,official]=await Promise.all([osmPromise,officialPromise]);
-  const selected=mergeDiningRows(osm,official).filter(x=>Number(x.distanceMeters)<=10000).sort((a,b)=>a.distanceMeters-b.distanceMeters).slice(0,limit);
+  const candidates=mergeDiningRows(osm,official)
+    .filter(x=>Number(x.distanceMeters)<=10000)
+    .filter(x=>kind==='fastfood'?x.diningKind==='fastfood':(x.diningKind!=='fastfood'&&!obviousFastFoodName(x.name)))
+    .sort((a,b)=>a.distanceMeters-b.distanceMeters);
+  let selected=candidates.slice(0,limit);
+  // Pour la restauration rapide, ne pas rater les grandes chaînes demandées si elles sont bien présentes à moins de 10 km.
+  if(kind==='fastfood'){
+    const priority=[/mcdonalds?/,/burger king/];
+    for(const re of priority){
+      const wanted=candidates.find(x=>re.test(normalizeDiningName(x.name)));
+      if(!wanted||selected.some(x=>x===wanted||normalizeDiningName(x.name)===normalizeDiningName(wanted.name)))continue;
+      let replaceAt=-1;
+      for(let i=selected.length-1;i>=0;i--){
+        const n=normalizeDiningName(selected[i]&&selected[i].name);
+        if(!priority.some(r=>r.test(n))){replaceAt=i;break}
+      }
+      if(replaceAt>=0)selected[replaceAt]=wanted;
+      else if(selected.length<limit)selected.push(wanted);
+    }
+    selected=selected.filter((x,i,a)=>a.findIndex(y=>normalizeDiningName(y.name)===normalizeDiningName(x.name)&&haversineMeters(Number(y.lat),Number(y.lon),Number(x.lat),Number(x.lon))<=120)===i)
+      .sort((a,b)=>a.distanceMeters-b.distanceMeters).slice(0,limit);
+  }
   await Promise.all(selected.map(async row=>{
     if(!Array.isArray(row.menuSpecialties))row.menuSpecialties=[];
     if(row.menuSpecialties.length){
@@ -1758,7 +1789,9 @@ async function reversePlaceContext(url,env){
     const r=await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}});
     if(r.ok){const j=await r.json(),known=/mcdonald|burger king|leclerc|e\.leclerc|carrefour|auchan|intermarch|lidl|aldi|super u|hyper u|casino|monoprix|total|esso|shell|bp|avia|renault|peugeot|citro[eë]n|ford|toyota|volkswagen|mercedes|bmw|audi/i,seen=new Set();nearby=(j.elements||[]).map(e=>{const la=Number(e.lat??e.center?.lat),lo=Number(e.lon??e.center?.lon),tags=e.tags||{},name=String(tags.name||tags.brand||'').trim();if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;const d=Math.round(haversineMeters(lat,lon,la,lo)),type=String(tags.amenity||tags.shop||tags.tourism||tags.leisure||tags.railway||''),major=/supermarket|mall|department_store|car|car_repair|fuel|hospital|cinema|bus_station|hotel|stadium|sports_centre|station|restaurant/.test(type);return {name,distanceMeters:d,known:known.test(name),major,type};}).filter(Boolean).filter(x=>{const k=x.name.toLowerCase();if(seen.has(k))return false;seen.add(k);return x.distanceMeters<=800&&x.major}).sort((a,b)=>(Number(b.known)-Number(a.known))||a.distanceMeters-b.distanceMeters).slice(0,1).map(({name,distanceMeters,type})=>({name,distanceMeters,type}));}
   }catch(_){ }
-  const [restaurants,fastFood]=await Promise.all([combinedDining(lat,lon,'restaurant',place.countryCode),combinedDining(lat,lon,'fastfood',place.countryCode)]);
+  let [restaurants,fastFood]=await Promise.all([combinedDining(lat,lon,'restaurant',place.countryCode),combinedDining(lat,lon,'fastfood',place.countryCode)]);
+  // Séparation stricte : un même établissement ne peut jamais apparaître dans Restaurant et Fast-food.
+  restaurants=restaurants.filter(r=>!obviousFastFoodName(r.name)&&!fastFood.some(f=>normalizeDiningName(f.name)===normalizeDiningName(r.name)&&haversineMeters(Number(f.lat),Number(f.lon),Number(r.lat),Number(r.lon))<=180));
   return json({ok:true,address,name:place.name,fullAddress:place.fullAddress,nearby,restaurants,fastFood,nearbyRadiusMeters:800,diningRadiusMeters:10000,ratingsProvider:'free-multi-source',ratingsAvailable:false,photoProvider:'wikimedia-free',diningProviders:place.countryCode==='fr'?['OpenStreetMap','API Recherche d’Entreprises (DINUM/Sirene-RNE)','Wikidata/Wikimedia','Sites officiels publics (carte/menu)']:['OpenStreetMap','Wikidata/Wikimedia','Sites officiels publics (carte/menu)']});
 }
 
