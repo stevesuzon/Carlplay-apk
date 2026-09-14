@@ -308,7 +308,10 @@ async function updateSubscriptionEmail(request, env) {
   await ensureSubscriptionEmailColumns(env);
   const data = await body(request);
   const email = normalizeEmail(data.email);
+  const firstName = String(data.firstName || "").trim().replace(/\s+/g," ").slice(0,60);
+  const lastName = String(data.lastName || "").trim().replace(/\s+/g," ").slice(0,60);
   const deviceId = String(data.deviceId || "");
+  if (firstName.length < 2 || lastName.length < 2) return json({ok:false,error:"NOM_PRENOM_OBLIGATOIRES"},400);
   if (!validEmail(email)) return json({ok:false,error:"EMAIL_OBLIGATOIRE"},400);
   if (!validDevice(deviceId)) return json({ok:false,error:"DONNEES_INVALIDES"},400);
   const row = await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) LIMIT 1").bind(deviceId,deviceId).first();
@@ -317,8 +320,8 @@ async function updateSubscriptionEmail(request, env) {
   const emailHash = await sha256Text(email);
   const owner = await activeEmailOwner(env,emailHash,row.id);
   if (owner) return json({ok:false,error:"EMAIL_DEJA_UTILISEE"},409);
-  await env.DB.prepare("UPDATE subscriptions SET recovery_email_hash=?,recovery_email_mask=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(emailHash,email,row.id).run();
-  return json({ok:true,email});
+  await env.DB.prepare("UPDATE subscriptions SET recovery_email_hash=?,recovery_email_mask=?,account_first_name=?,account_last_name=?,account_updated_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(emailHash,email,firstName,lastName,Date.now(),row.id).run();
+  return json({ok:true,email,firstName,lastName});
 }
 
 async function confirmSubscriptionEmail(request,env){
@@ -1295,7 +1298,7 @@ async function adminContestAction(request,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=196-messages" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=198-bonus-automatique" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=199-identite-concours" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=199-identite-concours" defer></script>', { html: true });
   }
 }
 
