@@ -2095,17 +2095,44 @@ async function referralStart(request,env){
   if(!(await registeredVerificationDevice(env,deviceId)))return json({ok:false,error:"AJOUT_ECRAN_ACCUEIL_REQUIS"},403);
   const th=await sha256Text("referral:"+token),invite=await env.DB.prepare("SELECT * FROM contest_referral_invites WHERE token_hash=? LIMIT 1").bind(th).first();if(!invite||Number(invite.expires_at)<now)return json({ok:false,error:"LIEN_PARRAINAGE_EXPIRE"},410);
   const sponsor=await env.DB.prepare("SELECT * FROM subscriptions WHERE id=? AND active=1 LIMIT 1").bind(invite.sponsor_subscription_id).first();if(!sponsor)return json({ok:false,error:"PARRAIN_INTROUVABLE"},404);
-  const sameSponsorEmail=normalizeEmail(sponsor.recovery_email_mask)===email,sameSponsorDevice=String(sponsor.phone_device||"")===deviceId||String(sponsor.autoradio_device||"")===deviceId;
-  // L'adresse e-mail reste la vraie protection contre l'auto-parrainage.
-  // Si le navigateur/PWA a hérité par erreur de l'identifiant appareil du parrain,
-  // on demande au client de recréer automatiquement un identifiant propre au filleul
-  // au lieu d'afficher à tort « On ne peut pas se parrainer soi-même ».
+  const eh=await sha256Text(email);
+  // V272 : on ne se fie plus uniquement à recovery_email_mask du parrain.
+  // Une ancienne tentative faite depuis le même téléphone pouvait écraser ce champ avec
+  // l'e-mail du filleul et provoquer ensuite le faux message « auto-parrainage ».
+  // Le profil concours conserve une empreinte d'identité plus stable : on l'utilise en priorité.
+  const sponsorParticipant=await env.DB.prepare("SELECT device_id,email_hash FROM contest_participants WHERE subscription_id=? LIMIT 1").bind(invite.sponsor_subscription_id).first();
+  let sameSponsorEmail=false;
+  if(sponsorParticipant&&String(sponsorParticipant.email_hash||"")){
+    const stored=String(sponsorParticipant.email_hash||""),sponsorContestDevice=String(sponsorParticipant.device_id||"");
+    const trialIdentity=sponsorContestDevice?await sha256Text("contest-trial-email:"+sponsorContestDevice+":"+email):"";
+    sameSponsorEmail=stored===eh||!!trialIdentity&&stored===trialIdentity;
+  }else sameSponsorEmail=normalizeEmail(sponsor.recovery_email_mask)===email;
+  const sponsorContestDevice=String(sponsorParticipant&&sponsorParticipant.device_id||"");
+  const sameSponsorDevice=String(sponsor.phone_device||"")===deviceId||String(sponsor.autoradio_device||"")===deviceId||!!sponsorContestDevice&&sponsorContestDevice===deviceId;
   if(sameSponsorEmail)return json({ok:false,error:"AUTO_PARRAINAGE_INTERDIT"},409);
+  // Même identifiant appareil mais identité différente = identifiant copié/caché, pas auto-parrainage.
   if(sameSponsorDevice)return json({ok:false,error:"IDENTIFIANT_FILLEUL_A_RECREER"},409);
-  const eh=await sha256Text(email),byEmail=await env.DB.prepare("SELECT referee_device_id FROM contest_referrals WHERE email_hash=? LIMIT 1").bind(eh).first(),byDevice=await env.DB.prepare("SELECT * FROM contest_referrals WHERE referee_device_id=? LIMIT 1").bind(deviceId).first();
+  const byEmail=await env.DB.prepare("SELECT referee_device_id FROM contest_referrals WHERE email_hash=? LIMIT 1").bind(eh).first(),byDevice=await env.DB.prepare("SELECT * FROM contest_referrals WHERE referee_device_id=? LIMIT 1").bind(deviceId).first();
   if(byEmail&&String(byEmail.referee_device_id)!==deviceId)return json({ok:false,error:"EMAIL_DEJA_PARRAINE"},409);if(byDevice&&String(byDevice.invite_id)!==String(invite.id))return json({ok:false,error:"APPAREIL_DEJA_PARRAINE"},409);
-  const es=await env.DB.prepare("SELECT id,phone_device,autoradio_device FROM subscriptions WHERE lower(COALESCE(recovery_email_mask,''))=? AND active=1 ORDER BY id DESC LIMIT 1").bind(email).first();if(es&&String(es.phone_device||"")!==deviceId&&String(es.autoradio_device||"")!==deviceId)return json({ok:false,error:"EMAIL_DEJA_UTILISEE_AUTRE_TELEPHONE"},409);
-  const sub=await ensureReferralTrialSubscription(env,deviceId,email,first,last);if(!sub)return json({ok:false,error:"COMPTE_IMPOSSIBLE"},500);if(Number(sub.id)===Number(invite.sponsor_subscription_id))return json({ok:false,error:"AUTO_PARRAINAGE_INTERDIT"},409);if(invite.claimed_subscription_id&&Number(invite.claimed_subscription_id)!==Number(sub.id))return json({ok:false,error:"LIEN_PARRAINAGE_DEJA_UTILISE"},409);
+  const es=await env.DB.prepare("SELECT id,phone_device,autoradio_device FROM subscriptions WHERE lower(COALESCE(recovery_email_mask,''))=? AND active=1 ORDER BY id DESC LIMIT 1").bind(email).first();
+  // Si l'ancien bug a mis l'e-mail du filleul sur la fiche du parrain, on ignore cette
+  // correspondance contaminée. Une autre vraie fiche utilisant cet e-mail reste bloquée.
+  if(es&&Number(es.id)!==Number(invite.sponsor_subscription_id)&&String(es.phone_device||"")!==deviceId&&String(es.autoradio_device||"")!==deviceId)return json({ok:false,error:"EMAIL_DEJA_UTILISEE_AUTRE_TELEPHONE"},409);
+  let sub=await ensureReferralTrialSubscription(env,deviceId,email,first,last);if(!sub)return json({ok:false,error:"COMPTE_IMPOSSIBLE"},500);
+  // Dernier garde-fou : si une vieille donnée a encore rattaché ce nouvel appareil au compte
+  // du parrain alors que l'identité e-mail est différente, on crée une fiche filleul séparée.
+  if(Number(sub.id)===Number(invite.sponsor_subscription_id)){
+    const freeUntil=Number(cfg.end_at)+CONTEST_APP_FREE_EXTRA_MS,trialHash=await sha256Text("contest-referee:"+deviceId+":"+email+":"+referralToken()),trialEmailHash=await sha256Text("contest-trial-email:"+deviceId+":"+email);
+    await env.DB.prepare("INSERT INTO subscriptions(code_hash,expires_at,lifetime,active,phone_device,recovery_email_hash,recovery_email_mask,account_first_name,account_last_name,account_updated_at) VALUES(?,?,0,1,?,?,?,?,?,?)").bind(trialHash,new Date(freeUntil).toISOString(),deviceId,trialEmailHash,email,first,last,now).run();
+    sub=await env.DB.prepare("SELECT * FROM subscriptions WHERE code_hash=? AND active=1 ORDER BY id DESC LIMIT 1").bind(trialHash).first();
+    if(!sub||Number(sub.id)===Number(invite.sponsor_subscription_id))return json({ok:false,error:"COMPTE_IMPOSSIBLE"},500);
+  }
+  // Répare uniquement l'ancien cas impossible où le lien s'était réclamé lui-même.
+  if(invite.claimed_subscription_id&&Number(invite.claimed_subscription_id)===Number(invite.sponsor_subscription_id)){
+    await env.DB.prepare("UPDATE contest_referral_invites SET claimed_subscription_id=NULL,claimed_at=NULL WHERE id=? AND claimed_subscription_id=?").bind(invite.id,invite.sponsor_subscription_id).run();
+    invite.claimed_subscription_id=null;invite.claimed_at=null;
+  }
+  if(invite.claimed_subscription_id&&Number(invite.claimed_subscription_id)!==Number(sub.id))return json({ok:false,error:"LIEN_PARRAINAGE_DEJA_UTILISE"},409);
   let row=byDevice&&String(byDevice.invite_id)===String(invite.id)?byDevice:null;if(row&&row.status==="verified")return json({ok:true,alreadyVerified:true,referralId:row.id,emailMask:emailMask(email)});if(row&&Number(row.sms_sent_at||0)>now-60000)return json({ok:false,error:"EMAIL_TROP_RAPIDE",referralId:row.id,emailMask:emailMask(email)},429);
   const day=parisDay(),usage=await env.DB.prepare("SELECT sent_count FROM brevo_daily_usage WHERE day=?").bind(day).first();if(Number(usage&&usage.sent_count||0)>=200)return json({ok:false,error:"QUOTA_EMAIL_JOURNALIER"},429);
   const id=row?row.id:contestId(),magic=referralToken(),ch=await referralMagicHash(id,magic,env),ih=await sha256Text(`refip:${env.CODE_PEPPER||"ref"}:${request.headers.get("CF-Connecting-IP")||""}`),placeholderPhoneHash=row&&row.phone_hash?String(row.phone_hash):await sha256Text("referral-no-phone:"+deviceId),mask=emailMask(email),expires=now+REFERRAL_EMAIL_MS;
@@ -2554,7 +2581,7 @@ async function mushroomPhoto(url,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=238-admin-email-devis" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=247-classement-direct" defer></script><script src="/referral-v232.js?v=271-parrainage-identite-filleul" defer></script><script src="/app-access-gate-v240.js?v=271-parrainage-identite-filleul" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=238-admin-email-devis" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=247-classement-direct" defer></script><script src="/referral-v232.js?v=272-parrainage-identite-fiable" defer></script><script src="/app-access-gate-v240.js?v=272-parrainage-identite-fiable" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
   }
 }
 

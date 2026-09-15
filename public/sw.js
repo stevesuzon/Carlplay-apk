@@ -1,4 +1,4 @@
-const CACHE = "couteau-suisse-v271-parrainage-identite-filleul";
+const CACHE = "couteau-suisse-v272-parrainage-identite-fiable";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -30,7 +30,7 @@ const CORE = [
   "/weather-all-pages.js?v=68-notifications-globales",
   "/subscription-web.js?v=256-demandes-concours",
   "/notification-settings.js?v=243",
-  "/referral-v232.js?v=271-parrainage-identite-filleul",
+  "/referral-v232.js?v=272-parrainage-identite-fiable",
   "/subscription-v154-patch.js?v=203",
   "/modification-profile-v156.js?v=173",
   "/sanction-guard-v161.js?v=243",
