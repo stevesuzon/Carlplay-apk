@@ -1,5 +1,5 @@
 (function () {
-  if ("serviceWorker" in navigator) addEventListener("load", function () { navigator.serviceWorker.register("/sw.js?v=255-generateur-separe").catch(function () {}); });
+  if ("serviceWorker" in navigator) addEventListener("load", function () { navigator.serviceWorker.register("/sw.js?v=257-champignons-essai-admin-compact").catch(function () {}); });
   var KEY = "carplay_shared_subscription";
   var PAID_KEY = "carplay_paid_activated";
   var EMAIL_KEY = "carplay_recovery_email";
@@ -272,9 +272,13 @@
 
   function addAdminMessageCounter() {
     if(localStorage.getItem("carplay_admin_here")!=="1")return;var settings=document.getElementById("settings"),secret=localStorage.getItem("carplay_admin_secret")||"";if(!settings||!secret||document.getElementById("adminMessageCounter"))return;
-    var row=document.createElement("div");row.className="settingRow";row.id="adminMessageCounter";row.innerHTML='<button class="settingHead" type="button"><span>💬 VOUS AVEZ <b>0</b> MESSAGE</span><span>›</span></button>';
-    var a=document.getElementById("adminSettingRow");if(a)a.parentNode.insertBefore(row,a.nextSibling);else settings.appendChild(row);row.querySelector("button").onclick=function(){location.href="/admin.html#appMessagesBox"};
-    Promise.all([fetch("/api/admin/app-messages",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{messages:[]}}),fetch("/api/admin/contest",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{reports:[]}})]).then(function(x){var n=(x[0].messages||[]).length+(x[1].reports||[]).length;row.querySelector("span").innerHTML='💬 VOUS AVEZ <b>'+n+'</b> MESSAGE'+(n>1?'S':'')}).catch(function(){});
+    var row=document.createElement("div");row.className="settingRow";row.id="adminMessageCounter";row.innerHTML='<button class="settingHead" type="button"><span>✅ VOUS AVEZ <b>0</b> DEMANDE À VALIDER</span><span>›</span></button>';
+    var a=document.getElementById("adminSettingRow");if(a)a.parentNode.insertBefore(row,a.nextSibling);else settings.appendChild(row);row.querySelector("button").onclick=function(){location.href="/admin.html#gpsPermissionBox"};
+    Promise.all([
+      fetch("/api/admin/app-messages",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{messages:[]}}),
+      fetch("/api/admin/contest",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{reviews:[],reports:[],communes:[],alerts:[]}}),
+      fetch("/api/admin/gps-unlock-requests",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{requests:[]}})
+    ]).then(function(x){var c=x[1]||{},n=(x[0].messages||[]).length+(c.reviews||[]).length+(c.reports||[]).length+(c.communes||[]).length+(c.alerts||[]).length+(x[2].requests||[]).length;row.querySelector("span").innerHTML='✅ VOUS AVEZ <b>'+n+'</b> DEMANDE'+(n>1?'S':'')+' À VALIDER'}).catch(function(){});
   }
 
   function settingsPanel() {

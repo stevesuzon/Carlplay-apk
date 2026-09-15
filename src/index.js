@@ -2222,13 +2222,15 @@ async function appMessage(request,env){await ensureAppMessages(env);const d=awai
 async function adminAppMessages(request,env){
   if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);
   await ensureAppMessages(env);await ensureAppIdentityTables(env);
-  if(request.method==="POST"){const d=await body(request);await env.DB.prepare("UPDATE app_messages SET status='read',read_at=? WHERE id=?").bind(Date.now(),String(d.id||"")).run()}
+  const now=Date.now(),cutoff=now-24*60*60*1000;
+  await env.DB.prepare("UPDATE app_messages SET status='expired',read_at=? WHERE status='pending' AND created_at<?").bind(now,cutoff).run();
+  if(request.method==="POST"){const d=await body(request);await env.DB.prepare("UPDATE app_messages SET status='read',read_at=? WHERE id=? AND status='pending' AND created_at>=?").bind(Date.now(),String(d.id||""),cutoff).run()}
   const q=await env.DB.prepare(`SELECT m.*,
     COALESCE(s.recovery_email_mask,ai.email,'') AS email, COALESCE(s.phone_device,s.autoradio_device,'') AS device_id
     FROM app_messages m
     LEFT JOIN subscriptions s ON s.id=m.subscription_id
     LEFT JOIN app_identities ai ON ai.rowid=(SELECT ai2.rowid FROM app_identities ai2 WHERE ai2.device_id=s.phone_device OR ai2.device_id=s.autoradio_device ORDER BY ai2.updated_at DESC LIMIT 1)
-    WHERE m.status='pending' ORDER BY m.created_at DESC LIMIT 200`).all();
+    WHERE m.status='pending' AND m.created_at>=? ORDER BY m.created_at DESC LIMIT 200`).bind(cutoff).all();
   const messages=q.results||[];return json({ok:true,messages,count:messages.length})
 }
 
@@ -2242,8 +2244,16 @@ function contestIdeaMultiplier(description){
   return 2;
 }
 
+const ADMIN_PENDING_TTL_MS=24*60*60*1000;
+async function expireAdminPendingRequests(env){
+  const now=Date.now(),cutoff=now-ADMIN_PENDING_TTL_MS;
+  try{await env.DB.prepare("UPDATE contest_market_reviews SET status='expired',decided_at=? WHERE status='pending' AND created_at<?").bind(now,cutoff).run()}catch(_){}
+  try{await env.DB.prepare("UPDATE contest_reports SET status='expired',decided_at=? WHERE status='pending' AND created_at<?").bind(now,cutoff).run()}catch(_){}
+  try{await env.DB.prepare("UPDATE contest_commune_requests SET status='expired',decided_at=? WHERE status='pending' AND created_at<?").bind(now,cutoff).run()}catch(_){}
+  try{await env.DB.prepare("UPDATE contest_travel_alerts SET status='expired' WHERE status='pending' AND created_at<?").bind(cutoff).run()}catch(_){}
+}
 async function adminContest(request,env){
-  if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);const cfg=await finalizeContestIfNeeded(env);const participants=(await env.DB.prepare("SELECT subscription_id,first_name,last_name,home_commune,home_area,camping_active,camping_label,camping_updated_at,points,banned,alert_count,joined_at FROM contest_participants ORDER BY points DESC,joined_at ASC").all()).results||[];for(const p of participants){const b=await contestRefreshBonusState(env,p.subscription_id);p.active_bonus=b.active?{multiplier:b.active.multiplier,end_at:b.active.end_at}:null}
+  if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);await expireAdminPendingRequests(env);const cfg=await finalizeContestIfNeeded(env);const participants=(await env.DB.prepare("SELECT subscription_id,first_name,last_name,home_commune,home_area,camping_active,camping_label,camping_updated_at,points,banned,alert_count,joined_at FROM contest_participants ORDER BY points DESC,joined_at ASC").all()).results||[];for(const p of participants){const b=await contestRefreshBonusState(env,p.subscription_id);p.active_bonus=b.active?{multiplier:b.active.multiplier,end_at:b.active.end_at}:null}
   const reviews=(await env.DB.prepare("SELECT r.*,p.first_name,p.last_name,p.alert_count FROM contest_market_reviews r JOIN contest_participants p ON p.subscription_id=r.subscription_id WHERE r.status='pending' ORDER BY r.created_at DESC").all()).results||[];for(const r of reviews){try{r.breakdown=JSON.parse(r.breakdown_json||'[]')}catch(_){r.breakdown=[]}}
   const reports=(await env.DB.prepare("SELECT r.*,p.first_name,p.last_name,p.home_commune,p.home_area FROM contest_reports r JOIN contest_participants p ON p.subscription_id=r.subscription_id WHERE r.status='pending' ORDER BY r.created_at DESC").all()).results||[];for(const r of reports){r.suggested_multiplier=r.kind==='idee'?contestIdeaMultiplier(r.description):null}const communes=(await env.DB.prepare("SELECT c.*,p.first_name,p.last_name,p.home_commune,p.home_area FROM contest_commune_requests c JOIN contest_participants p ON p.subscription_id=c.subscription_id WHERE c.status='pending' ORDER BY c.created_at DESC").all()).results||[];const alerts=(await env.DB.prepare("SELECT a.*,p.first_name,p.last_name,p.alert_count FROM contest_travel_alerts a JOIN contest_participants p ON p.subscription_id=a.subscription_id WHERE a.status='pending' ORDER BY a.created_at DESC").all()).results||[];return json({ok:true,config:cfg,participants,reviews,reports,communes,alerts})
 }
@@ -2253,7 +2263,7 @@ function contestCongratsMessage(r,awarded){
 }
 
 async function adminContestAction(request,env){
-  if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);await ensureContestTables(env);const d=await body(request),type=String(d.type||""),id=String(d.id||""),approve=d.approve===true;
+  if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);await ensureContestTables(env);await expireAdminPendingRequests(env);const d=await body(request),type=String(d.type||""),id=String(d.id||""),approve=d.approve===true;
   if(type==="review"){
     const r=await env.DB.prepare("SELECT * FROM contest_market_reviews WHERE id=? AND status='pending'").bind(id).first();if(!r)return json({ok:false,error:"DEMANDE_INTROUVABLE"},404);
     if(approve){const duplicate=await env.DB.prepare("SELECT id FROM contest_market_points WHERE subscription_id=? AND market_key=?").bind(r.subscription_id,r.market_key).first();let awarded=Number(r.points||0);if(!duplicate){const base=Number(r.base_points||r.points||0),mult=Math.max(1,Number(r.multiplier||1));awarded=Number(r.points||base*mult);await env.DB.prepare("INSERT INTO contest_market_points(subscription_id,market_key,market_name,distance_km,points,base_points,multiplier,breakdown_json,market_lat,market_lon,place_label,awarded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").bind(r.subscription_id,r.market_key,r.market_name,r.distance_km,awarded,base,mult,r.breakdown_json||'[]',r.market_lat,r.market_lon,r.place_label,Date.now()).run();await contestAddScoreEvent(env,r.subscription_id,'market',r.market_key,r.market_name,base,mult,awarded);await contestApplyMarketMilestones(env,r.subscription_id);if(Number(r.distance_km)>150)await contestEnqueueBonus(env,r.subscription_id,2,"trajet aller de plus de 150 km validé par l’administrateur","long-trip:"+r.market_key,CONTEST_LONG_TRIP_BONUS_MS,true)}await contestPushMessage(env,r.subscription_id,contestCongratsMessage(r,awarded),"approved")}
@@ -2518,7 +2528,7 @@ async function mushroomPhoto(url,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=238-admin-email-devis" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=247-classement-direct" defer></script><script src="/referral-v232.js?v=246-points-fiables" defer></script><script src="/app-access-gate-v240.js?v=242" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=238-admin-email-devis" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=247-classement-direct" defer></script><script src="/referral-v232.js?v=246-points-fiables" defer></script><script src="/app-access-gate-v240.js?v=257-essai-debloque" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
   }
 }
 

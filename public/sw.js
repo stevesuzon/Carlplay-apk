@@ -1,4 +1,4 @@
-const CACHE = "couteau-suisse-v255-generateur-separe";
+const CACHE = "couteau-suisse-v257-champignons-essai-admin-compact";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -28,7 +28,7 @@ const CORE = [
   "/couteau-suisse-maskable-512.png?v=255",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=68-notifications-globales",
-  "/subscription-web.js?v=240-notifications-logo",
+  "/subscription-web.js?v=256-demandes-concours",
   "/notification-settings.js?v=243",
   "/referral-v232.js?v=246-points-fiables",
   "/subscription-v154-patch.js?v=203",
@@ -66,10 +66,10 @@ const CORE = [
   "/mypos-go2.jpeg",
   "/mypos-ultra.jpeg",
   "/mypos-flex.jpeg",
-  "/app-access-gate-v240.js?v=255-generateur-separe",
+  "/app-access-gate-v240.js?v=257-essai-debloque",
   "/champignons.html?v=255-generateur-separe",
-  "/champignons.css?v=255-generateur-separe",
-  "/champignons.js?v=255-generateur-separe",
+  "/champignons.css?v=257-admin-compact",
+  "/champignons.js?v=257-essai-debloque",
   "/champignon-cepe.jpg?v=240"
 ];
 CORE.push(

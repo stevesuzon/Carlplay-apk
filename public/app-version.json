@@ -1,4 +1,4 @@
 {
-  "version": "V255",
-  "message": "Après la période globale gratuite de 5 mois, toute nouvelle personne qui s’inscrit pour la première fois avec nom, prénom et e-mail reçoit 7 jours d’essai gratuit sur toute l’application. À la fin des 7 jours, l’application se verrouille et demande un abonnement. Une même personne ne peut pas recommencer un nouvel essai en changeant ou réinstallant le téléphone : la date de fin initiale est conservée. Les anciens abonnés récupèrent leur abonnement par e-mail depuis Réglages > Abonnement, avec leurs jours restants. L’accès Champignons suit l’essai principal."
+  "version": "V257",
+  "message": "Conserve toute la V256. Le Coin Détente & Champignons se débloque automatiquement pendant la période d’essai principale (période gratuite actuelle puis essai personnel de 7 jours après la promotion) sans demander de code. La date de fin est la même que l’essai Couteau Suisse. La liste admin Bois et Champignons est beaucoup plus compacte pour afficher davantage de lieux à l’écran."
 }
