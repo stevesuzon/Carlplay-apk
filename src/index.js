@@ -26,9 +26,14 @@ async function sha256Text(value) {
 async function adminAuthorized(request, env) {
   const auth = request.headers.get("authorization") || "";
   const supplied = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  if (!supplied) return false;
-  if (env.ADMIN_SECRET && supplied === String(env.ADMIN_SECRET).trim()) return true;
-  return (await sha256Text(supplied)) === ADMIN_FALLBACK_SHA256;
+  if (!supplied || !env.DB) return false;
+  await ensureAdminAuthTables(env);
+  const tokenHash = await sha256Text(supplied);
+  const now = Date.now();
+  const row = await env.DB.prepare("SELECT token_hash,expires_at FROM admin_sessions WHERE token_hash=? AND expires_at>? LIMIT 1").bind(tokenHash, now).first();
+  if (!row) return false;
+  try { await env.DB.prepare("UPDATE admin_sessions SET last_seen_at=? WHERE token_hash=?").bind(now, tokenHash).run(); } catch(_) {}
+  return true;
 }
 
 async function body(request) {
@@ -237,6 +242,69 @@ function emailMask(email){return email.replace(/^(.{2}).*(@.*)$/,'$1***$2')}
 function parisDay(){return new Intl.DateTimeFormat("fr-CA",{timeZone:"Europe/Paris",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())}
 function randomEmailCode(){const a=new Uint32Array(1);crypto.getRandomValues(a);return String(a[0]%1000000).padStart(6,"0")}
 async function emailCodeHash(id,code,env){return sha256Text(id+":"+code+":"+(env.CODE_PEPPER||"carplay-email"))}
+
+const ONLY_ADMIN_EMAIL = "appli.suzon@gmail.com";
+const ONLY_ADMIN_NAME = "Steve Suzon";
+async function ensureAdminAuthTables(env){
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS admin_email_challenges(
+    id TEXT PRIMARY KEY,email TEXT NOT NULL,device_id TEXT NOT NULL DEFAULT '',code_hash TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,consumed INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL
+  )`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS admin_sessions(
+    token_hash TEXT PRIMARY KEY,email TEXT NOT NULL,device_id TEXT NOT NULL DEFAULT '',expires_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,last_seen_at INTEGER NOT NULL
+  )`).run();
+  try{await env.DB.prepare("CREATE INDEX IF NOT EXISTS admin_challenges_email_created ON admin_email_challenges(email,created_at)").run()}catch(_){}
+  try{await env.DB.prepare("CREATE INDEX IF NOT EXISTS admin_sessions_expiry ON admin_sessions(expires_at)").run()}catch(_){}
+}
+async function adminLoginCodeHash(id,code,env){return sha256Text("admin:"+id+":"+code+":"+(env.CODE_PEPPER||"couteau-suisse-admin"))}
+function randomAdminToken(){const b=new Uint8Array(32);crypto.getRandomValues(b);return b64urlBytes(b)}
+async function sendBrevoAdminCode(env,email,code){
+  if(!env.BREVO_API_KEY||!env.BREVO_SENDER_EMAIL)throw new Error("EMAIL_CONFIG");
+  const response=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{accept:"application/json","content-type":"application/json","api-key":env.BREVO_API_KEY},body:JSON.stringify({sender:{name:"Couteau Suisse",email:String(env.BREVO_SENDER_EMAIL)},to:[{email}],subject:"Confirmation administrateur Couteau Suisse",textContent:"Steve, votre code de confirmation administrateur est : "+code+". Il est valable 10 minutes.",htmlContent:'<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;border:2px solid #f39b19;border-radius:18px"><h2 style="color:#c86b00">Couteau Suisse — Administration</h2><p>Bonjour Steve Suzon,</p><p>Voici votre code de confirmation administrateur :</p><p style="font-size:34px;font-weight:900;letter-spacing:8px">'+code+'</p><p>Ce code est valable 10 minutes.</p><p style="font-size:12px;color:#666">Seule l’adresse '+ONLY_ADMIN_EMAIL+' peut recevoir cette confirmation.</p></div>'})});
+  if(!response.ok)throw new Error("EMAIL_SEND");
+}
+async function requestAdminEmailLogin(request,env){
+  if(!env.DB)return json({ok:false,error:"DB_NON_CONFIGUREE"},500);
+  await ensureAdminAuthTables(env);
+  const d=await body(request),email=normalizeEmail(d.email),deviceId=String(d.deviceId||"").slice(0,160),now=Date.now();
+  if(email!==ONLY_ADMIN_EMAIL)return json({ok:false,error:"ADMIN_NON_AUTORISE"},403);
+  const recent=await env.DB.prepare("SELECT created_at FROM admin_email_challenges WHERE email=? ORDER BY created_at DESC LIMIT 1").bind(email).first();
+  if(recent&&now-Number(recent.created_at||0)<45000)return json({ok:false,error:"ATTENDEZ_QUELQUES_SECONDES"},429);
+  const id=crypto.randomUUID(),code=randomEmailCode(),hash=await adminLoginCodeHash(id,code,env),expires=now+10*60*1000;
+  await env.DB.prepare("INSERT INTO admin_email_challenges(id,email,device_id,code_hash,expires_at,attempts,consumed,created_at) VALUES(?,?,?,?,?,0,0,?)").bind(id,email,deviceId,hash,expires,now).run();
+  try{await sendBrevoAdminCode(env,email,code)}catch(e){return json({ok:false,error:String(e&&e.message||"EMAIL_SEND")},500)}
+  return json({ok:true,challengeId:id,email:emailMask(email),expiresAt:expires,adminName:ONLY_ADMIN_NAME});
+}
+async function verifyAdminEmailLogin(request,env){
+  if(!env.DB)return json({ok:false,error:"DB_NON_CONFIGUREE"},500);
+  await ensureAdminAuthTables(env);
+  const d=await body(request),id=String(d.challengeId||""),code=String(d.code||"").replace(/\D/g,"").slice(0,6),deviceId=String(d.deviceId||"").slice(0,160),now=Date.now();
+  const row=await env.DB.prepare("SELECT * FROM admin_email_challenges WHERE id=? LIMIT 1").bind(id).first();
+  if(!row||row.email!==ONLY_ADMIN_EMAIL)return json({ok:false,error:"CONFIRMATION_INTROUVABLE"},404);
+  if(Number(row.consumed))return json({ok:false,error:"CODE_DEJA_UTILISE"},409);
+  if(Number(row.expires_at)<now)return json({ok:false,error:"CODE_EXPIRE"},410);
+  if(Number(row.attempts||0)>=6)return json({ok:false,error:"TROP_DE_TENTATIVES"},429);
+  const h=await adminLoginCodeHash(id,code,env);
+  if(h!==String(row.code_hash||"")){
+    await env.DB.prepare("UPDATE admin_email_challenges SET attempts=attempts+1 WHERE id=?").bind(id).run();
+    return json({ok:false,error:"CODE_INCORRECT"},403);
+  }
+  await env.DB.prepare("UPDATE admin_email_challenges SET consumed=1 WHERE id=?").bind(id).run();
+  const token=randomAdminToken(),tokenHash=await sha256Text(token),expires=now+180*24*60*60*1000;
+  await env.DB.prepare("INSERT OR REPLACE INTO admin_sessions(token_hash,email,device_id,expires_at,created_at,last_seen_at) VALUES(?,?,?,?,?,?)").bind(tokenHash,ONLY_ADMIN_EMAIL,deviceId,expires,now,now).run();
+  try{await env.DB.prepare("DELETE FROM admin_sessions WHERE expires_at<?").bind(now).run()}catch(_){}
+  return json({ok:true,token,expiresAt:expires,adminName:ONLY_ADMIN_NAME,email:ONLY_ADMIN_EMAIL});
+}
+async function adminSessionStatus(request,env){
+  const ok=await adminAuthorized(request,env);
+  return ok?json({ok:true,admin:true,name:ONLY_ADMIN_NAME,email:ONLY_ADMIN_EMAIL}):json({ok:false,admin:false},401);
+}
+async function adminLogout(request,env){
+  const auth=request.headers.get("authorization")||"",token=auth.startsWith("Bearer ")?auth.slice(7).trim():"";
+  if(token&&env.DB){await ensureAdminAuthTables(env);try{await env.DB.prepare("DELETE FROM admin_sessions WHERE token_hash=?").bind(await sha256Text(token)).run()}catch(_){}}
+  return json({ok:true});
+}
 async function sendBrevoCode(env,email,code){
   if(!env.BREVO_API_KEY||!env.BREVO_SENDER_EMAIL)throw new Error("EMAIL_CONFIG");
   const response=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{accept:"application/json","content-type":"application/json","api-key":env.BREVO_API_KEY},body:JSON.stringify({sender:{name:"Couteau Suisse",email:String(env.BREVO_SENDER_EMAIL)},to:[{email}],subject:"Votre code de confirmation Couteau Suisse",textContent:"Votre code de confirmation Couteau Suisse est : "+code+". Il est valable 10 minutes.",htmlContent:'<div style="font-family:Arial,sans-serif"><h2>Couteau Suisse</h2><p>Votre code de confirmation est :</p><p style="font-size:32px;font-weight:bold;letter-spacing:7px">'+code+'</p><p>Ce code est valable 10 minutes.</p></div>'})});
@@ -2139,7 +2207,7 @@ async function adminContestAction(request,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=237-renvoi-code-abonnement" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=235-parrainage-email-bouton" defer></script><script src="/referral-v232.js?v=235" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=238-admin-email-devis" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=235-parrainage-email-bouton" defer></script><script src="/referral-v232.js?v=235" defer></script>', { html: true });
   }
 }
 
@@ -2174,6 +2242,10 @@ export default {
     if (url.pathname === "/api/referral/verify" && request.method === "POST") return referralVerify(request, env);
     if (url.pathname === "/api/presence" && (request.method === "GET" || request.method === "POST")) return presence(request, env);
     if (url.pathname === "/api/installations" && request.method === "POST") return installations(request, env);
+    if (url.pathname === "/api/admin/login/request" && request.method === "POST") return requestAdminEmailLogin(request, env);
+    if (url.pathname === "/api/admin/login/verify" && request.method === "POST") return verifyAdminEmailLogin(request, env);
+    if (url.pathname === "/api/admin/session" && request.method === "GET") return adminSessionStatus(request, env);
+    if (url.pathname === "/api/admin/logout" && request.method === "POST") return adminLogout(request, env);
     if (url.pathname === "/api/admin/installations" && request.method === "GET") return adminInstallations(request, env);
     if (url.pathname === "/api/admin/presence" && request.method === "GET") return adminPresenceStatus(env);
     if (url.pathname === "/api/admin/presence" && request.method === "POST") return adminPresenceAction(request, env);

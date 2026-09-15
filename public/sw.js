@@ -1,4 +1,4 @@
-const CACHE = "couteau-suisse-v237-renvoi-code-abonnement";
+const CACHE = "couteau-suisse-v238-admin-email-devis";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -11,8 +11,8 @@ async function saveNotificationPreference(enabled) {
   await cache.put(NOTIFICATION_PREF_URL, new Response(enabled ? "1" : "0"));
 }
 const CORE = [
-  "/brocante-fiche-achat-v1.js?v=20260910-ficheachat-mobile-acompte-signatures1",
-  "/devis-personnalises-v2.js?v=20260910-ficheachat-mobile-acompte-signatures1",
+  "/brocante-fiche-achat-v1.js?v=238-compat",
+  "/devis-personnalises-v2.js?v=238-admin-email-devis",
   "/index.html",
   "/cache-cleanup-v20260910.js?v=20260912-allmarkets-v149",
   "/installer.html",
@@ -26,7 +26,7 @@ const CORE = [
   "/couteau-suisse-1024.png",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=68-notifications-globales",
-  "/subscription-web.js?v=237-renvoi-code-abonnement",
+  "/subscription-web.js?v=238-admin-email-devis",
   "/referral-v232.js?v=236",
   "/subscription-v154-patch.js?v=203",
   "/modification-profile-v156.js?v=173",

@@ -1,4 +1,4 @@
 {
-  "version": "V237",
-  "message": "Récupération d’abonnement renforcée : le bouton affiche maintenant ME RENVOYER MON CODE D’ABONNEMENT. Après saisie du nom, prénom et e-mail, l’application recherche automatiquement le compte et renvoie le code par Brevo. Pour les anciens comptes sans code récupérable, un nouveau code est généré et rattaché au même abonnement sans modifier sa durée, son statut à vie, ses points ni ses données. En entrant le code reçu, l’abonnement exact est remis sur le téléphone. Toutes les fonctions V236 (Couteau Suisse, parrainage +320/+96, photos MARKET_PHOTOS) sont conservées."
+  "version": "V238",
+  "message": "Correction : la section Devis / créer un modèle est rétablie dans Réglages avec logo entreprise, signature professionnelle et modèles de devis. Administration sécurisée : Steve Suzon est le seul administrateur et l’accès nécessite un code de confirmation envoyé uniquement à appli.suzon@gmail.com. Les anciennes connexions par code administrateur local ne donnent plus accès. Toutes les fonctions V237 sont conservées."
 }
