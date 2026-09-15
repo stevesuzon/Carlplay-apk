@@ -46,7 +46,7 @@
   }
   async function sync(){
     if(!('serviceWorker'in navigator))return;
-    const registration=await navigator.serviceWorker.register('/sw.js?v=257-champignons-essai-admin-compact');
+    const registration=await navigator.serviceWorker.register('/sw.js?v=260-champignons-concours');
     await navigator.serviceWorker.ready;
     await tellWorker(registration,enabled()&&permission()==='granted');
     if(enabled()&&permission()==='granted')await syncAdminPush(registration);

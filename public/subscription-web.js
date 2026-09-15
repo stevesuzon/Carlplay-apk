@@ -1,5 +1,5 @@
 (function () {
-  if ("serviceWorker" in navigator) addEventListener("load", function () { navigator.serviceWorker.register("/sw.js?v=257-champignons-essai-admin-compact").catch(function () {}); });
+  if ("serviceWorker" in navigator) addEventListener("load", function () { navigator.serviceWorker.register("/sw.js?v=260-champignons-concours").catch(function () {}); });
   var KEY = "carplay_shared_subscription";
   var PAID_KEY = "carplay_paid_activated";
   var EMAIL_KEY = "carplay_recovery_email";
