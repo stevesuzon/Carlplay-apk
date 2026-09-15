@@ -1,4 +1,4 @@
-const CACHE = "couteau-suisse-v236-logo-couteau-suisse-parrainage-email-photo";
+const CACHE = "couteau-suisse-v237-renvoi-code-abonnement";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -26,7 +26,7 @@ const CORE = [
   "/couteau-suisse-1024.png",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=68-notifications-globales",
-  "/subscription-web.js?v=208-renouvellement-cumul-jours",
+  "/subscription-web.js?v=237-renvoi-code-abonnement",
   "/referral-v232.js?v=236",
   "/subscription-v154-patch.js?v=203",
   "/modification-profile-v156.js?v=173",

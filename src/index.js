@@ -204,6 +204,12 @@ function normalizeCode(value) {
     .slice(0, 6);
 }
 function validCode(value) { return /^[A-HJ-NP-Z0-9]{6}$/.test(normalizeCode(value)); }
+function randomSubscriptionCode(){
+  const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789", bytes=new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  let out=""; for(const b of bytes) out+=alphabet[b%alphabet.length];
+  return out;
+}
 function validDevice(value) { return /^[a-zA-Z0-9._:-]{8,128}$/.test(String(value || "").trim()); }
 function normalizeEmail(value){return String(value||"").trim().toLowerCase().slice(0,254)}
 async function activeEmailOwner(env,emailHash,exceptId){
@@ -256,17 +262,40 @@ async function sendBrevoSubscriptionCode(env,email,code,row,now=Date.now()){
 async function recoverSubscriptionCode(request,env){
   await ensureSubscriptionEmailColumns(env);
   const data=await body(request),email=normalizeEmail(data.email),deviceId=String(data.deviceId||''),now=Date.now(),day=parisDay();
+  const firstName=String(data.firstName||'').trim().replace(/\s+/g,' ').slice(0,60),lastName=String(data.lastName||'').trim().replace(/\s+/g,' ').slice(0,60);
   if(!validEmail(email))return json({ok:false,error:'EMAIL_OBLIGATOIRE'},400);
   if(!validDevice(deviceId))return json({ok:false,error:'DONNEES_INVALIDES'},400);
   const emailHash=await sha256Text(email);
-  const row=await env.DB.prepare("SELECT * FROM subscriptions WHERE recovery_email_hash=? AND active=1 LIMIT 1").bind(emailHash).first();
+  const row=await env.DB.prepare("SELECT * FROM subscriptions WHERE recovery_email_hash=? AND active=1 ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC,id DESC LIMIT 1").bind(emailHash).first();
   if(!row)return json({ok:false,error:'EMAIL_INTROUVABLE'},404);
+  const storedFirst=String(row.account_first_name||'').trim(),storedLast=String(row.account_last_name||'').trim();
+  if(storedFirst&&storedLast){
+    if(firstName.length<2||lastName.length<2)return json({ok:false,error:'NOM_ET_PRENOM_OBLIGATOIRES'},400);
+    if(subscriptionIdentityKey(storedFirst)!==subscriptionIdentityKey(firstName)||subscriptionIdentityKey(storedLast)!==subscriptionIdentityKey(lastName))return json({ok:false,error:'IDENTITE_NE_CORRESPOND_PAS'},403);
+  }
   if(!row.lifetime&&(!row.expires_at||Date.parse(row.expires_at)<=now))return json({ok:false,error:'ABONNEMENT_EXPIRE'},403);
   if(Number(row.last_recovery_sent_at||0)&&now-Number(row.last_recovery_sent_at)<60000)return json({ok:false,error:'CODE_EMAIL_TROP_RAPIDE'},429);
   const usage=await env.DB.prepare("SELECT sent_count FROM brevo_daily_usage WHERE day=?").bind(day).first();
   if(Number(usage?.sent_count||0)>=200)return json({ok:false,error:'QUOTA_EMAIL_JOURNALIER'},429);
   let code='';
-  try{code=await openRecoveryCode(row.recovery_code_box,env)}catch(_){return json({ok:false,error:'CODE_RECUPERATION_NON_INITIALISE'},409)}
+  try{
+    code=await openRecoveryCode(row.recovery_code_box,env);
+  }catch(_){
+    // Anciens abonnements : le code original n'était pas encore stocké de façon réversible.
+    // On crée donc un NOUVEAU code de récupération pour le MÊME abonnement, sans toucher
+    // à la date de fin, au statut à vie, aux points ni aux autres données du compte.
+    for(let attempt=0;attempt<20;attempt++){
+      const candidate=randomSubscriptionCode(),candidateHash=await hashCode(candidate,env.CODE_PEPPER);
+      const exists=await env.DB.prepare("SELECT id FROM subscriptions WHERE code_hash=? AND id<>? LIMIT 1").bind(candidateHash,row.id).first();
+      if(exists)continue;
+      code=candidate;
+      const box=await sealRecoveryCode(code,env);
+      await env.DB.prepare("UPDATE subscriptions SET code_hash=?,recovery_code_box=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(candidateHash,box,row.id).run();
+      row.code_hash=candidateHash; row.recovery_code_box=box;
+      break;
+    }
+    if(!code)return json({ok:false,error:'CODE_RECUPERATION_NON_INITIALISE'},409);
+  }
   let remainingInfo;
   try{remainingInfo=await sendBrevoSubscriptionCode(env,email,code,row,now)}catch(_){return json({ok:false,error:'EMAIL_ENVOI_INDISPONIBLE'},503)}
   await env.DB.batch([
@@ -2110,7 +2139,7 @@ async function adminContestAction(request,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=208-renouvellement-cumul-jours" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=235-parrainage-email-bouton" defer></script><script src="/referral-v232.js?v=235" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=237-renvoi-code-abonnement" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=235-parrainage-email-bouton" defer></script><script src="/referral-v232.js?v=235" defer></script>', { html: true });
   }
 }
 

@@ -1,4 +1,4 @@
 {
-  "version": "V236",
-  "message": "Logo Couteau Suisse définitif appliqué à tous les formats d’installation : serpette ouverte, couteau, tournevis, cutter, tire-bouchon, clé et porte-clés C15, deux S discrets et rivet central. Les anciens fichiers de logo CarPlay servent maintenant le nouveau logo. Le nom affiché sur l’écran d’accueil est Couteau Suisse. Parrainage V235 conservé : validation gratuite par e-mail Brevo, +320 points au parrain et +96 au filleul, anti-triche conservé. Stockage photo R2 MARKET_PHOTOS avec secours D1 conservé."
+  "version": "V237",
+  "message": "Récupération d’abonnement renforcée : le bouton affiche maintenant ME RENVOYER MON CODE D’ABONNEMENT. Après saisie du nom, prénom et e-mail, l’application recherche automatiquement le compte et renvoie le code par Brevo. Pour les anciens comptes sans code récupérable, un nouveau code est généré et rattaché au même abonnement sans modifier sa durée, son statut à vie, ses points ni ses données. En entrant le code reçu, l’abonnement exact est remis sur le téléphone. Toutes les fonctions V236 (Couteau Suisse, parrainage +320/+96, photos MARKET_PHOTOS) sont conservées."
 }
