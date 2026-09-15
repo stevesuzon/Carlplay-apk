@@ -46,7 +46,7 @@
   }
   async function sync(){
     if(!('serviceWorker'in navigator))return;
-    const registration=await navigator.serviceWorker.register('/sw.js?v=239-notifications-logo');
+    const registration=await navigator.serviceWorker.register('/sw.js?v=241-admin-account');
     await navigator.serviceWorker.ready;
     await tellWorker(registration,enabled()&&permission()==='granted');
     if(enabled()&&permission()==='granted')await syncAdminPush(registration);

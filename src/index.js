@@ -708,13 +708,59 @@ async function installations(request, env) {
 
 async function adminInstallations(request, env) {
   if (!(await adminAuthorized(request, env))) return json({ ok: false, error: "SECRET_INCORRECT" }, 401);
-  if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE", count: 0 }, 503);
+  if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE", count: 0, people: [] }, 503);
   await ensureInstallationsTable(env);
-  const now = Math.floor(Date.now() / 1000);
-  const twoMonths = 60 * 24 * 60 * 60;
-  await env.DB.prepare("DELETE FROM app_installations WHERE last_seen < ?").bind(now - twoMonths).run();
-  const row = await env.DB.prepare("SELECT COUNT(*) AS count FROM app_installations WHERE last_seen >= ?").bind(now - twoMonths).first();
-  return json({ ok: true, count: Number(row && row.count || 0) });
+  await ensureAppIdentityTables(env);
+  try{await ensureSubscriptionEmailColumns(env)}catch(_){}
+  try{await ensureContestTables(env)}catch(_){}
+  // V242 : ne plus supprimer les anciennes installations. L'administration doit
+  // conserver l'historique des personnes ayant réellement ouvert la PWA depuis
+  // l'écran d'accueil et continuer à ajouter les nouvelles.
+  const rows = await env.DB.prepare(`
+    WITH devices AS (
+      SELECT device_id, MAX(platform) AS platform, MIN(first_seen) AS first_seen, MAX(last_seen) AS last_seen
+      FROM app_installations WHERE device_id<>'' GROUP BY device_id
+      UNION
+      SELECT device_id, 'pwa' AS platform,
+             CAST(created_at/1000 AS INTEGER) AS first_seen,
+             CAST(updated_at/1000 AS INTEGER) AS last_seen
+      FROM app_identities WHERE device_id<>''
+      UNION
+      SELECT phone_device AS device_id, 'ancien' AS platform,
+             CAST(COALESCE(redeemed_at,account_updated_at,0)/1000 AS INTEGER) AS first_seen,
+             CAST(COALESCE(account_updated_at,redeemed_at,0)/1000 AS INTEGER) AS last_seen
+      FROM subscriptions WHERE phone_device IS NOT NULL AND phone_device<>'' AND (recovery_email_mask IS NOT NULL OR account_first_name IS NOT NULL)
+      UNION
+      SELECT autoradio_device AS device_id, 'ancien' AS platform,
+             CAST(COALESCE(redeemed_at,account_updated_at,0)/1000 AS INTEGER) AS first_seen,
+             CAST(COALESCE(account_updated_at,redeemed_at,0)/1000 AS INTEGER) AS last_seen
+      FROM subscriptions WHERE autoradio_device IS NOT NULL AND autoradio_device<>'' AND (recovery_email_mask IS NOT NULL OR account_first_name IS NOT NULL)
+      UNION
+      SELECT device_id, 'ancien-concours' AS platform,
+             CAST(COALESCE(created_at,0)/1000 AS INTEGER) AS first_seen,
+             CAST(COALESCE(created_at,0)/1000 AS INTEGER) AS last_seen
+      FROM contest_participants WHERE device_id IS NOT NULL AND device_id<>''
+    ), merged AS (
+      SELECT device_id, MAX(platform) AS platform, MIN(first_seen) AS first_seen, MAX(last_seen) AS last_seen
+      FROM devices GROUP BY device_id
+    )
+    SELECT m.device_id,m.platform,m.first_seen,m.last_seen,
+      COALESCE(ai.first_name,cp.first_name,s.account_first_name,'') AS first_name,
+      COALESCE(ai.last_name,cp.last_name,s.account_last_name,'') AS last_name,
+      COALESCE(ai.email,s.recovery_email_mask,'') AS email
+    FROM merged m
+    LEFT JOIN app_identities ai ON ai.rowid=(SELECT ai2.rowid FROM app_identities ai2 WHERE ai2.device_id=m.device_id ORDER BY ai2.updated_at DESC LIMIT 1)
+    LEFT JOIN subscriptions s ON s.id=(SELECT s2.id FROM subscriptions s2 WHERE s2.phone_device=m.device_id OR s2.autoradio_device=m.device_id ORDER BY s2.active DESC,s2.id DESC LIMIT 1)
+    LEFT JOIN contest_participants cp ON cp.subscription_id=s.id
+    ORDER BY m.first_seen DESC,m.last_seen DESC
+    LIMIT 1000
+  `).all();
+  const people=(rows.results||[]).map(r=>({
+    deviceId:String(r.device_id||''), platform:String(r.platform||'pwa'),
+    firstName:String(r.first_name||''), lastName:String(r.last_name||''), email:String(r.email||''),
+    firstSeen:Number(r.first_seen||0), lastSeen:Number(r.last_seen||0)
+  }));
+  return json({ ok: true, count: people.length, people });
 }
 
 async function downloadAutoradioApk() {
@@ -2166,7 +2212,18 @@ async function queueContestMarketReview(env,deviceId,marketKey,marketName,photo)
 
 async function ensureAppMessages(env){await env.DB.prepare(`CREATE TABLE IF NOT EXISTS app_messages(id TEXT PRIMARY KEY,subscription_id INTEGER,first_name TEXT NOT NULL DEFAULT '',last_name TEXT NOT NULL DEFAULT '',address TEXT NOT NULL DEFAULT '',kind TEXT NOT NULL DEFAULT 'Message',message TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',created_at INTEGER NOT NULL,read_at INTEGER)`).run()}
 async function appMessage(request,env){await ensureAppMessages(env);const d=await body(request),sub=await contestSubscription(env,d);if(!sub)return json({ok:false,error:"ABONNEMENT_REQUIS"},403);const p=await env.DB.prepare("SELECT first_name,last_name,home_commune,home_area FROM contest_participants WHERE subscription_id=? LIMIT 1").bind(sub.id).first();const first=String((p&&p.first_name)||sub.account_first_name||"").trim(),last=String((p&&p.last_name)||sub.account_last_name||"").trim(),address=p?String(p.home_commune||"")+(p.home_area?" ("+p.home_area+")":""):"Adresse non renseignée",kind=String(d.kind||"Message").trim().slice(0,80),message=String(d.message||"").trim().slice(0,3000);if(message.length<3)return json({ok:false,error:"MESSAGE_TROP_COURT"},400);await env.DB.prepare("INSERT INTO app_messages(id,subscription_id,first_name,last_name,address,kind,message,created_at) VALUES(?,?,?,?,?,?,?,?)").bind(contestId(),sub.id,first,last,address,kind,message,Date.now()).run();return json({ok:true})}
-async function adminAppMessages(request,env){if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);await ensureAppMessages(env);if(request.method==="POST"){const d=await body(request);await env.DB.prepare("UPDATE app_messages SET status='read',read_at=? WHERE id=?").bind(Date.now(),String(d.id||"")).run()}const messages=(await env.DB.prepare("SELECT * FROM app_messages WHERE status='pending' ORDER BY created_at DESC LIMIT 200").all()).results||[];return json({ok:true,messages,count:messages.length})}
+async function adminAppMessages(request,env){
+  if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);
+  await ensureAppMessages(env);await ensureAppIdentityTables(env);
+  if(request.method==="POST"){const d=await body(request);await env.DB.prepare("UPDATE app_messages SET status='read',read_at=? WHERE id=?").bind(Date.now(),String(d.id||"")).run()}
+  const q=await env.DB.prepare(`SELECT m.*,
+    COALESCE(s.recovery_email_mask,ai.email,'') AS email
+    FROM app_messages m
+    LEFT JOIN subscriptions s ON s.id=m.subscription_id
+    LEFT JOIN app_identities ai ON ai.rowid=(SELECT ai2.rowid FROM app_identities ai2 WHERE ai2.device_id=s.phone_device OR ai2.device_id=s.autoradio_device ORDER BY ai2.updated_at DESC LIMIT 1)
+    WHERE m.status='pending' ORDER BY m.created_at DESC LIMIT 200`).all();
+  const messages=q.results||[];return json({ok:true,messages,count:messages.length})
+}
 
 function contestIdeaMultiplier(description){
   const text=String(description||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
@@ -2206,6 +2263,58 @@ async function adminContestAction(request,env){
 // ===== FIN JEU CONCOURS V191 CAMPING =====
 
 
+
+// ===== V242 ADMIN : HISTORIQUE INSTALLATIONS + BANNISSEMENT MANUEL =====
+async function ensureSanctionTablesV242(env){
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_user_sanctions(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,subscription_id INTEGER,email_hash TEXT,email TEXT,requester_name TEXT,last_device_id TEXT,
+    refusal_count INTEGER NOT NULL DEFAULT 0,app_banned INTEGER NOT NULL DEFAULT 0,contribution_blocked INTEGER NOT NULL DEFAULT 0,
+    reactivation_requested INTEGER NOT NULL DEFAULT 0,ban_at INTEGER,reactivation_requested_at INTEGER,reactivated_at INTEGER,updated_at INTEGER NOT NULL
+  )`).run();
+  try{await env.DB.prepare("ALTER TABLE market_user_sanctions ADD COLUMN manual_ban INTEGER NOT NULL DEFAULT 0").run()}catch(_){}
+  try{await env.DB.prepare("ALTER TABLE market_user_sanctions ADD COLUMN ban_reason TEXT NOT NULL DEFAULT ''").run()}catch(_){}
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_market_user_sanctions_device ON market_user_sanctions(last_device_id)").run();
+  await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_market_user_sanctions_email ON market_user_sanctions(email_hash) WHERE email_hash IS NOT NULL AND email_hash<>''").run();
+  await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_market_user_sanctions_subscription ON market_user_sanctions(subscription_id) WHERE subscription_id IS NOT NULL").run();
+}
+async function subscriptionForBanV242(env,deviceId,email){
+  let row=null;
+  if(deviceId)row=await env.DB.prepare("SELECT id,recovery_email_hash,recovery_email_mask FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) ORDER BY id DESC LIMIT 1").bind(deviceId,deviceId).first();
+  if(!row&&validEmail(email)){const h=await sha256Text(email);row=await env.DB.prepare("SELECT id,recovery_email_hash,recovery_email_mask FROM subscriptions WHERE active=1 AND (recovery_email_hash=? OR lower(recovery_email_mask)=?) ORDER BY id DESC LIMIT 1").bind(h,email).first()}
+  return row||null;
+}
+async function sanctionRowV242(env,{subscriptionId=null,emailHash='',deviceId=''}={}){
+  await ensureSanctionTablesV242(env);let row=null;
+  if(subscriptionId!=null)row=await env.DB.prepare("SELECT * FROM market_user_sanctions WHERE subscription_id=? LIMIT 1").bind(Number(subscriptionId)).first();
+  if(!row&&emailHash)row=await env.DB.prepare("SELECT * FROM market_user_sanctions WHERE email_hash=? LIMIT 1").bind(emailHash).first();
+  if(!row&&deviceId)row=await env.DB.prepare("SELECT * FROM market_user_sanctions WHERE last_device_id=? ORDER BY updated_at DESC LIMIT 1").bind(deviceId).first();
+  return row||null;
+}
+async function adminBannedUsersV242(request,env){
+  if(!(await adminAuthorized(request,env)))return json({ok:false,error:'SECRET_INCORRECT'},401);await ensureSanctionTablesV242(env);
+  if(request.method==='GET'){const q=await env.DB.prepare("SELECT id,subscription_id,email,requester_name,last_device_id,refusal_count,app_banned,contribution_blocked,reactivation_requested,ban_at,reactivation_requested_at,updated_at,COALESCE(manual_ban,0) AS manual_ban,COALESCE(ban_reason,'') AS ban_reason FROM market_user_sanctions WHERE app_banned=1 ORDER BY reactivation_requested DESC,COALESCE(reactivation_requested_at,ban_at,updated_at) DESC").all();return json({ok:true,users:q.results||[]})}
+  const d=await body(request),action=String(d.action||'');
+  if(action==='ban'){
+    const email=normalizeEmail(d.email),deviceId=String(d.deviceId||'').trim().slice(0,140),name=String(d.name||'').trim().replace(/\s+/g,' ').slice(0,120);
+    if(!validEmail(email)&&!deviceId)return json({ok:false,error:'UTILISATEUR_INVALIDE'},400);
+    if(email==='appli.suzon@gmail.com')return json({ok:false,error:'ADMIN_NON_BANNISSABLE'},403);
+    const emailHash=validEmail(email)?await sha256Text(email):'',sub=await subscriptionForBanV242(env,deviceId,email),row=await sanctionRowV242(env,{subscriptionId:sub&&sub.id,emailHash,deviceId}),now=Date.now();
+    if(row){await env.DB.prepare(`UPDATE market_user_sanctions SET subscription_id=COALESCE(?,subscription_id),email_hash=CASE WHEN ?<>'' THEN ? ELSE email_hash END,email=CASE WHEN ?<>'' THEN ? ELSE email END,requester_name=CASE WHEN ?<>'' THEN ? ELSE requester_name END,last_device_id=CASE WHEN ?<>'' THEN ? ELSE last_device_id END,app_banned=1,manual_ban=1,ban_reason='Banni manuellement par Steve Suzon',reactivation_requested=0,ban_at=?,updated_at=? WHERE id=?`).bind(sub&&sub.id||null,emailHash,emailHash,email,email,name,name,deviceId,deviceId,now,now,row.id).run();return json({ok:true,id:row.id,appBanned:true})}
+    const r=await env.DB.prepare(`INSERT INTO market_user_sanctions(subscription_id,email_hash,email,requester_name,last_device_id,refusal_count,app_banned,contribution_blocked,reactivation_requested,ban_at,updated_at,manual_ban,ban_reason) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(sub&&sub.id||null,emailHash||null,email||null,name||null,deviceId||null,0,1,0,0,now,now,1,'Banni manuellement par Steve Suzon').run();return json({ok:true,id:Number(r.meta&&r.meta.last_row_id||0),appBanned:true});
+  }
+  const id=Number(d.id||0);if(!id||action!=='unban')return json({ok:false,error:'DONNEES_INVALIDES'},400);
+  const row=await env.DB.prepare("SELECT id,contribution_blocked,COALESCE(manual_ban,0) AS manual_ban FROM market_user_sanctions WHERE id=? LIMIT 1").bind(id).first();if(!row)return json({ok:false,error:'UTILISATEUR_INTROUVABLE'},404);
+  const blocked=Number(row.manual_ban)?Number(row.contribution_blocked||0):1,now=Date.now();
+  await env.DB.prepare("UPDATE market_user_sanctions SET app_banned=0,contribution_blocked=?,manual_ban=0,ban_reason='',reactivation_requested=0,reactivated_at=?,updated_at=? WHERE id=?").bind(blocked,now,now,id).run();return json({ok:true,appBanned:false,contributionBlocked:!!blocked});
+}
+async function sanctionStatusV242(request,env){
+  if(!env.DB)return json({ok:true,appBanned:false,contributionBlocked:false,refusalCount:0,reactivationRequested:false});await ensureSanctionTablesV242(env);const d=await body(request),deviceId=String(d.deviceId||'').trim(),email=normalizeEmail(d.email),emailHash=validEmail(email)?await sha256Text(email):'',sub=await subscriptionForBanV242(env,deviceId,email),row=await sanctionRowV242(env,{subscriptionId:sub&&sub.id,emailHash:emailHash||(sub&&sub.recovery_email_hash)||'',deviceId});return json({ok:true,appBanned:!!Number(row&&row.app_banned),contributionBlocked:!!Number(row&&row.contribution_blocked),refusalCount:Number(row&&row.refusal_count||0),reactivationRequested:!!Number(row&&row.reactivation_requested)});
+}
+async function reactivationV242(request,env){
+  if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);await ensureSanctionTablesV242(env);const d=await body(request),deviceId=String(d.deviceId||'').trim(),email=normalizeEmail(d.email),emailHash=validEmail(email)?await sha256Text(email):'',sub=await subscriptionForBanV242(env,deviceId,email),row=await sanctionRowV242(env,{subscriptionId:sub&&sub.id,emailHash:emailHash||(sub&&sub.recovery_email_hash)||'',deviceId});if(!row||!Number(row.app_banned))return json({ok:false,error:'COMPTE_NON_BANNI'},409);const now=Date.now();await env.DB.prepare("UPDATE market_user_sanctions SET reactivation_requested=1,reactivation_requested_at=?,updated_at=? WHERE id=?").bind(now,now,row.id).run();return json({ok:true,pending:true});
+}
+// ===== FIN V242 =====
+
 // ===== V240 ACCÈS GLOBAL + COIN DÉTENTE & CHAMPIGNONS =====
 function cleanIdentityText(v,max=120){return String(v||'').replace(/\s+/g,' ').trim().slice(0,max)}
 function validIdentityEmail(v){return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(String(v||'').trim())}
@@ -2217,12 +2326,14 @@ async function ensureAppIdentityTables(env){
 }
 async function appIdentity(request,env){
   if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);
-  await ensureAppIdentityTables(env);const d=await body(request),firstName=cleanIdentityText(d.firstName,80),lastName=cleanIdentityText(d.lastName,80),email=cleanIdentityText(d.email,190).toLowerCase(),deviceId=cleanIdentityText(d.deviceId,140);
+  await ensureAppIdentityTables(env);await ensureInstallationsTable(env);const d=await body(request),firstName=cleanIdentityText(d.firstName,80),lastName=cleanIdentityText(d.lastName,80),email=cleanIdentityText(d.email,190).toLowerCase(),deviceId=cleanIdentityText(d.deviceId,140),platform=cleanIdentityText(d.platform||'pwa',32)||'pwa';
   if(firstName.length<2||lastName.length<2||!validIdentityEmail(email))return json({ok:false,error:'IDENTITE_INCOMPLETE'},400);
-  const now=Date.now();
+  const now=Date.now(),seen=Math.floor(now/1000);
   await env.DB.prepare(`INSERT INTO app_identities(email,first_name,last_name,device_id,created_at,updated_at) VALUES(?,?,?,?,?,?)
     ON CONFLICT(email) DO UPDATE SET first_name=excluded.first_name,last_name=excluded.last_name,device_id=excluded.device_id,updated_at=excluded.updated_at`)
     .bind(email,firstName,lastName,deviceId,now,now).run();
+  if(deviceId)await env.DB.prepare(`INSERT INTO app_installations(device_id,platform,first_seen,last_seen) VALUES(?,?,?,?)
+    ON CONFLICT(device_id) DO UPDATE SET platform=excluded.platform,last_seen=excluded.last_seen`).bind(deviceId,platform,seen,seen).run();
   return json({ok:true,identity:{firstName,lastName,email}});
 }
 
@@ -2251,23 +2362,38 @@ async function nearbyFungiCandidates(lat,lon){
     const j=await r.json(),rows=Array.isArray(j.results)?j.results:[];return rows.map(x=>x&&x.taxon).filter(Boolean).map(t=>({name:String(t.name||''),common:String(t.preferred_common_name||'')})).filter(x=>x.name).slice(0,25);
   }catch(_){return []}
 }
+const MUSHROOM_VISION_MODEL='@cf/meta/llama-3.2-11b-vision-instruct';
+async function runMushroomVision(env,payload){
+  try{return await env.AI.run(MUSHROOM_VISION_MODEL,payload)}catch(firstError){
+    // Cloudflare demande d'accepter la licence Meta une seule fois par compte avant
+    // le premier appel Llama 3.2 Vision. On le fait automatiquement puis on réessaie.
+    try{await env.AI.run(MUSHROOM_VISION_MODEL,{prompt:'agree'});return await env.AI.run(MUSHROOM_VISION_MODEL,payload)}catch(secondError){
+      const a=String(firstError&&firstError.message||firstError||''),b=String(secondError&&secondError.message||secondError||'');
+      throw new Error((b||a||'Workers AI indisponible').slice(0,500));
+    }
+  }
+}
 async function inspectMushroomPhoto(env,dataUrl,lat,lon){
-  if(!env.AI)return {ok:false,error:'IA_RECONNAISSANCE_NON_CONFIGUREE',message:"La reconnaissance d’image n’est pas disponible sur le serveur."};
+  if(!env.AI)return {ok:false,error:'IA_RECONNAISSANCE_NON_CONFIGUREE',message:"La liaison Workers AI « AI » n’est pas disponible sur le serveur."};
   const candidates=await nearbyFungiCandidates(lat,lon);const prior=candidates.length?candidates.map(x=>(x.common?x.common+' / ':'')+x.name).join('; '):'aucune liste locale disponible';
   try{
-    const response=await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct',{
+    const response=await runMushroomVision(env,{
       messages:[
         {role:'system',content:'You are a careful mushroom-photo classifier. Return ONLY valid JSON. Never claim edibility or safety.'},
-        {role:'user',content:'Analyse cette photo prise en direct dans un bois. 1) Vérifie qu’un vrai champignon est clairement visible dans la scène. Rejette si aucun champignon n’est visible, si on voit seulement un écran/une photo imprimée, ou si l’image est inutilisable. 2) Si un champignon est visible, propose le nom français le plus probable et le nom scientifique si possible. Si l’espèce exacte est incertaine, donne un groupe prudent (ex. Cèpe/Bolet, Amanite, Russule) au lieu d’inventer une espèce. Les espèces observées dans un rayon d’environ 100 km peuvent aider mais ne sont pas une preuve: '+prior+'. Réponds exactement avec {"mushroomDetected":boolean,"authenticScene":boolean,"commonName":"nom français ou groupe","scientificName":"nom latin ou vide","mushroomConfidence":integer,"speciesConfidence":integer,"reason":"raison courte en français"}. Les confiances sont de 0 à 100. Aucune information de comestibilité.'}
+        {role:'user',content:'Analyse la photo prise en direct avec la caméra. 1) Vérifie qu’un vrai champignon est clairement visible. Rejette si aucun champignon n’est visible, si on voit seulement un écran/une photo imprimée, ou si l’image est inutilisable. 2) Si un champignon est visible, propose le nom français le plus probable et le nom scientifique si possible. Si l’espèce exacte est incertaine, donne un groupe prudent (ex. Cèpe/Bolet, Amanite, Russule, Agaric) au lieu d’inventer une espèce. Les espèces observées dans un rayon d’environ 100 km peuvent aider mais ne sont pas une preuve: '+prior+'. Réponds exactement avec {"mushroomDetected":boolean,"authenticScene":boolean,"commonName":"nom français ou groupe","scientificName":"nom latin ou vide","mushroomConfidence":integer,"speciesConfidence":integer,"reason":"raison courte en français"}. Les confiances sont de 0 à 100. Aucune information de comestibilité.'}
       ],image:dataUrl,max_tokens:240,temperature:0
     });
-    const x=parseVisionJson(response);if(!x)return {ok:false,error:'ANALYSE_IA_INVALIDE',message:"La reconnaissance n’a pas pu interpréter la photo."};
+    const x=parseVisionJson(response);if(!x)return {ok:false,error:'ANALYSE_IA_INVALIDE',message:"La reconnaissance a répondu, mais le résultat n’a pas pu être interprété. Reprenez une photo plus nette."};
     const mushroomConfidence=Math.max(0,Math.min(100,Math.round(Number(x.mushroomConfidence)||0))),speciesConfidence=Math.max(0,Math.min(100,Math.round(Number(x.speciesConfidence)||0)));
     const accepted=x.mushroomDetected===true&&x.authenticScene!==false&&mushroomConfidence>=50;
     if(!accepted)return {ok:false,error:'AUCUN_CHAMPIGNON',message:String(x.reason||'Aucun champignon suffisamment visible sur la photo.').slice(0,220),mushroomConfidence};
     let common=cleanIdentityText(x.commonName,120)||'Champignon non identifié',scientific=cleanIdentityText(x.scientificName,140),reason=cleanIdentityText(x.reason,220);
     return {ok:true,commonName:common,scientificName:scientific,confidence:speciesConfidence,mushroomConfidence,reason};
-  }catch(e){return {ok:false,error:'ANALYSE_IA_INDISPONIBLE',message:"La reconnaissance est momentanément indisponible. Réessayez dans quelques instants."}}
+  }catch(e){
+    const detail=String(e&&e.message||'').toLowerCase();
+    if(detail.includes('license')||detail.includes('agree')||detail.includes('terms'))return {ok:false,error:'LICENCE_IA',message:"Workers AI est lié, mais la licence du modèle vision n’a pas encore pu être activée. Réessayez une fois dans quelques secondes."};
+    return {ok:false,error:'ANALYSE_IA_INDISPONIBLE',message:"La reconnaissance IA n’a pas répondu. Vérifiez la liaison Workers AI « AI », puis réessayez."};
+  }
 }
 async function mushroomHmacKey(env){return crypto.subtle.importKey('raw',new TextEncoder().encode('mushroom-v240:'+String(env.CODE_PEPPER||'couteau-suisse')), {name:'HMAC',hash:'SHA-256'},false,['sign','verify'])}
 async function signMushroomAnalysis(env,payload){const part=b64urlText(JSON.stringify(payload)),key=await mushroomHmacKey(env),sig=await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(part));return part+'.'+b64urlBytes(new Uint8Array(sig))}
@@ -2313,7 +2439,7 @@ async function mushroomPhoto(url,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=238-admin-email-devis" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=235-parrainage-email-bouton" defer></script><script src="/referral-v232.js?v=235" defer></script><script src="/app-access-gate-v240.js?v=240" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=238-admin-email-devis" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=235-parrainage-email-bouton" defer></script><script src="/referral-v232.js?v=235" defer></script><script src="/app-access-gate-v240.js?v=242" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
   }
 }
 
@@ -2391,6 +2517,9 @@ export default {
     if (url.pathname === "/api/contest/read-messages" && request.method === "POST") return contestReadMessages(request, env);
     if (url.pathname === "/api/app-message" && request.method === "POST") return appMessage(request, env);
     if (url.pathname === "/api/admin/app-messages" && (request.method === "GET" || request.method === "POST")) return adminAppMessages(request, env);
+    if (url.pathname === "/api/admin/banned-users" && (request.method === "GET" || request.method === "POST")) return adminBannedUsersV242(request, env);
+    if (url.pathname === "/api/sanction/status" && request.method === "POST") return sanctionStatusV242(request, env);
+    if (url.pathname === "/api/reactivation-request" && request.method === "POST") return reactivationV242(request, env);
     if (url.pathname === "/api/admin/contest" && request.method === "GET") return adminContest(request, env);
     if (url.pathname === "/api/admin/contest/action" && request.method === "POST") return adminContestAction(request, env);
     // Laisser Cloudflare Static Assets résoudre "/" vers index.html.

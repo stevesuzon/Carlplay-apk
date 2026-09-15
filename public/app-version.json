@@ -1,4 +1,4 @@
 {
-  "version": "V240",
-  "message": "Accès global Couteau Suisse : installation sur écran d’accueil + nom, prénom et adresse e-mail obligatoires avant toute utilisation. Ajout Coin Détente & Champignons (BÊTA) depuis Retourner sur la place : GPS haute précision, photo caméra en direct obligatoire, vérification GPS/photo, reconnaissance visuelle du champignon avec proposition modifiable, classement par département et espèce, bouton Aller au bois. Fonctions V239/V238 conservées."
+  "version": "V242",
+  "message": "Administration restaurée et améliorée : historique des installations écran d’accueil (anciennes + nouvelles), cartes nom/prénom/e-mail, messages reçus, demandes à valider, bannissement/débannissement. Coin Champignons : reconnaissance Workers AI corrigée avec activation automatique de la licence Meta au premier usage et nouvel essai automatique."
 }

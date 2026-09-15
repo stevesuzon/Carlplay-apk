@@ -1509,17 +1509,28 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 
 <script>
 (function(){
-  async function updateAdminVisibility(){
+  const ADMIN_EMAIL='appli.suzon@gmail.com';
+  function currentAccountEmail(){
+    const direct=String(localStorage.getItem('carplay_recovery_email')||'').trim().toLowerCase();
+    if(direct)return direct;
+    for(const key of ['carplay_app_identity_v240','carplay_account_profile','carplay_shared_subscription']){
+      try{const j=JSON.parse(localStorage.getItem(key)||'null');const e=String(j&&j.email||'').trim().toLowerCase();if(e)return e}catch(_){}
+    }
+    return '';
+  }
+  function updateAdminVisibility(){
     const row=document.getElementById('adminSettingRow');
     if(!row)return;
-    const thisDeviceIsAdmin=localStorage.getItem('carplay_admin_here')==='1';
-    try{
-      const r=await fetch('/api/admin/presence',{cache:'no-store'});
-      const j=await r.json();
-      row.style.display=(j.active && !thisDeviceIsAdmin)?'none':'';
-    }catch(e){ row.style.display=''; }
+    const email=currentAccountEmail();
+    const hasAdminSession=localStorage.getItem('carplay_admin_here')==='1'||!!localStorage.getItem('carplay_admin_token');
+    // La section admin appartient uniquement au compte Steve Suzon.
+    // Ne plus la cacher à cause du statut « présence admin » du serveur :
+    // ce statut pouvait rester actif après une ancienne session et masquer l'accès sur le téléphone de Steve.
+    row.style.display=(email===ADMIN_EMAIL||hasAdminSession)?'':'none';
   }
   updateAdminVisibility();
+  window.addEventListener('carplay:identity-ready',updateAdminVisibility);
+  window.addEventListener('storage',updateAdminVisibility);
   window.addEventListener('focus',updateAdminVisibility);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateAdminVisibility()});
 })();
