@@ -1,4 +1,4 @@
 {
-  "version": "V243",
-  "message": "Administration simplifiée : compteur unique des installations, récupération robuste de l’historique connu dans D1, suppression de la section mises à jour des marchés. Coin Champignons : reconnaissance vision passée sur Google Gemma 4 via Workers AI, sans étape de licence Meta."
+  "version": "V246",
+  "message": "Concours : attribution des points renforcée, bonus appliqué à tous les nouveaux points, bonus trajet après validation administrateur et détail des parrainages. Liaisons Cloudflare conservées."
 }

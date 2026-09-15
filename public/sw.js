@@ -1,4 +1,4 @@
-const CACHE = "couteau-suisse-v243-admin-count-gemma";
+const CACHE = "couteau-suisse-v246-concours-points-fiables";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -30,7 +30,7 @@ const CORE = [
   "/weather-all-pages.js?v=68-notifications-globales",
   "/subscription-web.js?v=240-notifications-logo",
   "/notification-settings.js?v=243",
-  "/referral-v232.js?v=236",
+  "/referral-v232.js?v=246-points-fiables",
   "/subscription-v154-patch.js?v=203",
   "/modification-profile-v156.js?v=173",
   "/sanction-guard-v161.js?v=243",
@@ -67,9 +67,9 @@ const CORE = [
   "/mypos-ultra.jpeg",
   "/mypos-flex.jpeg",
   "/app-access-gate-v240.js?v=243",
-  "/champignons.html?v=243-gemma",
-  "/champignons.css?v=243-gemma",
-  "/champignons.js?v=243-gemma",
+  "/champignons.html?v=245",
+  "/champignons.css?v=245",
+  "/champignons.js?v=245",
   "/champignon-cepe.jpg?v=240"
 ];
 CORE.push(

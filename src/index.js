@@ -1,7 +1,7 @@
 const cors = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, OPTIONS",
-  "access-control-allow-headers": "content-type, authorization"
+  "access-control-allow-headers": "content-type, authorization, x-mushroom-access"
 };
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
@@ -548,7 +548,14 @@ async function createSubscription(request, env) {
   if (!(await adminAuthorized(request, env))) return json({ok:false,error:"SECRET_INCORRECT"},401);
   await ensureSubscriptionEmailColumns(env);
   const data = await body(request);
-  const code = normalizeCode(data.code);
+  if (String(data.kind||'subscription') === 'mushroom') return createMushroomAdminCode(env,data);
+  let code = normalizeCode(data.code);
+  if (data.generate === true) {
+    for(let i=0;i<30;i++){
+      const candidate=randomSubscriptionCode(),h=await hashCode(candidate,env.CODE_PEPPER),exists=await env.DB.prepare("SELECT id FROM subscriptions WHERE code_hash=? LIMIT 1").bind(h).first();
+      if(!exists){code=candidate;break}
+    }
+  }
   if (!validCode(code)) return json({ok:false,error:"CODE_6_CARACTERES_REQUIS"},400);
   const lifetime = data.lifetime === true;
   const days = Math.max(1, Math.min(3650, Number(data.days) || 365));
@@ -2012,6 +2019,11 @@ async function contestAddScoreEvent(env,subscriptionId,sourceType,sourceId,descr
   const r=await env.DB.prepare("INSERT OR IGNORE INTO contest_score_events(id,subscription_id,source_type,source_id,description,base_points,multiplier,awarded_points,created_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(contestId(),subscriptionId,sourceType,sourceId,String(description||"").slice(0,200),Number(basePoints||0),Number(multiplier||1),Number(awardedPoints||0),Date.now()).run();
   if(r.meta&&Number(r.meta.changes)>0){await env.DB.prepare("UPDATE contest_participants SET points=points+?,updated_at=? WHERE subscription_id=?").bind(Number(awardedPoints||0),Date.now(),subscriptionId).run();return true}return false;
 }
+async function contestAddScoreWithActiveBonus(env,subscriptionId,sourceType,sourceId,description,basePoints){
+  const bonus=await contestRefreshBonusState(env,subscriptionId),multiplier=bonus.active?Math.max(1,Number(bonus.active.multiplier||1)):1,awardedPoints=Number(basePoints||0)*multiplier;
+  const added=await contestAddScoreEvent(env,subscriptionId,sourceType,sourceId,description,basePoints,multiplier,awardedPoints);
+  return {added,multiplier,awardedPoints};
+}
 
 const REFERRAL_SPONSOR_POINTS=320,REFERRAL_FRIEND_POINTS=96,REFERRAL_INVITE_MS=30*86400000,REFERRAL_EMAIL_MS=24*60*60000;
 function referralToken(){const b=new Uint8Array(24);crypto.getRandomValues(b);let x="";for(const n of b)x+=String.fromCharCode(n);return btoa(x).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")}
@@ -2075,8 +2087,8 @@ async function referralStart(request,env){
 }
 async function applyReferralRewards(env,row){
   let sponsorRewarded=Number(row.sponsor_rewarded||0)===1,refereeRewarded=Number(row.referee_rewarded||0)===1;
-  if(!sponsorRewarded&&await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE subscription_id=? AND banned=0 LIMIT 1").bind(row.sponsor_subscription_id).first()){await contestAddScoreEvent(env,row.sponsor_subscription_id,"referral-sponsor",row.id,"Parrainage validé",REFERRAL_SPONSOR_POINTS,1,REFERRAL_SPONSOR_POINTS);await env.DB.prepare("UPDATE contest_referrals SET sponsor_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();sponsorRewarded=true;await contestPushMessage(env,row.sponsor_subscription_id,"🎁 Parrainage validé : +320 points.","referral")}
-  if(!refereeRewarded&&await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE subscription_id=? AND banned=0 LIMIT 1").bind(row.referee_subscription_id).first()){await contestAddScoreEvent(env,row.referee_subscription_id,"referral-friend",row.id,"Bienvenue par parrainage",REFERRAL_FRIEND_POINTS,1,REFERRAL_FRIEND_POINTS);await env.DB.prepare("UPDATE contest_referrals SET referee_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();refereeRewarded=true;await contestPushMessage(env,row.referee_subscription_id,"🎁 Bienvenue ! Parrainage validé : +96 points.","referral")}
+  if(!sponsorRewarded&&await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE subscription_id=? AND banned=0 LIMIT 1").bind(row.sponsor_subscription_id).first()){const gain=await contestAddScoreWithActiveBonus(env,row.sponsor_subscription_id,"referral-sponsor",row.id,"Parrainage validé",REFERRAL_SPONSOR_POINTS);await env.DB.prepare("UPDATE contest_referrals SET sponsor_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();sponsorRewarded=true;await contestPushMessage(env,row.sponsor_subscription_id,`🎁 Parrainage validé : +${contestNumberText(gain.awardedPoints)} points${gain.multiplier>1?` (bonus ×${gain.multiplier})`:''}.`,"referral")}
+  if(!refereeRewarded&&await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE subscription_id=? AND banned=0 LIMIT 1").bind(row.referee_subscription_id).first()){const gain=await contestAddScoreWithActiveBonus(env,row.referee_subscription_id,"referral-friend",row.id,"Bienvenue par parrainage",REFERRAL_FRIEND_POINTS);await env.DB.prepare("UPDATE contest_referrals SET referee_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();refereeRewarded=true;await contestPushMessage(env,row.referee_subscription_id,`🎁 Bienvenue ! Parrainage validé : +${contestNumberText(gain.awardedPoints)} points${gain.multiplier>1?` (bonus ×${gain.multiplier})`:''}.`,"referral")}
   return {sponsorRewarded,refereeRewarded};
 }
 async function applyPendingReferralRewards(env,subscriptionId){const rows=(await env.DB.prepare("SELECT * FROM contest_referrals WHERE status='verified' AND ((sponsor_subscription_id=? AND sponsor_rewarded=0) OR (referee_subscription_id=? AND referee_rewarded=0)) LIMIT 20").bind(subscriptionId,subscriptionId).all()).results||[];for(const r of rows)await applyReferralRewards(env,r)}
@@ -2111,12 +2123,13 @@ async function referralVerify(request,env){
 }
 async function contestScoreSummary(env,subscriptionId){
   const events=(await env.DB.prepare("SELECT source_type,base_points,multiplier,awarded_points FROM contest_score_events WHERE subscription_id=?").bind(subscriptionId).all()).results||[];
-  let bugPoints=0,bugEvents=0,referralPoints=0,referralCount=0;for(const e of events){if(e.source_type==='bug'){bugEvents++;bugPoints+=Number(e.awarded_points||0)}if(String(e.source_type||'').startsWith('referral-')){referralCount++;referralPoints+=Number(e.awarded_points||0)}}
+  let bugPoints=0,bugEvents=0,referralPoints=0,referralCount=0,eventBonusExtra=0,marketEventBonusExtra=0;for(const e of events){const extra=Math.max(0,Number(e.awarded_points||0)-Number(e.base_points||0));eventBonusExtra+=extra;if(e.source_type==='market')marketEventBonusExtra+=extra;if(e.source_type==='bug'){bugEvents++;bugPoints+=Number(e.awarded_points||0)}if(String(e.source_type||'').startsWith('referral-')){referralCount++;referralPoints+=Number(e.awarded_points||0)}}
   const markets=(await env.DB.prepare("SELECT points,base_points,breakdown_json FROM contest_market_points WHERE subscription_id=?").bind(subscriptionId).all()).results||[];
   let marketAwarded=0,marketBase=0,distanceBase=0;for(const r of markets){marketAwarded+=Number(r.points||0);marketBase+=Number(r.base_points||r.points||0);try{const a=JSON.parse(r.breakdown_json||'[]');for(const it of a)if(it&&it.key==='distance')distanceBase+=Number(it.points||0)}catch(_){}}
   const idea=await env.DB.prepare("SELECT COUNT(*) AS n FROM contest_reports WHERE subscription_id=? AND kind='idee' AND status='approved'").bind(subscriptionId).first();
   const p=await env.DB.prepare("SELECT points FROM contest_participants WHERE subscription_id=?").bind(subscriptionId).first();const total=Number(p&&p.points||0),known=marketAwarded+bugPoints+referralPoints;
-  return {total,marketCount:markets.length,marketBasePoints:marketBase,marketInfoPoints:Math.max(0,marketBase-distanceBase),distancePoints:distanceBase,marketAwardedPoints:marketAwarded,bonusExtraPoints:Math.max(0,marketAwarded-marketBase),bugCount:bugEvents,bugPoints,referralCount,referralPoints,ideaCount:Number(idea&&idea.n||0),otherPoints:Math.max(0,total-known)};
+  const legacyMarketBonus=Math.max(0,(marketAwarded-marketBase)-marketEventBonusExtra);
+  return {total,marketCount:markets.length,marketBasePoints:marketBase,marketInfoPoints:Math.max(0,marketBase-distanceBase),distancePoints:distanceBase,marketAwardedPoints:marketAwarded,bonusExtraPoints:eventBonusExtra+legacyMarketBonus,bugCount:bugEvents,bugPoints,referralCount,referralPoints,ideaCount:Number(idea&&idea.n||0),otherPoints:Math.max(0,total-known)};
 }
 
 async function contestMarketBreakdown(env,deviceId,marketKey,distanceKm){
@@ -2180,7 +2193,6 @@ async function queueContestMarketReview(env,deviceId,marketKey,marketName,photo)
     const prevRows=await env.DB.prepare("SELECT market_lat,market_lon,place_label FROM contest_market_points WHERE subscription_id=? ORDER BY awarded_at DESC LIMIT 5").bind(p.subscription_id).all();const prev=(prevRows.results||[])[0];let unusual=0,previousPlace="";if(campingOn){const jump=contestKm(startLat,startLon,lat,lon);if(jump>=350){unusual=1;previousPlace=String(p.camping_label||"").trim()||await contestPlaceLabel(startLat,startLon)}}else if(prev&&(prevRows.results||[]).length>=3){const jump=contestKm(prev.market_lat,prev.market_lon,lat,lon);if(jump>=350){unusual=1;previousPlace=prev.place_label||await contestPlaceLabel(prev.market_lat,prev.market_lon)}}
     const rid=contestId();await env.DB.prepare("INSERT INTO contest_market_reviews(id,subscription_id,market_key,market_name,device_id,market_lat,market_lon,place_label,photo_captured_at,distance_km,base_points,multiplier,points,breakdown_json,unusual,previous_place,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(rid,p.subscription_id,marketKey,String(marketName||"Marché").slice(0,160),deviceId,lat,lon,place,String(meta.captured_at||photo&&photo.capturedAt||""),score.distanceKm,score.basePoints,multiplier,pts,JSON.stringify(score.items),unusual,previousPlace,Date.now()).run();
     if(unusual){const msg=`⚠️ Nous avons détecté un déplacement inhabituel vers ${place}. Vous êtes parti avec les campings ? Si oui, vérifiez que votre lieu de camping est bien à jour dans « Lieu de départ ». Un ancien emplacement ou de mauvaises coordonnées peuvent déclencher des alertes. Au troisième déplacement inhabituel non justifié, vous risquez d'être exclu du classement.`;await env.DB.prepare("INSERT INTO contest_travel_alerts(id,subscription_id,review_id,new_place,previous_place,message,created_at) VALUES(?,?,?,?,?,?,?)").bind(contestId(),p.subscription_id,rid,place,previousPlace,msg,Date.now()).run()}
-    else if(Number(score.distanceKm)>150){await contestEnqueueBonus(env,p.subscription_id,2,"trajet aller de plus de 150 km","long-trip:"+marketKey,CONTEST_LONG_TRIP_BONUS_MS,true)}
   }catch(_){}
 }
 
@@ -2224,11 +2236,11 @@ async function adminContestAction(request,env){
   if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);await ensureContestTables(env);const d=await body(request),type=String(d.type||""),id=String(d.id||""),approve=d.approve===true;
   if(type==="review"){
     const r=await env.DB.prepare("SELECT * FROM contest_market_reviews WHERE id=? AND status='pending'").bind(id).first();if(!r)return json({ok:false,error:"DEMANDE_INTROUVABLE"},404);
-    if(approve){const duplicate=await env.DB.prepare("SELECT id FROM contest_market_points WHERE subscription_id=? AND market_key=?").bind(r.subscription_id,r.market_key).first();let awarded=Number(r.points||0);if(!duplicate){const base=Number(r.base_points||r.points||0),mult=Math.max(1,Number(r.multiplier||1));awarded=Number(r.points||base*mult);await env.DB.prepare("INSERT INTO contest_market_points(subscription_id,market_key,market_name,distance_km,points,base_points,multiplier,breakdown_json,market_lat,market_lon,place_label,awarded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").bind(r.subscription_id,r.market_key,r.market_name,r.distance_km,awarded,base,mult,r.breakdown_json||'[]',r.market_lat,r.market_lon,r.place_label,Date.now()).run();await contestAddScoreEvent(env,r.subscription_id,'market',r.market_key,r.market_name,base,mult,awarded);await contestApplyMarketMilestones(env,r.subscription_id);if(Number(r.distance_km)>150&&Number(r.unusual))await contestEnqueueBonus(env,r.subscription_id,2,"trajet aller de plus de 150 km validé par l’administrateur","long-trip:"+r.market_key,CONTEST_LONG_TRIP_BONUS_MS,true)}await contestPushMessage(env,r.subscription_id,contestCongratsMessage(r,awarded),"approved")}
+    if(approve){const duplicate=await env.DB.prepare("SELECT id FROM contest_market_points WHERE subscription_id=? AND market_key=?").bind(r.subscription_id,r.market_key).first();let awarded=Number(r.points||0);if(!duplicate){const base=Number(r.base_points||r.points||0),mult=Math.max(1,Number(r.multiplier||1));awarded=Number(r.points||base*mult);await env.DB.prepare("INSERT INTO contest_market_points(subscription_id,market_key,market_name,distance_km,points,base_points,multiplier,breakdown_json,market_lat,market_lon,place_label,awarded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").bind(r.subscription_id,r.market_key,r.market_name,r.distance_km,awarded,base,mult,r.breakdown_json||'[]',r.market_lat,r.market_lon,r.place_label,Date.now()).run();await contestAddScoreEvent(env,r.subscription_id,'market',r.market_key,r.market_name,base,mult,awarded);await contestApplyMarketMilestones(env,r.subscription_id);if(Number(r.distance_km)>150)await contestEnqueueBonus(env,r.subscription_id,2,"trajet aller de plus de 150 km validé par l’administrateur","long-trip:"+r.market_key,CONTEST_LONG_TRIP_BONUS_MS,true)}await contestPushMessage(env,r.subscription_id,contestCongratsMessage(r,awarded),"approved")}
     else{if(Number(r.unusual)){await env.DB.prepare("UPDATE contest_participants SET alert_count=alert_count+1,updated_at=? WHERE subscription_id=?").bind(Date.now(),r.subscription_id).run();const p=await env.DB.prepare("SELECT alert_count FROM contest_participants WHERE subscription_id=?").bind(r.subscription_id).first();if(Number(p&&p.alert_count||0)>=3)await env.DB.prepare("UPDATE contest_participants SET banned=1 WHERE subscription_id=?").bind(r.subscription_id).run()}await contestPushMessage(env,r.subscription_id,`❌ Votre demande pour ${r.market_name} a été refusée — aucun point ajouté.`,`denied`)}
     await env.DB.prepare("UPDATE contest_market_reviews SET status=?,decided_at=? WHERE id=?").bind(approve?"approved":"denied",Date.now(),id).run();return json({ok:true});
   }
-  if(type==="report"){const r=await env.DB.prepare("SELECT * FROM contest_reports WHERE id=? AND status='pending'").bind(id).first();if(!r)return json({ok:false,error:"DEMANDE_INTROUVABLE"},404);if(approve){if(r.kind==='idee'){const multiplier=contestIdeaMultiplier(r.description);await env.DB.prepare("UPDATE contest_reports SET status='approved',points=0,decided_at=? WHERE id=?").bind(Date.now(),id).run();await contestEnqueueBonus(env,r.subscription_id,multiplier,"idée acceptée par l’administrateur","idea:"+r.id,CONTEST_BONUS_MS,false,`🎉 Bravo, vous bénéficiez du multiplicateur ×${multiplier} pendant 3 jours.`)}else{await contestAddScoreEvent(env,r.subscription_id,'bug',r.id,r.description,153,1,153);await env.DB.prepare("UPDATE contest_reports SET status='approved',points=153,decided_at=? WHERE id=?").bind(Date.now(),id).run();await contestPushMessage(env,r.subscription_id,"✅ Votre bug / problème a été confirmé — +153 points.","approved")}}else{await contestPushMessage(env,r.subscription_id,"❌ Votre signalement / idée a été refusé — aucun point ajouté.","denied");await env.DB.prepare("UPDATE contest_reports SET status='denied',points=0,decided_at=? WHERE id=?").bind(Date.now(),id).run()}return json({ok:true})}
+  if(type==="report"){const r=await env.DB.prepare("SELECT * FROM contest_reports WHERE id=? AND status='pending'").bind(id).first();if(!r)return json({ok:false,error:"DEMANDE_INTROUVABLE"},404);if(approve){if(r.kind==='idee'){const multiplier=contestIdeaMultiplier(r.description);await env.DB.prepare("UPDATE contest_reports SET status='approved',points=0,decided_at=? WHERE id=?").bind(Date.now(),id).run();await contestEnqueueBonus(env,r.subscription_id,multiplier,"idée acceptée par l’administrateur","idea:"+r.id,CONTEST_BONUS_MS,false,`🎉 Bravo, vous bénéficiez du multiplicateur ×${multiplier} pendant 3 jours.`)}else{const gain=await contestAddScoreWithActiveBonus(env,r.subscription_id,'bug',r.id,r.description,153);await env.DB.prepare("UPDATE contest_reports SET status='approved',points=?,decided_at=? WHERE id=?").bind(gain.awardedPoints,Date.now(),id).run();await contestPushMessage(env,r.subscription_id,`✅ Votre bug / problème a été confirmé — +${contestNumberText(gain.awardedPoints)} points${gain.multiplier>1?` (bonus ×${gain.multiplier})`:''}.`,"approved")}}else{await contestPushMessage(env,r.subscription_id,"❌ Votre signalement / idée a été refusé — aucun point ajouté.","denied");await env.DB.prepare("UPDATE contest_reports SET status='denied',points=0,decided_at=? WHERE id=?").bind(Date.now(),id).run()}return json({ok:true})}
   if(type==="commune"){const r=await env.DB.prepare("SELECT * FROM contest_commune_requests WHERE id=? AND status='pending'").bind(id).first();if(!r)return json({ok:false,error:"DEMANDE_INTROUVABLE"},404);await env.DB.prepare("UPDATE contest_commune_requests SET status=?,decided_at=? WHERE id=?").bind(approve?"approved":"denied",Date.now(),id).run();if(approve)await env.DB.prepare("UPDATE contest_participants SET change_allowed=1,updated_at=? WHERE subscription_id=?").bind(Date.now(),r.subscription_id).run();await contestPushMessage(env,r.subscription_id,approve?"✅ Votre demande est acceptée. Vous pouvez maintenant changer votre commune dans le jeu concours.":"❌ Votre demande de changement de commune a été refusée.",approve?"approved":"denied");return json({ok:true})}
   if(type==="message"){const sid=Number(d.subscriptionId);if(!sid)return json({ok:false,error:"PARTICIPANT_INVALIDE"},400);await contestPushMessage(env,sid,String(d.message||"").trim()||"Message de l’administrateur.","admin");return json({ok:true})}
   if(type==="travel-question"){const a=await env.DB.prepare("SELECT * FROM contest_travel_alerts WHERE id=? AND status='pending'").bind(id).first();if(!a)return json({ok:false,error:"ALERTE_INTROUVABLE"},404);await contestPushMessage(env,a.subscription_id,a.message,"travel");return json({ok:true})}
@@ -2290,7 +2302,7 @@ async function reactivationV242(request,env){
 }
 // ===== FIN V242 =====
 
-// ===== V240 ACCÈS GLOBAL + COIN DÉTENTE & CHAMPIGNONS =====
+// ===== V244 ACCÈS GLOBAL + COIN DÉTENTE & CHAMPIGNONS =====
 function cleanIdentityText(v,max=120){return String(v||'').replace(/\s+/g,' ').trim().slice(0,max)}
 function validIdentityEmail(v){return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(String(v||'').trim())}
 async function ensureAppIdentityTables(env){
@@ -2312,18 +2324,76 @@ async function appIdentity(request,env){
   return json({ok:true,identity:{firstName,lastName,email}});
 }
 
-const MUSHROOM_PHOTO_MAX_BYTES=650000;
+const MUSHROOM_PHOTO_MAX_BYTES=650000, MUSHROOM_ACCESS_DAYS=730;
 async function ensureMushroomTables(env){
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_spots(
     id TEXT PRIMARY KEY,email TEXT NOT NULL,first_name TEXT NOT NULL,last_name TEXT NOT NULL,device_id TEXT NOT NULL,
     latitude REAL NOT NULL,longitude REAL NOT NULL,accuracy REAL NOT NULL,department TEXT NOT NULL,species TEXT NOT NULL,scientific_name TEXT NOT NULL DEFAULT '',
-    ai_confidence INTEGER NOT NULL DEFAULT 0,ai_reason TEXT NOT NULL DEFAULT '',note TEXT NOT NULL DEFAULT '',photo_key TEXT NOT NULL,mime_type TEXT NOT NULL DEFAULT 'image/jpeg',created_at INTEGER NOT NULL
+    category TEXT NOT NULL DEFAULT '',ai_confidence INTEGER NOT NULL DEFAULT 0,ai_reason TEXT NOT NULL DEFAULT '',note TEXT NOT NULL DEFAULT '',photo_key TEXT NOT NULL,mime_type TEXT NOT NULL DEFAULT 'image/jpeg',created_at INTEGER NOT NULL
   )`).run();
+  try{await env.DB.prepare("ALTER TABLE mushroom_spots ADD COLUMN category TEXT NOT NULL DEFAULT ''").run()}catch(_){}
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS mushroom_spots_department_idx ON mushroom_spots(department,created_at DESC)").run();
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS mushroom_spots_species_idx ON mushroom_spots(species,created_at DESC)").run();
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_photo_blobs(
     spot_id TEXT PRIMARY KEY,data_base64 TEXT NOT NULL,mime_type TEXT NOT NULL DEFAULT 'image/jpeg',updated_at INTEGER NOT NULL
   )`).run();
+  for(const sql of [
+    "ALTER TABLE mushroom_spots ADD COLUMN wood_name TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE mushroom_spots ADD COLUMN is_private INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE mushroom_spots ADD COLUMN source TEXT NOT NULL DEFAULT 'community'",
+    "ALTER TABLE mushroom_spots ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE mushroom_spots ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0"
+  ]){try{await env.DB.prepare(sql).run()}catch(_){}}
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_spot_delete_votes(
+    spot_id TEXT NOT NULL,subscription_id INTEGER NOT NULL,created_at INTEGER NOT NULL,
+    PRIMARY KEY(spot_id,subscription_id)
+  )`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_seed_states(
+    spot_id TEXT PRIMARY KEY,wood_name TEXT NOT NULL DEFAULT '',species TEXT NOT NULL DEFAULT '',note TEXT NOT NULL DEFAULT '',
+    is_private INTEGER NOT NULL DEFAULT 0,hidden INTEGER NOT NULL DEFAULT 0,updated_at INTEGER NOT NULL
+  )`).run();
+}
+
+const MUSHROOM_GOOGLE_WOODS=[
+  {id:'google-idf-fontainebleau',wood_name:'Forêt de Fontainebleau',latitude:48.4096,longitude:2.6331,department:'77',species:'Cèpes, girolles et pieds-de-mouton',category:'Plusieurs champignons',note:'Secteur forestier de Fontainebleau.',is_private:0},
+  {id:'google-idf-armainvilliers',wood_name:'Forêt d’Armainvilliers',latitude:48.8218,longitude:2.7272,department:'77',species:'Cèpes et bolets',category:'Cèpes / Bolets',note:'Bois mixtes de Seine-et-Marne.',is_private:0},
+  {id:'google-idf-villefermoy',wood_name:'Forêt de Villefermoy',latitude:48.4872,longitude:2.9684,department:'77',species:'Cèpes et chanterelles',category:'Plusieurs champignons',note:'Feuillus et pinèdes au sud de la Seine-et-Marne.',is_private:0},
+  {id:'google-idf-rambouillet',wood_name:'Forêt de Rambouillet',latitude:48.6769,longitude:1.7539,department:'78',species:'Cèpes, girolles, coulemelles, pieds-de-mouton et trompettes',category:'Plusieurs champignons',note:'Point situé dans un secteur domanial du massif.',is_private:0},
+  {id:'google-idf-senart',wood_name:'Forêt de Sénart',latitude:48.6597,longitude:2.4881,department:'91',species:'Girolles et coulemelles',category:'Plusieurs champignons',note:'Massif forestier entre Essonne et Seine-et-Marne.',is_private:0},
+  {id:'google-idf-dourdan',wood_name:'Forêt de Dourdan',latitude:48.5354,longitude:2.0124,department:'91',species:'Cèpes, girolles et pieds-de-mouton',category:'Plusieurs champignons',note:'Massif forestier du sud de l’Essonne.',is_private:0},
+  {id:'google-idf-rougeau',wood_name:'Forêt de Rougeau',latitude:48.6068,longitude:2.5486,department:'91',species:'Cèpes et chanterelles',category:'Plusieurs champignons',note:'Massif forestier proche de Corbeil-Essonnes.',is_private:0},
+  {id:'google-idf-meudon',wood_name:'Forêt de Meudon',latitude:48.8028,longitude:2.2265,department:'92',species:'Pieds-de-mouton et cèpes',category:'Plusieurs champignons',note:'Bois urbain des Hauts-de-Seine.',is_private:0},
+  {id:'google-idf-notre-dame',wood_name:'Forêt Notre-Dame',latitude:48.7489,longitude:2.5489,department:'94',species:'Bolets, coulemelles et girolles',category:'Plusieurs champignons',note:'Massif forestier du Val-de-Marne.',is_private:0},
+  {id:'google-idf-montmorency',wood_name:'Forêt de Montmorency',latitude:49.0216,longitude:2.2895,department:'95',species:'Cèpes, bolets et coulemelles',category:'Plusieurs champignons',note:'Massif forestier du Val-d’Oise.',is_private:0},
+  {id:'google-bzh-huelgoat',wood_name:'Forêt de Huelgoat',latitude:48.3658,longitude:-3.7452,department:'29',species:'Cèpes, bolets, girolles et pieds-de-mouton',category:'Plusieurs champignons',note:'Forêt domaniale du Finistère.',is_private:0},
+  {id:'google-bzh-cranou',wood_name:'Forêt du Cranou',latitude:48.3113,longitude:-4.0835,department:'29',species:'Cèpes, pleurotes et coprins',category:'Plusieurs champignons',note:'Forêt domaniale du Finistère.',is_private:0},
+  {id:'google-bzh-coetquen',wood_name:'Forêt de Coëtquen',latitude:48.4695,longitude:-1.9567,department:'22',species:'Cèpes et girolles',category:'Plusieurs champignons',note:'Massif forestier des Côtes-d’Armor.',is_private:0},
+  {id:'google-bzh-loudeac',wood_name:'Forêt de Loudéac',latitude:48.1834,longitude:-2.7472,department:'22',species:'Cèpes et bolets',category:'Cèpes / Bolets',note:'Massif forestier des Côtes-d’Armor.',is_private:0},
+  {id:'google-bzh-paimpont',wood_name:'Forêt de Paimpont – Brocéliande',latitude:48.0186,longitude:-2.1719,department:'35',species:'Cèpes, girolles et pieds-de-mouton',category:'Plusieurs champignons',note:'De nombreuses parcelles du massif sont privées.',is_private:1},
+  {id:'google-bzh-quenecan',wood_name:'Forêt de Quénécan',latitude:48.1986,longitude:-3.0264,department:'56',species:'Cèpes et bolets',category:'Cèpes / Bolets',note:'Massif majoritairement privé.',is_private:1},
+  {id:'google-bzh-camors',wood_name:'Forêt de Camors',latitude:47.8498,longitude:-3.0027,department:'56',species:'Cèpes, bolets et lactaires',category:'Plusieurs champignons',note:'Forêt domaniale du Morbihan.',is_private:0},
+  {id:'google-bzh-pontcallec',wood_name:'Forêt de Pont-Calleck',latitude:48.0703,longitude:-3.4191,department:'56',species:'Cèpes, bolets et lactaires',category:'Plusieurs champignons',note:'Forêt domaniale du Morbihan.',is_private:0}
+].map(x=>({...x,accuracy:80,scientific_name:'',ai_confidence:0,ai_reason:'',source:'google',created_at:1799971200000,updated_at:0}));
+async function ensureMushroomAccessTables(env){
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_access_codes(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,code_hash TEXT NOT NULL UNIQUE,duration_days INTEGER NOT NULL DEFAULT 730,
+    active INTEGER NOT NULL DEFAULT 1,used_by_subscription_id INTEGER,used_at INTEGER,created_at INTEGER NOT NULL
+  )`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_memberships(
+    subscription_id INTEGER PRIMARY KEY,expires_at INTEGER NOT NULL,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL
+  )`).run();
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS mushroom_codes_used_idx ON mushroom_access_codes(used_by_subscription_id,used_at)").run();
+}
+async function createMushroomAdminCode(env,data){
+  await ensureMushroomAccessTables(env);let code=normalizeCode(data.code);
+  if(data.generate===true||!validCode(code)){
+    code='';for(let i=0;i<40;i++){const c=randomSubscriptionCode(),h=await hashCode('MUSHROOM-'+c,env.CODE_PEPPER),e=await env.DB.prepare('SELECT id FROM mushroom_access_codes WHERE code_hash=? LIMIT 1').bind(h).first();if(!e){code=c;break}}
+  }
+  if(!validCode(code))return json({ok:false,error:'CODE_GENERATION_IMPOSSIBLE'},500);
+  const h=await hashCode('MUSHROOM-'+code,env.CODE_PEPPER),existing=await env.DB.prepare('SELECT id,used_by_subscription_id FROM mushroom_access_codes WHERE code_hash=? LIMIT 1').bind(h).first();
+  if(existing)return json({ok:false,error:'CODE_DEJA_UTILISE'},409);
+  await env.DB.prepare('INSERT INTO mushroom_access_codes(code_hash,duration_days,active,created_at) VALUES(?,?,1,?)').bind(h,MUSHROOM_ACCESS_DAYS,Date.now()).run();
+  return json({ok:true,kind:'mushroom',code,durationDays:MUSHROOM_ACCESS_DAYS,label:'Champignons — 2 ans'});
 }
 function decodeMushroomPhoto(dataUrl){
   const m=String(dataUrl||'').match(/^data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+/=]+)$/i);if(!m)return null;
@@ -2331,86 +2401,104 @@ function decodeMushroomPhoto(dataUrl){
   const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return {bytes,mime:m[1].toLowerCase()==='png'?'image/png':m[1].toLowerCase()==='webp'?'image/webp':'image/jpeg',base64:m[2]};
 }
 async function nearbyFungiCandidates(lat,lon){
-  try{
-    const u='https://api.inaturalist.org/v1/observations/species_counts?taxon_id=47170&lat='+encodeURIComponent(lat)+'&lng='+encodeURIComponent(lon)+'&radius=100&per_page=30&locale=fr';
-    const r=await fetch(u,{headers:{accept:'application/json','user-agent':'Couteau-Suisse/240 mushroom-identification'},cf:{cacheTtl:1800,cacheEverything:true}});if(!r.ok)return [];
-    const j=await r.json(),rows=Array.isArray(j.results)?j.results:[];return rows.map(x=>x&&x.taxon).filter(Boolean).map(t=>({name:String(t.name||''),common:String(t.preferred_common_name||'')})).filter(x=>x.name).slice(0,25);
-  }catch(_){return []}
+  try{const u='https://api.inaturalist.org/v1/observations/species_counts?taxon_id=47170&lat='+encodeURIComponent(lat)+'&lng='+encodeURIComponent(lon)+'&radius=100&per_page=30&locale=fr';const r=await fetch(u,{headers:{accept:'application/json','user-agent':'Couteau-Suisse/244 mushroom-identification'},cf:{cacheTtl:1800,cacheEverything:true}});if(!r.ok)return [];const j=await r.json(),rows=Array.isArray(j.results)?j.results:[];return rows.map(x=>x&&x.taxon).filter(Boolean).map(t=>({name:String(t.name||''),common:String(t.preferred_common_name||'')})).filter(x=>x.name).slice(0,25)}catch(_){return []}
 }
 const MUSHROOM_VISION_MODEL='@cf/google/gemma-4-26b-a4b-it';
-async function runMushroomVision(env,payload){
-  const ai=workersAiBinding(env);
-  if(!ai)throw new Error('AI_BINDING_MISSING');
-  return ai.run(MUSHROOM_VISION_MODEL,payload);
-}
-
+async function runMushroomVision(env,payload){const ai=workersAiBinding(env);if(!ai)throw new Error('AI_BINDING_MISSING');return ai.run(MUSHROOM_VISION_MODEL,payload)}
 async function inspectMushroomPhoto(env,dataUrl,lat,lon){
-  if(!workersAiBinding(env))return {ok:false,error:'IA_RECONNAISSANCE_NON_CONFIGUREE',message:"La liaison Workers AI « AI » n’est pas active sur cette version déployée. Après le déploiement, ouvrez Liaisons et vérifiez Workers AI → AI."};
-  const candidates=await nearbyFungiCandidates(lat,lon);const prior=candidates.length?candidates.map(x=>(x.common?x.common+' / ':'')+x.name).join('; '):'aucune liste locale disponible';
-  try{
-    const response=await runMushroomVision(env,{
-      messages:[
-        {role:'system',content:'You are a careful mushroom-photo classifier. Return ONLY valid JSON. Never claim edibility or safety.'},
-        {role:'user',content:'Analyse la photo prise en direct avec la caméra. 1) Vérifie qu’un vrai champignon est clairement visible. Rejette si aucun champignon n’est visible, si on voit seulement un écran/une photo imprimée, ou si l’image est inutilisable. 2) Si un champignon est visible, propose le nom français le plus probable et le nom scientifique si possible. Si l’espèce exacte est incertaine, donne un groupe prudent (ex. Cèpe/Bolet, Amanite, Russule, Agaric) au lieu d’inventer une espèce. Les espèces observées dans un rayon d’environ 100 km peuvent aider mais ne sont pas une preuve: '+prior+'. Réponds exactement avec {"mushroomDetected":boolean,"authenticScene":boolean,"commonName":"nom français ou groupe","scientificName":"nom latin ou vide","mushroomConfidence":integer,"speciesConfidence":integer,"reason":"raison courte en français"}. Les confiances sont de 0 à 100. Aucune information de comestibilité.'}
-      ],image:dataUrl,max_tokens:240,temperature:0
-    });
-    const x=parseVisionJson(response);if(!x)return {ok:false,error:'ANALYSE_IA_INVALIDE',message:"La reconnaissance a répondu, mais le résultat n’a pas pu être interprété. Reprenez une photo plus nette."};
-    const mushroomConfidence=Math.max(0,Math.min(100,Math.round(Number(x.mushroomConfidence)||0))),speciesConfidence=Math.max(0,Math.min(100,Math.round(Number(x.speciesConfidence)||0)));
-    const accepted=x.mushroomDetected===true&&x.authenticScene!==false&&mushroomConfidence>=50;
-    if(!accepted)return {ok:false,error:'AUCUN_CHAMPIGNON',message:String(x.reason||'Aucun champignon suffisamment visible sur la photo.').slice(0,220),mushroomConfidence};
-    let common=cleanIdentityText(x.commonName,120)||'Champignon non identifié',scientific=cleanIdentityText(x.scientificName,140),reason=cleanIdentityText(x.reason,220);
-    return {ok:true,commonName:common,scientificName:scientific,confidence:speciesConfidence,mushroomConfidence,reason};
-  }catch(e){
-    const detail=String(e&&e.message||'').toLowerCase();
-    if(detail.includes('ai_binding_missing'))return {ok:false,error:'IA_RECONNAISSANCE_NON_CONFIGUREE',message:"La liaison Workers AI « AI » n’est pas active sur cette version déployée. Vérifiez Liaisons après le déploiement."};
-    return {ok:false,error:'ANALYSE_IA_INDISPONIBLE',message:"La reconnaissance IA n’a pas répondu. Réessayez dans quelques secondes."};
-  }
+  if(!workersAiBinding(env))return {ok:false,error:'IA_RECONNAISSANCE_NON_CONFIGUREE',message:"La liaison Workers AI « AI » n’est pas active sur cette version déployée. Ouvrez Liaisons et ajoutez Workers AI → AI."};
+  const candidates=await nearbyFungiCandidates(lat,lon),prior=candidates.length?candidates.map(x=>(x.common?x.common+' / ':'')+x.name).join('; '):'aucune liste locale disponible';
+  try{const response=await runMushroomVision(env,{messages:[{role:'system',content:'You are a careful mushroom-photo classifier. Return ONLY valid JSON. Never claim edibility or safety.'},{role:'user',content:'Analyse la photo prise en direct. Vérifie qu’un vrai champignon est clairement visible ET qu’il est encore naturellement en terre ou fixé à son support dans le bois. Rejette un champignon cueilli, tenu en main, posé dans un panier, sur une table, sur une photo imprimée ou affiché sur un écran. Si la scène est authentique, propose le nom français le plus probable et le nom scientifique si possible. Si incertain, donne un groupe prudent. Les espèces observées dans un rayon de 100 km peuvent aider sans constituer une preuve: '+prior+'. Réponds exactement avec {"mushroomDetected":boolean,"authenticScene":boolean,"commonName":"nom français ou groupe","scientificName":"nom latin ou vide","mushroomConfidence":integer,"speciesConfidence":integer,"reason":"raison courte en français"}. Aucune information de comestibilité.'}],image:dataUrl,max_tokens:240,temperature:0});
+    const x=parseVisionJson(response);if(!x)return {ok:false,error:'ANALYSE_IA_INVALIDE',message:'La reconnaissance a répondu, mais le résultat est illisible. Reprenez une photo plus nette.'};const mushroomConfidence=Math.max(0,Math.min(100,Math.round(Number(x.mushroomConfidence)||0))),speciesConfidence=Math.max(0,Math.min(100,Math.round(Number(x.speciesConfidence)||0)));if(!(x.mushroomDetected===true&&x.authenticScene!==false&&mushroomConfidence>=50))return {ok:false,error:'AUCUN_CHAMPIGNON',message:String(x.reason||'Aucun champignon suffisamment visible sur la photo.').slice(0,220),mushroomConfidence};return {ok:true,commonName:cleanIdentityText(x.commonName,120)||'Champignon non identifié',scientificName:cleanIdentityText(x.scientificName,140),confidence:speciesConfidence,mushroomConfidence,reason:cleanIdentityText(x.reason,220)};
+  }catch(e){const detail=String(e&&e.message||'').toLowerCase();if(detail.includes('ai_binding_missing'))return {ok:false,error:'IA_RECONNAISSANCE_NON_CONFIGUREE',message:'La liaison Workers AI « AI » n’est pas active.'};return {ok:false,error:'ANALYSE_IA_INDISPONIBLE',message:'La reconnaissance IA n’a pas répondu. Réessayez dans quelques secondes.'}}
 }
-async function mushroomHmacKey(env){return crypto.subtle.importKey('raw',new TextEncoder().encode('mushroom-v240:'+String(env.CODE_PEPPER||'couteau-suisse')), {name:'HMAC',hash:'SHA-256'},false,['sign','verify'])}
-async function signMushroomAnalysis(env,payload){const part=b64urlText(JSON.stringify(payload)),key=await mushroomHmacKey(env),sig=await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(part));return part+'.'+b64urlBytes(new Uint8Array(sig))}
-async function verifyMushroomAnalysis(env,token){try{const parts=String(token||'').split('.');if(parts.length!==2)return null;const key=await mushroomHmacKey(env),sig=b64urlDecode(parts[1]),ok=await crypto.subtle.verify('HMAC',key,sig,new TextEncoder().encode(parts[0]));if(!ok)return null;const j=JSON.parse(new TextDecoder().decode(b64urlDecode(parts[0])));if(!j||Number(j.exp)<Date.now())return null;return j}catch(_){return null}}
+function mushroomGuideInfo(v){const n=String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if(/cepe|bolet/.test(n))return {category:'Cèpes / Bolets',season:'Juin à novembre',habitat:'Bois de chênes, hêtres, châtaigniers et conifères ; lisières et sols moussus après pluie.'};
+  if(/girolle|chanterelle/.test(n))return {category:'Girolles / Chanterelles',season:'Juin à novembre',habitat:'Sous feuillus ou conifères, sols moussus et acides, souvent en groupes.'};
+  if(/trompette/.test(n))return {category:'Trompettes',season:'Août à novembre',habitat:'Sous feuillus, surtout hêtres et chênes, sols frais, humides et ombragés.'};
+  if(/morille/.test(n))return {category:'Morilles',season:'Mars à mai',habitat:'Lisières, frênes, vieux vergers, sols remués ou calcaires selon les espèces.'};
+  if(/pied.*mouton|hydne/.test(n))return {category:'Pieds-de-mouton',season:'Août à décembre',habitat:'Bois de feuillus et conifères, sous litière de feuilles ou aiguilles.'};
+  if(/coulemelle|lepiote/.test(n))return {category:'Coulemelles / Lépiotes',season:'Juillet à novembre',habitat:'Prairies, clairières, lisières et bords de chemins herbeux.'};
+  if(/lactaire/.test(n))return {category:'Lactaires',season:'Juillet à novembre',habitat:'Selon l’espèce : pins, épicéas, bouleaux ou autres feuillus.'};
+  if(/russule/.test(n))return {category:'Russules',season:'Juin à novembre',habitat:'Bois de feuillus et conifères ; habitat variable selon l’espèce.'};
+  if(/amanite/.test(n))return {category:'Amanites',season:'Juin à novembre',habitat:'Bois et lisières sous divers arbres. Identification particulièrement délicate.'};
+  if(/agaric/.test(n))return {category:'Agarics',season:'Mai à novembre',habitat:'Prairies, pelouses, lisières ou sous-bois selon l’espèce.'};
+  if(/coprin/.test(n))return {category:'Coprins',season:'Printemps à automne',habitat:'Pelouses, bords de chemins, bois riches en matière organique.'};
+  return {category:'Autres champignons',season:'Selon l’espèce et la météo',habitat:'Consultez la fiche de l’espèce ; recherchez dans son habitat naturel sans vous fier uniquement à la photo.'};
+}
+async function mushroomHmacKey(env){return crypto.subtle.importKey('raw',new TextEncoder().encode('mushroom-v244:'+String(env.CODE_PEPPER||'couteau-suisse')), {name:'HMAC',hash:'SHA-256'},false,['sign','verify'])}
+async function signMushroomPayload(env,payload){const part=b64urlText(JSON.stringify(payload)),key=await mushroomHmacKey(env),sig=await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(part));return part+'.'+b64urlBytes(new Uint8Array(sig))}
+async function verifyMushroomPayload(env,token){try{const parts=String(token||'').split('.');if(parts.length!==2)return null;const key=await mushroomHmacKey(env),sig=b64urlDecode(parts[1]),ok=await crypto.subtle.verify('HMAC',key,sig,new TextEncoder().encode(parts[0]));if(!ok)return null;const j=JSON.parse(new TextDecoder().decode(b64urlDecode(parts[0])));if(!j||Number(j.exp)<Date.now())return null;return j}catch(_){return null}}
+async function signMushroomAnalysis(env,payload){return signMushroomPayload(env,{...payload,purpose:'analysis'})}
+async function verifyMushroomAnalysis(env,token){const p=await verifyMushroomPayload(env,token);return p&&p.purpose==='analysis'?p:null}
+async function mushroomMembershipFor(env,subId){await ensureMushroomAccessTables(env);return env.DB.prepare('SELECT * FROM mushroom_memberships WHERE subscription_id=? LIMIT 1').bind(subId).first()}
+async function mushroomAccessToken(env,subId,expiresAt){return signMushroomPayload(env,{purpose:'access',subId:Number(subId),membershipExpires:Number(expiresAt),exp:Math.min(Date.now()+24*60*60*1000,Number(expiresAt))})}
+async function mushroomTrialToken(env,subId,expiresAt){return signMushroomPayload(env,{purpose:'access',trial:true,subId:Number(subId),exp:Math.min(Date.now()+24*60*60*1000,Number(expiresAt))})}
+async function mushroomRequireAccess(request,env){const token=request.headers.get('x-mushroom-access')||'',p=await verifyMushroomPayload(env,token);if(!p||p.purpose!=='access')return null;if(p.trial){const sub=await env.DB.prepare('SELECT id,active,expires_at FROM subscriptions WHERE id=? LIMIT 1').bind(Number(p.subId)).first();if(!sub||!Number(sub.active)||!sub.expires_at||Date.parse(sub.expires_at)<=Date.now())return null;return {subscriptionId:Number(p.subId),trial:true}}const m=await mushroomMembershipFor(env,Number(p.subId));if(!m||Number(m.expires_at)<=Date.now())return null;return {subscriptionId:Number(p.subId),membership:m}}
+async function mushroomAccess(request,env){
+  if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);await ensureMushroomAccessTables(env);const d=await body(request),sub=await contestSubscription(env,d);if(!sub)return json({ok:false,error:'ABONNEMENT_PRINCIPAL_REQUIS',message:'Récupérez d’abord votre abonnement Couteau Suisse.'},403);const now=Date.now();let membership=await mushroomMembershipFor(env,sub.id);
+  const device=cleanIdentityText(d.deviceId,140),trialHash=device?await sha256Text('contest-trial:'+device):'',trialActive=!!trialHash&&String(sub.code_hash||'')===trialHash&&!!sub.expires_at&&Date.parse(sub.expires_at)>now;
+  if(trialActive){const expires=Date.parse(sub.expires_at),days=Math.max(0,Math.ceil((expires-now)/86400000));return json({ok:true,active:true,trial:true,expiresAt:expires,remainingDays:days,warningSoon:false,accessToken:await mushroomTrialToken(env,sub.id,expires),account:{firstName:String(sub.account_first_name||''),lastName:String(sub.account_last_name||''),email:String(sub.recovery_email_mask||'')}})}
+  if(String(d.action||'status')==='redeem'){
+    const code=normalizeCode(d.mushroomCode);if(!validCode(code))return json({ok:false,error:'CODE_CHAMPIGNON_INCORRECT'},400);const h=await hashCode('MUSHROOM-'+code,env.CODE_PEPPER),row=await env.DB.prepare('SELECT * FROM mushroom_access_codes WHERE code_hash=? AND active=1 LIMIT 1').bind(h).first();if(!row)return json({ok:false,error:'CODE_CHAMPIGNON_INCORRECT'},403);if(row.used_by_subscription_id||row.used_at)return json({ok:false,error:'CODE_DEJA_UTILISE'},409);
+    const base=membership&&Number(membership.expires_at)>now?Number(membership.expires_at):now,expires=base+Number(row.duration_days||MUSHROOM_ACCESS_DAYS)*86400000;
+    const used=await env.DB.prepare('UPDATE mushroom_access_codes SET used_by_subscription_id=?,used_at=? WHERE id=? AND used_by_subscription_id IS NULL AND used_at IS NULL').bind(sub.id,now,row.id).run();if(!used.meta||Number(used.meta.changes||0)<1)return json({ok:false,error:'CODE_DEJA_UTILISE'},409);
+    await env.DB.prepare(`INSERT INTO mushroom_memberships(subscription_id,expires_at,created_at,updated_at) VALUES(?,?,?,?) ON CONFLICT(subscription_id) DO UPDATE SET expires_at=excluded.expires_at,updated_at=excluded.updated_at`).bind(sub.id,expires,membership?Number(membership.created_at||now):now,now).run();membership=await mushroomMembershipFor(env,sub.id);
+  }
+  if(!membership||Number(membership.expires_at)<=now)return json({ok:true,active:false,priceEuros:50,durationDays:MUSHROOM_ACCESS_DAYS});const days=Math.max(0,Math.ceil((Number(membership.expires_at)-now)/86400000));return json({ok:true,active:true,expiresAt:Number(membership.expires_at),remainingDays:days,warningSoon:days<=30,accessToken:await mushroomAccessToken(env,sub.id,membership.expires_at),account:{firstName:String(sub.account_first_name||''),lastName:String(sub.account_last_name||''),email:String(sub.recovery_email_mask||'')}});
+}
 async function mushroomAnalyze(request,env){
-  if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);const d=await body(request),lat=Number(d.latitude),lon=Number(d.longitude),accuracy=Number(d.accuracy),capturedAt=Number(d.capturedAt||Date.now());
-  if(!Number.isFinite(lat)||!Number.isFinite(lon)||!Number.isFinite(accuracy)||accuracy<0||accuracy>35)return json({ok:false,error:'GPS_TROP_IMPRECIS',message:'Le GPS doit être précis à 35 m ou mieux.'},400);
-  if(Math.abs(Date.now()-capturedAt)>20*60*1000)return json({ok:false,error:'PHOTO_TROP_ANCIENNE'},400);
-  const photo=decodeMushroomPhoto(d.dataUrl);if(!photo)return json({ok:false,error:'PHOTO_INVALIDE',message:'Photo invalide ou trop lourde.'},400);
-  const inspected=await inspectMushroomPhoto(env,d.dataUrl,lat,lon);if(!inspected.ok)return json(inspected,422);
-  const imageHash=await sha256Text(d.dataUrl),payload={imageHash,lat:Number(lat.toFixed(6)),lon:Number(lon.toFixed(6)),commonName:inspected.commonName,scientificName:inspected.scientificName,confidence:inspected.confidence,mushroomConfidence:inspected.mushroomConfidence,reason:inspected.reason,exp:Date.now()+20*60*1000};
-  return json({...inspected,analysisToken:await signMushroomAnalysis(env,payload)});
+  if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);if(!(await mushroomRequireAccess(request,env)))return json({ok:false,error:'ACCES_CHAMPIGNONS_REQUIS'},403);const d=await body(request),lat=Number(d.latitude),lon=Number(d.longitude),accuracy=Number(d.accuracy),capturedAt=Number(d.capturedAt||Date.now());if(!Number.isFinite(lat)||!Number.isFinite(lon)||!Number.isFinite(accuracy)||accuracy<0||accuracy>35)return json({ok:false,error:'GPS_TROP_IMPRECIS',message:'Le GPS doit être précis à 35 m ou mieux.'},400);if(Math.abs(Date.now()-capturedAt)>20*60*1000)return json({ok:false,error:'PHOTO_TROP_ANCIENNE'},400);const photo=decodeMushroomPhoto(d.dataUrl);if(!photo)return json({ok:false,error:'PHOTO_INVALIDE',message:'Photo invalide ou trop lourde.'},400);const inspected=await inspectMushroomPhoto(env,d.dataUrl,lat,lon);if(!inspected.ok)return json(inspected,422);const imageHash=await sha256Text(d.dataUrl),payload={imageHash,lat:Number(lat.toFixed(6)),lon:Number(lon.toFixed(6)),commonName:inspected.commonName,scientificName:inspected.scientificName,confidence:inspected.confidence,mushroomConfidence:inspected.mushroomConfidence,reason:inspected.reason,exp:Date.now()+20*60*1000};return json({...inspected,analysisToken:await signMushroomAnalysis(env,payload)});
 }
-async function mushroomDepartment(lat,lon){
-  try{const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&addressdetails=1&lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{headers:{'Accept-Language':'fr','User-Agent':'Couteau-Suisse/240'}});if(!r.ok)throw 0;const j=await r.json(),a=j.address||{},iso=String(a['ISO3166-2-lvl6']||a['ISO3166-2-lvl4']||'');let m=iso.match(/FR-(2A|2B|\d{2,3})/i);if(m)return m[1].toUpperCase();const pc=String(a.postcode||'').replace(/\D/g,'');if(/^97|^98/.test(pc))return pc.slice(0,3);if(pc.length>=2)return pc.slice(0,2)}catch(_){}return 'AUTRE'
-}
-function mushroomPhotoUrl(id,created){return '/api/mushrooms/photo?id='+encodeURIComponent(id)+'&v='+encodeURIComponent(created||'')}
+async function mushroomDepartment(lat,lon){try{const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&addressdetails=1&lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{headers:{'Accept-Language':'fr','User-Agent':'Couteau-Suisse/244'}});if(!r.ok)throw 0;const j=await r.json(),a=j.address||{},iso=String(a['ISO3166-2-lvl6']||a['ISO3166-2-lvl4']||'');let m=iso.match(/FR-(2A|2B|\d{2,3})/i);if(m)return m[1].toUpperCase();const pc=String(a.postcode||'').replace(/\D/g,'');if(/^97|^98/.test(pc))return pc.slice(0,3);if(pc.length>=2)return pc.slice(0,2)}catch(_){}return 'AUTRE'}
+async function mushroomSignedPhotoUrl(env,id,created){const exp=Date.now()+60*60*1000,sig=await signMushroomPayload(env,{purpose:'photo',id:String(id),exp});return '/api/mushrooms/photo?id='+encodeURIComponent(id)+'&v='+encodeURIComponent(created||'')+'&token='+encodeURIComponent(sig)}
 async function mushroomSpots(request,env){
-  if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);await ensureMushroomTables(env);
-  if(request.method==='GET'){
-    const u=new URL(request.url),dep=cleanIdentityText(u.searchParams.get('department'),12),species=cleanIdentityText(u.searchParams.get('species'),120);let q='SELECT id,latitude,longitude,accuracy,department,species,scientific_name,ai_confidence,ai_reason,note,created_at FROM mushroom_spots',bind=[],where=[];
-    if(dep){where.push('department=?');bind.push(dep)}if(species){where.push('species=?');bind.push(species)}if(where.length)q+=' WHERE '+where.join(' AND ');q+=' ORDER BY created_at DESC LIMIT 1000';let st=env.DB.prepare(q);if(bind.length)st=st.bind(...bind);const rows=(await st.all()).results||[];
-    return json({ok:true,spots:rows.map(r=>({id:r.id,latitude:Number(r.latitude),longitude:Number(r.longitude),accuracy:Number(r.accuracy),department:r.department,species:r.species,scientificName:r.scientific_name||'',aiConfidence:Number(r.ai_confidence||0),aiReason:r.ai_reason||'',note:r.note||'',createdAt:Number(r.created_at),photoUrl:mushroomPhotoUrl(r.id,r.created_at)}))});
+  if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);await ensureMushroomTables(env);const access=await mushroomRequireAccess(request,env);if(!access)return json({ok:false,error:'ACCES_CHAMPIGNONS_REQUIS'},403);if(request.method==='GET')return json({ok:false,error:'UTILISEZ_RECHERCHE'},400);
+  const d=await body(request),sub=await env.DB.prepare('SELECT * FROM subscriptions WHERE id=? AND active=1 LIMIT 1').bind(access.subscriptionId).first(),deviceId=cleanIdentityText(d.deviceId,140),lat=Number(d.latitude),lon=Number(d.longitude),accuracy=Number(d.accuracy),pLat=Number(d.photoLatitude),pLon=Number(d.photoLongitude),pAcc=Number(d.photoAccuracy);if(!sub)return json({ok:false,error:'COMPTE_INTROUVABLE'},403);const email=String(sub.recovery_email_mask||''),firstName=String(sub.account_first_name||''),lastName=String(sub.account_last_name||'');if(![lat,lon,accuracy,pLat,pLon,pAcc].every(Number.isFinite)||accuracy<0||accuracy>35||pAcc<0||pAcc>80)return json({ok:false,error:'GPS_TROP_IMPRECIS',message:'Le GPS du coin ou de la photo est trop imprécis.'},400);const dist=haversineMeters(lat,lon,pLat,pLon);if(dist>200)return json({ok:false,error:'PHOTO_HORS_DU_COIN',message:'Le GPS de la photo doit être à 200 m maximum du point enregistré.'},400);const photo=decodeMushroomPhoto(d.photoDataUrl);if(!photo)return json({ok:false,error:'PHOTO_INVALIDE'},400);const proof=await verifyMushroomAnalysis(env,d.analysisToken);if(!proof)return json({ok:false,error:'ANALYSE_EXPIREE',message:'L’analyse de la photo a expiré. Reprenez la photo.'},400);const imageHash=await sha256Text(d.photoDataUrl);if(imageHash!==proof.imageHash)return json({ok:false,error:'PHOTO_DIFFERENTE'},400);if(haversineMeters(lat,lon,Number(proof.lat),Number(proof.lon))>80)return json({ok:false,error:'POSITION_DIFFERENTE'},400);const species=cleanIdentityText(d.species,120);if(!species)return json({ok:false,error:'ESPECE_REQUISE'},400);const info=mushroomGuideInfo(species),note=cleanIdentityText(d.note,500),woodName=cleanIdentityText(d.woodName,140)||'Bois signalé',isPrivate=d.isPrivate?1:0,department=await mushroomDepartment(lat,lon),id=crypto.randomUUID(),created=Date.now(),photoKey=env.MARKET_PHOTOS?'mushroom-spots/'+id+'.jpg':'d1:'+id;if(env.MARKET_PHOTOS){await env.MARKET_PHOTOS.put(photoKey,photo.bytes,{httpMetadata:{contentType:photo.mime,cacheControl:'private, max-age=3600'}})}else{await env.DB.prepare('INSERT INTO mushroom_photo_blobs(spot_id,data_base64,mime_type,updated_at) VALUES(?,?,?,?)').bind(id,photo.base64,photo.mime,created).run()}
+  await env.DB.prepare(`INSERT INTO mushroom_spots(id,email,first_name,last_name,device_id,latitude,longitude,accuracy,department,species,scientific_name,category,ai_confidence,ai_reason,note,photo_key,mime_type,created_at,wood_name,is_private,source,deleted,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id,email,firstName,lastName,deviceId,lat,lon,accuracy,department,species,cleanIdentityText(proof.scientificName,140),info.category,Number(proof.confidence||0),cleanIdentityText(proof.reason,220),note,photoKey,photo.mime,created,woodName,isPrivate,'community',0,created).run();return json({ok:true,spot:{id,woodName,department,species,category:info.category,isPrivate:!!isPrivate,latitude:lat,longitude:lon,accuracy,createdAt:created}});
+}
+function mushroomSpotJson(r,photoUrl,extra={}){const info=mushroomGuideInfo(r.species);return {id:r.id,woodName:r.wood_name||'Bois signalé',latitude:Number(r.latitude),longitude:Number(r.longitude),accuracy:Number(r.accuracy),department:r.department,species:r.species,category:r.category||info.category,scientificName:r.scientific_name||'',season:info.season,habitat:info.habitat,aiConfidence:Number(r.ai_confidence||0),note:r.note||'',isPrivate:!!Number(r.is_private),source:r.source||'community',createdAt:Number(r.created_at),photoUrl:photoUrl||'',...extra}}
+async function mushroomRowsWithSeeds(env){
+  const dbRows=(await env.DB.prepare("SELECT id,latitude,longitude,accuracy,department,species,scientific_name,category,ai_confidence,note,created_at,wood_name,is_private,source,updated_at FROM mushroom_spots WHERE COALESCE(deleted,0)=0 ORDER BY created_at DESC LIMIT 1000").all()).results||[];
+  const states=(await env.DB.prepare('SELECT * FROM mushroom_seed_states').all()).results||[],byId=new Map(states.map(x=>[String(x.spot_id),x]));
+  const seeds=MUSHROOM_GOOGLE_WOODS.filter(x=>!(byId.get(x.id)&&Number(byId.get(x.id).hidden))).map(x=>{const s=byId.get(x.id);return s?{...x,wood_name:s.wood_name||x.wood_name,species:s.species||x.species,note:s.note||x.note,is_private:Number(s.is_private),updated_at:Number(s.updated_at||0)}:x});
+  return [...dbRows,...seeds];
+}
+async function mushroomManage(request,env){
+  if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);await ensureMushroomTables(env);const access=await mushroomRequireAccess(request,env);if(!access)return json({ok:false,error:'ACCES_CHAMPIGNONS_REQUIS'},403);const d=await body(request),id=cleanIdentityText(d.id,100),action=String(d.action||'');if(!id)return json({ok:false,error:'FICHE_INVALIDE'},400);const seed=MUSHROOM_GOOGLE_WOODS.find(x=>x.id===id),row=seed?null:await env.DB.prepare('SELECT id FROM mushroom_spots WHERE id=? AND COALESCE(deleted,0)=0').bind(id).first();if(!seed&&!row)return json({ok:false,error:'FICHE_INTROUVABLE'},404);
+  if(action==='update'){
+    const woodName=cleanIdentityText(d.woodName,140)||'Bois signalé',species=cleanIdentityText(d.species,120),note=cleanIdentityText(d.note,500),isPrivate=d.isPrivate?1:0;if(!species)return json({ok:false,error:'ESPECE_REQUISE'},400);const now=Date.now();
+    if(seed)await env.DB.prepare(`INSERT INTO mushroom_seed_states(spot_id,wood_name,species,note,is_private,hidden,updated_at) VALUES(?,?,?,?,?,0,?) ON CONFLICT(spot_id) DO UPDATE SET wood_name=excluded.wood_name,species=excluded.species,note=excluded.note,is_private=excluded.is_private,updated_at=excluded.updated_at`).bind(id,woodName,species,note,isPrivate,now).run();
+    else await env.DB.prepare('UPDATE mushroom_spots SET wood_name=?,species=?,category=?,note=?,is_private=?,updated_at=? WHERE id=?').bind(woodName,species,mushroomGuideInfo(species).category,note,isPrivate,now,id).run();
+    return json({ok:true,updated:true});
   }
-  const d=await body(request),x=d.identity||{},email=cleanIdentityText(x.email,190).toLowerCase(),firstName=cleanIdentityText(x.firstName,80),lastName=cleanIdentityText(x.lastName,80),deviceId=cleanIdentityText(d.deviceId,140),lat=Number(d.latitude),lon=Number(d.longitude),accuracy=Number(d.accuracy),pLat=Number(d.photoLatitude),pLon=Number(d.photoLongitude),pAcc=Number(d.photoAccuracy);
-  if(!validIdentityEmail(email)||firstName.length<2||lastName.length<2)return json({ok:false,error:'IDENTITE_REQUISE'},403);
-  if(![lat,lon,accuracy,pLat,pLon,pAcc].every(Number.isFinite)||accuracy<0||accuracy>35||pAcc<0||pAcc>80)return json({ok:false,error:'GPS_TROP_IMPRECIS',message:'Le GPS du coin ou de la photo est trop imprécis.'},400);
-  const dist=haversineMeters(lat,lon,pLat,pLon);if(dist>60)return json({ok:false,error:'PHOTO_HORS_DU_COIN',message:'La photo doit être prise sur le point GPS du coin.'},400);
-  const photo=decodeMushroomPhoto(d.photoDataUrl);if(!photo)return json({ok:false,error:'PHOTO_INVALIDE'},400);const proof=await verifyMushroomAnalysis(env,d.analysisToken);if(!proof)return json({ok:false,error:'ANALYSE_EXPIREE',message:'L’analyse de la photo a expiré. Reprenez la photo.'},400);
-  const imageHash=await sha256Text(d.photoDataUrl);if(imageHash!==proof.imageHash)return json({ok:false,error:'PHOTO_DIFFERENTE'},400);if(haversineMeters(lat,lon,Number(proof.lat),Number(proof.lon))>80)return json({ok:false,error:'POSITION_DIFFERENTE'},400);
-  const species=cleanIdentityText(d.species,120);if(!species)return json({ok:false,error:'ESPECE_REQUISE'},400);const note=cleanIdentityText(d.note,500),department=await mushroomDepartment(lat,lon),id=crypto.randomUUID(),created=Date.now(),photoKey=env.MARKET_PHOTOS?'mushroom-spots/'+id+'.jpg':'d1:'+id;
-  if(env.MARKET_PHOTOS){await env.MARKET_PHOTOS.put(photoKey,photo.bytes,{httpMetadata:{contentType:photo.mime,cacheControl:'private, max-age=3600'}})}else{await env.DB.prepare('INSERT INTO mushroom_photo_blobs(spot_id,data_base64,mime_type,updated_at) VALUES(?,?,?,?)').bind(id,photo.base64,photo.mime,created).run()}
-  await env.DB.prepare(`INSERT INTO mushroom_spots(id,email,first_name,last_name,device_id,latitude,longitude,accuracy,department,species,scientific_name,ai_confidence,ai_reason,note,photo_key,mime_type,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .bind(id,email,firstName,lastName,deviceId,lat,lon,accuracy,department,species,cleanIdentityText(proof.scientificName,140),Number(proof.confidence||0),cleanIdentityText(proof.reason,220),note,photoKey,photo.mime,created).run();
-  return json({ok:true,spot:{id,department,species,latitude:lat,longitude:lon,accuracy,createdAt:created,photoUrl:mushroomPhotoUrl(id,created)}});
+  if(action==='vote_delete'){
+    await env.DB.prepare('INSERT OR IGNORE INTO mushroom_spot_delete_votes(spot_id,subscription_id,created_at) VALUES(?,?,?)').bind(id,access.subscriptionId,Date.now()).run();const c=await env.DB.prepare('SELECT COUNT(*) AS n FROM mushroom_spot_delete_votes WHERE spot_id=?').bind(id).first(),votes=Number(c&&c.n||0),deleted=votes>=5;if(deleted){if(seed)await env.DB.prepare(`INSERT INTO mushroom_seed_states(spot_id,wood_name,species,note,is_private,hidden,updated_at) VALUES(?,?,?,?,?,1,?) ON CONFLICT(spot_id) DO UPDATE SET hidden=1,updated_at=excluded.updated_at`).bind(id,seed.wood_name,seed.species,seed.note,seed.is_private,Date.now()).run();else await env.DB.prepare('UPDATE mushroom_spots SET deleted=1,updated_at=? WHERE id=?').bind(Date.now(),id).run()}return json({ok:true,votes,deleted,remaining:Math.max(0,5-votes)});
+  }
+  return json({ok:false,error:'ACTION_INVALIDE'},400);
+}
+async function adminMushrooms(request,env){
+  if(!(await adminAuthorized(request,env)))return json({ok:false,error:'SECRET_INCORRECT'},401);if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);await ensureMushroomTables(env);const d=request.method==='POST'?await body(request):{};
+  if(request.method==='POST'&&String(d.action)==='delete'){const id=cleanIdentityText(d.id,100),seed=MUSHROOM_GOOGLE_WOODS.find(x=>x.id===id);if(seed)await env.DB.prepare(`INSERT INTO mushroom_seed_states(spot_id,wood_name,species,note,is_private,hidden,updated_at) VALUES(?,?,?,?,?,1,?) ON CONFLICT(spot_id) DO UPDATE SET hidden=1,updated_at=excluded.updated_at`).bind(id,seed.wood_name,seed.species,seed.note,seed.is_private,Date.now()).run();else await env.DB.prepare('UPDATE mushroom_spots SET deleted=1,updated_at=? WHERE id=?').bind(Date.now(),id).run();return json({ok:true,deleted:true})}
+  const rows=await mushroomRowsWithSeeds(env),counts=(await env.DB.prepare('SELECT spot_id,COUNT(*) AS n FROM mushroom_spot_delete_votes GROUP BY spot_id').all()).results||[],votes=new Map(counts.map(x=>[String(x.spot_id),Number(x.n||0)]));return json({ok:true,spots:rows.map(r=>({id:r.id,woodName:r.wood_name||'Bois signalé',department:r.department,species:r.species,isPrivate:!!Number(r.is_private),source:r.source||'community',deleteVotes:votes.get(String(r.id))||0}))});
+}
+async function mushroomReturnPoint(env,subId){try{const p=await env.DB.prepare('SELECT return_place_lat,return_place_lon,home_lat,home_lon FROM contest_participants WHERE subscription_id=? LIMIT 1').bind(subId).first();if(!p)return null;const lat=Number.isFinite(Number(p.return_place_lat))?Number(p.return_place_lat):Number(p.home_lat),lon=Number.isFinite(Number(p.return_place_lon))?Number(p.return_place_lon):Number(p.home_lon);return Number.isFinite(lat)&&Number.isFinite(lon)?{lat,lon}:null}catch(_){return null}}
+async function osrmDetours(start,end,spots){if(!spots.length)return null;try{const pts=[start,end,...spots.map(s=>({lat:Number(s.latitude),lon:Number(s.longitude)}))],coords=pts.map(p=>p.lon+','+p.lat).join(';'),r=await fetch('https://router.project-osrm.org/table/v1/driving/'+coords+'?annotations=distance',{headers:{'User-Agent':'Couteau-Suisse/244'}});if(!r.ok)return null;const j=await r.json(),m=j.distances;if(!Array.isArray(m)||!m[0])return null;const direct=Number(m[0][1]);if(!Number.isFinite(direct))return null;return spots.map((s,i)=>{const a=Number(m[0][i+2]),b=Number(m[i+2][1]);return Number.isFinite(a)&&Number.isFinite(b)?Math.max(0,(a+b-direct)/1000):null})}catch(_){return null}}
+async function mushroomSearch(request,env){
+  if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);await ensureMushroomTables(env);const access=await mushroomRequireAccess(request,env);if(!access)return json({ok:false,error:'ACCES_CHAMPIGNONS_REQUIS'},403);const d=await body(request),mode=String(d.mode||'nearby'),base=await mushroomReturnPoint(env,access.subscriptionId);if(!base)return json({ok:false,error:'POINT_RETOUR_MANQUANT',message:'Enregistrez d’abord votre point « Retourner sur la place ».'},409);const rows=await mushroomRowsWithSeeds(env),counts=(await env.DB.prepare('SELECT spot_id,COUNT(*) AS n FROM mushroom_spot_delete_votes GROUP BY spot_id').all()).results||[],votes=new Map(counts.map(x=>[String(x.spot_id),Number(x.n||0)]));let candidates=rows.map(r=>({row:r,distanceKm:haversineMeters(base.lat,base.lon,Number(r.latitude),Number(r.longitude))/1000})).filter(x=>x.distanceKm<=100.0001);
+  if(mode==='route'){
+    const start={lat:Number(d.currentLat),lon:Number(d.currentLon)};if(!Number.isFinite(start.lat)||!Number.isFinite(start.lon))return json({ok:false,error:'GPS_MARCHE_REQUIS'},400);candidates=candidates.map(x=>({...x,roughDetour:(haversineMeters(start.lat,start.lon,Number(x.row.latitude),Number(x.row.longitude))+haversineMeters(Number(x.row.latitude),Number(x.row.longitude),base.lat,base.lon)-haversineMeters(start.lat,start.lon,base.lat,base.lon))/1000})).filter(x=>x.roughDetour<=30).sort((a,b)=>a.roughDetour-b.roughDetour).slice(0,45);const detours=await osrmDetours(start,base,candidates.map(x=>x.row));candidates=candidates.map((x,i)=>({...x,detourKm:detours&&detours[i]!=null?detours[i]:Math.max(0,x.roughDetour)})).filter(x=>x.detourKm<=10.0001).sort((a,b)=>a.detourKm-b.detourKm);
+  }else candidates.sort((a,b)=>a.distanceKm-b.distanceKm);
+  const spots=[];for(const x of candidates.slice(0,120)){const photoUrl=String(x.row.source||'community')==='google'?'':await mushroomSignedPhotoUrl(env,x.row.id,x.row.created_at);spots.push(mushroomSpotJson(x.row,photoUrl,{deleteVotes:votes.get(String(x.row.id))||0,distanceKm:Number(x.distanceKm.toFixed(1)),detourKm:x.detourKm==null?null:Number(x.detourKm.toFixed(1))}))}return json({ok:true,mode,spots,returnRadiusKm:100,maxDetourKm:10});
 }
 async function mushroomPhoto(url,env){
-  if(!env.DB)return new Response('Not found',{status:404});await ensureMushroomTables(env);const id=cleanIdentityText(url.searchParams.get('id'),80);if(!id)return new Response('Not found',{status:404});const row=await env.DB.prepare('SELECT photo_key,mime_type,created_at FROM mushroom_spots WHERE id=?').bind(id).first();if(!row)return new Response('Not found',{status:404});
-  if(env.MARKET_PHOTOS&&row.photo_key&&!String(row.photo_key).startsWith('d1:')){const obj=await env.MARKET_PHOTOS.get(row.photo_key);if(!obj)return new Response('Not found',{status:404});const h=new Headers();obj.writeHttpMetadata(h);h.set('content-type',row.mime_type||'image/jpeg');h.set('cache-control','private, max-age=3600');return new Response(obj.body,{headers:h})}
-  const b=await env.DB.prepare('SELECT data_base64,mime_type FROM mushroom_photo_blobs WHERE spot_id=?').bind(id).first();if(!b)return new Response('Not found',{status:404});const bin=atob(b.data_base64),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new Response(bytes,{headers:{'content-type':b.mime_type||'image/jpeg','cache-control':'private, max-age=3600'}})
+  if(!env.DB)return new Response('Not found',{status:404});await ensureMushroomTables(env);const id=cleanIdentityText(url.searchParams.get('id'),80),proof=await verifyMushroomPayload(env,url.searchParams.get('token'));if(!id||!proof||proof.purpose!=='photo'||String(proof.id)!==id)return new Response('Accès refusé',{status:403});const row=await env.DB.prepare('SELECT photo_key,mime_type,created_at FROM mushroom_spots WHERE id=?').bind(id).first();if(!row)return new Response('Not found',{status:404});if(env.MARKET_PHOTOS&&row.photo_key&&!String(row.photo_key).startsWith('d1:')){const obj=await env.MARKET_PHOTOS.get(row.photo_key);if(!obj)return new Response('Not found',{status:404});const h=new Headers();obj.writeHttpMetadata(h);h.set('content-type',row.mime_type||'image/jpeg');h.set('cache-control','private, max-age=300');return new Response(obj.body,{headers:h})}const b=await env.DB.prepare('SELECT data_base64,mime_type FROM mushroom_photo_blobs WHERE spot_id=?').bind(id).first();if(!b)return new Response('Not found',{status:404});const bin=atob(b.data_base64),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new Response(bytes,{headers:{'content-type':b.mime_type||'image/jpeg','cache-control':'private, max-age=300'}})
 }
-// ===== FIN V240 ACCÈS GLOBAL + CHAMPIGNONS =====
+// ===== FIN V244 ACCÈS GLOBAL + CHAMPIGNONS =====
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=238-admin-email-devis" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=235-parrainage-email-bouton" defer></script><script src="/referral-v232.js?v=235" defer></script><script src="/app-access-gate-v240.js?v=242" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=238-admin-email-devis" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=246-points-fiables" defer></script><script src="/referral-v232.js?v=246-points-fiables" defer></script><script src="/app-access-gate-v240.js?v=242" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
   }
 }
 
@@ -2446,8 +2534,11 @@ export default {
     if (url.pathname === "/api/presence" && (request.method === "GET" || request.method === "POST")) return presence(request, env);
     if (url.pathname === "/api/installations" && request.method === "POST") return installations(request, env);
     if (url.pathname === "/api/app-identity" && request.method === "POST") return appIdentity(request, env);
+    if (url.pathname === "/api/mushrooms/access" && request.method === "POST") return mushroomAccess(request, env);
+    if (url.pathname === "/api/mushrooms/search" && request.method === "POST") return mushroomSearch(request, env);
     if (url.pathname === "/api/mushrooms/analyze" && request.method === "POST") return mushroomAnalyze(request, env);
     if (url.pathname === "/api/mushrooms/spots" && (request.method === "GET" || request.method === "POST")) return mushroomSpots(request, env);
+    if (url.pathname === "/api/mushrooms/manage" && request.method === "POST") return mushroomManage(request, env);
     if (url.pathname === "/api/mushrooms/photo" && request.method === "GET") return mushroomPhoto(url, env);
     if (url.pathname === "/api/admin/login/request" && request.method === "POST") return requestAdminEmailLogin(request, env);
     if (url.pathname === "/api/admin/login/verify" && request.method === "POST") return verifyAdminEmailLogin(request, env);
@@ -2458,6 +2549,7 @@ export default {
     if (url.pathname === "/api/admin/presence" && request.method === "POST") return adminPresenceAction(request, env);
     if (url.pathname === "/api/admin/subscriptions" && request.method === "POST") return createSubscription(request, env);
     if (url.pathname === "/api/admin/subscriptions/action" && request.method === "POST") return subscriptionAction(request, env);
+    if (url.pathname === "/api/admin/mushrooms" && (request.method === "GET" || request.method === "POST")) return adminMushrooms(request, env);
     if (url.pathname === "/api/mail-event" && request.method === "POST") return recordMailEvent(request, env);
     if (url.pathname === "/api/admin/mail-counters" && request.method === "GET") return adminMailCounters(request, env);
     if (url.pathname === "/api/admin/gps-push" && (request.method === "GET" || request.method === "POST")) return adminGpsPush(request, env);
