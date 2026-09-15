@@ -1,4 +1,4 @@
 {
-  "version": "V242",
-  "message": "Administration restaurée et améliorée : historique des installations écran d’accueil (anciennes + nouvelles), cartes nom/prénom/e-mail, messages reçus, demandes à valider, bannissement/débannissement. Coin Champignons : reconnaissance Workers AI corrigée avec activation automatique de la licence Meta au premier usage et nouvel essai automatique."
+  "version": "V243",
+  "message": "Administration simplifiée : compteur unique des installations, récupération robuste de l’historique connu dans D1, suppression de la section mises à jour des marchés. Coin Champignons : reconnaissance vision passée sur Google Gemma 4 via Workers AI, sans étape de licence Meta."
 }

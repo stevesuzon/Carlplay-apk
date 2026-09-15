@@ -12,8 +12,11 @@ function box(){
 function card(m){
   var name=((m.first_name||'')+' '+(m.last_name||'')).trim()||'Nom non renseigné';
   var email=m.email||'E-mail non renseigné';
-  return '<div class="gpsRequest"><strong>'+esc(name)+'</strong><span>'+esc(email)+'<br><b>'+esc(m.kind||'Message')+'</b><br>'+esc(m.message||'').replace(/\n/g,'<br>')+'</span><button class="gpsYes" style="width:100%;margin-top:9px" onclick="readAppMessage(\''+esc(m.id)+'\')">MARQUER COMME LU</button></div>';
+  var canBan=String(email).toLowerCase()!=='appli.suzon@gmail.com'&&(email!=='E-mail non renseigné'||m.device_id);
+  return '<div class="gpsRequest"><strong>'+esc(name)+'</strong><span>'+esc(email)+'<br><b>'+esc(m.kind||'Message')+'</b><br>'+esc(m.message||'').replace(/\n/g,'<br>')+'</span><div class="gpsActions"><button class="gpsYes" onclick="readAppMessage(\''+esc(m.id)+'\')">MARQUER COMME LU</button>'+(canBan?'<button class="gpsNo" onclick="banAppMessageUser('+JSON.stringify(String(email==='E-mail non renseigné'?'':email))+','+JSON.stringify(String(m.device_id||''))+','+JSON.stringify(name)+')">BANNIR</button>':'<button class="secondary" disabled>ADMIN</button>')+'</div></div>';
 }
+
+window.banAppMessageUser=async function(email,deviceId,name){if(!confirm('Bannir '+(name||email||'cette personne')+' de Couteau Suisse ?'))return;try{var r=await fetch('/api/admin/banned-users',{method:'POST',headers:{authorization:'Bearer '+token(),'content-type':'application/json'},body:JSON.stringify({action:'ban',email:email||'',deviceId:deviceId||'',name:name||''}),cache:'no-store'}),j=await r.json();if(!r.ok)throw new Error(j.error||'Impossible');alert('Personne bannie.');if(window.loadBannedUsers)window.loadBannedUsers();}catch(e){alert('Bannissement impossible.')}};
 window.readAppMessage=async function(id){try{await fetch('/api/admin/app-messages',{method:'POST',headers:{authorization:'Bearer '+token(),'content-type':'application/json'},body:JSON.stringify({id:id}),cache:'no-store'})}catch(e){}load()};
 async function load(){
   var b=box(),t=token();if(!b||!t||localStorage.getItem('carplay_admin_here')!=='1')return;

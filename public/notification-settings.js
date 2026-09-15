@@ -46,7 +46,7 @@
   }
   async function sync(){
     if(!('serviceWorker'in navigator))return;
-    const registration=await navigator.serviceWorker.register('/sw.js?v=241-admin-account');
+    const registration=await navigator.serviceWorker.register('/sw.js?v=243-admin-count-gemma');
     await navigator.serviceWorker.ready;
     await tellWorker(registration,enabled()&&permission()==='granted');
     if(enabled()&&permission()==='granted')await syncAdminPush(registration);

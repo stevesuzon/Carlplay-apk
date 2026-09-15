@@ -708,59 +708,32 @@ async function installations(request, env) {
 
 async function adminInstallations(request, env) {
   if (!(await adminAuthorized(request, env))) return json({ ok: false, error: "SECRET_INCORRECT" }, 401);
-  if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE", count: 0, people: [] }, 503);
+  if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE", count: 0 }, 503);
   await ensureInstallationsTable(env);
-  await ensureAppIdentityTables(env);
-  try{await ensureSubscriptionEmailColumns(env)}catch(_){}
-  try{await ensureContestTables(env)}catch(_){}
-  // V242 : ne plus supprimer les anciennes installations. L'administration doit
-  // conserver l'historique des personnes ayant réellement ouvert la PWA depuis
-  // l'écran d'accueil et continuer à ajouter les nouvelles.
-  const rows = await env.DB.prepare(`
-    WITH devices AS (
-      SELECT device_id, MAX(platform) AS platform, MIN(first_seen) AS first_seen, MAX(last_seen) AS last_seen
-      FROM app_installations WHERE device_id<>'' GROUP BY device_id
-      UNION
-      SELECT device_id, 'pwa' AS platform,
-             CAST(created_at/1000 AS INTEGER) AS first_seen,
-             CAST(updated_at/1000 AS INTEGER) AS last_seen
-      FROM app_identities WHERE device_id<>''
-      UNION
-      SELECT phone_device AS device_id, 'ancien' AS platform,
-             CAST(COALESCE(redeemed_at,account_updated_at,0)/1000 AS INTEGER) AS first_seen,
-             CAST(COALESCE(account_updated_at,redeemed_at,0)/1000 AS INTEGER) AS last_seen
-      FROM subscriptions WHERE phone_device IS NOT NULL AND phone_device<>'' AND (recovery_email_mask IS NOT NULL OR account_first_name IS NOT NULL)
-      UNION
-      SELECT autoradio_device AS device_id, 'ancien' AS platform,
-             CAST(COALESCE(redeemed_at,account_updated_at,0)/1000 AS INTEGER) AS first_seen,
-             CAST(COALESCE(account_updated_at,redeemed_at,0)/1000 AS INTEGER) AS last_seen
-      FROM subscriptions WHERE autoradio_device IS NOT NULL AND autoradio_device<>'' AND (recovery_email_mask IS NOT NULL OR account_first_name IS NOT NULL)
-      UNION
-      SELECT device_id, 'ancien-concours' AS platform,
-             CAST(COALESCE(created_at,0)/1000 AS INTEGER) AS first_seen,
-             CAST(COALESCE(created_at,0)/1000 AS INTEGER) AS last_seen
-      FROM contest_participants WHERE device_id IS NOT NULL AND device_id<>''
-    ), merged AS (
-      SELECT device_id, MAX(platform) AS platform, MIN(first_seen) AS first_seen, MAX(last_seen) AS last_seen
-      FROM devices GROUP BY device_id
-    )
-    SELECT m.device_id,m.platform,m.first_seen,m.last_seen,
-      COALESCE(ai.first_name,cp.first_name,s.account_first_name,'') AS first_name,
-      COALESCE(ai.last_name,cp.last_name,s.account_last_name,'') AS last_name,
-      COALESCE(ai.email,s.recovery_email_mask,'') AS email
-    FROM merged m
-    LEFT JOIN app_identities ai ON ai.rowid=(SELECT ai2.rowid FROM app_identities ai2 WHERE ai2.device_id=m.device_id ORDER BY ai2.updated_at DESC LIMIT 1)
-    LEFT JOIN subscriptions s ON s.id=(SELECT s2.id FROM subscriptions s2 WHERE s2.phone_device=m.device_id OR s2.autoradio_device=m.device_id ORDER BY s2.active DESC,s2.id DESC LIMIT 1)
-    LEFT JOIN contest_participants cp ON cp.subscription_id=s.id
-    ORDER BY m.first_seen DESC,m.last_seen DESC
-    LIMIT 1000
-  `).all();
-  const people=(rows.results||[]).map(r=>({
-    deviceId:String(r.device_id||''), platform:String(r.platform||'pwa'),
-    firstName:String(r.first_name||''), lastName:String(r.last_name||''), email:String(r.email||''),
-    firstSeen:Number(r.first_seen||0), lastSeen:Number(r.last_seen||0)
-  }));
-  return json({ ok: true, count: people.length, people });
+  const people = new Set();
+  const clean = v => String(v || '').trim().toLowerCase();
+  try {
+    const q = await env.DB.prepare("SELECT device_id FROM app_installations WHERE device_id IS NOT NULL AND device_id<>''").all();
+    for (const r of (q.results || [])) { const d=clean(r.device_id); if(d) people.add('d:'+d); }
+  } catch (_) {}
+  try {
+    const q = await env.DB.prepare("SELECT device_id,email FROM app_identities").all();
+    for (const r of (q.results || [])) { const d=clean(r.device_id),e=clean(r.email); if(d) people.add('d:'+d); else if(e) people.add('e:'+e); }
+  } catch (_) {}
+  try {
+    const q = await env.DB.prepare("SELECT phone_device,autoradio_device,recovery_email_mask AS email FROM subscriptions").all();
+    for (const r of (q.results || [])) {
+      const p=clean(r.phone_device),a=clean(r.autoradio_device),e=clean(r.email);
+      if(p) people.add('d:'+p);
+      else if(a) people.add('d:'+a);
+      else if(e) people.add('e:'+e);
+    }
+  } catch (_) {}
+  try {
+    const q = await env.DB.prepare("SELECT device_id FROM contest_participants WHERE device_id IS NOT NULL AND device_id<>''").all();
+    for (const r of (q.results || [])) { const d=clean(r.device_id); if(d) people.add('d:'+d); }
+  } catch (_) {}
+  return json({ ok: true, count: people.size });
 }
 
 async function downloadAutoradioApk() {
@@ -1051,6 +1024,8 @@ function decodePhoto(dataUrl) {
   return bytes;
 }
 
+function workersAiBinding(env){return env&&(env.AI||env.ai||env.WORKERS_AI||env.WorkersAI)||null}
+
 function parseVisionJson(value) {
   const text = String(value && (value.response || value.result || value.choices?.[0]?.message?.content) || value || "")
     .replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
@@ -1060,9 +1035,9 @@ function parseVisionJson(value) {
 }
 
 async function inspectMarketPhoto(env, dataUrl) {
-  if (!env.AI) return { ok: true, validationMode: "fallback", stallCount: 0, qualityScore: 55, reason: "Contrôle automatique indisponible : photo acceptée avec confirmation utilisateur et GPS." };
+  const ai=workersAiBinding(env); if (!ai) return { ok: true, validationMode: "fallback", stallCount: 0, qualityScore: 55, reason: "Contrôle automatique indisponible : photo acceptée avec confirmation utilisateur et GPS." };
   try {
-    const response = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
+    const response = await ai.run("@cf/google/gemma-4-26b-a4b-it", {
       messages: [
         { role: "system", content: "You are a strict image validator. Return only valid JSON, with no markdown." },
         { role: "user", content: "Validate whether this photo genuinely documents a market in progress. IMPORTANT: be permissive about composition and do NOT require a fixed number of stalls. ACCEPT a normal aisle photo when stalls, merchandise and/or merchants are clearly visible as part of the market, including an aisle with stalls on one or both sides. A photo like a person standing in the central aisle, with food/produce stalls and market activity visible along the sides and farther down the aisle, MUST be accepted even if pedestrians, a dog, poles, vehicles belonging to traders, sky, or empty pavement are also visible. generalView means the image gives useful context of the market area; it does NOT mean every stall must be visible. Reject only when the photo does not provide credible visual evidence of a market: e.g. only a wall/building/empty road/parked vehicle, an extreme close-up of one person or object with no market context, the market is substantially hidden, or the image is unusably blurred/dark. Do not reject merely because the framing is imperfect or because one side has fewer stalls. Return exactly: {\"accepted\":boolean,\"isMarket\":boolean,\"generalView\":boolean,\"stallCount\":integer,\"qualityScore\":integer,\"reason\":\"short French reason\"}. qualityScore is 0-100. Give a higher qualityScore when the market is more clearly visible as a whole, lively, well framed, and shows more useful market context/stalls. This score is used to decide whether a new photo is genuinely better than the currently published one." }
@@ -2217,7 +2192,7 @@ async function adminAppMessages(request,env){
   await ensureAppMessages(env);await ensureAppIdentityTables(env);
   if(request.method==="POST"){const d=await body(request);await env.DB.prepare("UPDATE app_messages SET status='read',read_at=? WHERE id=?").bind(Date.now(),String(d.id||"")).run()}
   const q=await env.DB.prepare(`SELECT m.*,
-    COALESCE(s.recovery_email_mask,ai.email,'') AS email
+    COALESCE(s.recovery_email_mask,ai.email,'') AS email, COALESCE(s.phone_device,s.autoradio_device,'') AS device_id
     FROM app_messages m
     LEFT JOIN subscriptions s ON s.id=m.subscription_id
     LEFT JOIN app_identities ai ON ai.rowid=(SELECT ai2.rowid FROM app_identities ai2 WHERE ai2.device_id=s.phone_device OR ai2.device_id=s.autoradio_device ORDER BY ai2.updated_at DESC LIMIT 1)
@@ -2362,19 +2337,15 @@ async function nearbyFungiCandidates(lat,lon){
     const j=await r.json(),rows=Array.isArray(j.results)?j.results:[];return rows.map(x=>x&&x.taxon).filter(Boolean).map(t=>({name:String(t.name||''),common:String(t.preferred_common_name||'')})).filter(x=>x.name).slice(0,25);
   }catch(_){return []}
 }
-const MUSHROOM_VISION_MODEL='@cf/meta/llama-3.2-11b-vision-instruct';
+const MUSHROOM_VISION_MODEL='@cf/google/gemma-4-26b-a4b-it';
 async function runMushroomVision(env,payload){
-  try{return await env.AI.run(MUSHROOM_VISION_MODEL,payload)}catch(firstError){
-    // Cloudflare demande d'accepter la licence Meta une seule fois par compte avant
-    // le premier appel Llama 3.2 Vision. On le fait automatiquement puis on réessaie.
-    try{await env.AI.run(MUSHROOM_VISION_MODEL,{prompt:'agree'});return await env.AI.run(MUSHROOM_VISION_MODEL,payload)}catch(secondError){
-      const a=String(firstError&&firstError.message||firstError||''),b=String(secondError&&secondError.message||secondError||'');
-      throw new Error((b||a||'Workers AI indisponible').slice(0,500));
-    }
-  }
+  const ai=workersAiBinding(env);
+  if(!ai)throw new Error('AI_BINDING_MISSING');
+  return ai.run(MUSHROOM_VISION_MODEL,payload);
 }
+
 async function inspectMushroomPhoto(env,dataUrl,lat,lon){
-  if(!env.AI)return {ok:false,error:'IA_RECONNAISSANCE_NON_CONFIGUREE',message:"La liaison Workers AI « AI » n’est pas disponible sur le serveur."};
+  if(!workersAiBinding(env))return {ok:false,error:'IA_RECONNAISSANCE_NON_CONFIGUREE',message:"La liaison Workers AI « AI » n’est pas active sur cette version déployée. Après le déploiement, ouvrez Liaisons et vérifiez Workers AI → AI."};
   const candidates=await nearbyFungiCandidates(lat,lon);const prior=candidates.length?candidates.map(x=>(x.common?x.common+' / ':'')+x.name).join('; '):'aucune liste locale disponible';
   try{
     const response=await runMushroomVision(env,{
@@ -2391,8 +2362,8 @@ async function inspectMushroomPhoto(env,dataUrl,lat,lon){
     return {ok:true,commonName:common,scientificName:scientific,confidence:speciesConfidence,mushroomConfidence,reason};
   }catch(e){
     const detail=String(e&&e.message||'').toLowerCase();
-    if(detail.includes('license')||detail.includes('agree')||detail.includes('terms'))return {ok:false,error:'LICENCE_IA',message:"Workers AI est lié, mais la licence du modèle vision n’a pas encore pu être activée. Réessayez une fois dans quelques secondes."};
-    return {ok:false,error:'ANALYSE_IA_INDISPONIBLE',message:"La reconnaissance IA n’a pas répondu. Vérifiez la liaison Workers AI « AI », puis réessayez."};
+    if(detail.includes('ai_binding_missing'))return {ok:false,error:'IA_RECONNAISSANCE_NON_CONFIGUREE',message:"La liaison Workers AI « AI » n’est pas active sur cette version déployée. Vérifiez Liaisons après le déploiement."};
+    return {ok:false,error:'ANALYSE_IA_INDISPONIBLE',message:"La reconnaissance IA n’a pas répondu. Réessayez dans quelques secondes."};
   }
 }
 async function mushroomHmacKey(env){return crypto.subtle.importKey('raw',new TextEncoder().encode('mushroom-v240:'+String(env.CODE_PEPPER||'couteau-suisse')), {name:'HMAC',hash:'SHA-256'},false,['sign','verify'])}
