@@ -1,4 +1,4 @@
 {
-  "version": "V239",
-  "message": "Notifications : si l’autorisation n’a jamais été demandée, la demande système s’ouvre directement. Si elle a déjà été refusée, l’application ouvre une aide qui dirige vers les réglages du téléphone et tente d’ouvrir Réglages ; au retour elle vérifie automatiquement l’autorisation. Logo/nom Couteau Suisse renforcés avec manifest et icônes versionnés, icônes iPhone/Android/maskable. Toutes les fonctions V238 sont conservées."
+  "version": "V240",
+  "message": "Accès global Couteau Suisse : installation sur écran d’accueil + nom, prénom et adresse e-mail obligatoires avant toute utilisation. Ajout Coin Détente & Champignons (BÊTA) depuis Retourner sur la place : GPS haute précision, photo caméra en direct obligatoire, vérification GPS/photo, reconnaissance visuelle du champignon avec proposition modifiable, classement par département et espèce, bouton Aller au bois. Fonctions V239/V238 conservées."
 }
