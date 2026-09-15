@@ -1,4 +1,4 @@
 {
-  "version": "V247",
-  "message": "Photos marchés et champignons : envoi iPhone corrigé, miniature seule puis ouverture en grand. Les fiches, boutons Modifier et Aller sont conservés. Après validation, les points et les nouveaux joueurs apparaissent directement au classement. Liaisons Cloudflare et Workers AI conservées."
+  "version": "V255",
+  "message": "Après la période globale gratuite de 5 mois, toute nouvelle personne qui s’inscrit pour la première fois avec nom, prénom et e-mail reçoit 7 jours d’essai gratuit sur toute l’application. À la fin des 7 jours, l’application se verrouille et demande un abonnement. Une même personne ne peut pas recommencer un nouvel essai en changeant ou réinstallant le téléphone : la date de fin initiale est conservée. Les anciens abonnés récupèrent leur abonnement par e-mail depuis Réglages > Abonnement, avec leurs jours restants. L’accès Champignons suit l’essai principal."
 }

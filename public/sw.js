@@ -1,4 +1,4 @@
-const CACHE = "couteau-suisse-v247-photo-iphone-classement";
+const CACHE = "couteau-suisse-v255-generateur-separe";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -17,15 +17,15 @@ const CORE = [
   "/cache-cleanup-v20260910.js?v=20260912-allmarkets-v149",
   "/installer.html",
   "/tutoriel-comment-installer-iphone.mp4",
-  "/manifest.webmanifest?v=couteau-suisse-v240",
-  "/couteau-suisse-152.png?v=240",
-  "/couteau-suisse-167.png?v=240",
-  "/couteau-suisse-180.png?v=240",
-  "/couteau-suisse-192.png?v=240",
-  "/couteau-suisse-512.png?v=240",
-  "/couteau-suisse-1024.png?v=240",
-  "/couteau-suisse-maskable-192.png?v=240",
-  "/couteau-suisse-maskable-512.png?v=240",
+  "/manifest.webmanifest?v=couteau-suisse-v254",
+  "/couteau-suisse-152.png?v=255",
+  "/couteau-suisse-167.png?v=255",
+  "/couteau-suisse-180.png?v=255",
+  "/couteau-suisse-192.png?v=255",
+  "/couteau-suisse-512.png?v=255",
+  "/couteau-suisse-1024.png?v=255",
+  "/couteau-suisse-maskable-192.png?v=255",
+  "/couteau-suisse-maskable-512.png?v=255",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=68-notifications-globales",
   "/subscription-web.js?v=240-notifications-logo",
@@ -37,7 +37,7 @@ const CORE = [
   "/special-market-server-v157.js?v=247-photo-miniature",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
-  "/gps-apple-plans-v141.js?v=240-champignons",
+  "/gps-apple-plans-v141.js?v=248-champignon-visible",
   "/location-permission-v20260911.js?v=20260911",
   "/markets-final.css?v=126-favori-fluide",
   "/markets-final-picker.css",
@@ -66,10 +66,10 @@ const CORE = [
   "/mypos-go2.jpeg",
   "/mypos-ultra.jpeg",
   "/mypos-flex.jpeg",
-  "/app-access-gate-v240.js?v=243",
-  "/champignons.html?v=247-photo-miniature",
-  "/champignons.css?v=247-photo-miniature",
-  "/champignons.js?v=247-photo-miniature",
+  "/app-access-gate-v240.js?v=255-generateur-separe",
+  "/champignons.html?v=255-generateur-separe",
+  "/champignons.css?v=255-generateur-separe",
+  "/champignons.js?v=255-generateur-separe",
   "/champignon-cepe.jpg?v=240"
 ];
 CORE.push(
@@ -115,8 +115,8 @@ self.addEventListener("push", (e) => {
     if (!enabled) return;
     return self.registration.showNotification("Modification de marché demandée", {
       body: "Une demande de modification ou de présence d’un marché attend votre réponse OUI ou NON pendant 3 minutes.",
-      icon: "/couteau-suisse-192.png?v=240",
-      badge: "/couteau-suisse-192.png?v=240",
+      icon: "/couteau-suisse-192.png?v=255",
+      badge: "/couteau-suisse-192.png?v=255",
       tag: "gps-unlock-request",
       renotify: true,
       data: { url: "/admin.html#gps-requests" }

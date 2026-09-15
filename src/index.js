@@ -1266,7 +1266,8 @@ function contestFiveMonthEnd(start){const d=new Date(Number(start)||Date.now());
 const CONTEST_BONUS_MS=3*86400000;
 const CONTEST_LONG_TRIP_BONUS_MS=2*86400000;
 const CONTEST_RESULTS_MS=3*86400000;
-const CONTEST_APP_FREE_EXTRA_MS=5*86400000;
+const CONTEST_APP_FREE_EXTRA_MS=0;
+const POST_PROMO_FIRST_TRIAL_MS=7*86400000;
 const CONTEST_DIESEL_PRICE=2.23;
 // Valeur technique volontairement cachée dans l'interface : elle sert seulement au calcul carburant.
 const CONTEST_REFERENCE_L_PER_100KM=7;
@@ -1338,23 +1339,42 @@ async function contestSubscription(env,data){
   if(!row&&validCode(code)){const h=await hashCode(code,env.CODE_PEPPER);row=await env.DB.prepare("SELECT * FROM subscriptions WHERE code_hash=? AND active=1 LIMIT 1").bind(h).first()}
   if(!row)return null;if(!row.lifetime&&(!row.expires_at||Date.parse(row.expires_at)<=Date.now()))return null;return row;
 }
+async function isContestTrialRow(row){
+  if(!row)return false;
+  const previousDevice=String(row.phone_device||row.autoradio_device||"").trim();
+  if(!previousDevice)return false;
+  const expected=await sha256Text("contest-trial:"+previousDevice);
+  return String(row.code_hash||"")===expected;
+}
 async function contestTrialIdentity(request,env){
-  const cfg=await ensureContestTables(env),now=Date.now(),freeUntil=Number(cfg.end_at)+CONTEST_APP_FREE_EXTRA_MS;
-  if(now>freeUntil)return json({ok:false,error:"PERIODE_ESSAI_TERMINEE"},403);
+  const cfg=await ensureContestTables(env),now=Date.now(),globalFreeUntil=Number(cfg.end_at)+CONTEST_APP_FREE_EXTRA_MS;
   const data=await body(request),deviceId=String(data.deviceId||""),email=normalizeEmail(data.email),firstName=contestCleanName(data.firstName),lastName=contestCleanName(data.lastName);
   if(!validDevice(deviceId))return json({ok:false,error:"DONNEES_INVALIDES"},400);
   if(firstName.length<2||lastName.length<2)return json({ok:false,error:"NOM_PRENOM_OBLIGATOIRES"},400);
   if(!validEmail(email))return json({ok:false,error:"EMAIL_OBLIGATOIRE"},400);
   const emailHash=await sha256Text(email),trialHash=await sha256Text("contest-trial:"+deviceId),trialEmailHash=await sha256Text("contest-trial-email:"+deviceId+":"+email);
-  let row=await env.DB.prepare("SELECT * FROM subscriptions WHERE (phone_device=? OR autoradio_device=?) AND (code_hash=? OR lower(COALESCE(recovery_email_mask,''))=?) ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC LIMIT 1").bind(deviceId,deviceId,trialHash,email).first();
+  let row=await env.DB.prepare("SELECT * FROM subscriptions WHERE phone_device=? OR autoradio_device=? OR lower(COALESCE(recovery_email_mask,''))=? ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC LIMIT 1").bind(deviceId,deviceId,email).first();
   if(row){
-    const stillPaid=!!row.lifetime||(row.code_hash!==trialHash&&row.expires_at&&Date.parse(row.expires_at)>now);
-    const expiry=stillPaid?row.expires_at:new Date(freeUntil).toISOString(),storedHash=stillPaid?emailHash:trialEmailHash;
-    await env.DB.prepare("UPDATE subscriptions SET expires_at=?,active=1,phone_device=?,recovery_email_hash=?,recovery_email_mask=?,account_first_name=?,account_last_name=?,account_updated_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(expiry,deviceId,storedHash,email,firstName,lastName,now,row.id).run();
-  }else{
-    await env.DB.prepare("INSERT INTO subscriptions(code_hash,expires_at,lifetime,active,phone_device,recovery_email_hash,recovery_email_mask,account_first_name,account_last_name,account_updated_at) VALUES(?,?,0,1,?,?,?,?,?,?)").bind(trialHash,new Date(freeUntil).toISOString(),deviceId,trialEmailHash,email,firstName,lastName,now).run();
+    const isTrial=await isContestTrialRow(row);
+    if(!isTrial){
+      return json({ok:false,error:"ABONNEMENT_EXISTANT_A_RECUPERER",message:"Un abonnement existe déjà pour cette adresse e-mail. Récupérez votre code dans Réglages > Abonnement."},409);
+    }
+    const existingExpiry=row.expires_at?Date.parse(row.expires_at):0;
+    if(!existingExpiry||existingExpiry<=now){
+      return json({ok:false,error:"ESSAI_DEJA_UTILISE",message:"Votre essai gratuit a déjà été utilisé. Un abonnement est maintenant nécessaire."},403);
+    }
+    // Même personne sur un téléphone réinstallé/changé : on conserve strictement la date de fin,
+    // sans redonner 7 jours, et on rattache l'essai au nouvel appareil.
+    await env.DB.prepare("UPDATE subscriptions SET code_hash=?,active=1,phone_device=?,autoradio_device=NULL,recovery_email_hash=?,recovery_email_mask=?,account_first_name=?,account_last_name=?,account_updated_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=?")
+      .bind(trialHash,deviceId,trialEmailHash,email,firstName,lastName,now,row.id).run();
+    return json({ok:true,trial:true,trialMode:now<=globalFreeUntil?"global":"seven_day",existingTrial:true,email,firstName,lastName,expiresAt:new Date(existingExpiry).toISOString()});
   }
-  return json({ok:true,trial:true,email,firstName,lastName,expiresAt:new Date(freeUntil).toISOString()});
+  // Pendant les 5 mois gratuits : tout nouvel utilisateur finit le même jour que la période globale.
+  // Après ces 5 mois : chaque nouvelle personne dispose une seule fois de 7 jours gratuits.
+  const expiryMs=now<=globalFreeUntil?globalFreeUntil:now+POST_PROMO_FIRST_TRIAL_MS;
+  await env.DB.prepare("INSERT INTO subscriptions(code_hash,expires_at,lifetime,active,phone_device,recovery_email_hash,recovery_email_mask,account_first_name,account_last_name,account_updated_at) VALUES(?,?,0,1,?,?,?,?,?,?)")
+    .bind(trialHash,new Date(expiryMs).toISOString(),deviceId,trialEmailHash,email,firstName,lastName,now).run();
+  return json({ok:true,trial:true,trialMode:now<=globalFreeUntil?"global":"seven_day",newTrial:true,email,firstName,lastName,expiresAt:new Date(expiryMs).toISOString()});
 }
 
 async function contestPlaceLabel(lat,lon){
