@@ -3,3 +3,20 @@
 .mushSpotPhoto{cursor:pointer}.spotPhotoModal{position:fixed;z-index:1400;inset:0;background:#000e;display:flex;align-items:center;justify-content:center;padding:48px 12px 18px}.spotPhotoModal .spotPhotoLarge{width:auto;height:auto;max-width:100%;max-height:88vh;border-radius:14px;object-fit:contain;background:#000}.spotPhotoClose{position:absolute;top:max(12px,env(safe-area-inset-top));right:14px;width:44px;height:44px;border:0;border-radius:50%;background:#fff;color:#111;font-size:32px;line-height:1;font-weight:900}@media(max-width:520px){.spotPhotoModal .spotPhotoLarge{width:auto;height:auto;max-width:100%;max-height:84vh}}
 
 .contestMushroomInfo{margin:12px 0 14px;padding:13px 15px;border:2px solid #f3c847;border-radius:16px;background:#211a05;color:#ffe783;font-weight:900;line-height:1.35;text-align:center}.contestMushroomInfo b{color:#fff}
+
+/* V263 — boutons visibles reconnaissance / ajout bois */
+.mushroomHomeActions{grid-template-columns:repeat(3,minmax(0,1fr))}.mushroomHomeActions .btn{min-height:74px;line-height:1.15}@media(max-width:700px){.mushroomHomeActions{grid-template-columns:1fr}}
+
+/* V265 — parcours Ajouter un bois guidé */
+.photoReadyBtn{background:#167bd4}.photoReadyBtn:disabled{background:#5f6662!important;color:#d9ddda!important;opacity:1!important}.fieldHelp{margin:4px 0 8px;color:#b9d1c0;font-size:13px;line-height:1.35}.speciesMatches{display:grid;gap:6px;margin-top:7px;max-height:210px;overflow:auto}.speciesMatchBtn{width:100%;min-height:42px;border:1px solid #4c7458;border-radius:11px;background:#173321;color:#fff;text-align:left;padding:8px 10px;font-weight:900}.speciesMatchBtn:active{background:#21512f}
+
+/* V266 — fiches bois : statut, distances et plusieurs variétés */
+.woodCategoryField{margin:12px 0;padding:12px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(255,255,255,.035)}
+.woodCategoryField>b{display:block;margin-bottom:8px}
+.woodCategoryField small{display:block;margin-top:5px;color:#aeb8c7}
+.addSpeciesBtn{width:100%;margin-top:8px;border:1px solid #536273;background:#18212c;color:#fff;border-radius:12px;padding:10px;font-weight:900}
+.spotMetaStrong{font-weight:900}
+.woodStatusPublic{color:#9ff8b9}.woodStatusPrivate{color:#ffd27a}
+
+/* V267 — choix obligatoire et exclusif : Bois public / Bois privé */
+.woodTypeChoices{display:grid;grid-template-columns:1fr 1fr;gap:9px}.woodTypeChoice{display:flex!important;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:10px;border:2px solid #4c7458;border-radius:12px;background:#0b1d12;color:#fff;font-weight:950}.woodTypeChoice input{width:22px!important;min-height:22px!important;margin:0;accent-color:#1ca94f}.woodTypeChoice.public{border-color:#47bc6d}.woodTypeChoice.private{border-color:#d0a43b;background:#302605}.woodTypeChoice:has(input:checked){box-shadow:0 0 0 2px rgba(255,255,255,.18) inset;transform:translateY(-1px)}@media(max-width:420px){.woodTypeChoices{grid-template-columns:1fr}}

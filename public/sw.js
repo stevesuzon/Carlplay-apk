@@ -1,4 +1,4 @@
-const CACHE = "couteau-suisse-v260-champignons-concours";
+const CACHE = "couteau-suisse-v267-bois-public-prive";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -66,10 +66,10 @@ const CORE = [
   "/mypos-go2.jpeg",
   "/mypos-ultra.jpeg",
   "/mypos-flex.jpeg",
-  "/app-access-gate-v240.js?v=260-champignons-concours",
+  "/app-access-gate-v240.js?v=267-bois-public-prive",
   "/champignons.html?v=255-generateur-separe",
-  "/champignons.css?v=260-admin-compact",
-  "/champignons.js?v=260-champignons-concours",
+  "/champignons.css?v=267-bois-public-prive",
+  "/champignons.js?v=267-bois-public-prive",
   "/champignon-cepe.jpg?v=240"
 ];
 CORE.push(

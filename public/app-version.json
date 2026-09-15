@@ -1,4 +1,4 @@
 {
-  "version": "V260",
-  "message": "Abonnement Champignons : 50 € pour 1 an (365 jours). Les fiches Champignons remplies par un participant au concours créent désormais une demande dans Demandes à valider. Une fiche validée rapporte 50 points de base, avec le bonus concours actif éventuel. Refus = aucun point. La demande disparaît après traitement ou après 24 heures. Les corrections précédentes sont conservées."
+  "version": "V267",
+  "message": "Dans Ajouter un bois, la catégorie est maintenant un choix obligatoire entre seulement deux boutons : « Bois public » ou « Bois privé ». Aucun troisième choix. Les fiches affichent PUBLIC ou PRIVÉ et le reste de la V266 est conservé."
 }
