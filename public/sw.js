@@ -1,4 +1,4 @@
-const CACHE = "couteau-suisse-v246-concours-points-fiables";
+const CACHE = "couteau-suisse-v231-10-restaurants-fastfood-chaines";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -11,33 +11,26 @@ async function saveNotificationPreference(enabled) {
   await cache.put(NOTIFICATION_PREF_URL, new Response(enabled ? "1" : "0"));
 }
 const CORE = [
-  "/brocante-fiche-achat-v1.js?v=238-compat",
-  "/devis-personnalises-v2.js?v=238-admin-email-devis",
+  "/brocante-fiche-achat-v1.js?v=20260910-ficheachat-mobile-acompte-signatures1",
+  "/devis-personnalises-v2.js?v=20260910-ficheachat-mobile-acompte-signatures1",
   "/index.html",
   "/cache-cleanup-v20260910.js?v=20260912-allmarkets-v149",
   "/installer.html",
   "/tutoriel-comment-installer-iphone.mp4",
-  "/manifest.webmanifest?v=couteau-suisse-v240",
-  "/couteau-suisse-152.png?v=240",
-  "/couteau-suisse-167.png?v=240",
-  "/couteau-suisse-180.png?v=240",
-  "/couteau-suisse-192.png?v=240",
-  "/couteau-suisse-512.png?v=240",
-  "/couteau-suisse-1024.png?v=240",
-  "/couteau-suisse-maskable-192.png?v=240",
-  "/couteau-suisse-maskable-512.png?v=240",
+  "/manifest.webmanifest",
+  "/couteau-suisse-180.png",
+  "/couteau-suisse-192.png",
+  "/couteau-suisse-512.png",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=68-notifications-globales",
-  "/subscription-web.js?v=240-notifications-logo",
-  "/notification-settings.js?v=243",
-  "/referral-v232.js?v=246-points-fiables",
+  "/subscription-web.js?v=208-renouvellement-cumul-jours",
   "/subscription-v154-patch.js?v=203",
   "/modification-profile-v156.js?v=173",
-  "/sanction-guard-v161.js?v=243",
+  "/sanction-guard-v161.js?v=161",
   "/special-market-server-v157.js?v=184",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
-  "/gps-apple-plans-v141.js?v=240-champignons",
+  "/gps-apple-plans-v141.js?v=231",
   "/location-permission-v20260911.js?v=20260911",
   "/markets-final.css?v=126-favori-fluide",
   "/markets-final-picker.css",
@@ -65,12 +58,7 @@ const CORE = [
   "/retourner-place-trafic-2025.png",
   "/mypos-go2.jpeg",
   "/mypos-ultra.jpeg",
-  "/mypos-flex.jpeg",
-  "/app-access-gate-v240.js?v=243",
-  "/champignons.html?v=245",
-  "/champignons.css?v=245",
-  "/champignons.js?v=245",
-  "/champignon-cepe.jpg?v=240"
+  "/mypos-flex.jpeg"
 ];
 CORE.push(
   "/contact-mail-v99.css?v=99",
@@ -115,8 +103,8 @@ self.addEventListener("push", (e) => {
     if (!enabled) return;
     return self.registration.showNotification("Modification de marché demandée", {
       body: "Une demande de modification ou de présence d’un marché attend votre réponse OUI ou NON pendant 3 minutes.",
-      icon: "/couteau-suisse-192.png?v=240",
-      badge: "/couteau-suisse-192.png?v=240",
+      icon: "/couteau-suisse-192.png",
+      badge: "/couteau-suisse-192.png",
       tag: "gps-unlock-request",
       renotify: true,
       data: { url: "/admin.html#gps-requests" }

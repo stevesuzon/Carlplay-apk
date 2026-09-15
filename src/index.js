@@ -1,7 +1,7 @@
 const cors = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, OPTIONS",
-  "access-control-allow-headers": "content-type, authorization, x-mushroom-access"
+  "access-control-allow-headers": "content-type, authorization"
 };
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
@@ -26,14 +26,9 @@ async function sha256Text(value) {
 async function adminAuthorized(request, env) {
   const auth = request.headers.get("authorization") || "";
   const supplied = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  if (!supplied || !env.DB) return false;
-  await ensureAdminAuthTables(env);
-  const tokenHash = await sha256Text(supplied);
-  const now = Date.now();
-  const row = await env.DB.prepare("SELECT token_hash,expires_at FROM admin_sessions WHERE token_hash=? AND expires_at>? LIMIT 1").bind(tokenHash, now).first();
-  if (!row) return false;
-  try { await env.DB.prepare("UPDATE admin_sessions SET last_seen_at=? WHERE token_hash=?").bind(now, tokenHash).run(); } catch(_) {}
-  return true;
+  if (!supplied) return false;
+  if (env.ADMIN_SECRET && supplied === String(env.ADMIN_SECRET).trim()) return true;
+  return (await sha256Text(supplied)) === ADMIN_FALLBACK_SHA256;
 }
 
 async function body(request) {
@@ -209,12 +204,6 @@ function normalizeCode(value) {
     .slice(0, 6);
 }
 function validCode(value) { return /^[A-HJ-NP-Z0-9]{6}$/.test(normalizeCode(value)); }
-function randomSubscriptionCode(){
-  const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789", bytes=new Uint8Array(6);
-  crypto.getRandomValues(bytes);
-  let out=""; for(const b of bytes) out+=alphabet[b%alphabet.length];
-  return out;
-}
 function validDevice(value) { return /^[a-zA-Z0-9._:-]{8,128}$/.test(String(value || "").trim()); }
 function normalizeEmail(value){return String(value||"").trim().toLowerCase().slice(0,254)}
 async function activeEmailOwner(env,emailHash,exceptId){
@@ -242,69 +231,6 @@ function emailMask(email){return email.replace(/^(.{2}).*(@.*)$/,'$1***$2')}
 function parisDay(){return new Intl.DateTimeFormat("fr-CA",{timeZone:"Europe/Paris",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())}
 function randomEmailCode(){const a=new Uint32Array(1);crypto.getRandomValues(a);return String(a[0]%1000000).padStart(6,"0")}
 async function emailCodeHash(id,code,env){return sha256Text(id+":"+code+":"+(env.CODE_PEPPER||"carplay-email"))}
-
-const ONLY_ADMIN_EMAIL = "appli.suzon@gmail.com";
-const ONLY_ADMIN_NAME = "Steve Suzon";
-async function ensureAdminAuthTables(env){
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS admin_email_challenges(
-    id TEXT PRIMARY KEY,email TEXT NOT NULL,device_id TEXT NOT NULL DEFAULT '',code_hash TEXT NOT NULL,
-    expires_at INTEGER NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,consumed INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL
-  )`).run();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS admin_sessions(
-    token_hash TEXT PRIMARY KEY,email TEXT NOT NULL,device_id TEXT NOT NULL DEFAULT '',expires_at INTEGER NOT NULL,
-    created_at INTEGER NOT NULL,last_seen_at INTEGER NOT NULL
-  )`).run();
-  try{await env.DB.prepare("CREATE INDEX IF NOT EXISTS admin_challenges_email_created ON admin_email_challenges(email,created_at)").run()}catch(_){}
-  try{await env.DB.prepare("CREATE INDEX IF NOT EXISTS admin_sessions_expiry ON admin_sessions(expires_at)").run()}catch(_){}
-}
-async function adminLoginCodeHash(id,code,env){return sha256Text("admin:"+id+":"+code+":"+(env.CODE_PEPPER||"couteau-suisse-admin"))}
-function randomAdminToken(){const b=new Uint8Array(32);crypto.getRandomValues(b);return b64urlBytes(b)}
-async function sendBrevoAdminCode(env,email,code){
-  if(!env.BREVO_API_KEY||!env.BREVO_SENDER_EMAIL)throw new Error("EMAIL_CONFIG");
-  const response=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{accept:"application/json","content-type":"application/json","api-key":env.BREVO_API_KEY},body:JSON.stringify({sender:{name:"Couteau Suisse",email:String(env.BREVO_SENDER_EMAIL)},to:[{email}],subject:"Confirmation administrateur Couteau Suisse",textContent:"Steve, votre code de confirmation administrateur est : "+code+". Il est valable 10 minutes.",htmlContent:'<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;border:2px solid #f39b19;border-radius:18px"><h2 style="color:#c86b00">Couteau Suisse — Administration</h2><p>Bonjour Steve Suzon,</p><p>Voici votre code de confirmation administrateur :</p><p style="font-size:34px;font-weight:900;letter-spacing:8px">'+code+'</p><p>Ce code est valable 10 minutes.</p><p style="font-size:12px;color:#666">Seule l’adresse '+ONLY_ADMIN_EMAIL+' peut recevoir cette confirmation.</p></div>'})});
-  if(!response.ok)throw new Error("EMAIL_SEND");
-}
-async function requestAdminEmailLogin(request,env){
-  if(!env.DB)return json({ok:false,error:"DB_NON_CONFIGUREE"},500);
-  await ensureAdminAuthTables(env);
-  const d=await body(request),email=normalizeEmail(d.email),deviceId=String(d.deviceId||"").slice(0,160),now=Date.now();
-  if(email!==ONLY_ADMIN_EMAIL)return json({ok:false,error:"ADMIN_NON_AUTORISE"},403);
-  const recent=await env.DB.prepare("SELECT created_at FROM admin_email_challenges WHERE email=? ORDER BY created_at DESC LIMIT 1").bind(email).first();
-  if(recent&&now-Number(recent.created_at||0)<45000)return json({ok:false,error:"ATTENDEZ_QUELQUES_SECONDES"},429);
-  const id=crypto.randomUUID(),code=randomEmailCode(),hash=await adminLoginCodeHash(id,code,env),expires=now+10*60*1000;
-  await env.DB.prepare("INSERT INTO admin_email_challenges(id,email,device_id,code_hash,expires_at,attempts,consumed,created_at) VALUES(?,?,?,?,?,0,0,?)").bind(id,email,deviceId,hash,expires,now).run();
-  try{await sendBrevoAdminCode(env,email,code)}catch(e){return json({ok:false,error:String(e&&e.message||"EMAIL_SEND")},500)}
-  return json({ok:true,challengeId:id,email:emailMask(email),expiresAt:expires,adminName:ONLY_ADMIN_NAME});
-}
-async function verifyAdminEmailLogin(request,env){
-  if(!env.DB)return json({ok:false,error:"DB_NON_CONFIGUREE"},500);
-  await ensureAdminAuthTables(env);
-  const d=await body(request),id=String(d.challengeId||""),code=String(d.code||"").replace(/\D/g,"").slice(0,6),deviceId=String(d.deviceId||"").slice(0,160),now=Date.now();
-  const row=await env.DB.prepare("SELECT * FROM admin_email_challenges WHERE id=? LIMIT 1").bind(id).first();
-  if(!row||row.email!==ONLY_ADMIN_EMAIL)return json({ok:false,error:"CONFIRMATION_INTROUVABLE"},404);
-  if(Number(row.consumed))return json({ok:false,error:"CODE_DEJA_UTILISE"},409);
-  if(Number(row.expires_at)<now)return json({ok:false,error:"CODE_EXPIRE"},410);
-  if(Number(row.attempts||0)>=6)return json({ok:false,error:"TROP_DE_TENTATIVES"},429);
-  const h=await adminLoginCodeHash(id,code,env);
-  if(h!==String(row.code_hash||"")){
-    await env.DB.prepare("UPDATE admin_email_challenges SET attempts=attempts+1 WHERE id=?").bind(id).run();
-    return json({ok:false,error:"CODE_INCORRECT"},403);
-  }
-  await env.DB.prepare("UPDATE admin_email_challenges SET consumed=1 WHERE id=?").bind(id).run();
-  const token=randomAdminToken(),tokenHash=await sha256Text(token),expires=now+180*24*60*60*1000;
-  await env.DB.prepare("INSERT OR REPLACE INTO admin_sessions(token_hash,email,device_id,expires_at,created_at,last_seen_at) VALUES(?,?,?,?,?,?)").bind(tokenHash,ONLY_ADMIN_EMAIL,deviceId,expires,now,now).run();
-  try{await env.DB.prepare("DELETE FROM admin_sessions WHERE expires_at<?").bind(now).run()}catch(_){}
-  return json({ok:true,token,expiresAt:expires,adminName:ONLY_ADMIN_NAME,email:ONLY_ADMIN_EMAIL});
-}
-async function adminSessionStatus(request,env){
-  const ok=await adminAuthorized(request,env);
-  return ok?json({ok:true,admin:true,name:ONLY_ADMIN_NAME,email:ONLY_ADMIN_EMAIL}):json({ok:false,admin:false},401);
-}
-async function adminLogout(request,env){
-  const auth=request.headers.get("authorization")||"",token=auth.startsWith("Bearer ")?auth.slice(7).trim():"";
-  if(token&&env.DB){await ensureAdminAuthTables(env);try{await env.DB.prepare("DELETE FROM admin_sessions WHERE token_hash=?").bind(await sha256Text(token)).run()}catch(_){}}
-  return json({ok:true});
-}
 async function sendBrevoCode(env,email,code){
   if(!env.BREVO_API_KEY||!env.BREVO_SENDER_EMAIL)throw new Error("EMAIL_CONFIG");
   const response=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{accept:"application/json","content-type":"application/json","api-key":env.BREVO_API_KEY},body:JSON.stringify({sender:{name:"Couteau Suisse",email:String(env.BREVO_SENDER_EMAIL)},to:[{email}],subject:"Votre code de confirmation Couteau Suisse",textContent:"Votre code de confirmation Couteau Suisse est : "+code+". Il est valable 10 minutes.",htmlContent:'<div style="font-family:Arial,sans-serif"><h2>Couteau Suisse</h2><p>Votre code de confirmation est :</p><p style="font-size:32px;font-weight:bold;letter-spacing:7px">'+code+'</p><p>Ce code est valable 10 minutes.</p></div>'})});
@@ -330,40 +256,17 @@ async function sendBrevoSubscriptionCode(env,email,code,row,now=Date.now()){
 async function recoverSubscriptionCode(request,env){
   await ensureSubscriptionEmailColumns(env);
   const data=await body(request),email=normalizeEmail(data.email),deviceId=String(data.deviceId||''),now=Date.now(),day=parisDay();
-  const firstName=String(data.firstName||'').trim().replace(/\s+/g,' ').slice(0,60),lastName=String(data.lastName||'').trim().replace(/\s+/g,' ').slice(0,60);
   if(!validEmail(email))return json({ok:false,error:'EMAIL_OBLIGATOIRE'},400);
   if(!validDevice(deviceId))return json({ok:false,error:'DONNEES_INVALIDES'},400);
   const emailHash=await sha256Text(email);
-  const row=await env.DB.prepare("SELECT * FROM subscriptions WHERE recovery_email_hash=? AND active=1 ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC,id DESC LIMIT 1").bind(emailHash).first();
+  const row=await env.DB.prepare("SELECT * FROM subscriptions WHERE recovery_email_hash=? AND active=1 LIMIT 1").bind(emailHash).first();
   if(!row)return json({ok:false,error:'EMAIL_INTROUVABLE'},404);
-  const storedFirst=String(row.account_first_name||'').trim(),storedLast=String(row.account_last_name||'').trim();
-  if(storedFirst&&storedLast){
-    if(firstName.length<2||lastName.length<2)return json({ok:false,error:'NOM_ET_PRENOM_OBLIGATOIRES'},400);
-    if(subscriptionIdentityKey(storedFirst)!==subscriptionIdentityKey(firstName)||subscriptionIdentityKey(storedLast)!==subscriptionIdentityKey(lastName))return json({ok:false,error:'IDENTITE_NE_CORRESPOND_PAS'},403);
-  }
   if(!row.lifetime&&(!row.expires_at||Date.parse(row.expires_at)<=now))return json({ok:false,error:'ABONNEMENT_EXPIRE'},403);
   if(Number(row.last_recovery_sent_at||0)&&now-Number(row.last_recovery_sent_at)<60000)return json({ok:false,error:'CODE_EMAIL_TROP_RAPIDE'},429);
   const usage=await env.DB.prepare("SELECT sent_count FROM brevo_daily_usage WHERE day=?").bind(day).first();
   if(Number(usage?.sent_count||0)>=200)return json({ok:false,error:'QUOTA_EMAIL_JOURNALIER'},429);
   let code='';
-  try{
-    code=await openRecoveryCode(row.recovery_code_box,env);
-  }catch(_){
-    // Anciens abonnements : le code original n'était pas encore stocké de façon réversible.
-    // On crée donc un NOUVEAU code de récupération pour le MÊME abonnement, sans toucher
-    // à la date de fin, au statut à vie, aux points ni aux autres données du compte.
-    for(let attempt=0;attempt<20;attempt++){
-      const candidate=randomSubscriptionCode(),candidateHash=await hashCode(candidate,env.CODE_PEPPER);
-      const exists=await env.DB.prepare("SELECT id FROM subscriptions WHERE code_hash=? AND id<>? LIMIT 1").bind(candidateHash,row.id).first();
-      if(exists)continue;
-      code=candidate;
-      const box=await sealRecoveryCode(code,env);
-      await env.DB.prepare("UPDATE subscriptions SET code_hash=?,recovery_code_box=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(candidateHash,box,row.id).run();
-      row.code_hash=candidateHash; row.recovery_code_box=box;
-      break;
-    }
-    if(!code)return json({ok:false,error:'CODE_RECUPERATION_NON_INITIALISE'},409);
-  }
+  try{code=await openRecoveryCode(row.recovery_code_box,env)}catch(_){return json({ok:false,error:'CODE_RECUPERATION_NON_INITIALISE'},409)}
   let remainingInfo;
   try{remainingInfo=await sendBrevoSubscriptionCode(env,email,code,row,now)}catch(_){return json({ok:false,error:'EMAIL_ENVOI_INDISPONIBLE'},503)}
   await env.DB.batch([
@@ -548,14 +451,7 @@ async function createSubscription(request, env) {
   if (!(await adminAuthorized(request, env))) return json({ok:false,error:"SECRET_INCORRECT"},401);
   await ensureSubscriptionEmailColumns(env);
   const data = await body(request);
-  if (String(data.kind||'subscription') === 'mushroom') return createMushroomAdminCode(env,data);
-  let code = normalizeCode(data.code);
-  if (data.generate === true) {
-    for(let i=0;i<30;i++){
-      const candidate=randomSubscriptionCode(),h=await hashCode(candidate,env.CODE_PEPPER),exists=await env.DB.prepare("SELECT id FROM subscriptions WHERE code_hash=? LIMIT 1").bind(h).first();
-      if(!exists){code=candidate;break}
-    }
-  }
+  const code = normalizeCode(data.code);
   if (!validCode(code)) return json({ok:false,error:"CODE_6_CARACTERES_REQUIS"},400);
   const lifetime = data.lifetime === true;
   const days = Math.max(1, Math.min(3650, Number(data.days) || 365));
@@ -717,30 +613,11 @@ async function adminInstallations(request, env) {
   if (!(await adminAuthorized(request, env))) return json({ ok: false, error: "SECRET_INCORRECT" }, 401);
   if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE", count: 0 }, 503);
   await ensureInstallationsTable(env);
-  const people = new Set();
-  const clean = v => String(v || '').trim().toLowerCase();
-  try {
-    const q = await env.DB.prepare("SELECT device_id FROM app_installations WHERE device_id IS NOT NULL AND device_id<>''").all();
-    for (const r of (q.results || [])) { const d=clean(r.device_id); if(d) people.add('d:'+d); }
-  } catch (_) {}
-  try {
-    const q = await env.DB.prepare("SELECT device_id,email FROM app_identities").all();
-    for (const r of (q.results || [])) { const d=clean(r.device_id),e=clean(r.email); if(d) people.add('d:'+d); else if(e) people.add('e:'+e); }
-  } catch (_) {}
-  try {
-    const q = await env.DB.prepare("SELECT phone_device,autoradio_device,recovery_email_mask AS email FROM subscriptions").all();
-    for (const r of (q.results || [])) {
-      const p=clean(r.phone_device),a=clean(r.autoradio_device),e=clean(r.email);
-      if(p) people.add('d:'+p);
-      else if(a) people.add('d:'+a);
-      else if(e) people.add('e:'+e);
-    }
-  } catch (_) {}
-  try {
-    const q = await env.DB.prepare("SELECT device_id FROM contest_participants WHERE device_id IS NOT NULL AND device_id<>''").all();
-    for (const r of (q.results || [])) { const d=clean(r.device_id); if(d) people.add('d:'+d); }
-  } catch (_) {}
-  return json({ ok: true, count: people.size });
+  const now = Math.floor(Date.now() / 1000);
+  const twoMonths = 60 * 24 * 60 * 60;
+  await env.DB.prepare("DELETE FROM app_installations WHERE last_seen < ?").bind(now - twoMonths).run();
+  const row = await env.DB.prepare("SELECT COUNT(*) AS count FROM app_installations WHERE last_seen >= ?").bind(now - twoMonths).first();
+  return json({ ok: true, count: Number(row && row.count || 0) });
 }
 
 async function downloadAutoradioApk() {
@@ -894,10 +771,6 @@ async function ensureMarketVerificationTables(env) {
     market_key TEXT NOT NULL, device_id TEXT NOT NULL, uploaded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (market_key, device_id)
   )`).run();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_photo_blobs (
-    market_key TEXT PRIMARY KEY, data_base64 TEXT NOT NULL, mime_type TEXT NOT NULL DEFAULT 'image/jpeg',
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )`).run();
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_location_votes (
     market_key TEXT NOT NULL, device_id TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, accuracy REAL NOT NULL DEFAULT 0,
     address TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1031,8 +904,6 @@ function decodePhoto(dataUrl) {
   return bytes;
 }
 
-function workersAiBinding(env){return env&&(env.AI||env.ai||env.WORKERS_AI||env.WorkersAI)||null}
-
 function parseVisionJson(value) {
   const text = String(value && (value.response || value.result || value.choices?.[0]?.message?.content) || value || "")
     .replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
@@ -1042,9 +913,9 @@ function parseVisionJson(value) {
 }
 
 async function inspectMarketPhoto(env, dataUrl) {
-  const ai=workersAiBinding(env); if (!ai) return { ok: true, validationMode: "fallback", stallCount: 0, qualityScore: 55, reason: "Contrôle automatique indisponible : photo acceptée avec confirmation utilisateur et GPS." };
+  if (!env.AI) return { ok: true, validationMode: "fallback", stallCount: 0, qualityScore: 55, reason: "Contrôle automatique indisponible : photo acceptée avec confirmation utilisateur et GPS." };
   try {
-    const response = await ai.run("@cf/google/gemma-4-26b-a4b-it", {
+    const response = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
       messages: [
         { role: "system", content: "You are a strict image validator. Return only valid JSON, with no markdown." },
         { role: "user", content: "Validate whether this photo genuinely documents a market in progress. IMPORTANT: be permissive about composition and do NOT require a fixed number of stalls. ACCEPT a normal aisle photo when stalls, merchandise and/or merchants are clearly visible as part of the market, including an aisle with stalls on one or both sides. A photo like a person standing in the central aisle, with food/produce stalls and market activity visible along the sides and farther down the aisle, MUST be accepted even if pedestrians, a dog, poles, vehicles belonging to traders, sky, or empty pavement are also visible. generalView means the image gives useful context of the market area; it does NOT mean every stall must be visible. Reject only when the photo does not provide credible visual evidence of a market: e.g. only a wall/building/empty road/parked vehicle, an extreme close-up of one person or object with no market context, the market is substantially hidden, or the image is unusably blurred/dark. Do not reject merely because the framing is imperfect or because one side has fewer stalls. Return exactly: {\"accepted\":boolean,\"isMarket\":boolean,\"generalView\":boolean,\"stallCount\":integer,\"qualityScore\":integer,\"reason\":\"short French reason\"}. qualityScore is 0-100. Give a higher qualityScore when the market is more clearly visible as a whole, lively, well framed, and shows more useful market context/stalls. This score is used to decide whether a new photo is genuinely better than the currently published one." }
@@ -1064,6 +935,7 @@ async function inspectMarketPhoto(env, dataUrl) {
 }
 
 async function saveMarketPhoto(env, marketKey, deviceId, photo, locationOverride = false, photoOverride = false) {
+  if (!env.MARKET_PHOTOS) return { ok: false, error: "STOCKAGE_PHOTO_NON_CONFIGURE" };
   if (photo.generalView !== true) return { ok: false, error: "VUE_GENERALE_NON_CONFIRMEE" };
   const userLat = Number(photo.userLatitude), userLon = Number(photo.userLongitude), accuracy = Number(photo.accuracy);
   if (![userLat, userLon, accuracy].every(Number.isFinite) || accuracy < 0 || accuracy > 150) return { ok: false, error: "GPS_PHOTO_IMPRECIS" };
@@ -1094,16 +966,8 @@ async function saveMarketPhoto(env, marketKey, deviceId, photo, locationOverride
     if (Number(inspection.qualityScore||0) <= Number(current.quality_score||0)) return { ok:true, keptExisting:true, message:"LA_PHOTO_EXISTANTE_EST_MEILLEURE_OU_EQUIVALENTE", qualityScore:inspection.qualityScore, stallCount:inspection.stallCount, distanceMeters:Math.round(distance), replacementsUsed, replacementsRemaining:Math.max(0,2-replacementsUsed), validationMode:inspection.validationMode||'ai' };
   }
 
-  const objectKey = env.MARKET_PHOTOS ? `market-photos/${await sha256Text(marketKey)}.jpg` : `d1:${await sha256Text(marketKey)}`;
-  if (env.MARKET_PHOTOS) {
-    await env.MARKET_PHOTOS.put(objectKey, bytes, { httpMetadata: { contentType: "image/jpeg", cacheControl: "public, max-age=3600" } });
-    try { await env.DB.prepare("DELETE FROM market_photo_blobs WHERE market_key=?").bind(marketKey).run(); } catch (_) {}
-  } else {
-    const encoded = String(photo.dataUrl || "").replace(/^data:image\/(?:jpeg|jpg);base64,/i, "");
-    await env.DB.prepare(`INSERT INTO market_photo_blobs(market_key,data_base64,mime_type,updated_at) VALUES(?,?,?,CURRENT_TIMESTAMP)
-      ON CONFLICT(market_key) DO UPDATE SET data_base64=excluded.data_base64,mime_type=excluded.mime_type,updated_at=CURRENT_TIMESTAMP`)
-      .bind(marketKey, encoded, "image/jpeg").run();
-  }
+  const objectKey = `market-photos/${await sha256Text(marketKey)}.jpg`;
+  await env.MARKET_PHOTOS.put(objectKey, bytes, { httpMetadata: { contentType: "image/jpeg", cacheControl: "public, max-age=3600" } });
   const capturedAt = new Date().toISOString(), newReplacementCount=current?replacementsUsed+1:0;
   await env.DB.prepare(`INSERT INTO market_photo_metadata(market_key,object_key,mime_type,device_id,user_latitude,user_longitude,market_latitude,market_longitude,distance_meters,quality_score,stall_count,ai_reason,replacement_count,captured_at,updated_at)
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
@@ -1203,23 +1067,14 @@ async function disabledMarketPresence(env) {
 }
 
 async function marketPhoto(url, env) {
-  if (!env.DB) return new Response("Photo indisponible", { status: 404, headers: cors });
+  if (!env.DB || !env.MARKET_PHOTOS) return new Response("Photo indisponible", { status: 404, headers: cors });
   await ensureMarketVerificationTables(env);
   const marketKey = cleanMarketKey(url.searchParams.get("marketKey"));
   const row = marketKey && await env.DB.prepare("SELECT object_key,mime_type FROM market_photo_metadata WHERE market_key=?").bind(marketKey).first();
   if (!row) return new Response("Photo indisponible", { status: 404, headers: cors });
-  if (env.MARKET_PHOTOS && !String(row.object_key || "").startsWith("d1:")) {
-    const object = await env.MARKET_PHOTOS.get(row.object_key);
-    if (object) return new Response(object.body, { headers: { ...cors, "content-type": row.mime_type || "image/jpeg", "cache-control": "public, max-age=3600" } });
-  }
-  const blob = await env.DB.prepare("SELECT data_base64,mime_type FROM market_photo_blobs WHERE market_key=?").bind(marketKey).first();
-  if (!blob || !blob.data_base64) return new Response("Photo indisponible", { status: 404, headers: cors });
-  try {
-    const binary = atob(String(blob.data_base64));
-    const bytes = new Uint8Array(binary.length);
-    for (let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
-    return new Response(bytes, { headers: { ...cors, "content-type": blob.mime_type || row.mime_type || "image/jpeg", "cache-control": "public, max-age=3600" } });
-  } catch (_) { return new Response("Photo indisponible", { status: 404, headers: cors }); }
+  const object = await env.MARKET_PHOTOS.get(row.object_key);
+  if (!object) return new Response("Photo indisponible", { status: 404, headers: cors });
+  return new Response(object.body, { headers: { ...cors, "content-type": row.mime_type || "image/jpeg", "cache-control": "public, max-age=3600" } });
 }
 
 async function vigilanceForPlace(url) {
@@ -1315,20 +1170,6 @@ async function ensureContestTables(env){
   try{await env.DB.prepare("ALTER TABLE contest_bonus_periods ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 259200000").run()}catch(_){}
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS contest_bonus_status_idx ON contest_bonus_periods(subscription_id,status,created_at)").run();
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS contest_score_events_idx ON contest_score_events(subscription_id,created_at)").run();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS contest_referral_invites(
-    id TEXT PRIMARY KEY,sponsor_subscription_id INTEGER NOT NULL,token_hash TEXT NOT NULL UNIQUE,
-    created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,claimed_subscription_id INTEGER,claimed_at INTEGER
-  )`).run();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS contest_referrals(
-    id TEXT PRIMARY KEY,invite_id TEXT NOT NULL UNIQUE,sponsor_subscription_id INTEGER NOT NULL,
-    referee_subscription_id INTEGER NOT NULL UNIQUE,referee_device_id TEXT NOT NULL UNIQUE,
-    email_hash TEXT NOT NULL UNIQUE,phone_hash TEXT NOT NULL UNIQUE,ip_hash TEXT NOT NULL DEFAULT '',phone_mask TEXT NOT NULL DEFAULT '',
-    status TEXT NOT NULL DEFAULT 'email_pending',sms_code_hash TEXT NOT NULL DEFAULT '',sms_expires_at INTEGER,
-    sms_attempts INTEGER NOT NULL DEFAULT 0,sms_sent_at INTEGER,verified_at INTEGER,
-    sponsor_rewarded INTEGER NOT NULL DEFAULT 0,referee_rewarded INTEGER NOT NULL DEFAULT 0,
-    created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL
-  )`).run();
-  await env.DB.prepare("CREATE INDEX IF NOT EXISTS contest_referrals_sponsor_idx ON contest_referrals(sponsor_subscription_id,status,created_at)").run();
   return cfg;
 }
 
@@ -2019,117 +1860,14 @@ async function contestAddScoreEvent(env,subscriptionId,sourceType,sourceId,descr
   const r=await env.DB.prepare("INSERT OR IGNORE INTO contest_score_events(id,subscription_id,source_type,source_id,description,base_points,multiplier,awarded_points,created_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(contestId(),subscriptionId,sourceType,sourceId,String(description||"").slice(0,200),Number(basePoints||0),Number(multiplier||1),Number(awardedPoints||0),Date.now()).run();
   if(r.meta&&Number(r.meta.changes)>0){await env.DB.prepare("UPDATE contest_participants SET points=points+?,updated_at=? WHERE subscription_id=?").bind(Number(awardedPoints||0),Date.now(),subscriptionId).run();return true}return false;
 }
-async function contestAddScoreWithActiveBonus(env,subscriptionId,sourceType,sourceId,description,basePoints){
-  const bonus=await contestRefreshBonusState(env,subscriptionId),multiplier=bonus.active?Math.max(1,Number(bonus.active.multiplier||1)):1,awardedPoints=Number(basePoints||0)*multiplier;
-  const added=await contestAddScoreEvent(env,subscriptionId,sourceType,sourceId,description,basePoints,multiplier,awardedPoints);
-  return {added,multiplier,awardedPoints};
-}
-
-const REFERRAL_SPONSOR_POINTS=320,REFERRAL_FRIEND_POINTS=96,REFERRAL_INVITE_MS=30*86400000,REFERRAL_EMAIL_MS=24*60*60000;
-function referralToken(){const b=new Uint8Array(24);crypto.getRandomValues(b);let x="";for(const n of b)x+=String.fromCharCode(n);return btoa(x).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")}
-async function referralMagicHash(id,token,env){return sha256Text("referral-magic:"+id+":"+token+":"+(env.CODE_PEPPER||"carplay-referral"))}
-async function brevoSendHtml(env,to,subject,text,html){
-  if(!validEmail(to)||!env.BREVO_API_KEY||!env.BREVO_SENDER_EMAIL)return false;
-  try{
-    const r=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{accept:"application/json","content-type":"application/json","api-key":String(env.BREVO_API_KEY)},body:JSON.stringify({sender:{name:"Couteau Suisse",email:String(env.BREVO_SENDER_EMAIL)},to:[{email:to}],subject,textContent:text,htmlContent:html})});
-    return r.ok;
-  }catch(_){return false}
-}
-async function sendReferralEmail(env,email,confirmUrl,firstName){
-  const safeFirst=String(firstName||"").replace(/[<>&"']/g,"");
-  const subject="🎁 Bravo ! Vos 96 points Couteau Suisse vous attendent";
-  const text=`Bravo${safeFirst?" "+safeFirst:""} ! Vous venez d’installer Couteau Suisse grâce à un parrainage. Vous bénéficiez de 96 points. Appuyez sur ce lien pour en profiter : ${confirmUrl}`;
-  const html=`<div style="margin:0;background:#07182d;padding:24px;font-family:Arial,sans-serif;color:#fff"><div style="max-width:620px;margin:auto;background:linear-gradient(180deg,#0d2f5a,#06172d);border:3px solid #f7c94b;border-radius:24px;padding:28px;text-align:center;box-shadow:0 12px 36px rgba(0,0,0,.35)"><div style="font-size:48px">🎁</div><h1 style="margin:8px 0;color:#ffd85a;font-size:31px">BRAVO${safeFirst?" "+safeFirst.toUpperCase():""} !</h1><p style="font-size:19px;line-height:1.5;margin:12px 0">Vous venez d’installer <b>Couteau Suisse</b> grâce à un parrainage.</p><div style="margin:22px auto;padding:18px;border-radius:18px;background:#0b7a42;font-size:22px;font-weight:900">VOUS GAGNEZ +96 POINTS</div><p style="font-size:17px;line-height:1.5">Appuyez sur le bouton pour valider votre adresse e-mail et profiter de vos points.</p><a href="${confirmUrl}" style="display:inline-block;margin:14px 0 4px;padding:17px 28px;background:#ffd43b;color:#07182d;text-decoration:none;border-radius:14px;font-size:19px;font-weight:900">ACTIVER MES 96 POINTS</a><p style="font-size:13px;color:#b8c7d9;margin-top:18px">Lien personnel valable 24 heures et utilisable une seule fois.</p></div></div>`;
-  return brevoSendHtml(env,email,subject,text,html);
-}
-async function sendReferralSponsorEmail(env,email,friendName,rewarded){
-  const safeFriend=String(friendName||"votre ami").replace(/[<>&"']/g,"");
-  const subject="🎉 Bravo ! Votre ami a installé Couteau Suisse";
-  const pointsText=rewarded?"Vos 320 points ont été ajoutés au concours.":"Vos 320 points sont réservés et seront ajoutés dès votre inscription au concours.";
-  const text=`Bravo ! ${safeFriend} a installé Couteau Suisse et a validé son parrainage. ${pointsText}`;
-  const html=`<div style="margin:0;background:#07182d;padding:24px;font-family:Arial,sans-serif;color:#fff"><div style="max-width:620px;margin:auto;background:linear-gradient(180deg,#0d2f5a,#06172d);border:3px solid #f7c94b;border-radius:24px;padding:28px;text-align:center"><div style="font-size:48px">🏆</div><h1 style="color:#ffd85a;margin:8px 0">BRAVO !</h1><p style="font-size:19px;line-height:1.5"><b>${safeFriend}</b> a installé Couteau Suisse et a validé votre parrainage.</p><div style="margin:22px auto;padding:18px;border-radius:18px;background:#0b7a42;font-size:22px;font-weight:900">+320 POINTS POUR VOUS</div><p style="font-size:16px;line-height:1.5">${pointsText}</p><p style="font-size:14px;color:#b8c7d9">Continuez à partager l’application depuis Réglages → Partager à un ami.</p></div></div>`;
-  return brevoSendHtml(env,email,subject,text,html);
-}
-async function referralCreate(request,env){
-  await ensureContestTables(env);const d=await body(request),sub=await contestSubscription(env,d);if(!sub)return json({ok:false,error:"COMPTE_REQUIS_POUR_PARRAINER"},403);
-  const p=await env.DB.prepare("SELECT banned FROM contest_participants WHERE subscription_id=? LIMIT 1").bind(sub.id).first();if(p&&Number(p.banned))return json({ok:false,error:"PARRAINAGE_SUSPENDU"},403);
-  const token=referralToken(),hash=await sha256Text("referral:"+token),id=contestId(),now=Date.now(),expires=now+REFERRAL_INVITE_MS;
-  await env.DB.prepare("INSERT INTO contest_referral_invites(id,sponsor_subscription_id,token_hash,created_at,expires_at) VALUES(?,?,?,?,?)").bind(id,sub.id,hash,now,expires).run();
-  return json({ok:true,url:new URL(request.url).origin+"/installer.html?ref="+encodeURIComponent(token),expiresAt:expires});
-}
-async function ensureReferralTrialSubscription(env,deviceId,email,first,last){
-  const cfg=await ensureContestTables(env),now=Date.now(),freeUntil=Number(cfg.end_at)+CONTEST_APP_FREE_EXTRA_MS,emailHash=await sha256Text(email),trialHash=await sha256Text("contest-trial:"+deviceId),trialEmailHash=await sha256Text("contest-trial-email:"+deviceId+":"+email);
-  let row=await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC LIMIT 1").bind(deviceId,deviceId).first();
-  if(row){const paid=!!row.lifetime||(row.code_hash!==trialHash&&row.expires_at&&Date.parse(row.expires_at)>now),expiry=paid?row.expires_at:new Date(freeUntil).toISOString(),stored=paid?emailHash:trialEmailHash;await env.DB.prepare("UPDATE subscriptions SET expires_at=?,active=1,phone_device=?,recovery_email_hash=?,recovery_email_mask=?,account_first_name=?,account_last_name=?,account_updated_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(expiry,deviceId,stored,email,first,last,now,row.id).run();return await env.DB.prepare("SELECT * FROM subscriptions WHERE id=?").bind(row.id).first()}
-  await env.DB.prepare("INSERT INTO subscriptions(code_hash,expires_at,lifetime,active,phone_device,recovery_email_hash,recovery_email_mask,account_first_name,account_last_name,account_updated_at) VALUES(?,?,0,1,?,?,?,?,?,?)").bind(trialHash,new Date(freeUntil).toISOString(),deviceId,trialEmailHash,email,first,last,now).run();
-  return await env.DB.prepare("SELECT * FROM subscriptions WHERE phone_device=? ORDER BY id DESC LIMIT 1").bind(deviceId).first();
-}
-async function referralStart(request,env){
-  const cfg=await ensureContestTables(env),now=Date.now();if(now>=Number(cfg.end_at))return json({ok:false,error:"CONCOURS_TERMINE"},409);
-  const d=await body(request),deviceId=String(d.deviceId||"").trim(),token=String(d.referralToken||"").trim(),email=normalizeEmail(d.email),first=contestCleanName(d.firstName),last=contestCleanName(d.lastName);
-  if(!validDevice(deviceId)||!token)return json({ok:false,error:"PARRAINAGE_INVALIDE"},400);if(first.length<2||last.length<2)return json({ok:false,error:"NOM_PRENOM_OBLIGATOIRES"},400);if(!validEmail(email))return json({ok:false,error:"EMAIL_OBLIGATOIRE"},400);
-  if(!(await registeredVerificationDevice(env,deviceId)))return json({ok:false,error:"AJOUT_ECRAN_ACCUEIL_REQUIS"},403);
-  const th=await sha256Text("referral:"+token),invite=await env.DB.prepare("SELECT * FROM contest_referral_invites WHERE token_hash=? LIMIT 1").bind(th).first();if(!invite||Number(invite.expires_at)<now)return json({ok:false,error:"LIEN_PARRAINAGE_EXPIRE"},410);
-  const sponsor=await env.DB.prepare("SELECT * FROM subscriptions WHERE id=? AND active=1 LIMIT 1").bind(invite.sponsor_subscription_id).first();if(!sponsor)return json({ok:false,error:"PARRAIN_INTROUVABLE"},404);if(String(sponsor.phone_device||"")===deviceId||String(sponsor.autoradio_device||"")===deviceId)return json({ok:false,error:"AUTO_PARRAINAGE_INTERDIT"},409);if(normalizeEmail(sponsor.recovery_email_mask)===email)return json({ok:false,error:"AUTO_PARRAINAGE_INTERDIT"},409);
-  const eh=await sha256Text(email),byEmail=await env.DB.prepare("SELECT referee_device_id FROM contest_referrals WHERE email_hash=? LIMIT 1").bind(eh).first(),byDevice=await env.DB.prepare("SELECT * FROM contest_referrals WHERE referee_device_id=? LIMIT 1").bind(deviceId).first();
-  if(byEmail&&String(byEmail.referee_device_id)!==deviceId)return json({ok:false,error:"EMAIL_DEJA_PARRAINE"},409);if(byDevice&&String(byDevice.invite_id)!==String(invite.id))return json({ok:false,error:"APPAREIL_DEJA_PARRAINE"},409);
-  const es=await env.DB.prepare("SELECT id,phone_device,autoradio_device FROM subscriptions WHERE lower(COALESCE(recovery_email_mask,''))=? AND active=1 ORDER BY id DESC LIMIT 1").bind(email).first();if(es&&String(es.phone_device||"")!==deviceId&&String(es.autoradio_device||"")!==deviceId)return json({ok:false,error:"EMAIL_DEJA_UTILISEE_AUTRE_TELEPHONE"},409);
-  const sub=await ensureReferralTrialSubscription(env,deviceId,email,first,last);if(!sub)return json({ok:false,error:"COMPTE_IMPOSSIBLE"},500);if(Number(sub.id)===Number(invite.sponsor_subscription_id))return json({ok:false,error:"AUTO_PARRAINAGE_INTERDIT"},409);if(invite.claimed_subscription_id&&Number(invite.claimed_subscription_id)!==Number(sub.id))return json({ok:false,error:"LIEN_PARRAINAGE_DEJA_UTILISE"},409);
-  let row=byDevice&&String(byDevice.invite_id)===String(invite.id)?byDevice:null;if(row&&row.status==="verified")return json({ok:true,alreadyVerified:true,referralId:row.id,emailMask:emailMask(email)});if(row&&Number(row.sms_sent_at||0)>now-60000)return json({ok:false,error:"EMAIL_TROP_RAPIDE",referralId:row.id,emailMask:emailMask(email)},429);
-  const day=parisDay(),usage=await env.DB.prepare("SELECT sent_count FROM brevo_daily_usage WHERE day=?").bind(day).first();if(Number(usage&&usage.sent_count||0)>=200)return json({ok:false,error:"QUOTA_EMAIL_JOURNALIER"},429);
-  const id=row?row.id:contestId(),magic=referralToken(),ch=await referralMagicHash(id,magic,env),ih=await sha256Text(`refip:${env.CODE_PEPPER||"ref"}:${request.headers.get("CF-Connecting-IP")||""}`),placeholderPhoneHash=row&&row.phone_hash?String(row.phone_hash):await sha256Text("referral-no-phone:"+deviceId),mask=emailMask(email),expires=now+REFERRAL_EMAIL_MS;
-  if(row)await env.DB.prepare("UPDATE contest_referrals SET referee_subscription_id=?,email_hash=?,phone_hash=?,ip_hash=?,phone_mask=?,status='email_link_pending',sms_code_hash=?,sms_expires_at=?,sms_attempts=0,sms_sent_at=?,updated_at=? WHERE id=?").bind(sub.id,eh,placeholderPhoneHash,ih,mask,ch,expires,now,now,id).run();else await env.DB.prepare("INSERT INTO contest_referrals(id,invite_id,sponsor_subscription_id,referee_subscription_id,referee_device_id,email_hash,phone_hash,ip_hash,phone_mask,status,sms_code_hash,sms_expires_at,sms_attempts,sms_sent_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,'email_link_pending',?,?,0,?,?,?)").bind(id,invite.id,invite.sponsor_subscription_id,sub.id,deviceId,eh,placeholderPhoneHash,ih,mask,ch,expires,now,now,now).run();
-  await env.DB.prepare("UPDATE contest_referral_invites SET claimed_subscription_id=?,claimed_at=? WHERE id=? AND claimed_subscription_id IS NULL").bind(sub.id,now,invite.id).run();
-  const confirmUrl=new URL(request.url).origin+"/api/referral/confirm?id="+encodeURIComponent(id)+"&token="+encodeURIComponent(magic);
-  if(!(await sendReferralEmail(env,email,confirmUrl,first)))return json({ok:false,error:"EMAIL_ENVOI_INDISPONIBLE",referralId:id,emailMask:mask},503);
-  await env.DB.prepare("INSERT INTO brevo_daily_usage(day,sent_count) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET sent_count=sent_count+1").bind(day).run();
-  return json({ok:true,referralId:id,emailMask:mask,emailExpiresAt:expires,email,firstName:first,lastName:last,magicLinkSent:true,expiresAt:new Date(Number(cfg.end_at)+CONTEST_APP_FREE_EXTRA_MS).toISOString()});
-}
-async function applyReferralRewards(env,row){
-  let sponsorRewarded=Number(row.sponsor_rewarded||0)===1,refereeRewarded=Number(row.referee_rewarded||0)===1;
-  if(!sponsorRewarded&&await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE subscription_id=? AND banned=0 LIMIT 1").bind(row.sponsor_subscription_id).first()){const gain=await contestAddScoreWithActiveBonus(env,row.sponsor_subscription_id,"referral-sponsor",row.id,"Parrainage validé",REFERRAL_SPONSOR_POINTS);await env.DB.prepare("UPDATE contest_referrals SET sponsor_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();sponsorRewarded=true;await contestPushMessage(env,row.sponsor_subscription_id,`🎁 Parrainage validé : +${contestNumberText(gain.awardedPoints)} points${gain.multiplier>1?` (bonus ×${gain.multiplier})`:''}.`,"referral")}
-  if(!refereeRewarded&&await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE subscription_id=? AND banned=0 LIMIT 1").bind(row.referee_subscription_id).first()){const gain=await contestAddScoreWithActiveBonus(env,row.referee_subscription_id,"referral-friend",row.id,"Bienvenue par parrainage",REFERRAL_FRIEND_POINTS);await env.DB.prepare("UPDATE contest_referrals SET referee_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();refereeRewarded=true;await contestPushMessage(env,row.referee_subscription_id,`🎁 Bienvenue ! Parrainage validé : +${contestNumberText(gain.awardedPoints)} points${gain.multiplier>1?` (bonus ×${gain.multiplier})`:''}.`,"referral")}
-  return {sponsorRewarded,refereeRewarded};
-}
-async function applyPendingReferralRewards(env,subscriptionId){const rows=(await env.DB.prepare("SELECT * FROM contest_referrals WHERE status='verified' AND ((sponsor_subscription_id=? AND sponsor_rewarded=0) OR (referee_subscription_id=? AND referee_rewarded=0)) LIMIT 20").bind(subscriptionId,subscriptionId).all()).results||[];for(const r of rows)await applyReferralRewards(env,r)}
-async function referralConfirm(request,env){
-  await ensureContestTables(env);
-  const url=new URL(request.url),id=String(url.searchParams.get("id")||"").trim(),token=String(url.searchParams.get("token")||"").trim(),origin=url.origin;
-  const go=(state,extra="")=>Response.redirect(origin+"/index.html?referral_confirmed="+encodeURIComponent(state)+(extra?"&"+extra:""),302);
-  if(!id||!token)return go("invalid");
-  const row=await env.DB.prepare("SELECT * FROM contest_referrals WHERE id=? LIMIT 1").bind(id).first();
-  if(!row)return go("invalid");
-  if(row.status==="verified"){const rewards=await applyReferralRewards(env,row);return go("ok","friendPoints=96&sponsorPoints=320&friendRewarded="+(rewards.refereeRewarded?"1":"0")+"&sponsorRewarded="+(rewards.sponsorRewarded?"1":"0"));}
-  if(row.status!=="email_link_pending")return go("invalid");
-  if(Number(row.sms_expires_at||0)<Date.now())return go("expired");
-  const expected=String(row.sms_code_hash||""),actual=await referralMagicHash(id,token,env);if(!expected||actual!==expected)return go("invalid");
-  const now=Date.now();
-  await env.DB.prepare("UPDATE contest_referrals SET status='verified',verified_at=?,sms_code_hash='',updated_at=? WHERE id=? AND status='email_link_pending'").bind(now,now,id).run();
-  const fresh=await env.DB.prepare("SELECT * FROM contest_referrals WHERE id=? LIMIT 1").bind(id).first(),rewards=await applyReferralRewards(env,fresh);
-  try{
-    const sponsor=await env.DB.prepare("SELECT recovery_email_mask,account_first_name FROM subscriptions WHERE id=? LIMIT 1").bind(fresh.sponsor_subscription_id).first();
-    const friend=await env.DB.prepare("SELECT account_first_name,account_last_name FROM subscriptions WHERE id=? LIMIT 1").bind(fresh.referee_subscription_id).first();
-    const sponsorEmail=normalizeEmail(sponsor&&sponsor.recovery_email_mask||"");
-    const friendName=[String(friend&&friend.account_first_name||"").trim(),String(friend&&friend.account_last_name||"").trim()].filter(Boolean).join(" ")||"Votre ami";
-    if(validEmail(sponsorEmail)){const sent=await sendReferralSponsorEmail(env,sponsorEmail,friendName,rewards.sponsorRewarded);if(sent){const day=parisDay();await env.DB.prepare("INSERT INTO brevo_daily_usage(day,sent_count) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET sent_count=sent_count+1").bind(day).run();}}
-  }catch(_){}
-  return go("ok","friendPoints=96&sponsorPoints=320&friendRewarded="+(rewards.refereeRewarded?"1":"0")+"&sponsorRewarded="+(rewards.sponsorRewarded?"1":"0"));
-}
-async function referralVerify(request,env){
-  await ensureContestTables(env);const d=await body(request),deviceId=String(d.deviceId||"").trim(),id=String(d.referralId||"").trim(),code=String(d.code||"").replace(/\D/g,"").slice(0,6);if(!validDevice(deviceId)||!id||code.length!==6)return json({ok:false,error:"CODE_EMAIL_INVALIDE"},400);
-  const row=await env.DB.prepare("SELECT * FROM contest_referrals WHERE id=? AND referee_device_id=? LIMIT 1").bind(id,deviceId).first();if(!row)return json({ok:false,error:"PARRAINAGE_INTROUVABLE"},404);if(row.status==="verified"){const r=await applyReferralRewards(env,row);return json({ok:true,alreadyVerified:true,...r,sponsorPoints:320,friendPoints:96})}if(Number(row.sms_expires_at||0)<Date.now())return json({ok:false,error:"CODE_EMAIL_EXPIRE"},410);if(Number(row.sms_attempts||0)>=5)return json({ok:false,error:"CODE_EMAIL_TROP_ESSAIS"},429);
-  const h=await emailCodeHash("referral:"+id,code,env);if(h!==String(row.sms_code_hash||"")){await env.DB.prepare("UPDATE contest_referrals SET sms_attempts=sms_attempts+1,updated_at=? WHERE id=?").bind(Date.now(),id).run();return json({ok:false,error:"CODE_EMAIL_INCORRECT"},400)}
-  await env.DB.prepare("UPDATE contest_referrals SET status='verified',verified_at=?,sms_code_hash='',updated_at=? WHERE id=?").bind(Date.now(),Date.now(),id).run();const fresh=await env.DB.prepare("SELECT * FROM contest_referrals WHERE id=?").bind(id).first(),r=await applyReferralRewards(env,fresh);return json({ok:true,...r,sponsorPoints:320,friendPoints:96});
-}
 async function contestScoreSummary(env,subscriptionId){
   const events=(await env.DB.prepare("SELECT source_type,base_points,multiplier,awarded_points FROM contest_score_events WHERE subscription_id=?").bind(subscriptionId).all()).results||[];
-  let bugPoints=0,bugEvents=0,referralPoints=0,referralCount=0,eventBonusExtra=0,marketEventBonusExtra=0;for(const e of events){const extra=Math.max(0,Number(e.awarded_points||0)-Number(e.base_points||0));eventBonusExtra+=extra;if(e.source_type==='market')marketEventBonusExtra+=extra;if(e.source_type==='bug'){bugEvents++;bugPoints+=Number(e.awarded_points||0)}if(String(e.source_type||'').startsWith('referral-')){referralCount++;referralPoints+=Number(e.awarded_points||0)}}
+  let bugPoints=0,bugEvents=0;for(const e of events){if(e.source_type==='bug'){bugEvents++;bugPoints+=Number(e.awarded_points||0)}}
   const markets=(await env.DB.prepare("SELECT points,base_points,breakdown_json FROM contest_market_points WHERE subscription_id=?").bind(subscriptionId).all()).results||[];
   let marketAwarded=0,marketBase=0,distanceBase=0;for(const r of markets){marketAwarded+=Number(r.points||0);marketBase+=Number(r.base_points||r.points||0);try{const a=JSON.parse(r.breakdown_json||'[]');for(const it of a)if(it&&it.key==='distance')distanceBase+=Number(it.points||0)}catch(_){}}
   const idea=await env.DB.prepare("SELECT COUNT(*) AS n FROM contest_reports WHERE subscription_id=? AND kind='idee' AND status='approved'").bind(subscriptionId).first();
-  const p=await env.DB.prepare("SELECT points FROM contest_participants WHERE subscription_id=?").bind(subscriptionId).first();const total=Number(p&&p.points||0),known=marketAwarded+bugPoints+referralPoints;
-  const legacyMarketBonus=Math.max(0,(marketAwarded-marketBase)-marketEventBonusExtra);
-  return {total,marketCount:markets.length,marketBasePoints:marketBase,marketInfoPoints:Math.max(0,marketBase-distanceBase),distancePoints:distanceBase,marketAwardedPoints:marketAwarded,bonusExtraPoints:eventBonusExtra+legacyMarketBonus,bugCount:bugEvents,bugPoints,referralCount,referralPoints,ideaCount:Number(idea&&idea.n||0),otherPoints:Math.max(0,total-known)};
+  const p=await env.DB.prepare("SELECT points FROM contest_participants WHERE subscription_id=?").bind(subscriptionId).first();const total=Number(p&&p.points||0),known=marketAwarded+bugPoints;
+  return {total,marketCount:markets.length,marketBasePoints:marketBase,marketInfoPoints:Math.max(0,marketBase-distanceBase),distancePoints:distanceBase,marketAwardedPoints:marketAwarded,bonusExtraPoints:Math.max(0,marketAwarded-marketBase),bugCount:bugEvents,bugPoints,ideaCount:Number(idea&&idea.n||0),otherPoints:Math.max(0,total-known)};
 }
 
 async function contestMarketBreakdown(env,deviceId,marketKey,distanceKm){
@@ -2156,7 +1894,7 @@ async function finalizeContestIfNeeded(env){
 async function contestStatus(request,env){
   const data=await body(request),cfg=await finalizeContestIfNeeded(env),sub=await contestSubscription(env,data),now=Date.now(),ended=now>=Number(cfg.end_at),resultsUntil=Number(cfg.results_until||((cfg.finalized_at||0)+CONTEST_RESULTS_MS)),resultsVisible=!!cfg.finalized_at&&ended&&now<resultsUntil,closed=ended&&!resultsVisible;let profile=null,participant=null,messages=[],questions=[],scoreSummary=null,bonusState=null,bonusProgress=null;
   let onboarding=null;
-  if(sub){profile={firstName:String(sub.account_first_name||""),lastName:String(sub.account_last_name||""),email:String(sub.recovery_email_mask||"")};participant=await env.DB.prepare("SELECT subscription_id,first_name,last_name,home_country,home_area,home_commune,return_place_lat,return_place_lon,return_place_label,camping_active,camping_lat,camping_lon,camping_label,camping_updated_at,points,banned,alert_count,change_allowed,joined_at FROM contest_participants WHERE subscription_id=?").bind(sub.id).first();const installed=await registeredVerificationDevice(env,String(data.deviceId||""));if(participant){await applyPendingReferralRewards(env,sub.id);participant=await env.DB.prepare("SELECT subscription_id,first_name,last_name,home_country,home_area,home_commune,return_place_lat,return_place_lon,return_place_label,camping_active,camping_lat,camping_lon,camping_label,camping_updated_at,points,banned,alert_count,change_allowed,joined_at FROM contest_participants WHERE subscription_id=?").bind(sub.id).first();bonusState=await contestRefreshBonusState(env,sub.id);scoreSummary=await contestScoreSummary(env,sub.id);bonusProgress=contestBonusProgress(scoreSummary.marketCount);const ob=await env.DB.prepare("SELECT status,start_at,end_at FROM contest_bonus_periods WHERE subscription_id=? AND source_key='onboarding-home-place' LIMIT 1").bind(sub.id).first();onboarding={installed,identity:!!(String(sub.account_first_name||'').trim()&&String(sub.account_last_name||'').trim()&&String(sub.recovery_email_hash||'').trim()),returnPlaceSaved:!!String(participant.return_place_label||'').trim(),bonusWon:!!ob,bonusStatus:ob&&ob.status||''};const m=await env.DB.prepare("SELECT id,kind,message,created_at FROM contest_messages WHERE subscription_id=? AND read_at IS NULL ORDER BY created_at DESC LIMIT 8").bind(sub.id).all();messages=m.results||[];const q=await env.DB.prepare("SELECT id,new_place,previous_place,message,user_answer,status,created_at FROM contest_travel_alerts WHERE subscription_id=? AND status='pending' AND user_answer='' ORDER BY created_at DESC").bind(sub.id).all();questions=q.results||[]}}
+  if(sub){profile={firstName:String(sub.account_first_name||""),lastName:String(sub.account_last_name||""),email:String(sub.recovery_email_mask||"")};participant=await env.DB.prepare("SELECT subscription_id,first_name,last_name,home_country,home_area,home_commune,return_place_lat,return_place_lon,return_place_label,camping_active,camping_lat,camping_lon,camping_label,camping_updated_at,points,banned,alert_count,change_allowed,joined_at FROM contest_participants WHERE subscription_id=?").bind(sub.id).first();const installed=await registeredVerificationDevice(env,String(data.deviceId||""));if(participant){bonusState=await contestRefreshBonusState(env,sub.id);scoreSummary=await contestScoreSummary(env,sub.id);bonusProgress=contestBonusProgress(scoreSummary.marketCount);const ob=await env.DB.prepare("SELECT status,start_at,end_at FROM contest_bonus_periods WHERE subscription_id=? AND source_key='onboarding-home-place' LIMIT 1").bind(sub.id).first();onboarding={installed,identity:!!(String(sub.account_first_name||'').trim()&&String(sub.account_last_name||'').trim()&&String(sub.recovery_email_hash||'').trim()),returnPlaceSaved:!!String(participant.return_place_label||'').trim(),bonusWon:!!ob,bonusStatus:ob&&ob.status||''};const m=await env.DB.prepare("SELECT id,kind,message,created_at FROM contest_messages WHERE subscription_id=? AND read_at IS NULL ORDER BY created_at DESC LIMIT 8").bind(sub.id).all();messages=m.results||[];const q=await env.DB.prepare("SELECT id,new_place,previous_place,message,user_answer,status,created_at FROM contest_travel_alerts WHERE subscription_id=? AND status='pending' AND user_answer='' ORDER BY created_at DESC").bind(sub.id).all();questions=q.results||[]}}
   const ranking=await env.DB.prepare("SELECT first_name,last_name,points,joined_at FROM contest_participants WHERE banned=0 ORDER BY points DESC,joined_at ASC").all();const results=resultsVisible?(await env.DB.prepare("SELECT * FROM contest_results ORDER BY rank").all()).results||[]:[];
   return json({ok:true,active:!ended,ended,resultsVisible,closed,phase:!ended?"active":resultsVisible?"results":"closed",startAt:Number(cfg.start_at),endAt:Number(cfg.end_at),resultsUntil,appFreeUntil:Number(cfg.end_at)+CONTEST_APP_FREE_EXTRA_MS,daysRemaining:Math.max(0,Math.ceil((Number(cfg.end_at)-now)/86400000)),profile,participant,ranking:ranking.results||[],messages,questions,results,scoreSummary,bonusState,bonusProgress,onboarding});
 }
@@ -2172,7 +1910,6 @@ async function contestRegister(request,env){
   const old=await env.DB.prepare("SELECT * FROM contest_participants WHERE subscription_id=?").bind(sub.id).first();if(old&&!old.change_allowed)return json({ok:false,error:"COMMUNE_VERROUILLEE"},409);const emailHash=String(sub.recovery_email_hash||"");
   await env.DB.prepare("UPDATE subscriptions SET account_first_name=?,account_last_name=?,account_updated_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(first,last,Date.now(),sub.id).run();
   if(old)await env.DB.prepare("UPDATE contest_participants SET device_id=?,first_name=?,last_name=?,home_country=?,home_area=?,home_commune=?,home_lat=?,home_lon=?,return_place_lat=NULL,return_place_lon=NULL,return_place_label='',camping_active=0,camping_lat=NULL,camping_lon=NULL,camping_label='',camping_updated_at=NULL,change_allowed=0,updated_at=? WHERE subscription_id=?").bind(String(data.deviceId||""),first,last,country,area,commune,lat,lon,Date.now(),sub.id).run();else await env.DB.prepare("INSERT INTO contest_participants(subscription_id,device_id,first_name,last_name,email_hash,home_country,home_area,home_commune,home_lat,home_lon,joined_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").bind(sub.id,String(data.deviceId||""),first,last,emailHash,country,area,commune,lat,lon,Date.now(),Date.now()).run();
-  await applyPendingReferralRewards(env,sub.id);
   return json({ok:true,message:"Bravo, vous participez au concours !"});
 }
 async function contestReport(request,env){const cfg=await ensureContestTables(env);if(Date.now()>=Number(cfg.end_at))return json({ok:false,error:"CONCOURS_TERMINE"},409);const data=await body(request),sub=await contestSubscription(env,data);if(!sub)return json({ok:false,error:"ABONNEMENT_REQUIS"},403);const p=await env.DB.prepare("SELECT * FROM contest_participants WHERE subscription_id=? AND banned=0").bind(sub.id).first();if(!p)return json({ok:false,error:"INSCRIPTION_CONCOURS_REQUISE"},403);const kind=["bug","probleme","idee"].includes(String(data.kind))?String(data.kind):"idee",desc=String(data.description||"").trim().slice(0,1500);if(desc.length<5)return json({ok:false,error:"DESCRIPTION_TROP_COURTE"},400);const fp=await sha256Text(kind+":"+desc.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," "));const dup=await env.DB.prepare("SELECT id FROM contest_reports WHERE fingerprint=? AND status IN ('pending','approved') LIMIT 1").bind(fp).first();if(dup)return json({ok:false,error:"SIGNALEMENT_DEJA_CONNU"},409);await env.DB.prepare("INSERT INTO contest_reports(id,subscription_id,kind,description,fingerprint,created_at) VALUES(?,?,?,?,?,?)").bind(contestId(),sub.id,kind,desc,fp,Date.now()).run();return json({ok:true})}
@@ -2193,24 +1930,14 @@ async function queueContestMarketReview(env,deviceId,marketKey,marketName,photo)
     const prevRows=await env.DB.prepare("SELECT market_lat,market_lon,place_label FROM contest_market_points WHERE subscription_id=? ORDER BY awarded_at DESC LIMIT 5").bind(p.subscription_id).all();const prev=(prevRows.results||[])[0];let unusual=0,previousPlace="";if(campingOn){const jump=contestKm(startLat,startLon,lat,lon);if(jump>=350){unusual=1;previousPlace=String(p.camping_label||"").trim()||await contestPlaceLabel(startLat,startLon)}}else if(prev&&(prevRows.results||[]).length>=3){const jump=contestKm(prev.market_lat,prev.market_lon,lat,lon);if(jump>=350){unusual=1;previousPlace=prev.place_label||await contestPlaceLabel(prev.market_lat,prev.market_lon)}}
     const rid=contestId();await env.DB.prepare("INSERT INTO contest_market_reviews(id,subscription_id,market_key,market_name,device_id,market_lat,market_lon,place_label,photo_captured_at,distance_km,base_points,multiplier,points,breakdown_json,unusual,previous_place,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(rid,p.subscription_id,marketKey,String(marketName||"Marché").slice(0,160),deviceId,lat,lon,place,String(meta.captured_at||photo&&photo.capturedAt||""),score.distanceKm,score.basePoints,multiplier,pts,JSON.stringify(score.items),unusual,previousPlace,Date.now()).run();
     if(unusual){const msg=`⚠️ Nous avons détecté un déplacement inhabituel vers ${place}. Vous êtes parti avec les campings ? Si oui, vérifiez que votre lieu de camping est bien à jour dans « Lieu de départ ». Un ancien emplacement ou de mauvaises coordonnées peuvent déclencher des alertes. Au troisième déplacement inhabituel non justifié, vous risquez d'être exclu du classement.`;await env.DB.prepare("INSERT INTO contest_travel_alerts(id,subscription_id,review_id,new_place,previous_place,message,created_at) VALUES(?,?,?,?,?,?,?)").bind(contestId(),p.subscription_id,rid,place,previousPlace,msg,Date.now()).run()}
+    else if(Number(score.distanceKm)>150){await contestEnqueueBonus(env,p.subscription_id,2,"trajet aller de plus de 150 km","long-trip:"+marketKey,CONTEST_LONG_TRIP_BONUS_MS,true)}
   }catch(_){}
 }
 
 
 async function ensureAppMessages(env){await env.DB.prepare(`CREATE TABLE IF NOT EXISTS app_messages(id TEXT PRIMARY KEY,subscription_id INTEGER,first_name TEXT NOT NULL DEFAULT '',last_name TEXT NOT NULL DEFAULT '',address TEXT NOT NULL DEFAULT '',kind TEXT NOT NULL DEFAULT 'Message',message TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',created_at INTEGER NOT NULL,read_at INTEGER)`).run()}
 async function appMessage(request,env){await ensureAppMessages(env);const d=await body(request),sub=await contestSubscription(env,d);if(!sub)return json({ok:false,error:"ABONNEMENT_REQUIS"},403);const p=await env.DB.prepare("SELECT first_name,last_name,home_commune,home_area FROM contest_participants WHERE subscription_id=? LIMIT 1").bind(sub.id).first();const first=String((p&&p.first_name)||sub.account_first_name||"").trim(),last=String((p&&p.last_name)||sub.account_last_name||"").trim(),address=p?String(p.home_commune||"")+(p.home_area?" ("+p.home_area+")":""):"Adresse non renseignée",kind=String(d.kind||"Message").trim().slice(0,80),message=String(d.message||"").trim().slice(0,3000);if(message.length<3)return json({ok:false,error:"MESSAGE_TROP_COURT"},400);await env.DB.prepare("INSERT INTO app_messages(id,subscription_id,first_name,last_name,address,kind,message,created_at) VALUES(?,?,?,?,?,?,?,?)").bind(contestId(),sub.id,first,last,address,kind,message,Date.now()).run();return json({ok:true})}
-async function adminAppMessages(request,env){
-  if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);
-  await ensureAppMessages(env);await ensureAppIdentityTables(env);
-  if(request.method==="POST"){const d=await body(request);await env.DB.prepare("UPDATE app_messages SET status='read',read_at=? WHERE id=?").bind(Date.now(),String(d.id||"")).run()}
-  const q=await env.DB.prepare(`SELECT m.*,
-    COALESCE(s.recovery_email_mask,ai.email,'') AS email, COALESCE(s.phone_device,s.autoradio_device,'') AS device_id
-    FROM app_messages m
-    LEFT JOIN subscriptions s ON s.id=m.subscription_id
-    LEFT JOIN app_identities ai ON ai.rowid=(SELECT ai2.rowid FROM app_identities ai2 WHERE ai2.device_id=s.phone_device OR ai2.device_id=s.autoradio_device ORDER BY ai2.updated_at DESC LIMIT 1)
-    WHERE m.status='pending' ORDER BY m.created_at DESC LIMIT 200`).all();
-  const messages=q.results||[];return json({ok:true,messages,count:messages.length})
-}
+async function adminAppMessages(request,env){if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);await ensureAppMessages(env);if(request.method==="POST"){const d=await body(request);await env.DB.prepare("UPDATE app_messages SET status='read',read_at=? WHERE id=?").bind(Date.now(),String(d.id||"")).run()}const messages=(await env.DB.prepare("SELECT * FROM app_messages WHERE status='pending' ORDER BY created_at DESC LIMIT 200").all()).results||[];return json({ok:true,messages,count:messages.length})}
 
 function contestIdeaMultiplier(description){
   const text=String(description||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
@@ -2236,11 +1963,11 @@ async function adminContestAction(request,env){
   if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);await ensureContestTables(env);const d=await body(request),type=String(d.type||""),id=String(d.id||""),approve=d.approve===true;
   if(type==="review"){
     const r=await env.DB.prepare("SELECT * FROM contest_market_reviews WHERE id=? AND status='pending'").bind(id).first();if(!r)return json({ok:false,error:"DEMANDE_INTROUVABLE"},404);
-    if(approve){const duplicate=await env.DB.prepare("SELECT id FROM contest_market_points WHERE subscription_id=? AND market_key=?").bind(r.subscription_id,r.market_key).first();let awarded=Number(r.points||0);if(!duplicate){const base=Number(r.base_points||r.points||0),mult=Math.max(1,Number(r.multiplier||1));awarded=Number(r.points||base*mult);await env.DB.prepare("INSERT INTO contest_market_points(subscription_id,market_key,market_name,distance_km,points,base_points,multiplier,breakdown_json,market_lat,market_lon,place_label,awarded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").bind(r.subscription_id,r.market_key,r.market_name,r.distance_km,awarded,base,mult,r.breakdown_json||'[]',r.market_lat,r.market_lon,r.place_label,Date.now()).run();await contestAddScoreEvent(env,r.subscription_id,'market',r.market_key,r.market_name,base,mult,awarded);await contestApplyMarketMilestones(env,r.subscription_id);if(Number(r.distance_km)>150)await contestEnqueueBonus(env,r.subscription_id,2,"trajet aller de plus de 150 km validé par l’administrateur","long-trip:"+r.market_key,CONTEST_LONG_TRIP_BONUS_MS,true)}await contestPushMessage(env,r.subscription_id,contestCongratsMessage(r,awarded),"approved")}
+    if(approve){const duplicate=await env.DB.prepare("SELECT id FROM contest_market_points WHERE subscription_id=? AND market_key=?").bind(r.subscription_id,r.market_key).first();let awarded=Number(r.points||0);if(!duplicate){const base=Number(r.base_points||r.points||0),mult=Math.max(1,Number(r.multiplier||1));awarded=Number(r.points||base*mult);await env.DB.prepare("INSERT INTO contest_market_points(subscription_id,market_key,market_name,distance_km,points,base_points,multiplier,breakdown_json,market_lat,market_lon,place_label,awarded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").bind(r.subscription_id,r.market_key,r.market_name,r.distance_km,awarded,base,mult,r.breakdown_json||'[]',r.market_lat,r.market_lon,r.place_label,Date.now()).run();await contestAddScoreEvent(env,r.subscription_id,'market',r.market_key,r.market_name,base,mult,awarded);await contestApplyMarketMilestones(env,r.subscription_id);if(Number(r.distance_km)>150&&Number(r.unusual))await contestEnqueueBonus(env,r.subscription_id,2,"trajet aller de plus de 150 km validé par l’administrateur","long-trip:"+r.market_key,CONTEST_LONG_TRIP_BONUS_MS,true)}await contestPushMessage(env,r.subscription_id,contestCongratsMessage(r,awarded),"approved")}
     else{if(Number(r.unusual)){await env.DB.prepare("UPDATE contest_participants SET alert_count=alert_count+1,updated_at=? WHERE subscription_id=?").bind(Date.now(),r.subscription_id).run();const p=await env.DB.prepare("SELECT alert_count FROM contest_participants WHERE subscription_id=?").bind(r.subscription_id).first();if(Number(p&&p.alert_count||0)>=3)await env.DB.prepare("UPDATE contest_participants SET banned=1 WHERE subscription_id=?").bind(r.subscription_id).run()}await contestPushMessage(env,r.subscription_id,`❌ Votre demande pour ${r.market_name} a été refusée — aucun point ajouté.`,`denied`)}
     await env.DB.prepare("UPDATE contest_market_reviews SET status=?,decided_at=? WHERE id=?").bind(approve?"approved":"denied",Date.now(),id).run();return json({ok:true});
   }
-  if(type==="report"){const r=await env.DB.prepare("SELECT * FROM contest_reports WHERE id=? AND status='pending'").bind(id).first();if(!r)return json({ok:false,error:"DEMANDE_INTROUVABLE"},404);if(approve){if(r.kind==='idee'){const multiplier=contestIdeaMultiplier(r.description);await env.DB.prepare("UPDATE contest_reports SET status='approved',points=0,decided_at=? WHERE id=?").bind(Date.now(),id).run();await contestEnqueueBonus(env,r.subscription_id,multiplier,"idée acceptée par l’administrateur","idea:"+r.id,CONTEST_BONUS_MS,false,`🎉 Bravo, vous bénéficiez du multiplicateur ×${multiplier} pendant 3 jours.`)}else{const gain=await contestAddScoreWithActiveBonus(env,r.subscription_id,'bug',r.id,r.description,153);await env.DB.prepare("UPDATE contest_reports SET status='approved',points=?,decided_at=? WHERE id=?").bind(gain.awardedPoints,Date.now(),id).run();await contestPushMessage(env,r.subscription_id,`✅ Votre bug / problème a été confirmé — +${contestNumberText(gain.awardedPoints)} points${gain.multiplier>1?` (bonus ×${gain.multiplier})`:''}.`,"approved")}}else{await contestPushMessage(env,r.subscription_id,"❌ Votre signalement / idée a été refusé — aucun point ajouté.","denied");await env.DB.prepare("UPDATE contest_reports SET status='denied',points=0,decided_at=? WHERE id=?").bind(Date.now(),id).run()}return json({ok:true})}
+  if(type==="report"){const r=await env.DB.prepare("SELECT * FROM contest_reports WHERE id=? AND status='pending'").bind(id).first();if(!r)return json({ok:false,error:"DEMANDE_INTROUVABLE"},404);if(approve){if(r.kind==='idee'){const multiplier=contestIdeaMultiplier(r.description);await env.DB.prepare("UPDATE contest_reports SET status='approved',points=0,decided_at=? WHERE id=?").bind(Date.now(),id).run();await contestEnqueueBonus(env,r.subscription_id,multiplier,"idée acceptée par l’administrateur","idea:"+r.id,CONTEST_BONUS_MS,false,`🎉 Bravo, vous bénéficiez du multiplicateur ×${multiplier} pendant 3 jours.`)}else{await contestAddScoreEvent(env,r.subscription_id,'bug',r.id,r.description,153,1,153);await env.DB.prepare("UPDATE contest_reports SET status='approved',points=153,decided_at=? WHERE id=?").bind(Date.now(),id).run();await contestPushMessage(env,r.subscription_id,"✅ Votre bug / problème a été confirmé — +153 points.","approved")}}else{await contestPushMessage(env,r.subscription_id,"❌ Votre signalement / idée a été refusé — aucun point ajouté.","denied");await env.DB.prepare("UPDATE contest_reports SET status='denied',points=0,decided_at=? WHERE id=?").bind(Date.now(),id).run()}return json({ok:true})}
   if(type==="commune"){const r=await env.DB.prepare("SELECT * FROM contest_commune_requests WHERE id=? AND status='pending'").bind(id).first();if(!r)return json({ok:false,error:"DEMANDE_INTROUVABLE"},404);await env.DB.prepare("UPDATE contest_commune_requests SET status=?,decided_at=? WHERE id=?").bind(approve?"approved":"denied",Date.now(),id).run();if(approve)await env.DB.prepare("UPDATE contest_participants SET change_allowed=1,updated_at=? WHERE subscription_id=?").bind(Date.now(),r.subscription_id).run();await contestPushMessage(env,r.subscription_id,approve?"✅ Votre demande est acceptée. Vous pouvez maintenant changer votre commune dans le jeu concours.":"❌ Votre demande de changement de commune a été refusée.",approve?"approved":"denied");return json({ok:true})}
   if(type==="message"){const sid=Number(d.subscriptionId);if(!sid)return json({ok:false,error:"PARTICIPANT_INVALIDE"},400);await contestPushMessage(env,sid,String(d.message||"").trim()||"Message de l’administrateur.","admin");return json({ok:true})}
   if(type==="travel-question"){const a=await env.DB.prepare("SELECT * FROM contest_travel_alerts WHERE id=? AND status='pending'").bind(id).first();if(!a)return json({ok:false,error:"ALERTE_INTROUVABLE"},404);await contestPushMessage(env,a.subscription_id,a.message,"travel");return json({ok:true})}
@@ -2249,256 +1976,9 @@ async function adminContestAction(request,env){
 }
 // ===== FIN JEU CONCOURS V191 CAMPING =====
 
-
-
-// ===== V242 ADMIN : HISTORIQUE INSTALLATIONS + BANNISSEMENT MANUEL =====
-async function ensureSanctionTablesV242(env){
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_user_sanctions(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,subscription_id INTEGER,email_hash TEXT,email TEXT,requester_name TEXT,last_device_id TEXT,
-    refusal_count INTEGER NOT NULL DEFAULT 0,app_banned INTEGER NOT NULL DEFAULT 0,contribution_blocked INTEGER NOT NULL DEFAULT 0,
-    reactivation_requested INTEGER NOT NULL DEFAULT 0,ban_at INTEGER,reactivation_requested_at INTEGER,reactivated_at INTEGER,updated_at INTEGER NOT NULL
-  )`).run();
-  try{await env.DB.prepare("ALTER TABLE market_user_sanctions ADD COLUMN manual_ban INTEGER NOT NULL DEFAULT 0").run()}catch(_){}
-  try{await env.DB.prepare("ALTER TABLE market_user_sanctions ADD COLUMN ban_reason TEXT NOT NULL DEFAULT ''").run()}catch(_){}
-  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_market_user_sanctions_device ON market_user_sanctions(last_device_id)").run();
-  await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_market_user_sanctions_email ON market_user_sanctions(email_hash) WHERE email_hash IS NOT NULL AND email_hash<>''").run();
-  await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_market_user_sanctions_subscription ON market_user_sanctions(subscription_id) WHERE subscription_id IS NOT NULL").run();
-}
-async function subscriptionForBanV242(env,deviceId,email){
-  let row=null;
-  if(deviceId)row=await env.DB.prepare("SELECT id,recovery_email_hash,recovery_email_mask FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) ORDER BY id DESC LIMIT 1").bind(deviceId,deviceId).first();
-  if(!row&&validEmail(email)){const h=await sha256Text(email);row=await env.DB.prepare("SELECT id,recovery_email_hash,recovery_email_mask FROM subscriptions WHERE active=1 AND (recovery_email_hash=? OR lower(recovery_email_mask)=?) ORDER BY id DESC LIMIT 1").bind(h,email).first()}
-  return row||null;
-}
-async function sanctionRowV242(env,{subscriptionId=null,emailHash='',deviceId=''}={}){
-  await ensureSanctionTablesV242(env);let row=null;
-  if(subscriptionId!=null)row=await env.DB.prepare("SELECT * FROM market_user_sanctions WHERE subscription_id=? LIMIT 1").bind(Number(subscriptionId)).first();
-  if(!row&&emailHash)row=await env.DB.prepare("SELECT * FROM market_user_sanctions WHERE email_hash=? LIMIT 1").bind(emailHash).first();
-  if(!row&&deviceId)row=await env.DB.prepare("SELECT * FROM market_user_sanctions WHERE last_device_id=? ORDER BY updated_at DESC LIMIT 1").bind(deviceId).first();
-  return row||null;
-}
-async function adminBannedUsersV242(request,env){
-  if(!(await adminAuthorized(request,env)))return json({ok:false,error:'SECRET_INCORRECT'},401);await ensureSanctionTablesV242(env);
-  if(request.method==='GET'){const q=await env.DB.prepare("SELECT id,subscription_id,email,requester_name,last_device_id,refusal_count,app_banned,contribution_blocked,reactivation_requested,ban_at,reactivation_requested_at,updated_at,COALESCE(manual_ban,0) AS manual_ban,COALESCE(ban_reason,'') AS ban_reason FROM market_user_sanctions WHERE app_banned=1 ORDER BY reactivation_requested DESC,COALESCE(reactivation_requested_at,ban_at,updated_at) DESC").all();return json({ok:true,users:q.results||[]})}
-  const d=await body(request),action=String(d.action||'');
-  if(action==='ban'){
-    const email=normalizeEmail(d.email),deviceId=String(d.deviceId||'').trim().slice(0,140),name=String(d.name||'').trim().replace(/\s+/g,' ').slice(0,120);
-    if(!validEmail(email)&&!deviceId)return json({ok:false,error:'UTILISATEUR_INVALIDE'},400);
-    if(email==='appli.suzon@gmail.com')return json({ok:false,error:'ADMIN_NON_BANNISSABLE'},403);
-    const emailHash=validEmail(email)?await sha256Text(email):'',sub=await subscriptionForBanV242(env,deviceId,email),row=await sanctionRowV242(env,{subscriptionId:sub&&sub.id,emailHash,deviceId}),now=Date.now();
-    if(row){await env.DB.prepare(`UPDATE market_user_sanctions SET subscription_id=COALESCE(?,subscription_id),email_hash=CASE WHEN ?<>'' THEN ? ELSE email_hash END,email=CASE WHEN ?<>'' THEN ? ELSE email END,requester_name=CASE WHEN ?<>'' THEN ? ELSE requester_name END,last_device_id=CASE WHEN ?<>'' THEN ? ELSE last_device_id END,app_banned=1,manual_ban=1,ban_reason='Banni manuellement par Steve Suzon',reactivation_requested=0,ban_at=?,updated_at=? WHERE id=?`).bind(sub&&sub.id||null,emailHash,emailHash,email,email,name,name,deviceId,deviceId,now,now,row.id).run();return json({ok:true,id:row.id,appBanned:true})}
-    const r=await env.DB.prepare(`INSERT INTO market_user_sanctions(subscription_id,email_hash,email,requester_name,last_device_id,refusal_count,app_banned,contribution_blocked,reactivation_requested,ban_at,updated_at,manual_ban,ban_reason) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(sub&&sub.id||null,emailHash||null,email||null,name||null,deviceId||null,0,1,0,0,now,now,1,'Banni manuellement par Steve Suzon').run();return json({ok:true,id:Number(r.meta&&r.meta.last_row_id||0),appBanned:true});
-  }
-  const id=Number(d.id||0);if(!id||action!=='unban')return json({ok:false,error:'DONNEES_INVALIDES'},400);
-  const row=await env.DB.prepare("SELECT id,contribution_blocked,COALESCE(manual_ban,0) AS manual_ban FROM market_user_sanctions WHERE id=? LIMIT 1").bind(id).first();if(!row)return json({ok:false,error:'UTILISATEUR_INTROUVABLE'},404);
-  const blocked=Number(row.manual_ban)?Number(row.contribution_blocked||0):1,now=Date.now();
-  await env.DB.prepare("UPDATE market_user_sanctions SET app_banned=0,contribution_blocked=?,manual_ban=0,ban_reason='',reactivation_requested=0,reactivated_at=?,updated_at=? WHERE id=?").bind(blocked,now,now,id).run();return json({ok:true,appBanned:false,contributionBlocked:!!blocked});
-}
-async function sanctionStatusV242(request,env){
-  if(!env.DB)return json({ok:true,appBanned:false,contributionBlocked:false,refusalCount:0,reactivationRequested:false});await ensureSanctionTablesV242(env);const d=await body(request),deviceId=String(d.deviceId||'').trim(),email=normalizeEmail(d.email),emailHash=validEmail(email)?await sha256Text(email):'',sub=await subscriptionForBanV242(env,deviceId,email),row=await sanctionRowV242(env,{subscriptionId:sub&&sub.id,emailHash:emailHash||(sub&&sub.recovery_email_hash)||'',deviceId});return json({ok:true,appBanned:!!Number(row&&row.app_banned),contributionBlocked:!!Number(row&&row.contribution_blocked),refusalCount:Number(row&&row.refusal_count||0),reactivationRequested:!!Number(row&&row.reactivation_requested)});
-}
-async function reactivationV242(request,env){
-  if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);await ensureSanctionTablesV242(env);const d=await body(request),deviceId=String(d.deviceId||'').trim(),email=normalizeEmail(d.email),emailHash=validEmail(email)?await sha256Text(email):'',sub=await subscriptionForBanV242(env,deviceId,email),row=await sanctionRowV242(env,{subscriptionId:sub&&sub.id,emailHash:emailHash||(sub&&sub.recovery_email_hash)||'',deviceId});if(!row||!Number(row.app_banned))return json({ok:false,error:'COMPTE_NON_BANNI'},409);const now=Date.now();await env.DB.prepare("UPDATE market_user_sanctions SET reactivation_requested=1,reactivation_requested_at=?,updated_at=? WHERE id=?").bind(now,now,row.id).run();return json({ok:true,pending:true});
-}
-// ===== FIN V242 =====
-
-// ===== V244 ACCÈS GLOBAL + COIN DÉTENTE & CHAMPIGNONS =====
-function cleanIdentityText(v,max=120){return String(v||'').replace(/\s+/g,' ').trim().slice(0,max)}
-function validIdentityEmail(v){return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(String(v||'').trim())}
-async function ensureAppIdentityTables(env){
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS app_identities(
-    email TEXT PRIMARY KEY, first_name TEXT NOT NULL, last_name TEXT NOT NULL, device_id TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
-  )`).run();
-  await env.DB.prepare("CREATE INDEX IF NOT EXISTS app_identities_device_idx ON app_identities(device_id)").run();
-}
-async function appIdentity(request,env){
-  if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);
-  await ensureAppIdentityTables(env);await ensureInstallationsTable(env);const d=await body(request),firstName=cleanIdentityText(d.firstName,80),lastName=cleanIdentityText(d.lastName,80),email=cleanIdentityText(d.email,190).toLowerCase(),deviceId=cleanIdentityText(d.deviceId,140),platform=cleanIdentityText(d.platform||'pwa',32)||'pwa';
-  if(firstName.length<2||lastName.length<2||!validIdentityEmail(email))return json({ok:false,error:'IDENTITE_INCOMPLETE'},400);
-  const now=Date.now(),seen=Math.floor(now/1000);
-  await env.DB.prepare(`INSERT INTO app_identities(email,first_name,last_name,device_id,created_at,updated_at) VALUES(?,?,?,?,?,?)
-    ON CONFLICT(email) DO UPDATE SET first_name=excluded.first_name,last_name=excluded.last_name,device_id=excluded.device_id,updated_at=excluded.updated_at`)
-    .bind(email,firstName,lastName,deviceId,now,now).run();
-  if(deviceId)await env.DB.prepare(`INSERT INTO app_installations(device_id,platform,first_seen,last_seen) VALUES(?,?,?,?)
-    ON CONFLICT(device_id) DO UPDATE SET platform=excluded.platform,last_seen=excluded.last_seen`).bind(deviceId,platform,seen,seen).run();
-  return json({ok:true,identity:{firstName,lastName,email}});
-}
-
-const MUSHROOM_PHOTO_MAX_BYTES=650000, MUSHROOM_ACCESS_DAYS=730;
-async function ensureMushroomTables(env){
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_spots(
-    id TEXT PRIMARY KEY,email TEXT NOT NULL,first_name TEXT NOT NULL,last_name TEXT NOT NULL,device_id TEXT NOT NULL,
-    latitude REAL NOT NULL,longitude REAL NOT NULL,accuracy REAL NOT NULL,department TEXT NOT NULL,species TEXT NOT NULL,scientific_name TEXT NOT NULL DEFAULT '',
-    category TEXT NOT NULL DEFAULT '',ai_confidence INTEGER NOT NULL DEFAULT 0,ai_reason TEXT NOT NULL DEFAULT '',note TEXT NOT NULL DEFAULT '',photo_key TEXT NOT NULL,mime_type TEXT NOT NULL DEFAULT 'image/jpeg',created_at INTEGER NOT NULL
-  )`).run();
-  try{await env.DB.prepare("ALTER TABLE mushroom_spots ADD COLUMN category TEXT NOT NULL DEFAULT ''").run()}catch(_){}
-  await env.DB.prepare("CREATE INDEX IF NOT EXISTS mushroom_spots_department_idx ON mushroom_spots(department,created_at DESC)").run();
-  await env.DB.prepare("CREATE INDEX IF NOT EXISTS mushroom_spots_species_idx ON mushroom_spots(species,created_at DESC)").run();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_photo_blobs(
-    spot_id TEXT PRIMARY KEY,data_base64 TEXT NOT NULL,mime_type TEXT NOT NULL DEFAULT 'image/jpeg',updated_at INTEGER NOT NULL
-  )`).run();
-  for(const sql of [
-    "ALTER TABLE mushroom_spots ADD COLUMN wood_name TEXT NOT NULL DEFAULT ''",
-    "ALTER TABLE mushroom_spots ADD COLUMN is_private INTEGER NOT NULL DEFAULT 0",
-    "ALTER TABLE mushroom_spots ADD COLUMN source TEXT NOT NULL DEFAULT 'community'",
-    "ALTER TABLE mushroom_spots ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0",
-    "ALTER TABLE mushroom_spots ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0"
-  ]){try{await env.DB.prepare(sql).run()}catch(_){}}
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_spot_delete_votes(
-    spot_id TEXT NOT NULL,subscription_id INTEGER NOT NULL,created_at INTEGER NOT NULL,
-    PRIMARY KEY(spot_id,subscription_id)
-  )`).run();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_seed_states(
-    spot_id TEXT PRIMARY KEY,wood_name TEXT NOT NULL DEFAULT '',species TEXT NOT NULL DEFAULT '',note TEXT NOT NULL DEFAULT '',
-    is_private INTEGER NOT NULL DEFAULT 0,hidden INTEGER NOT NULL DEFAULT 0,updated_at INTEGER NOT NULL
-  )`).run();
-}
-
-const MUSHROOM_GOOGLE_WOODS=[
-  {id:'google-idf-fontainebleau',wood_name:'Forêt de Fontainebleau',latitude:48.4096,longitude:2.6331,department:'77',species:'Cèpes, girolles et pieds-de-mouton',category:'Plusieurs champignons',note:'Secteur forestier de Fontainebleau.',is_private:0},
-  {id:'google-idf-armainvilliers',wood_name:'Forêt d’Armainvilliers',latitude:48.8218,longitude:2.7272,department:'77',species:'Cèpes et bolets',category:'Cèpes / Bolets',note:'Bois mixtes de Seine-et-Marne.',is_private:0},
-  {id:'google-idf-villefermoy',wood_name:'Forêt de Villefermoy',latitude:48.4872,longitude:2.9684,department:'77',species:'Cèpes et chanterelles',category:'Plusieurs champignons',note:'Feuillus et pinèdes au sud de la Seine-et-Marne.',is_private:0},
-  {id:'google-idf-rambouillet',wood_name:'Forêt de Rambouillet',latitude:48.6769,longitude:1.7539,department:'78',species:'Cèpes, girolles, coulemelles, pieds-de-mouton et trompettes',category:'Plusieurs champignons',note:'Point situé dans un secteur domanial du massif.',is_private:0},
-  {id:'google-idf-senart',wood_name:'Forêt de Sénart',latitude:48.6597,longitude:2.4881,department:'91',species:'Girolles et coulemelles',category:'Plusieurs champignons',note:'Massif forestier entre Essonne et Seine-et-Marne.',is_private:0},
-  {id:'google-idf-dourdan',wood_name:'Forêt de Dourdan',latitude:48.5354,longitude:2.0124,department:'91',species:'Cèpes, girolles et pieds-de-mouton',category:'Plusieurs champignons',note:'Massif forestier du sud de l’Essonne.',is_private:0},
-  {id:'google-idf-rougeau',wood_name:'Forêt de Rougeau',latitude:48.6068,longitude:2.5486,department:'91',species:'Cèpes et chanterelles',category:'Plusieurs champignons',note:'Massif forestier proche de Corbeil-Essonnes.',is_private:0},
-  {id:'google-idf-meudon',wood_name:'Forêt de Meudon',latitude:48.8028,longitude:2.2265,department:'92',species:'Pieds-de-mouton et cèpes',category:'Plusieurs champignons',note:'Bois urbain des Hauts-de-Seine.',is_private:0},
-  {id:'google-idf-notre-dame',wood_name:'Forêt Notre-Dame',latitude:48.7489,longitude:2.5489,department:'94',species:'Bolets, coulemelles et girolles',category:'Plusieurs champignons',note:'Massif forestier du Val-de-Marne.',is_private:0},
-  {id:'google-idf-montmorency',wood_name:'Forêt de Montmorency',latitude:49.0216,longitude:2.2895,department:'95',species:'Cèpes, bolets et coulemelles',category:'Plusieurs champignons',note:'Massif forestier du Val-d’Oise.',is_private:0},
-  {id:'google-bzh-huelgoat',wood_name:'Forêt de Huelgoat',latitude:48.3658,longitude:-3.7452,department:'29',species:'Cèpes, bolets, girolles et pieds-de-mouton',category:'Plusieurs champignons',note:'Forêt domaniale du Finistère.',is_private:0},
-  {id:'google-bzh-cranou',wood_name:'Forêt du Cranou',latitude:48.3113,longitude:-4.0835,department:'29',species:'Cèpes, pleurotes et coprins',category:'Plusieurs champignons',note:'Forêt domaniale du Finistère.',is_private:0},
-  {id:'google-bzh-coetquen',wood_name:'Forêt de Coëtquen',latitude:48.4695,longitude:-1.9567,department:'22',species:'Cèpes et girolles',category:'Plusieurs champignons',note:'Massif forestier des Côtes-d’Armor.',is_private:0},
-  {id:'google-bzh-loudeac',wood_name:'Forêt de Loudéac',latitude:48.1834,longitude:-2.7472,department:'22',species:'Cèpes et bolets',category:'Cèpes / Bolets',note:'Massif forestier des Côtes-d’Armor.',is_private:0},
-  {id:'google-bzh-paimpont',wood_name:'Forêt de Paimpont – Brocéliande',latitude:48.0186,longitude:-2.1719,department:'35',species:'Cèpes, girolles et pieds-de-mouton',category:'Plusieurs champignons',note:'De nombreuses parcelles du massif sont privées.',is_private:1},
-  {id:'google-bzh-quenecan',wood_name:'Forêt de Quénécan',latitude:48.1986,longitude:-3.0264,department:'56',species:'Cèpes et bolets',category:'Cèpes / Bolets',note:'Massif majoritairement privé.',is_private:1},
-  {id:'google-bzh-camors',wood_name:'Forêt de Camors',latitude:47.8498,longitude:-3.0027,department:'56',species:'Cèpes, bolets et lactaires',category:'Plusieurs champignons',note:'Forêt domaniale du Morbihan.',is_private:0},
-  {id:'google-bzh-pontcallec',wood_name:'Forêt de Pont-Calleck',latitude:48.0703,longitude:-3.4191,department:'56',species:'Cèpes, bolets et lactaires',category:'Plusieurs champignons',note:'Forêt domaniale du Morbihan.',is_private:0}
-].map(x=>({...x,accuracy:80,scientific_name:'',ai_confidence:0,ai_reason:'',source:'google',created_at:1799971200000,updated_at:0}));
-async function ensureMushroomAccessTables(env){
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_access_codes(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,code_hash TEXT NOT NULL UNIQUE,duration_days INTEGER NOT NULL DEFAULT 730,
-    active INTEGER NOT NULL DEFAULT 1,used_by_subscription_id INTEGER,used_at INTEGER,created_at INTEGER NOT NULL
-  )`).run();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_memberships(
-    subscription_id INTEGER PRIMARY KEY,expires_at INTEGER NOT NULL,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL
-  )`).run();
-  await env.DB.prepare("CREATE INDEX IF NOT EXISTS mushroom_codes_used_idx ON mushroom_access_codes(used_by_subscription_id,used_at)").run();
-}
-async function createMushroomAdminCode(env,data){
-  await ensureMushroomAccessTables(env);let code=normalizeCode(data.code);
-  if(data.generate===true||!validCode(code)){
-    code='';for(let i=0;i<40;i++){const c=randomSubscriptionCode(),h=await hashCode('MUSHROOM-'+c,env.CODE_PEPPER),e=await env.DB.prepare('SELECT id FROM mushroom_access_codes WHERE code_hash=? LIMIT 1').bind(h).first();if(!e){code=c;break}}
-  }
-  if(!validCode(code))return json({ok:false,error:'CODE_GENERATION_IMPOSSIBLE'},500);
-  const h=await hashCode('MUSHROOM-'+code,env.CODE_PEPPER),existing=await env.DB.prepare('SELECT id,used_by_subscription_id FROM mushroom_access_codes WHERE code_hash=? LIMIT 1').bind(h).first();
-  if(existing)return json({ok:false,error:'CODE_DEJA_UTILISE'},409);
-  await env.DB.prepare('INSERT INTO mushroom_access_codes(code_hash,duration_days,active,created_at) VALUES(?,?,1,?)').bind(h,MUSHROOM_ACCESS_DAYS,Date.now()).run();
-  return json({ok:true,kind:'mushroom',code,durationDays:MUSHROOM_ACCESS_DAYS,label:'Champignons — 2 ans'});
-}
-function decodeMushroomPhoto(dataUrl){
-  const m=String(dataUrl||'').match(/^data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+/=]+)$/i);if(!m)return null;
-  let bin;try{bin=atob(m[2])}catch(_){return null}if(!bin.length||bin.length>MUSHROOM_PHOTO_MAX_BYTES)return null;
-  const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return {bytes,mime:m[1].toLowerCase()==='png'?'image/png':m[1].toLowerCase()==='webp'?'image/webp':'image/jpeg',base64:m[2]};
-}
-async function nearbyFungiCandidates(lat,lon){
-  try{const u='https://api.inaturalist.org/v1/observations/species_counts?taxon_id=47170&lat='+encodeURIComponent(lat)+'&lng='+encodeURIComponent(lon)+'&radius=100&per_page=30&locale=fr';const r=await fetch(u,{headers:{accept:'application/json','user-agent':'Couteau-Suisse/244 mushroom-identification'},cf:{cacheTtl:1800,cacheEverything:true}});if(!r.ok)return [];const j=await r.json(),rows=Array.isArray(j.results)?j.results:[];return rows.map(x=>x&&x.taxon).filter(Boolean).map(t=>({name:String(t.name||''),common:String(t.preferred_common_name||'')})).filter(x=>x.name).slice(0,25)}catch(_){return []}
-}
-const MUSHROOM_VISION_MODEL='@cf/google/gemma-4-26b-a4b-it';
-async function runMushroomVision(env,payload){const ai=workersAiBinding(env);if(!ai)throw new Error('AI_BINDING_MISSING');return ai.run(MUSHROOM_VISION_MODEL,payload)}
-async function inspectMushroomPhoto(env,dataUrl,lat,lon){
-  if(!workersAiBinding(env))return {ok:false,error:'IA_RECONNAISSANCE_NON_CONFIGUREE',message:"La liaison Workers AI « AI » n’est pas active sur cette version déployée. Ouvrez Liaisons et ajoutez Workers AI → AI."};
-  const candidates=await nearbyFungiCandidates(lat,lon),prior=candidates.length?candidates.map(x=>(x.common?x.common+' / ':'')+x.name).join('; '):'aucune liste locale disponible';
-  try{const response=await runMushroomVision(env,{messages:[{role:'system',content:'You are a careful mushroom-photo classifier. Return ONLY valid JSON. Never claim edibility or safety.'},{role:'user',content:'Analyse la photo prise en direct. Vérifie qu’un vrai champignon est clairement visible ET qu’il est encore naturellement en terre ou fixé à son support dans le bois. Rejette un champignon cueilli, tenu en main, posé dans un panier, sur une table, sur une photo imprimée ou affiché sur un écran. Si la scène est authentique, propose le nom français le plus probable et le nom scientifique si possible. Si incertain, donne un groupe prudent. Les espèces observées dans un rayon de 100 km peuvent aider sans constituer une preuve: '+prior+'. Réponds exactement avec {"mushroomDetected":boolean,"authenticScene":boolean,"commonName":"nom français ou groupe","scientificName":"nom latin ou vide","mushroomConfidence":integer,"speciesConfidence":integer,"reason":"raison courte en français"}. Aucune information de comestibilité.'}],image:dataUrl,max_tokens:240,temperature:0});
-    const x=parseVisionJson(response);if(!x)return {ok:false,error:'ANALYSE_IA_INVALIDE',message:'La reconnaissance a répondu, mais le résultat est illisible. Reprenez une photo plus nette.'};const mushroomConfidence=Math.max(0,Math.min(100,Math.round(Number(x.mushroomConfidence)||0))),speciesConfidence=Math.max(0,Math.min(100,Math.round(Number(x.speciesConfidence)||0)));if(!(x.mushroomDetected===true&&x.authenticScene!==false&&mushroomConfidence>=50))return {ok:false,error:'AUCUN_CHAMPIGNON',message:String(x.reason||'Aucun champignon suffisamment visible sur la photo.').slice(0,220),mushroomConfidence};return {ok:true,commonName:cleanIdentityText(x.commonName,120)||'Champignon non identifié',scientificName:cleanIdentityText(x.scientificName,140),confidence:speciesConfidence,mushroomConfidence,reason:cleanIdentityText(x.reason,220)};
-  }catch(e){const detail=String(e&&e.message||'').toLowerCase();if(detail.includes('ai_binding_missing'))return {ok:false,error:'IA_RECONNAISSANCE_NON_CONFIGUREE',message:'La liaison Workers AI « AI » n’est pas active.'};return {ok:false,error:'ANALYSE_IA_INDISPONIBLE',message:'La reconnaissance IA n’a pas répondu. Réessayez dans quelques secondes.'}}
-}
-function mushroomGuideInfo(v){const n=String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-  if(/cepe|bolet/.test(n))return {category:'Cèpes / Bolets',season:'Juin à novembre',habitat:'Bois de chênes, hêtres, châtaigniers et conifères ; lisières et sols moussus après pluie.'};
-  if(/girolle|chanterelle/.test(n))return {category:'Girolles / Chanterelles',season:'Juin à novembre',habitat:'Sous feuillus ou conifères, sols moussus et acides, souvent en groupes.'};
-  if(/trompette/.test(n))return {category:'Trompettes',season:'Août à novembre',habitat:'Sous feuillus, surtout hêtres et chênes, sols frais, humides et ombragés.'};
-  if(/morille/.test(n))return {category:'Morilles',season:'Mars à mai',habitat:'Lisières, frênes, vieux vergers, sols remués ou calcaires selon les espèces.'};
-  if(/pied.*mouton|hydne/.test(n))return {category:'Pieds-de-mouton',season:'Août à décembre',habitat:'Bois de feuillus et conifères, sous litière de feuilles ou aiguilles.'};
-  if(/coulemelle|lepiote/.test(n))return {category:'Coulemelles / Lépiotes',season:'Juillet à novembre',habitat:'Prairies, clairières, lisières et bords de chemins herbeux.'};
-  if(/lactaire/.test(n))return {category:'Lactaires',season:'Juillet à novembre',habitat:'Selon l’espèce : pins, épicéas, bouleaux ou autres feuillus.'};
-  if(/russule/.test(n))return {category:'Russules',season:'Juin à novembre',habitat:'Bois de feuillus et conifères ; habitat variable selon l’espèce.'};
-  if(/amanite/.test(n))return {category:'Amanites',season:'Juin à novembre',habitat:'Bois et lisières sous divers arbres. Identification particulièrement délicate.'};
-  if(/agaric/.test(n))return {category:'Agarics',season:'Mai à novembre',habitat:'Prairies, pelouses, lisières ou sous-bois selon l’espèce.'};
-  if(/coprin/.test(n))return {category:'Coprins',season:'Printemps à automne',habitat:'Pelouses, bords de chemins, bois riches en matière organique.'};
-  return {category:'Autres champignons',season:'Selon l’espèce et la météo',habitat:'Consultez la fiche de l’espèce ; recherchez dans son habitat naturel sans vous fier uniquement à la photo.'};
-}
-async function mushroomHmacKey(env){return crypto.subtle.importKey('raw',new TextEncoder().encode('mushroom-v244:'+String(env.CODE_PEPPER||'couteau-suisse')), {name:'HMAC',hash:'SHA-256'},false,['sign','verify'])}
-async function signMushroomPayload(env,payload){const part=b64urlText(JSON.stringify(payload)),key=await mushroomHmacKey(env),sig=await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(part));return part+'.'+b64urlBytes(new Uint8Array(sig))}
-async function verifyMushroomPayload(env,token){try{const parts=String(token||'').split('.');if(parts.length!==2)return null;const key=await mushroomHmacKey(env),sig=b64urlDecode(parts[1]),ok=await crypto.subtle.verify('HMAC',key,sig,new TextEncoder().encode(parts[0]));if(!ok)return null;const j=JSON.parse(new TextDecoder().decode(b64urlDecode(parts[0])));if(!j||Number(j.exp)<Date.now())return null;return j}catch(_){return null}}
-async function signMushroomAnalysis(env,payload){return signMushroomPayload(env,{...payload,purpose:'analysis'})}
-async function verifyMushroomAnalysis(env,token){const p=await verifyMushroomPayload(env,token);return p&&p.purpose==='analysis'?p:null}
-async function mushroomMembershipFor(env,subId){await ensureMushroomAccessTables(env);return env.DB.prepare('SELECT * FROM mushroom_memberships WHERE subscription_id=? LIMIT 1').bind(subId).first()}
-async function mushroomAccessToken(env,subId,expiresAt){return signMushroomPayload(env,{purpose:'access',subId:Number(subId),membershipExpires:Number(expiresAt),exp:Math.min(Date.now()+24*60*60*1000,Number(expiresAt))})}
-async function mushroomTrialToken(env,subId,expiresAt){return signMushroomPayload(env,{purpose:'access',trial:true,subId:Number(subId),exp:Math.min(Date.now()+24*60*60*1000,Number(expiresAt))})}
-async function mushroomRequireAccess(request,env){const token=request.headers.get('x-mushroom-access')||'',p=await verifyMushroomPayload(env,token);if(!p||p.purpose!=='access')return null;if(p.trial){const sub=await env.DB.prepare('SELECT id,active,expires_at FROM subscriptions WHERE id=? LIMIT 1').bind(Number(p.subId)).first();if(!sub||!Number(sub.active)||!sub.expires_at||Date.parse(sub.expires_at)<=Date.now())return null;return {subscriptionId:Number(p.subId),trial:true}}const m=await mushroomMembershipFor(env,Number(p.subId));if(!m||Number(m.expires_at)<=Date.now())return null;return {subscriptionId:Number(p.subId),membership:m}}
-async function mushroomAccess(request,env){
-  if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);await ensureMushroomAccessTables(env);const d=await body(request),sub=await contestSubscription(env,d);if(!sub)return json({ok:false,error:'ABONNEMENT_PRINCIPAL_REQUIS',message:'Récupérez d’abord votre abonnement Couteau Suisse.'},403);const now=Date.now();let membership=await mushroomMembershipFor(env,sub.id);
-  const device=cleanIdentityText(d.deviceId,140),trialHash=device?await sha256Text('contest-trial:'+device):'',trialActive=!!trialHash&&String(sub.code_hash||'')===trialHash&&!!sub.expires_at&&Date.parse(sub.expires_at)>now;
-  if(trialActive){const expires=Date.parse(sub.expires_at),days=Math.max(0,Math.ceil((expires-now)/86400000));return json({ok:true,active:true,trial:true,expiresAt:expires,remainingDays:days,warningSoon:false,accessToken:await mushroomTrialToken(env,sub.id,expires),account:{firstName:String(sub.account_first_name||''),lastName:String(sub.account_last_name||''),email:String(sub.recovery_email_mask||'')}})}
-  if(String(d.action||'status')==='redeem'){
-    const code=normalizeCode(d.mushroomCode);if(!validCode(code))return json({ok:false,error:'CODE_CHAMPIGNON_INCORRECT'},400);const h=await hashCode('MUSHROOM-'+code,env.CODE_PEPPER),row=await env.DB.prepare('SELECT * FROM mushroom_access_codes WHERE code_hash=? AND active=1 LIMIT 1').bind(h).first();if(!row)return json({ok:false,error:'CODE_CHAMPIGNON_INCORRECT'},403);if(row.used_by_subscription_id||row.used_at)return json({ok:false,error:'CODE_DEJA_UTILISE'},409);
-    const base=membership&&Number(membership.expires_at)>now?Number(membership.expires_at):now,expires=base+Number(row.duration_days||MUSHROOM_ACCESS_DAYS)*86400000;
-    const used=await env.DB.prepare('UPDATE mushroom_access_codes SET used_by_subscription_id=?,used_at=? WHERE id=? AND used_by_subscription_id IS NULL AND used_at IS NULL').bind(sub.id,now,row.id).run();if(!used.meta||Number(used.meta.changes||0)<1)return json({ok:false,error:'CODE_DEJA_UTILISE'},409);
-    await env.DB.prepare(`INSERT INTO mushroom_memberships(subscription_id,expires_at,created_at,updated_at) VALUES(?,?,?,?) ON CONFLICT(subscription_id) DO UPDATE SET expires_at=excluded.expires_at,updated_at=excluded.updated_at`).bind(sub.id,expires,membership?Number(membership.created_at||now):now,now).run();membership=await mushroomMembershipFor(env,sub.id);
-  }
-  if(!membership||Number(membership.expires_at)<=now)return json({ok:true,active:false,priceEuros:50,durationDays:MUSHROOM_ACCESS_DAYS});const days=Math.max(0,Math.ceil((Number(membership.expires_at)-now)/86400000));return json({ok:true,active:true,expiresAt:Number(membership.expires_at),remainingDays:days,warningSoon:days<=30,accessToken:await mushroomAccessToken(env,sub.id,membership.expires_at),account:{firstName:String(sub.account_first_name||''),lastName:String(sub.account_last_name||''),email:String(sub.recovery_email_mask||'')}});
-}
-async function mushroomAnalyze(request,env){
-  if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);if(!(await mushroomRequireAccess(request,env)))return json({ok:false,error:'ACCES_CHAMPIGNONS_REQUIS'},403);const d=await body(request),lat=Number(d.latitude),lon=Number(d.longitude),accuracy=Number(d.accuracy),capturedAt=Number(d.capturedAt||Date.now());if(!Number.isFinite(lat)||!Number.isFinite(lon)||!Number.isFinite(accuracy)||accuracy<0||accuracy>35)return json({ok:false,error:'GPS_TROP_IMPRECIS',message:'Le GPS doit être précis à 35 m ou mieux.'},400);if(Math.abs(Date.now()-capturedAt)>20*60*1000)return json({ok:false,error:'PHOTO_TROP_ANCIENNE'},400);const photo=decodeMushroomPhoto(d.dataUrl);if(!photo)return json({ok:false,error:'PHOTO_INVALIDE',message:'Photo invalide ou trop lourde.'},400);const inspected=await inspectMushroomPhoto(env,d.dataUrl,lat,lon);if(!inspected.ok)return json(inspected,422);const imageHash=await sha256Text(d.dataUrl),payload={imageHash,lat:Number(lat.toFixed(6)),lon:Number(lon.toFixed(6)),commonName:inspected.commonName,scientificName:inspected.scientificName,confidence:inspected.confidence,mushroomConfidence:inspected.mushroomConfidence,reason:inspected.reason,exp:Date.now()+20*60*1000};return json({...inspected,analysisToken:await signMushroomAnalysis(env,payload)});
-}
-async function mushroomDepartment(lat,lon){try{const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&addressdetails=1&lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{headers:{'Accept-Language':'fr','User-Agent':'Couteau-Suisse/244'}});if(!r.ok)throw 0;const j=await r.json(),a=j.address||{},iso=String(a['ISO3166-2-lvl6']||a['ISO3166-2-lvl4']||'');let m=iso.match(/FR-(2A|2B|\d{2,3})/i);if(m)return m[1].toUpperCase();const pc=String(a.postcode||'').replace(/\D/g,'');if(/^97|^98/.test(pc))return pc.slice(0,3);if(pc.length>=2)return pc.slice(0,2)}catch(_){}return 'AUTRE'}
-async function mushroomSignedPhotoUrl(env,id,created){const exp=Date.now()+60*60*1000,sig=await signMushroomPayload(env,{purpose:'photo',id:String(id),exp});return '/api/mushrooms/photo?id='+encodeURIComponent(id)+'&v='+encodeURIComponent(created||'')+'&token='+encodeURIComponent(sig)}
-async function mushroomSpots(request,env){
-  if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);await ensureMushroomTables(env);const access=await mushroomRequireAccess(request,env);if(!access)return json({ok:false,error:'ACCES_CHAMPIGNONS_REQUIS'},403);if(request.method==='GET')return json({ok:false,error:'UTILISEZ_RECHERCHE'},400);
-  const d=await body(request),sub=await env.DB.prepare('SELECT * FROM subscriptions WHERE id=? AND active=1 LIMIT 1').bind(access.subscriptionId).first(),deviceId=cleanIdentityText(d.deviceId,140),lat=Number(d.latitude),lon=Number(d.longitude),accuracy=Number(d.accuracy),pLat=Number(d.photoLatitude),pLon=Number(d.photoLongitude),pAcc=Number(d.photoAccuracy);if(!sub)return json({ok:false,error:'COMPTE_INTROUVABLE'},403);const email=String(sub.recovery_email_mask||''),firstName=String(sub.account_first_name||''),lastName=String(sub.account_last_name||'');if(![lat,lon,accuracy,pLat,pLon,pAcc].every(Number.isFinite)||accuracy<0||accuracy>35||pAcc<0||pAcc>80)return json({ok:false,error:'GPS_TROP_IMPRECIS',message:'Le GPS du coin ou de la photo est trop imprécis.'},400);const dist=haversineMeters(lat,lon,pLat,pLon);if(dist>200)return json({ok:false,error:'PHOTO_HORS_DU_COIN',message:'Le GPS de la photo doit être à 200 m maximum du point enregistré.'},400);const photo=decodeMushroomPhoto(d.photoDataUrl);if(!photo)return json({ok:false,error:'PHOTO_INVALIDE'},400);const proof=await verifyMushroomAnalysis(env,d.analysisToken);if(!proof)return json({ok:false,error:'ANALYSE_EXPIREE',message:'L’analyse de la photo a expiré. Reprenez la photo.'},400);const imageHash=await sha256Text(d.photoDataUrl);if(imageHash!==proof.imageHash)return json({ok:false,error:'PHOTO_DIFFERENTE'},400);if(haversineMeters(lat,lon,Number(proof.lat),Number(proof.lon))>80)return json({ok:false,error:'POSITION_DIFFERENTE'},400);const species=cleanIdentityText(d.species,120);if(!species)return json({ok:false,error:'ESPECE_REQUISE'},400);const info=mushroomGuideInfo(species),note=cleanIdentityText(d.note,500),woodName=cleanIdentityText(d.woodName,140)||'Bois signalé',isPrivate=d.isPrivate?1:0,department=await mushroomDepartment(lat,lon),id=crypto.randomUUID(),created=Date.now(),photoKey=env.MARKET_PHOTOS?'mushroom-spots/'+id+'.jpg':'d1:'+id;if(env.MARKET_PHOTOS){await env.MARKET_PHOTOS.put(photoKey,photo.bytes,{httpMetadata:{contentType:photo.mime,cacheControl:'private, max-age=3600'}})}else{await env.DB.prepare('INSERT INTO mushroom_photo_blobs(spot_id,data_base64,mime_type,updated_at) VALUES(?,?,?,?)').bind(id,photo.base64,photo.mime,created).run()}
-  await env.DB.prepare(`INSERT INTO mushroom_spots(id,email,first_name,last_name,device_id,latitude,longitude,accuracy,department,species,scientific_name,category,ai_confidence,ai_reason,note,photo_key,mime_type,created_at,wood_name,is_private,source,deleted,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id,email,firstName,lastName,deviceId,lat,lon,accuracy,department,species,cleanIdentityText(proof.scientificName,140),info.category,Number(proof.confidence||0),cleanIdentityText(proof.reason,220),note,photoKey,photo.mime,created,woodName,isPrivate,'community',0,created).run();return json({ok:true,spot:{id,woodName,department,species,category:info.category,isPrivate:!!isPrivate,latitude:lat,longitude:lon,accuracy,createdAt:created}});
-}
-function mushroomSpotJson(r,photoUrl,extra={}){const info=mushroomGuideInfo(r.species);return {id:r.id,woodName:r.wood_name||'Bois signalé',latitude:Number(r.latitude),longitude:Number(r.longitude),accuracy:Number(r.accuracy),department:r.department,species:r.species,category:r.category||info.category,scientificName:r.scientific_name||'',season:info.season,habitat:info.habitat,aiConfidence:Number(r.ai_confidence||0),note:r.note||'',isPrivate:!!Number(r.is_private),source:r.source||'community',createdAt:Number(r.created_at),photoUrl:photoUrl||'',...extra}}
-async function mushroomRowsWithSeeds(env){
-  const dbRows=(await env.DB.prepare("SELECT id,latitude,longitude,accuracy,department,species,scientific_name,category,ai_confidence,note,created_at,wood_name,is_private,source,updated_at FROM mushroom_spots WHERE COALESCE(deleted,0)=0 ORDER BY created_at DESC LIMIT 1000").all()).results||[];
-  const states=(await env.DB.prepare('SELECT * FROM mushroom_seed_states').all()).results||[],byId=new Map(states.map(x=>[String(x.spot_id),x]));
-  const seeds=MUSHROOM_GOOGLE_WOODS.filter(x=>!(byId.get(x.id)&&Number(byId.get(x.id).hidden))).map(x=>{const s=byId.get(x.id);return s?{...x,wood_name:s.wood_name||x.wood_name,species:s.species||x.species,note:s.note||x.note,is_private:Number(s.is_private),updated_at:Number(s.updated_at||0)}:x});
-  return [...dbRows,...seeds];
-}
-async function mushroomManage(request,env){
-  if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);await ensureMushroomTables(env);const access=await mushroomRequireAccess(request,env);if(!access)return json({ok:false,error:'ACCES_CHAMPIGNONS_REQUIS'},403);const d=await body(request),id=cleanIdentityText(d.id,100),action=String(d.action||'');if(!id)return json({ok:false,error:'FICHE_INVALIDE'},400);const seed=MUSHROOM_GOOGLE_WOODS.find(x=>x.id===id),row=seed?null:await env.DB.prepare('SELECT id FROM mushroom_spots WHERE id=? AND COALESCE(deleted,0)=0').bind(id).first();if(!seed&&!row)return json({ok:false,error:'FICHE_INTROUVABLE'},404);
-  if(action==='update'){
-    const woodName=cleanIdentityText(d.woodName,140)||'Bois signalé',species=cleanIdentityText(d.species,120),note=cleanIdentityText(d.note,500),isPrivate=d.isPrivate?1:0;if(!species)return json({ok:false,error:'ESPECE_REQUISE'},400);const now=Date.now();
-    if(seed)await env.DB.prepare(`INSERT INTO mushroom_seed_states(spot_id,wood_name,species,note,is_private,hidden,updated_at) VALUES(?,?,?,?,?,0,?) ON CONFLICT(spot_id) DO UPDATE SET wood_name=excluded.wood_name,species=excluded.species,note=excluded.note,is_private=excluded.is_private,updated_at=excluded.updated_at`).bind(id,woodName,species,note,isPrivate,now).run();
-    else await env.DB.prepare('UPDATE mushroom_spots SET wood_name=?,species=?,category=?,note=?,is_private=?,updated_at=? WHERE id=?').bind(woodName,species,mushroomGuideInfo(species).category,note,isPrivate,now,id).run();
-    return json({ok:true,updated:true});
-  }
-  if(action==='vote_delete'){
-    await env.DB.prepare('INSERT OR IGNORE INTO mushroom_spot_delete_votes(spot_id,subscription_id,created_at) VALUES(?,?,?)').bind(id,access.subscriptionId,Date.now()).run();const c=await env.DB.prepare('SELECT COUNT(*) AS n FROM mushroom_spot_delete_votes WHERE spot_id=?').bind(id).first(),votes=Number(c&&c.n||0),deleted=votes>=5;if(deleted){if(seed)await env.DB.prepare(`INSERT INTO mushroom_seed_states(spot_id,wood_name,species,note,is_private,hidden,updated_at) VALUES(?,?,?,?,?,1,?) ON CONFLICT(spot_id) DO UPDATE SET hidden=1,updated_at=excluded.updated_at`).bind(id,seed.wood_name,seed.species,seed.note,seed.is_private,Date.now()).run();else await env.DB.prepare('UPDATE mushroom_spots SET deleted=1,updated_at=? WHERE id=?').bind(Date.now(),id).run()}return json({ok:true,votes,deleted,remaining:Math.max(0,5-votes)});
-  }
-  return json({ok:false,error:'ACTION_INVALIDE'},400);
-}
-async function adminMushrooms(request,env){
-  if(!(await adminAuthorized(request,env)))return json({ok:false,error:'SECRET_INCORRECT'},401);if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);await ensureMushroomTables(env);const d=request.method==='POST'?await body(request):{};
-  if(request.method==='POST'&&String(d.action)==='delete'){const id=cleanIdentityText(d.id,100),seed=MUSHROOM_GOOGLE_WOODS.find(x=>x.id===id);if(seed)await env.DB.prepare(`INSERT INTO mushroom_seed_states(spot_id,wood_name,species,note,is_private,hidden,updated_at) VALUES(?,?,?,?,?,1,?) ON CONFLICT(spot_id) DO UPDATE SET hidden=1,updated_at=excluded.updated_at`).bind(id,seed.wood_name,seed.species,seed.note,seed.is_private,Date.now()).run();else await env.DB.prepare('UPDATE mushroom_spots SET deleted=1,updated_at=? WHERE id=?').bind(Date.now(),id).run();return json({ok:true,deleted:true})}
-  const rows=await mushroomRowsWithSeeds(env),counts=(await env.DB.prepare('SELECT spot_id,COUNT(*) AS n FROM mushroom_spot_delete_votes GROUP BY spot_id').all()).results||[],votes=new Map(counts.map(x=>[String(x.spot_id),Number(x.n||0)]));return json({ok:true,spots:rows.map(r=>({id:r.id,woodName:r.wood_name||'Bois signalé',department:r.department,species:r.species,isPrivate:!!Number(r.is_private),source:r.source||'community',deleteVotes:votes.get(String(r.id))||0}))});
-}
-async function mushroomReturnPoint(env,subId){try{const p=await env.DB.prepare('SELECT return_place_lat,return_place_lon,home_lat,home_lon FROM contest_participants WHERE subscription_id=? LIMIT 1').bind(subId).first();if(!p)return null;const lat=Number.isFinite(Number(p.return_place_lat))?Number(p.return_place_lat):Number(p.home_lat),lon=Number.isFinite(Number(p.return_place_lon))?Number(p.return_place_lon):Number(p.home_lon);return Number.isFinite(lat)&&Number.isFinite(lon)?{lat,lon}:null}catch(_){return null}}
-async function osrmDetours(start,end,spots){if(!spots.length)return null;try{const pts=[start,end,...spots.map(s=>({lat:Number(s.latitude),lon:Number(s.longitude)}))],coords=pts.map(p=>p.lon+','+p.lat).join(';'),r=await fetch('https://router.project-osrm.org/table/v1/driving/'+coords+'?annotations=distance',{headers:{'User-Agent':'Couteau-Suisse/244'}});if(!r.ok)return null;const j=await r.json(),m=j.distances;if(!Array.isArray(m)||!m[0])return null;const direct=Number(m[0][1]);if(!Number.isFinite(direct))return null;return spots.map((s,i)=>{const a=Number(m[0][i+2]),b=Number(m[i+2][1]);return Number.isFinite(a)&&Number.isFinite(b)?Math.max(0,(a+b-direct)/1000):null})}catch(_){return null}}
-async function mushroomSearch(request,env){
-  if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);await ensureMushroomTables(env);const access=await mushroomRequireAccess(request,env);if(!access)return json({ok:false,error:'ACCES_CHAMPIGNONS_REQUIS'},403);const d=await body(request),mode=String(d.mode||'nearby'),base=await mushroomReturnPoint(env,access.subscriptionId);if(!base)return json({ok:false,error:'POINT_RETOUR_MANQUANT',message:'Enregistrez d’abord votre point « Retourner sur la place ».'},409);const rows=await mushroomRowsWithSeeds(env),counts=(await env.DB.prepare('SELECT spot_id,COUNT(*) AS n FROM mushroom_spot_delete_votes GROUP BY spot_id').all()).results||[],votes=new Map(counts.map(x=>[String(x.spot_id),Number(x.n||0)]));let candidates=rows.map(r=>({row:r,distanceKm:haversineMeters(base.lat,base.lon,Number(r.latitude),Number(r.longitude))/1000})).filter(x=>x.distanceKm<=100.0001);
-  if(mode==='route'){
-    const start={lat:Number(d.currentLat),lon:Number(d.currentLon)};if(!Number.isFinite(start.lat)||!Number.isFinite(start.lon))return json({ok:false,error:'GPS_MARCHE_REQUIS'},400);candidates=candidates.map(x=>({...x,roughDetour:(haversineMeters(start.lat,start.lon,Number(x.row.latitude),Number(x.row.longitude))+haversineMeters(Number(x.row.latitude),Number(x.row.longitude),base.lat,base.lon)-haversineMeters(start.lat,start.lon,base.lat,base.lon))/1000})).filter(x=>x.roughDetour<=30).sort((a,b)=>a.roughDetour-b.roughDetour).slice(0,45);const detours=await osrmDetours(start,base,candidates.map(x=>x.row));candidates=candidates.map((x,i)=>({...x,detourKm:detours&&detours[i]!=null?detours[i]:Math.max(0,x.roughDetour)})).filter(x=>x.detourKm<=10.0001).sort((a,b)=>a.detourKm-b.detourKm);
-  }else candidates.sort((a,b)=>a.distanceKm-b.distanceKm);
-  const spots=[];for(const x of candidates.slice(0,120)){const photoUrl=String(x.row.source||'community')==='google'?'':await mushroomSignedPhotoUrl(env,x.row.id,x.row.created_at);spots.push(mushroomSpotJson(x.row,photoUrl,{deleteVotes:votes.get(String(x.row.id))||0,distanceKm:Number(x.distanceKm.toFixed(1)),detourKm:x.detourKm==null?null:Number(x.detourKm.toFixed(1))}))}return json({ok:true,mode,spots,returnRadiusKm:100,maxDetourKm:10});
-}
-async function mushroomPhoto(url,env){
-  if(!env.DB)return new Response('Not found',{status:404});await ensureMushroomTables(env);const id=cleanIdentityText(url.searchParams.get('id'),80),proof=await verifyMushroomPayload(env,url.searchParams.get('token'));if(!id||!proof||proof.purpose!=='photo'||String(proof.id)!==id)return new Response('Accès refusé',{status:403});const row=await env.DB.prepare('SELECT photo_key,mime_type,created_at FROM mushroom_spots WHERE id=?').bind(id).first();if(!row)return new Response('Not found',{status:404});if(env.MARKET_PHOTOS&&row.photo_key&&!String(row.photo_key).startsWith('d1:')){const obj=await env.MARKET_PHOTOS.get(row.photo_key);if(!obj)return new Response('Not found',{status:404});const h=new Headers();obj.writeHttpMetadata(h);h.set('content-type',row.mime_type||'image/jpeg');h.set('cache-control','private, max-age=300');return new Response(obj.body,{headers:h})}const b=await env.DB.prepare('SELECT data_base64,mime_type FROM mushroom_photo_blobs WHERE spot_id=?').bind(id).first();if(!b)return new Response('Not found',{status:404});const bin=atob(b.data_base64),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new Response(bytes,{headers:{'content-type':b.mime_type||'image/jpeg','cache-control':'private, max-age=300'}})
-}
-// ===== FIN V244 ACCÈS GLOBAL + CHAMPIGNONS =====
-
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=238-admin-email-devis" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=246-points-fiables" defer></script><script src="/referral-v232.js?v=246-points-fiables" defer></script><script src="/app-access-gate-v240.js?v=242" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=208-renouvellement-cumul-jours" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=203-bienvenue" defer></script>', { html: true });
   }
 }
 
@@ -2527,29 +2007,13 @@ export default {
     if (url.pathname === "/api/recover-code" && request.method === "POST") return recoverSubscriptionCode(request, env);
     if (url.pathname === "/api/subscription-email" && request.method === "POST") return updateSubscriptionEmail(request, env);
     if (url.pathname === "/api/contest/trial-identity" && request.method === "POST") return contestTrialIdentity(request, env);
-    if (url.pathname === "/api/referral/create" && request.method === "POST") return referralCreate(request, env);
-    if (url.pathname === "/api/referral/start" && request.method === "POST") return referralStart(request, env);
-    if (url.pathname === "/api/referral/confirm" && request.method === "GET") return referralConfirm(request, env);
-    if (url.pathname === "/api/referral/verify" && request.method === "POST") return referralVerify(request, env);
     if (url.pathname === "/api/presence" && (request.method === "GET" || request.method === "POST")) return presence(request, env);
     if (url.pathname === "/api/installations" && request.method === "POST") return installations(request, env);
-    if (url.pathname === "/api/app-identity" && request.method === "POST") return appIdentity(request, env);
-    if (url.pathname === "/api/mushrooms/access" && request.method === "POST") return mushroomAccess(request, env);
-    if (url.pathname === "/api/mushrooms/search" && request.method === "POST") return mushroomSearch(request, env);
-    if (url.pathname === "/api/mushrooms/analyze" && request.method === "POST") return mushroomAnalyze(request, env);
-    if (url.pathname === "/api/mushrooms/spots" && (request.method === "GET" || request.method === "POST")) return mushroomSpots(request, env);
-    if (url.pathname === "/api/mushrooms/manage" && request.method === "POST") return mushroomManage(request, env);
-    if (url.pathname === "/api/mushrooms/photo" && request.method === "GET") return mushroomPhoto(url, env);
-    if (url.pathname === "/api/admin/login/request" && request.method === "POST") return requestAdminEmailLogin(request, env);
-    if (url.pathname === "/api/admin/login/verify" && request.method === "POST") return verifyAdminEmailLogin(request, env);
-    if (url.pathname === "/api/admin/session" && request.method === "GET") return adminSessionStatus(request, env);
-    if (url.pathname === "/api/admin/logout" && request.method === "POST") return adminLogout(request, env);
     if (url.pathname === "/api/admin/installations" && request.method === "GET") return adminInstallations(request, env);
     if (url.pathname === "/api/admin/presence" && request.method === "GET") return adminPresenceStatus(env);
     if (url.pathname === "/api/admin/presence" && request.method === "POST") return adminPresenceAction(request, env);
     if (url.pathname === "/api/admin/subscriptions" && request.method === "POST") return createSubscription(request, env);
     if (url.pathname === "/api/admin/subscriptions/action" && request.method === "POST") return subscriptionAction(request, env);
-    if (url.pathname === "/api/admin/mushrooms" && (request.method === "GET" || request.method === "POST")) return adminMushrooms(request, env);
     if (url.pathname === "/api/mail-event" && request.method === "POST") return recordMailEvent(request, env);
     if (url.pathname === "/api/admin/mail-counters" && request.method === "GET") return adminMailCounters(request, env);
     if (url.pathname === "/api/admin/gps-push" && (request.method === "GET" || request.method === "POST")) return adminGpsPush(request, env);
@@ -2580,9 +2044,6 @@ export default {
     if (url.pathname === "/api/contest/read-messages" && request.method === "POST") return contestReadMessages(request, env);
     if (url.pathname === "/api/app-message" && request.method === "POST") return appMessage(request, env);
     if (url.pathname === "/api/admin/app-messages" && (request.method === "GET" || request.method === "POST")) return adminAppMessages(request, env);
-    if (url.pathname === "/api/admin/banned-users" && (request.method === "GET" || request.method === "POST")) return adminBannedUsersV242(request, env);
-    if (url.pathname === "/api/sanction/status" && request.method === "POST") return sanctionStatusV242(request, env);
-    if (url.pathname === "/api/reactivation-request" && request.method === "POST") return reactivationV242(request, env);
     if (url.pathname === "/api/admin/contest" && request.method === "GET") return adminContest(request, env);
     if (url.pathname === "/api/admin/contest/action" && request.method === "POST") return adminContestAction(request, env);
     // Laisser Cloudflare Static Assets résoudre "/" vers index.html.

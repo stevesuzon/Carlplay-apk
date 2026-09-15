@@ -35,19 +35,7 @@ const ADMIN_FALLBACK_SHA256_V161="9bf84a9825fcf66c467a2a73d1369ab3ba5f4d5a86c146
 function normalizeCodeV161(value){return String(value||"").toUpperCase().replace(/[^A-Z0-9]/g,"").replace(/[OI]/g,c=>({O:"Q",I:"L"}[c])).slice(0,6)}
 function validCodeV161(value){return /^[A-HJ-NP-Z0-9]{6}$/.test(normalizeCodeV161(value))}
 async function hashCodeV161(code,pepper){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(`${pepper}:${normalizeCodeV161(code)}`));return [...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,"0")).join("")}
-async function adminAuthorizedV161(request,env){
-  const auth=request.headers.get("authorization")||"",supplied=auth.startsWith("Bearer ")?auth.slice(7).trim():"";
-  if(!supplied)return false;
-  // V242 : accepter la session administrateur confirmée par e-mail (admin_sessions),
-  // pas seulement l'ancien ADMIN_SECRET.
-  if(env.DB)try{
-    const h=await sha256Text(supplied),now=Date.now();
-    const row=await env.DB.prepare("SELECT token_hash FROM admin_sessions WHERE token_hash=? AND expires_at>? LIMIT 1").bind(h,now).first();
-    if(row)return true;
-  }catch(_){}
-  if(env.ADMIN_SECRET&&supplied===String(env.ADMIN_SECRET).trim())return true;
-  return (await sha256Text(supplied))===ADMIN_FALLBACK_SHA256_V161;
-}
+async function adminAuthorizedV161(request,env){const auth=request.headers.get("authorization")||"",supplied=auth.startsWith("Bearer ")?auth.slice(7).trim():"";if(!supplied)return false;if(env.ADMIN_SECRET&&supplied===String(env.ADMIN_SECRET).trim())return true;return (await sha256Text(supplied))===ADMIN_FALLBACK_SHA256_V161}
 async function ensureSanctionTablesV161(env){
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_user_sanctions(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,8 +56,6 @@ async function ensureSanctionTablesV161(env){
   await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_market_user_sanctions_subscription ON market_user_sanctions(subscription_id) WHERE subscription_id IS NOT NULL").run();
   await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_market_user_sanctions_email ON market_user_sanctions(email_hash) WHERE email_hash IS NOT NULL AND email_hash<>''").run();
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_market_user_sanctions_device ON market_user_sanctions(last_device_id)").run();
-  try{await env.DB.prepare("ALTER TABLE market_user_sanctions ADD COLUMN manual_ban INTEGER NOT NULL DEFAULT 0").run()}catch(_){}
-  try{await env.DB.prepare("ALTER TABLE market_user_sanctions ADD COLUMN ban_reason TEXT NOT NULL DEFAULT ''").run()}catch(_){}
 }
 async function findSubscriptionV161(env,{deviceId="",email="",code=""}={}){
   deviceId=String(deviceId||"").trim();email=normalizeEmail(email);code=normalizeCodeV161(code);
@@ -132,35 +118,16 @@ async function adminBannedUsersV161(request,env){
   if(!(await adminAuthorizedV161(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);
   await ensureSanctionTablesV161(env);
   if(request.method==="GET"){
-    const rows=await env.DB.prepare("SELECT id,subscription_id,email,requester_name,last_device_id,refusal_count,app_banned,contribution_blocked,reactivation_requested,ban_at,reactivation_requested_at,updated_at,COALESCE(manual_ban,0) AS manual_ban,COALESCE(ban_reason,'') AS ban_reason FROM market_user_sanctions WHERE app_banned=1 ORDER BY reactivation_requested DESC,COALESCE(reactivation_requested_at,ban_at,updated_at) DESC").all();
+    const rows=await env.DB.prepare("SELECT id,subscription_id,email,requester_name,refusal_count,app_banned,contribution_blocked,reactivation_requested,ban_at,reactivation_requested_at,updated_at FROM market_user_sanctions WHERE app_banned=1 ORDER BY reactivation_requested DESC,COALESCE(reactivation_requested_at,ban_at,updated_at) DESC").all();
     return json({ok:true,users:rows.results||[]});
   }
-  const data=await readBody(request),action=String(data.action||"");
-  if(action==="ban"){
-    const email=normalizeEmail(data.email),deviceId=String(data.deviceId||"").trim(),name=String(data.name||"").trim().slice(0,120);
-    if(!validEmail(email)&&!validDevice(deviceId))return json({ok:false,error:"UTILISATEUR_INVALIDE"},400);
-    if(email==="appli.suzon@gmail.com")return json({ok:false,error:"ADMIN_NON_BANNISSABLE"},403);
-    const emailHash=validEmail(email)?await sha256Text(email):"",sub=await findSubscriptionV161(env,{deviceId,email});
-    let row=await findSanctionV161(env,{subscriptionId:sub&&sub.id,emailHash,deviceId}),now=Date.now();
-    if(row){
-      await env.DB.prepare(`UPDATE market_user_sanctions SET subscription_id=COALESCE(?,subscription_id),email_hash=CASE WHEN ?<>'' THEN ? ELSE email_hash END,email=CASE WHEN ?<>'' THEN ? ELSE email END,requester_name=CASE WHEN ?<>'' THEN ? ELSE requester_name END,last_device_id=CASE WHEN ?<>'' THEN ? ELSE last_device_id END,app_banned=1,manual_ban=1,ban_reason='Banni manuellement par Steve Suzon',reactivation_requested=0,ban_at=?,updated_at=? WHERE id=?`)
-        .bind(sub&&sub.id||null,emailHash,emailHash,email,email,name,name,deviceId,deviceId,now,now,row.id).run();
-      return json({ok:true,id:row.id,appBanned:true});
-    }
-    const r=await env.DB.prepare(`INSERT INTO market_user_sanctions(subscription_id,email_hash,email,requester_name,last_device_id,refusal_count,app_banned,contribution_blocked,reactivation_requested,ban_at,updated_at,manual_ban,ban_reason) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-      .bind(sub&&sub.id||null,emailHash||null,email||null,name||null,deviceId||null,0,1,0,0,now,now,1,'Banni manuellement par Steve Suzon').run();
-    return json({ok:true,id:Number(r.meta&&r.meta.last_row_id||0),appBanned:true});
-  }
-  const id=Number(data.id||0);
+  const data=await readBody(request),id=Number(data.id||0),action=String(data.action||"");
   if(!id||action!=="unban")return json({ok:false,error:"DONNEES_INVALIDES"},400);
-  const row=await env.DB.prepare("SELECT id,app_banned,contribution_blocked,COALESCE(manual_ban,0) AS manual_ban FROM market_user_sanctions WHERE id=? LIMIT 1").bind(id).first();
+  const row=await env.DB.prepare("SELECT id,app_banned,contribution_blocked FROM market_user_sanctions WHERE id=? LIMIT 1").bind(id).first();
   if(!row)return json({ok:false,error:"UTILISATEUR_INTROUVABLE"},404);
   const now=Date.now();
-  // Un bannissement manuel réactive simplement l'application. Un bannissement automatique
-  // après trop de refus garde le blocage des contributions déjà prévu par le système.
-  const blocked=Number(row.manual_ban)?Number(row.contribution_blocked||0):1;
-  await env.DB.prepare("UPDATE market_user_sanctions SET app_banned=0,contribution_blocked=?,manual_ban=0,ban_reason='',reactivation_requested=0,reactivated_at=?,updated_at=? WHERE id=?").bind(blocked,now,now,id).run();
-  return json({ok:true,appBanned:false,contributionBlocked:!!blocked});
+  await env.DB.prepare("UPDATE market_user_sanctions SET app_banned=0,contribution_blocked=1,reactivation_requested=0,reactivated_at=?,updated_at=? WHERE id=?").bind(now,now,id).run();
+  return json({ok:true,appBanned:false,contributionBlocked:true});
 }
 async function contributionDeniedV161(env,data={}){
   const state=await sanctionStatusForV161(env,data),row=state.row;
