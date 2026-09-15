@@ -74,7 +74,7 @@
     var text=approved?"✅ Votre changement a été accepté par l’administrateur.":"❌ Votre changement a été refusé par l’administrateur.";
     var old=document.getElementById("marketRequestAnswer");if(old)old.remove();
     var box=document.createElement("div");box.id="marketRequestAnswer";box.style.cssText="position:fixed;z-index:2147483647;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.82)";box.innerHTML='<div style="width:min(560px,94vw);padding:26px 20px;border:4px solid '+(approved?'#55e58c':'#ff6b6b')+';border-radius:24px;background:#07101d;color:#fff;text-align:center;font:950 22px/1.4 Arial;box-shadow:0 18px 60px #000"><div>'+text+'</div><button type="button" style="width:100%;min-height:62px;margin-top:22px;border:0;border-radius:15px;background:'+(approved?'#168a4e':'#b52f38')+';color:#fff;font:950 21px Arial">OK</button></div>';box.querySelector("button").onclick=function(){box.remove()};document.body.appendChild(box);
-    try{if(localStorage.getItem("carplay_notifications_enabled")==="1"&&"serviceWorker" in navigator&&"Notification" in window&&Notification.permission==="granted")navigator.serviceWorker.ready.then(function(r){return r.showNotification(approved?"Changement accepté":"Changement refusé",{body:text,icon:"/carplay-noir-rouge-192.png",badge:"/carplay-noir-rouge-192.png",tag:"market-change-answer"})})}catch(_){}
+    try{if(localStorage.getItem("carplay_notifications_enabled")==="1"&&"serviceWorker" in navigator&&"Notification" in window&&Notification.permission==="granted")navigator.serviceWorker.ready.then(function(r){return r.showNotification(approved?"Changement accepté":"Changement refusé",{body:text,icon:"/couteau-suisse-192.png",badge:"/couteau-suisse-192.png",tag:"market-change-answer"})})}catch(_){}
   }
   window.CarPlayShowRequestAnswer=showRequestAnswer;
   function checkPendingRequest() {
@@ -367,10 +367,10 @@
       if (!("Notification" in window) || Notification.permission !== "granted" || !("serviceWorker" in navigator)) return;
       navigator.serviceWorker.ready.then(function(registration){
         var tag="subscription-expiry-reminder";
-        return registration.showNotification("⚠️ Abonnement CarPlay : "+days+" jour"+(days>1?"s":"")+" restant"+(days>1?"s":""),{
+        return registration.showNotification("⚠️ Abonnement Couteau Suisse : "+days+" jour"+(days>1?"s":"")+" restant"+(days>1?"s":""),{
           body:"Il reste "+days+" jour"+(days>1?"s":"")+" avant le blocage de l’application. Pensez à renouveler votre code d’abonnement.",
-          icon:"/carplay-noir-rouge-192.png",
-          badge:"/carplay-noir-rouge-192.png",
+          icon:"/couteau-suisse-192.png",
+          badge:"/couteau-suisse-192.png",
           tag:tag,
           renotify:true,
           data:{url:"/index.html#subscriptionSettings"}

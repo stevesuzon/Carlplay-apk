@@ -233,7 +233,7 @@ function randomEmailCode(){const a=new Uint32Array(1);crypto.getRandomValues(a);
 async function emailCodeHash(id,code,env){return sha256Text(id+":"+code+":"+(env.CODE_PEPPER||"carplay-email"))}
 async function sendBrevoCode(env,email,code){
   if(!env.BREVO_API_KEY||!env.BREVO_SENDER_EMAIL)throw new Error("EMAIL_CONFIG");
-  const response=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{accept:"application/json","content-type":"application/json","api-key":env.BREVO_API_KEY},body:JSON.stringify({sender:{name:"CarPlay Téléphone",email:String(env.BREVO_SENDER_EMAIL)},to:[{email}],subject:"Votre code de confirmation CarPlay",textContent:"Votre code de confirmation CarPlay est : "+code+". Il est valable 10 minutes.",htmlContent:'<div style="font-family:Arial,sans-serif"><h2>CarPlay Téléphone</h2><p>Votre code de confirmation est :</p><p style="font-size:32px;font-weight:bold;letter-spacing:7px">'+code+'</p><p>Ce code est valable 10 minutes.</p></div>'})});
+  const response=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{accept:"application/json","content-type":"application/json","api-key":env.BREVO_API_KEY},body:JSON.stringify({sender:{name:"Couteau Suisse",email:String(env.BREVO_SENDER_EMAIL)},to:[{email}],subject:"Votre code de confirmation Couteau Suisse",textContent:"Votre code de confirmation Couteau Suisse est : "+code+". Il est valable 10 minutes.",htmlContent:'<div style="font-family:Arial,sans-serif"><h2>Couteau Suisse</h2><p>Votre code de confirmation est :</p><p style="font-size:32px;font-weight:bold;letter-spacing:7px">'+code+'</p><p>Ce code est valable 10 minutes.</p></div>'})});
   if(!response.ok)throw new Error("EMAIL_SEND");
 }
 function subscriptionRemainingInfo(row,now=Date.now()){
@@ -249,7 +249,7 @@ async function sendBrevoSubscriptionCode(env,email,code,row,now=Date.now()){
   const info=subscriptionRemainingInfo(row,now);
   const remainingText=info.lifetime?"Abonnement à vie":"Jours restants : "+info.remainingDays+(info.endDate?"\nDate de fin : "+info.endDate:"");
   const remainingHtml=info.lifetime?'<p style="font-size:20px;font-weight:bold;color:#16803a">Abonnement à vie</p>':'<p style="font-size:20px;font-weight:bold">Jours restants : '+info.remainingDays+'</p>'+(info.endDate?'<p>Date de fin : <strong>'+info.endDate+'</strong></p>':'');
-  const response=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{accept:"application/json","content-type":"application/json","api-key":env.BREVO_API_KEY},body:JSON.stringify({sender:{name:"CarPlay Téléphone",email:String(env.BREVO_SENDER_EMAIL)},to:[{email}],subject:"Votre code d’abonnement CarPlay et vos jours restants",textContent:"Votre code d’abonnement CarPlay est : "+code+".\n\n"+remainingText+".\n\nEntrez ce même code sur votre nouveau téléphone pour récupérer votre abonnement. L’ancien téléphone sera automatiquement remplacé pour cet abonnement.",htmlContent:'<div style="font-family:Arial,sans-serif;line-height:1.45"><h2>CarPlay Téléphone</h2><p>Voici le code rattaché à votre abonnement :</p><p style="font-size:32px;font-weight:bold;letter-spacing:7px">'+code+'</p>'+remainingHtml+'<p>Entrez ce même code sur votre nouveau téléphone pour récupérer votre abonnement. L’ancien téléphone sera automatiquement remplacé pour cet abonnement.</p></div>'})});
+  const response=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{accept:"application/json","content-type":"application/json","api-key":env.BREVO_API_KEY},body:JSON.stringify({sender:{name:"Couteau Suisse",email:String(env.BREVO_SENDER_EMAIL)},to:[{email}],subject:"Votre code d’abonnement Couteau Suisse et vos jours restants",textContent:"Votre code d’abonnement Couteau Suisse est : "+code+".\n\n"+remainingText+".\n\nEntrez ce même code sur votre nouveau téléphone pour récupérer votre abonnement. L’ancien téléphone sera automatiquement remplacé pour cet abonnement.",htmlContent:'<div style="font-family:Arial,sans-serif;line-height:1.45"><h2>Couteau Suisse</h2><p>Voici le code rattaché à votre abonnement :</p><p style="font-size:32px;font-weight:bold;letter-spacing:7px">'+code+'</p>'+remainingHtml+'<p>Entrez ce même code sur votre nouveau téléphone pour récupérer votre abonnement. L’ancien téléphone sera automatiquement remplacé pour cet abonnement.</p></div>'})});
   if(!response.ok)throw new Error("EMAIL_SEND");
   return info;
 }
@@ -627,7 +627,7 @@ async function downloadAutoradioApk() {
     if (!upstream.ok) return new Response("APK indisponible", { status: 502 });
     const headers = new Headers();
     headers.set("content-type", "application/vnd.android.package-archive");
-    headers.set("content-disposition", 'attachment; filename="CarPlay-V5-Autoradio.apk"');
+    headers.set("content-disposition", 'attachment; filename="Couteau-Suisse-V5-Autoradio.apk"');
     headers.set("cache-control", "no-store");
     headers.set("access-control-allow-origin", "*");
     return new Response(upstream.body, { status: 200, headers });
@@ -843,7 +843,7 @@ async function refreshMarketConsensus(env, marketKey, field) {
 async function reverseMarketAddress(lat, lon) {
   try {
     const u = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=18&addressdetails=1`;
-    const r = await fetch(u, { headers: { 'User-Agent': 'CarPlay-Marches/1.0', 'Accept-Language': 'fr' } });
+    const r = await fetch(u, { headers: { 'User-Agent': 'CouteauSuisse-Marches/1.0', 'Accept-Language': 'fr' } });
     if (!r.ok) return '';
     const j = await r.json();
     return String(j.display_name || '').trim().slice(0, 300);
@@ -1081,13 +1081,13 @@ async function vigilanceForPlace(url) {
   const lat = Number(url.searchParams.get("lat")), lon = Number(url.searchParams.get("lon"));
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return json({ ok: false, error: "POSITION_INVALIDE" }, 400);
   try {
-    const geo = await fetch(`https://geo.api.gouv.fr/communes?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&fields=codeDepartement,departement&format=json`, { headers: { accept: "application/json", "user-agent": "CarPlay-Weather/1.0" } });
+    const geo = await fetch(`https://geo.api.gouv.fr/communes?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&fields=codeDepartement,departement&format=json`, { headers: { accept: "application/json", "user-agent": "CouteauSuisse-Weather/1.0" } });
     const communes = geo.ok ? await geo.json() : [];
     const commune = Array.isArray(communes) && communes[0];
     const department = commune && commune.departement && commune.departement.nom || "";
     const code = commune && commune.codeDepartement || "";
     if (!department) return json({ ok: true, department: "", code: "", orangeThunderstorm: false });
-    const feed = await fetch("https://feeds.meteoalarm.org/api/v1/warnings/feeds-france", { headers: { accept: "application/json", "user-agent": "CarPlay-Weather/1.0" }, cf: { cacheTtl: 300, cacheEverything: true } });
+    const feed = await fetch("https://feeds.meteoalarm.org/api/v1/warnings/feeds-france", { headers: { accept: "application/json", "user-agent": "CouteauSuisse-Weather/1.0" }, cf: { cacheTtl: 300, cacheEverything: true } });
     if (!feed.ok) throw new Error("feed");
     const warnings = await feed.json();
     const fold = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -1200,7 +1200,7 @@ async function contestTrialIdentity(request,env){
 
 async function contestPlaceLabel(lat,lon){
   try{const r=await fetch(`https://geo.api.gouv.fr/communes?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&fields=nom,codeDepartement,departement&format=json`,{headers:{accept:"application/json"}});if(r.ok){const a=await r.json(),c=Array.isArray(a)&&a[0];if(c)return `${c.nom}${c.codeDepartement?` (${c.codeDepartement})`:''}`}}catch(_){}
-  try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=12`,{headers:{"user-agent":"CarPlay-Contest/1.0"}});if(r.ok){const j=await r.json(),a=j.address||{};return String(a.city||a.town||a.village||a.municipality||j.display_name||"Lieu inconnu").slice(0,120)}}catch(_){}
+  try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=12`,{headers:{"user-agent":"CouteauSuisse-Contest/1.0"}});if(r.ok){const j=await r.json(),a=j.address||{};return String(a.city||a.town||a.village||a.municipality||j.display_name||"Lieu inconnu").slice(0,120)}}catch(_){}
   return "Lieu non identifié";
 }
 
@@ -1252,7 +1252,7 @@ function exactNamedNominatim(j){
 
 async function nominatimExactReturnPlace(lat,lon){
   try{
-    const r=await fetchDiningWithTimeout(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&namedetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr'}},3200);
+    const r=await fetchDiningWithTimeout(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&namedetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{headers:{'user-agent':'CouteauSuisse-ReturnPlace/1.0','accept-language':'fr'}},3200);
     if(r.ok){const j=await r.json(),a=j&&j.address||{};return {name:exactNamedNominatim(j),address:formatReturnPlaceNominatim(j),fullAddress:formatReturnPlacePostalAddress(j),countryCode:String(a.country_code||'').toLowerCase()}}
   }catch(_){ }
   return {name:'',address:'',fullAddress:'',countryCode:''};
@@ -1276,7 +1276,7 @@ function returnPlacePoiPriority(tags){
 async function nearestNamedOsmPlace(lat,lon){
   try{
     const q=`[out:json][timeout:7];nwr(around:250,${lat},${lon})["name"];out center tags 100;`;
-    const r=await fetchDiningWithTimeout('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}},3500);
+    const r=await fetchDiningWithTimeout('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CouteauSuisse-ReturnPlace/1.0'}},3500);
     if(!r.ok)return '';
     const j=await r.json();
     const rows=(j.elements||[]).map(e=>{
@@ -1319,7 +1319,7 @@ async function wikidataFreePhoto(qid){
   qid=String(qid||'').trim();
   if(!/^Q\d+$/i.test(qid))return {url:'',credit:''};
   try{
-    const r=await fetchDiningWithTimeout('https://www.wikidata.org/wiki/Special:EntityData/'+encodeURIComponent(qid.toUpperCase())+'.json',{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}},1800);
+    const r=await fetchDiningWithTimeout('https://www.wikidata.org/wiki/Special:EntityData/'+encodeURIComponent(qid.toUpperCase())+'.json',{headers:{'user-agent':'CouteauSuisse-ReturnPlace/1.0'}},1800);
     if(!r.ok)return {url:'',credit:''};
     const j=await r.json(),e=j&&j.entities&&j.entities[qid.toUpperCase()],claims=e&&e.claims||{};
     const claim=(claims.P18&&claims.P18[0])||(claims.P154&&claims.P154[0]);
@@ -1331,7 +1331,7 @@ async function wikidataOfficialWebsite(qid){
   qid=String(qid||'').trim();
   if(!/^Q\d+$/i.test(qid))return '';
   try{
-    const r=await fetchDiningWithTimeout('https://www.wikidata.org/wiki/Special:EntityData/'+encodeURIComponent(qid.toUpperCase())+'.json',{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}},1800);
+    const r=await fetchDiningWithTimeout('https://www.wikidata.org/wiki/Special:EntityData/'+encodeURIComponent(qid.toUpperCase())+'.json',{headers:{'user-agent':'CouteauSuisse-ReturnPlace/1.0'}},1800);
     if(!r.ok)return '';
     const j=await r.json(),e=j&&j.entities&&j.entities[qid.toUpperCase()],claims=e&&e.claims||{},claim=claims.P856&&claims.P856[0];
     const u=String(claim&&claim.mainsnak&&claim.mainsnak.datavalue&&claim.mainsnak.datavalue.value||'').trim();
@@ -1343,7 +1343,7 @@ async function wikipediaFreePhoto(tag){
   const m=tag.match(/^([a-z-]{2,12}):(.+)$/i);if(!m)return {url:'',credit:''};
   const lang=m[1].toLowerCase(),title=m[2].trim();if(!title)return {url:'',credit:''};
   try{
-    const r=await fetchDiningWithTimeout('https://'+lang+'.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(title.replace(/ /g,'_')),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}},1800);
+    const r=await fetchDiningWithTimeout('https://'+lang+'.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(title.replace(/ /g,'_')),{headers:{'user-agent':'CouteauSuisse-ReturnPlace/1.0'}},1800);
     if(!r.ok)return {url:'',credit:''};
     const j=await r.json(),u=String(j&&((j.thumbnail&&j.thumbnail.source)||(j.originalimage&&j.originalimage.source))||'').trim();
     return /^https?:\/\//i.test(u)?{url:u,credit:'Wikipédia / Wikimedia'}:{url:'',credit:''};
@@ -1376,15 +1376,15 @@ async function fetchOverpassJson(q){
     'https://overpass-api.de/api/interpreter',
     'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
   ];
-  for(const endpoint of endpoints){
-    try{
-      const r=await fetchDiningWithTimeout(endpoint,{method:'POST',headers:{'user-agent':'CarPlay-ReturnPlace/1.0','content-type':'application/x-www-form-urlencoded;charset=UTF-8','accept':'application/json'},body:'data='+encodeURIComponent(q)},4200);
-      if(!r.ok)continue;
-      const j=await r.json();
-      if(j&&Array.isArray(j.elements))return j;
-    }catch(_){ }
-  }
-  return null;
+  return await new Promise(resolve=>{
+    let done=false,pending=endpoints.length;
+    const finish=j=>{if(done)return;if(j&&Array.isArray(j.elements)){done=true;resolve(j);return}pending--;if(pending<=0){done=true;resolve(null)}};
+    for(const endpoint of endpoints){
+      fetchDiningWithTimeout(endpoint,{method:'POST',headers:{'user-agent':'CouteauSuisse-ReturnPlace/1.0','content-type':'application/x-www-form-urlencoded;charset=UTF-8','accept':'application/json'},body:'data='+encodeURIComponent(q)},4200)
+        .then(async r=>{if(!r.ok)return null;try{return await r.json()}catch(_){return null}})
+        .then(finish).catch(()=>finish(null));
+    }
+  });
 }
 function diningAddressFromNominatim(x){
   const a=x&&x.address||{};
@@ -1552,7 +1552,7 @@ function likelyOfficialDiningWebsite(url){
 async function fetchDiningSitePage(url,timeoutMs=1400){
   try{
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
-    const r=await fetch(url,{headers:{'user-agent':'Mozilla/5.0 (compatible; CarPlayRestaurantMenu/1.0)','accept':'text/html,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.2','accept-language':'fr-FR,fr;q=0.9'},redirect:'follow',signal:controller.signal});
+    const r=await fetch(url,{headers:{'user-agent':'Mozilla/5.0 (compatible; CouteauSuisseRestaurantMenu/1.0)','accept':'text/html,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.2','accept-language':'fr-FR,fr;q=0.9'},redirect:'follow',signal:controller.signal});
     clearTimeout(timer);
     if(!r.ok)return null;
     const type=String(r.headers.get('content-type')||'').toLowerCase();if(type&&!/text\/html|application\/xhtml\+xml|text\/plain/.test(type))return null;
@@ -1596,7 +1596,7 @@ async function nominatimDining(lat,lon,kind,limit){
   for(const term of terms){
     try{
       const u='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&namedetails=1&dedupe=1&bounded=1&limit=40&viewbox='+encodeURIComponent(viewbox)+'&q='+encodeURIComponent(term);
-      const r=await fetchDiningWithTimeout(u,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept-language':'fr','accept':'application/json'}},3200);
+      const r=await fetchDiningWithTimeout(u,{headers:{'user-agent':'CouteauSuisse-ReturnPlace/1.0','accept-language':'fr','accept':'application/json'}},3200);
       if(!r.ok)continue;
       const j=await r.json();if(Array.isArray(j))all=all.concat(j);
       if(all.length>=limit)break;
@@ -1649,7 +1649,7 @@ async function sireneDining(lat,lon,kind){
   const oldCodes=kind==='fastfood'?'56.10C':'56.10A,56.10B';
   try{
     const u='https://recherche-entreprises.api.gouv.fr/near_point?lat='+encodeURIComponent(lat)+'&long='+encodeURIComponent(lon)+'&radius=10&per_page=25&page=1&limite_matching_etablissements=100&activite_principale='+encodeURIComponent(oldCodes);
-    const r=await fetchDiningWithTimeout(u,{headers:{'user-agent':'CarPlay-ReturnPlace/1.0','accept':'application/json'}},3500);
+    const r=await fetchDiningWithTimeout(u,{headers:{'user-agent':'CouteauSuisse-ReturnPlace/1.0','accept':'application/json'}},3500);
     if(!r.ok)return [];
     const j=await r.json(),rows=[];
     for(const company of (j&&j.results||[])){
@@ -1694,11 +1694,11 @@ function mergeDiningRows(primary,extra){
 }
 
 async function overpassDining(lat,lon,kind){
-  const amenity=kind==='fastfood'?'fast_food':'restaurant',fast=kind==='fastfood',limit=5;
+  const amenity=kind==='fastfood'?'fast_food':'restaurant',fast=kind==='fastfood',limit=10;
   let rows=[];
   try{
     const q=fast
-      ? `[out:json][timeout:12];(nwr(around:10000,${lat},${lon})["amenity"="fast_food"];nwr(around:10000,${lat},${lon})["brand"~"McDonald.?s|Burger King",i];nwr(around:10000,${lat},${lon})["name"~"McDonald.?s|Burger King",i];);out center tags 350;`
+      ? `[out:json][timeout:12];(nwr(around:10000,${lat},${lon})["amenity"="fast_food"];nwr(around:10000,${lat},${lon})["brand"~"McDonald.?s|KFC|Burger King|Quick|Subway|Five Guys|O.?Tacos|Domino.?s|Pizza Hut|Popeyes",i];nwr(around:10000,${lat},${lon})["name"~"McDonald.?s|KFC|Burger King|Quick|Subway|Five Guys|O.?Tacos|Domino.?s|Pizza Hut|Popeyes",i];);out center tags 500;`
       : `[out:json][timeout:12];nwr(around:10000,${lat},${lon})["amenity"="restaurant"];out center tags 350;`;
     const j=await fetchOverpassJson(q),seen=new Set();
     if(j){
@@ -1725,7 +1725,7 @@ async function overpassDining(lat,lon,kind){
 }
 
 async function combinedDining(lat,lon,kind,countryCode){
-  const limit=5;
+  const limit=10;
   const osmPromise=overpassDining(lat,lon,kind);
   const officialPromise=countryCode==='fr'?sireneDining(lat,lon,kind):Promise.resolve([]);
   const [osm,official]=await Promise.all([osmPromise,officialPromise]);
@@ -1733,23 +1733,18 @@ async function combinedDining(lat,lon,kind,countryCode){
     .filter(x=>Number(x.distanceMeters)<=10000)
     .filter(x=>kind==='fastfood'?x.diningKind==='fastfood':(x.diningKind!=='fastfood'&&!obviousFastFoodName(x.name)))
     .sort((a,b)=>a.distanceMeters-b.distanceMeters);
-  let selected=candidates.slice(0,limit);
-  // Pour la restauration rapide, ne pas rater les grandes chaînes demandées si elles sont bien présentes à moins de 10 km.
+  let selected;
   if(kind==='fastfood'){
-    const priority=[/mcdonalds?/,/burger king/];
-    for(const re of priority){
-      const wanted=candidates.find(x=>re.test(normalizeDiningName(x.name)));
-      if(!wanted||selected.some(x=>x===wanted||normalizeDiningName(x.name)===normalizeDiningName(wanted.name)))continue;
-      let replaceAt=-1;
-      for(let i=selected.length-1;i>=0;i--){
-        const n=normalizeDiningName(selected[i]&&selected[i].name);
-        if(!priority.some(r=>r.test(n))){replaceAt=i;break}
-      }
-      if(replaceAt>=0)selected[replaceAt]=wanted;
-      else if(selected.length<limit)selected.push(wanted);
-    }
-    selected=selected.filter((x,i,a)=>a.findIndex(y=>normalizeDiningName(y.name)===normalizeDiningName(x.name)&&haversineMeters(Number(y.lat),Number(y.lon),Number(x.lat),Number(x.lon))<=120)===i)
-      .sort((a,b)=>a.distanceMeters-b.distanceMeters).slice(0,limit);
+    // Les chaînes connues demandées apparaissent en premier. À l'intérieur de ce groupe,
+    // elles restent classées strictement du plus proche au plus loin.
+    const knownChain=/(?:^| )(?:mcdonalds?|kfc|burger king|quick|subway|five guys|o tacos|otacos|dominos?|pizza hut|popeyes)(?: |$)/i;
+    const known=candidates.filter(x=>knownChain.test(normalizeDiningName(x.name))).sort((a,b)=>a.distanceMeters-b.distanceMeters);
+    const other=candidates.filter(x=>!knownChain.test(normalizeDiningName(x.name))).sort((a,b)=>a.distanceMeters-b.distanceMeters);
+    selected=[...known,...other]
+      .filter((x,i,a)=>a.findIndex(y=>normalizeDiningName(y.name)===normalizeDiningName(x.name)&&haversineMeters(Number(y.lat),Number(y.lon),Number(x.lat),Number(x.lon))<=120)===i)
+      .slice(0,limit);
+  }else{
+    selected=candidates.slice(0,limit);
   }
   await Promise.all(selected.map(async row=>{
     if(!Array.isArray(row.menuSpecialties))row.menuSpecialties=[];
@@ -1792,7 +1787,7 @@ async function reversePlaceContext(url,env){
   let nearby=[];
   try{
     const q=`[out:json][timeout:9];(nwr(around:800,${lat},${lon})["name"]["amenity"~"restaurant|fuel|hospital|police|townhall|cinema|bus_station"];nwr(around:800,${lat},${lon})["name"]["shop"~"supermarket|mall|department_store|car|car_repair"];nwr(around:800,${lat},${lon})["name"]["tourism"~"attraction|hotel|museum"];nwr(around:800,${lat},${lon})["name"]["leisure"~"stadium|sports_centre"];nwr(around:800,${lat},${lon})["name"]["railway"="station"];);out center tags 110;`;
-    const r=await fetchDiningWithTimeout('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CarPlay-ReturnPlace/1.0'}},3500);
+    const r=await fetchDiningWithTimeout('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'user-agent':'CouteauSuisse-ReturnPlace/1.0'}},3500);
     if(r.ok){const j=await r.json(),known=/mcdonald|burger king|leclerc|e\.leclerc|carrefour|auchan|intermarch|lidl|aldi|super u|hyper u|casino|monoprix|total|esso|shell|bp|avia|renault|peugeot|citro[eë]n|ford|toyota|volkswagen|mercedes|bmw|audi/i,seen=new Set();nearby=(j.elements||[]).map(e=>{const la=Number(e.lat??e.center?.lat),lo=Number(e.lon??e.center?.lon),tags=e.tags||{},name=String(tags.name||tags.brand||'').trim();if(!name||!Number.isFinite(la)||!Number.isFinite(lo))return null;const d=Math.round(haversineMeters(lat,lon,la,lo)),type=String(tags.amenity||tags.shop||tags.tourism||tags.leisure||tags.railway||''),major=/supermarket|mall|department_store|car|car_repair|fuel|hospital|cinema|bus_station|hotel|stadium|sports_centre|station|restaurant/.test(type);return {name,distanceMeters:d,known:known.test(name),major,type};}).filter(Boolean).filter(x=>{const k=x.name.toLowerCase();if(seen.has(k))return false;seen.add(k);return x.distanceMeters<=800&&x.major}).sort((a,b)=>(Number(b.known)-Number(a.known))||a.distanceMeters-b.distanceMeters).slice(0,1).map(({name,distanceMeters,type})=>({name,distanceMeters,type}));}
   }catch(_){ }
   const diningTimeout=new Promise(resolve=>setTimeout(()=>resolve([[],[]]),14000));
@@ -1836,7 +1831,7 @@ async function contestCampingStop(request,env){
 }
 
 async function contestPushMessage(env,subscriptionId,message,kind="info"){await env.DB.prepare("INSERT INTO contest_messages(id,subscription_id,kind,message,created_at) VALUES(?,?,?,?,?)").bind(contestId(),subscriptionId,kind,String(message).slice(0,800),Date.now()).run()}
-async function sendContestMail(env,email,subject,text){if(!validEmail(email)||!env.BREVO_API_KEY||!env.BREVO_SENDER_EMAIL)return false;try{const r=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{accept:"application/json","content-type":"application/json","api-key":env.BREVO_API_KEY},body:JSON.stringify({sender:{name:"CarPlay Téléphone",email:String(env.BREVO_SENDER_EMAIL)},to:[{email}],subject,textContent:text,htmlContent:`<div style="font-family:Arial,sans-serif"><h2>🏆 Jeu concours CarPlay</h2><p>${String(text).replace(/\n/g,"<br>")}</p></div>`})});return r.ok}catch(_){return false}}
+async function sendContestMail(env,email,subject,text){if(!validEmail(email)||!env.BREVO_API_KEY||!env.BREVO_SENDER_EMAIL)return false;try{const r=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{accept:"application/json","content-type":"application/json","api-key":env.BREVO_API_KEY},body:JSON.stringify({sender:{name:"Couteau Suisse",email:String(env.BREVO_SENDER_EMAIL)},to:[{email}],subject,textContent:text,htmlContent:`<div style="font-family:Arial,sans-serif"><h2>🏆 Jeu concours Couteau Suisse</h2><p>${String(text).replace(/\n/g,"<br>")}</p></div>`})});return r.ok}catch(_){return false}}
 
 async function contestRefreshBonusState(env,subscriptionId){
   const now=Date.now();let active=await env.DB.prepare("SELECT * FROM contest_bonus_periods WHERE subscription_id=? AND status='active' ORDER BY start_at LIMIT 1").bind(subscriptionId).first();
@@ -1892,7 +1887,7 @@ async function contestMarketBreakdown(env,deviceId,marketKey,distanceKm){
 async function finalizeContestIfNeeded(env){
   const cfg=await ensureContestTables(env);if(Date.now()<Number(cfg.end_at)||cfg.finalized_at)return cfg;
   const top=await env.DB.prepare("SELECT * FROM contest_participants WHERE banned=0 ORDER BY points DESC, joined_at ASC LIMIT 5").all();let rank=0;
-  for(const p of top.results||[]){rank++;const reward=rank<=2?"Abonnement à vie":"1 an d’abonnement gratuit";await env.DB.prepare("INSERT OR REPLACE INTO contest_results(rank,subscription_id,first_name,last_name,points,reward) VALUES(?,?,?,?,?,?)").bind(rank,p.subscription_id,p.first_name,p.last_name,p.points,reward).run();const sub=await env.DB.prepare("SELECT * FROM subscriptions WHERE id=?").bind(p.subscription_id).first();if(sub){if(rank<=2)await env.DB.prepare("UPDATE subscriptions SET lifetime=1,expires_at=NULL,active=1,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(sub.id).run();else if(!sub.lifetime){const base=Math.max(Date.now(),sub.expires_at?Date.parse(sub.expires_at):0),d=new Date(base);d.setFullYear(d.getFullYear()+1);await env.DB.prepare("UPDATE subscriptions SET expires_at=?,active=1,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(d.toISOString(),sub.id).run()}const email=String(sub.recovery_email_mask||"");if(validEmail(email)&&!email.includes("***"))await sendContestMail(env,email,"Félicitations — vous êtes gagnant du concours CarPlay",`Félicitations ${p.first_name} ${p.last_name} !\nVous terminez n°${rank} du concours avec ${p.points} points.\nVotre gain : ${reward}.`)}}
+  for(const p of top.results||[]){rank++;const reward=rank<=2?"Abonnement à vie":"1 an d’abonnement gratuit";await env.DB.prepare("INSERT OR REPLACE INTO contest_results(rank,subscription_id,first_name,last_name,points,reward) VALUES(?,?,?,?,?,?)").bind(rank,p.subscription_id,p.first_name,p.last_name,p.points,reward).run();const sub=await env.DB.prepare("SELECT * FROM subscriptions WHERE id=?").bind(p.subscription_id).first();if(sub){if(rank<=2)await env.DB.prepare("UPDATE subscriptions SET lifetime=1,expires_at=NULL,active=1,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(sub.id).run();else if(!sub.lifetime){const base=Math.max(Date.now(),sub.expires_at?Date.parse(sub.expires_at):0),d=new Date(base);d.setFullYear(d.getFullYear()+1);await env.DB.prepare("UPDATE subscriptions SET expires_at=?,active=1,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(d.toISOString(),sub.id).run()}const email=String(sub.recovery_email_mask||"");if(validEmail(email)&&!email.includes("***"))await sendContestMail(env,email,"Félicitations — vous êtes gagnant du concours Couteau Suisse",`Félicitations ${p.first_name} ${p.last_name} !\nVous terminez n°${rank} du concours avec ${p.points} points.\nVotre gain : ${reward}.`)}}
   const finalizedAt=Date.now();await env.DB.prepare("UPDATE contest_config SET finalized_at=?,results_until=? WHERE id=1").bind(finalizedAt,finalizedAt+CONTEST_RESULTS_MS).run();return await env.DB.prepare("SELECT * FROM contest_config WHERE id=1").first();
 }
 
@@ -1906,7 +1901,7 @@ async function contestStatus(request,env){
 async function contestCommunes(url){
   const country=String(url.searchParams.get("country")||"FR").toUpperCase(),area=String(url.searchParams.get("area")||"").trim(),q=String(url.searchParams.get("q")||"").trim();
   if(country==="FR"){if(!/^[0-9A-Z]{2,3}$/i.test(area))return json({ok:false,error:"DEPARTEMENT_INVALIDE"},400);try{const r=await fetch(`https://geo.api.gouv.fr/departements/${encodeURIComponent(area)}/communes?fields=nom,code,centre,codesPostaux&format=json&geometry=centre`,{headers:{accept:"application/json"}});if(!r.ok)throw 0;const a=await r.json();return json({ok:true,communes:(a||[]).map(c=>({name:c.nom,code:c.code,lat:c.centre&&c.centre.coordinates?Number(c.centre.coordinates[1]):null,lon:c.centre&&c.centre.coordinates?Number(c.centre.coordinates[0]):null})).filter(c=>Number.isFinite(c.lat)&&Number.isFinite(c.lon)).sort((a,b)=>a.name.localeCompare(b.name,"fr"))})}catch(_){return json({ok:false,error:"COMMUNES_INDISPONIBLES"},503)}}
-  if(country==="BE"){if(q.length<2)return json({ok:true,communes:[]});try{const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&country=Belgium&q=${encodeURIComponent(q+(area?", "+area:""))}&limit=12`,{headers:{"user-agent":"CarPlay-Contest/1.0"}});if(!r.ok)throw 0;const a=await r.json();return json({ok:true,communes:(a||[]).map(x=>({name:String(x.display_name||q).split(",")[0],code:"",lat:Number(x.lat),lon:Number(x.lon)})).filter(c=>Number.isFinite(c.lat)&&Number.isFinite(c.lon))})}catch(_){return json({ok:false,error:"COMMUNES_INDISPONIBLES"},503)}}
+  if(country==="BE"){if(q.length<2)return json({ok:true,communes:[]});try{const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&country=Belgium&q=${encodeURIComponent(q+(area?", "+area:""))}&limit=12`,{headers:{"user-agent":"CouteauSuisse-Contest/1.0"}});if(!r.ok)throw 0;const a=await r.json();return json({ok:true,communes:(a||[]).map(x=>({name:String(x.display_name||q).split(",")[0],code:"",lat:Number(x.lat),lon:Number(x.lon)})).filter(c=>Number.isFinite(c.lat)&&Number.isFinite(c.lon))})}catch(_){return json({ok:false,error:"COMMUNES_INDISPONIBLES"},503)}}
   return json({ok:false,error:"PAYS_INVALIDE"},400);
 }
 async function contestRegister(request,env){

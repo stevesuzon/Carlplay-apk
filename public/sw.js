@@ -1,4 +1,4 @@
-const CACHE = "carplay-v5-20260915-v230-cache-restaurants-fastfood";
+const CACHE = "couteau-suisse-v231-10-restaurants-fastfood-chaines";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -18,9 +18,9 @@ const CORE = [
   "/installer.html",
   "/tutoriel-comment-installer-iphone.mp4",
   "/manifest.webmanifest",
-  "/carplay-noir-rouge-180.png",
-  "/carplay-noir-rouge-192.png",
-  "/carplay-noir-rouge-512.png",
+  "/couteau-suisse-180.png",
+  "/couteau-suisse-192.png",
+  "/couteau-suisse-512.png",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=68-notifications-globales",
   "/subscription-web.js?v=208-renouvellement-cumul-jours",
@@ -30,7 +30,7 @@ const CORE = [
   "/special-market-server-v157.js?v=184",
   "/home-work.css?v=64",
   "/home-work.js?v=64",
-  "/gps-apple-plans-v141.js?v=230",
+  "/gps-apple-plans-v141.js?v=231",
   "/location-permission-v20260911.js?v=20260911",
   "/markets-final.css?v=126-favori-fluide",
   "/markets-final-picker.css",
@@ -103,8 +103,8 @@ self.addEventListener("push", (e) => {
     if (!enabled) return;
     return self.registration.showNotification("Modification de marché demandée", {
       body: "Une demande de modification ou de présence d’un marché attend votre réponse OUI ou NON pendant 3 minutes.",
-      icon: "/carplay-noir-rouge-192.png",
-      badge: "/carplay-noir-rouge-192.png",
+      icon: "/couteau-suisse-192.png",
+      badge: "/couteau-suisse-192.png",
       tag: "gps-unlock-request",
       renotify: true,
       data: { url: "/admin.html#gps-requests" }

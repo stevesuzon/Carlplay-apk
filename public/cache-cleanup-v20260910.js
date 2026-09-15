@@ -18,7 +18,7 @@
     });
     var guide=document.getElementById('usbGuide');
     if(guide){
-      guide.innerHTML='<b>1️⃣ La bêta autoradio est en cours de construction.</b><br><b>2️⃣ Quand elle sera disponible, copie le fichier d’installation sur une clé USB.</b><br><b>3️⃣ Branche la clé USB sur l’autoradio.</b><br><b>4️⃣ Ouvre la clé dans le gestionnaire de fichiers.</b><br><b>5️⃣ Ouvre le fichier d’installation puis suis les instructions affichées.</b><br><b>6️⃣ Ouvre CarPlay.</b><br><br>🔑 Le guide USB est conservé pour la future bêta autoradio.';
+      guide.innerHTML='<b>1️⃣ La bêta autoradio est en cours de construction.</b><br><b>2️⃣ Quand elle sera disponible, copie le fichier d’installation sur une clé USB.</b><br><b>3️⃣ Branche la clé USB sur l’autoradio.</b><br><b>4️⃣ Ouvre la clé dans le gestionnaire de fichiers.</b><br><b>5️⃣ Ouvre le fichier d’installation puis suis les instructions affichées.</b><br><b>6️⃣ Ouvre Couteau Suisse.</b><br><br>🔑 Le guide USB est conservé pour la future bêta autoradio.';
     }
   }
 
