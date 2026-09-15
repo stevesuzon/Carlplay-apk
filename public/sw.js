@@ -1,4 +1,4 @@
-const CACHE = "couteau-suisse-v267-bois-public-prive";
+const CACHE = "couteau-suisse-v268-ai-video-site";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {

@@ -1,5 +1,5 @@
 (function () {
-  if ("serviceWorker" in navigator) addEventListener("load", function () { navigator.serviceWorker.register("/sw.js?v=267-bois-public-prive").catch(function () {}); });
+  if ("serviceWorker" in navigator) addEventListener("load", function () { navigator.serviceWorker.register("/sw.js?v=268-ai-video-site").catch(function () {}); });
   var KEY = "carplay_shared_subscription";
   var PAID_KEY = "carplay_paid_activated";
   var EMAIL_KEY = "carplay_recovery_email";

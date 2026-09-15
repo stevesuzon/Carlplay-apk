@@ -1,4 +1,4 @@
 {
-  "version": "V267",
-  "message": "Dans Ajouter un bois, la catégorie est maintenant un choix obligatoire entre seulement deux boutons : « Bois public » ou « Bois privé ». Aucun troisième choix. Les fiches affichent PUBLIC ou PRIVÉ et le reste de la V266 est conservé."
+  "version": "V268",
+  "message": "Workers AI est désormais déclaré dans wrangler.jsonc avec la liaison AI, tout en conservant ASSETS, la base D1 DB et le bucket R2 MARKET_PHOTOS. Après la vidéo de présentation/installation, le bouton devient « ALLER SUR LE SITE » et ouvre directement Couteau Suisse. Toutes les fonctions de la V267 sont conservées."
 }
