@@ -30,16 +30,12 @@ body{padding-bottom:76px!important}
 </style>
 
 
-<link rel="apple-touch-icon" sizes="180x180" href="assets/icon-pauvres-180.png?v=3">
-<link rel="apple-touch-icon" sizes="167x167" href="assets/icon-pauvres-167.png?v=3">
-<link rel="apple-touch-icon" sizes="152x152" href="assets/icon-pauvres-152.png?v=3">
-<link rel="apple-touch-icon" sizes="120x120" href="assets/icon-pauvres-120.png?v=3">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-pauvres-192.png?v=3">
 <link rel="icon" type="image/png" sizes="512x512" href="assets/icon-pauvres-512.png?v=3">
-<link rel="manifest" href="manifest.webmanifest?v=3">
+<link rel="manifest" href="/manifest.webmanifest?v=couteau-suisse-v239">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Appli Téléphone">
+<meta name="apple-mobile-web-app-title" content="Couteau Suisse">
 
 
 <style id="article-travail-flottant-style">
@@ -55,6 +51,12 @@ body{padding-bottom:76px!important}
 #articleTravailModal p{margin:0;font-size:17px;line-height:1.5}
 #articleTravailModal .at-close{margin-top:18px;width:100%;border:0;border-radius:12px;padding:13px 16px;background:linear-gradient(180deg,#ff7a00 0%,#e23b00 100%);color:#fff;font-weight:900;font-size:16px;cursor:pointer}
 </style>
+<link rel="apple-touch-icon" sizes="180x180" href="/couteau-suisse-180.png?v=239">
+<link rel="apple-touch-icon" sizes="167x167" href="/couteau-suisse-167.png?v=239">
+<link rel="apple-touch-icon" sizes="152x152" href="/couteau-suisse-152.png?v=239">
+<link rel="apple-touch-icon" sizes="120x120" href="/couteau-suisse-120.png?v=239">
+<link rel="apple-touch-icon-precomposed" href="/couteau-suisse-180.png?v=239">
+<meta name="application-name" content="Couteau Suisse">
 </head>
 <body>
 <div class="top"></div>
@@ -112,7 +114,7 @@ function openOfflineMaps(){
     window.open(web,'_blank');
   }
 }
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=243-admin-count-gemma').catch(()=>{}));}
 </script>
 
 <script id="safe-top-back-script">(function(){var b=document.querySelector('a.safeTopBack');if(!b)return;b.addEventListener('click',function(e){if(history.length>1){e.preventDefault();history.back()}})})();</script>
@@ -140,4 +142,4 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 </script>
 </body>
 </html>
-<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js?v=243-admin-count-gemma").catch(()=>{}));}</script>

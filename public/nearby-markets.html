@@ -37,7 +37,7 @@
 <section id="cards" class="cards"></section>
 </main>
 <div id="photoModal" class="photo-modal" role="dialog" aria-modal="true" aria-label="Photo agrandie du marché">
-  <div class="photo-box"><button id="photoClose" class="photo-close" type="button" aria-label="Fermer">×</button><img id="photoLarge" alt=""><div id="photoCaption" class="photo-caption"></div></div>
+  <div class="photo-box"><button id="photoClose" class="photo-close" type="button" aria-label="Fermer">×</button><img id="photoLarge" alt=""></div>
 </div>
 <script src="market-data-fr.js?v=20260905-unified"></script>
 <script src="markets-44-complete.js?v=20260902-complet"></script>
@@ -71,7 +71,6 @@
   const cards = document.getElementById('cards');
   const photoModal = document.getElementById('photoModal');
   const photoLarge = document.getElementById('photoLarge');
-  const photoCaption = document.getElementById('photoCaption');
   const storedNumber = key => { const raw=localStorage.getItem(key); return raw===null||String(raw).trim()===''?NaN:Number(raw); };
   const userLat = storedNumber('return_lat');
   const userLon = storedNumber('return_lon');
@@ -266,7 +265,7 @@
   }
 
   function wireFavorites(){cards.querySelectorAll('.marketFavoriteStar').forEach(btn=>{if(btn.dataset.wired)return;btn.dataset.wired='1';btn.addEventListener('click',()=>{let on=false;try{on=localStorage.getItem(btn.dataset.favoriteKey)==='1';if(on)localStorage.removeItem(btn.dataset.favoriteKey);else localStorage.setItem(btn.dataset.favoriteKey,'1');on=!on}catch(e){}btn.classList.toggle('active',on);btn.textContent=on?'★':'☆';btn.setAttribute('aria-label',on?'Retirer des favoris':'Ajouter aux favoris');btn.setAttribute('title',on?'Retirer des favoris':'Ajouter aux favoris');});});}
-  function wirePhotos(){cards.querySelectorAll('.market-photo').forEach(button=>{if(button.dataset.wired)return;button.dataset.wired='1';button.addEventListener('click',()=>{photoLarge.src=button.dataset.src;photoLarge.alt=button.dataset.caption||'Photo du marché';photoCaption.textContent=button.dataset.caption||'Photo générale du marché';photoModal.classList.add('open');});});}
+  function wirePhotos(){cards.querySelectorAll('.market-photo').forEach(button=>{if(button.dataset.wired)return;button.dataset.wired='1';button.addEventListener('click',()=>{photoLarge.src=button.dataset.src;photoLarge.alt=button.dataset.caption||'Photo du marché';photoModal.classList.add('open');});});}
   function refreshVisibleStatus(){
     const n=cards.querySelectorAll('.card').length,period=showTomorrow?'demain':'aujourd’hui';
     if(!n){status.textContent='Aucun marché prévu '+period+' ('+selectedDay+') à moins de 80 km.';return}
