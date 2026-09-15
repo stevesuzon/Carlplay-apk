@@ -1,4 +1,4 @@
-const CACHE = "couteau-suisse-v238-admin-email-devis";
+const CACHE = "couteau-suisse-v239-notifications-logo";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -17,16 +17,19 @@ const CORE = [
   "/cache-cleanup-v20260910.js?v=20260912-allmarkets-v149",
   "/installer.html",
   "/tutoriel-comment-installer-iphone.mp4",
-  "/manifest.webmanifest",
-  "/couteau-suisse-152.png",
-  "/couteau-suisse-167.png",
-  "/couteau-suisse-180.png",
-  "/couteau-suisse-192.png",
-  "/couteau-suisse-512.png",
-  "/couteau-suisse-1024.png",
+  "/manifest.webmanifest?v=couteau-suisse-v239",
+  "/couteau-suisse-152.png?v=239",
+  "/couteau-suisse-167.png?v=239",
+  "/couteau-suisse-180.png?v=239",
+  "/couteau-suisse-192.png?v=239",
+  "/couteau-suisse-512.png?v=239",
+  "/couteau-suisse-1024.png?v=239",
+  "/couteau-suisse-maskable-192.png?v=239",
+  "/couteau-suisse-maskable-512.png?v=239",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=68-notifications-globales",
-  "/subscription-web.js?v=238-admin-email-devis",
+  "/subscription-web.js?v=239-notifications-logo",
+  "/notification-settings.js?v=239-ouverture-reglages",
   "/referral-v232.js?v=236",
   "/subscription-v154-patch.js?v=203",
   "/modification-profile-v156.js?v=173",
@@ -107,8 +110,8 @@ self.addEventListener("push", (e) => {
     if (!enabled) return;
     return self.registration.showNotification("Modification de marché demandée", {
       body: "Une demande de modification ou de présence d’un marché attend votre réponse OUI ou NON pendant 3 minutes.",
-      icon: "/couteau-suisse-192.png",
-      badge: "/couteau-suisse-192.png",
+      icon: "/couteau-suisse-192.png?v=239",
+      badge: "/couteau-suisse-192.png?v=239",
       tag: "gps-unlock-request",
       renotify: true,
       data: { url: "/admin.html#gps-requests" }

@@ -1,5 +1,5 @@
 (function () {
-  if ("serviceWorker" in navigator) addEventListener("load", function () { navigator.serviceWorker.register("/sw.js?v=238-admin-email-devis").catch(function () {}); });
+  if ("serviceWorker" in navigator) addEventListener("load", function () { navigator.serviceWorker.register("/sw.js?v=239-notifications-logo").catch(function () {}); });
   var KEY = "carplay_shared_subscription";
   var PAID_KEY = "carplay_paid_activated";
   var EMAIL_KEY = "carplay_recovery_email";

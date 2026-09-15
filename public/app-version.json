@@ -1,4 +1,4 @@
 {
-  "version": "V238",
-  "message": "Correction : la section Devis / créer un modèle est rétablie dans Réglages avec logo entreprise, signature professionnelle et modèles de devis. Administration sécurisée : Steve Suzon est le seul administrateur et l’accès nécessite un code de confirmation envoyé uniquement à appli.suzon@gmail.com. Les anciennes connexions par code administrateur local ne donnent plus accès. Toutes les fonctions V237 sont conservées."
+  "version": "V239",
+  "message": "Notifications : si l’autorisation n’a jamais été demandée, la demande système s’ouvre directement. Si elle a déjà été refusée, l’application ouvre une aide qui dirige vers les réglages du téléphone et tente d’ouvrir Réglages ; au retour elle vérifie automatiquement l’autorisation. Logo/nom Couteau Suisse renforcés avec manifest et icônes versionnés, icônes iPhone/Android/maskable. Toutes les fonctions V238 sont conservées."
 }
