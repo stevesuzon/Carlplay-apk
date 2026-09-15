@@ -1,4 +1,4 @@
 {
-  "version": "V268",
-  "message": "Workers AI est désormais déclaré dans wrangler.jsonc avec la liaison AI, tout en conservant ASSETS, la base D1 DB et le bucket R2 MARKET_PHOTOS. Après la vidéo de présentation/installation, le bouton devient « ALLER SUR LE SITE » et ouvre directement Couteau Suisse. Toutes les fonctions de la V267 sont conservées."
+  "version": "V269",
+  "message": "Correction de l’installation : après avoir regardé la vidéo, « ALLER SUR LE SITE » ouvre maintenant réellement la page Couteau Suisse au lieu de réafficher l’écran d’installation. Le passage est conservé dans l’onglet le temps d’ajouter l’application à l’écran d’accueil. Toutes les fonctions de la V268 sont conservées."
 }

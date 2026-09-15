@@ -1,4 +1,4 @@
-const CACHE = "couteau-suisse-v268-ai-video-site";
+const CACHE = "couteau-suisse-v269-install-site-fix";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -66,7 +66,7 @@ const CORE = [
   "/mypos-go2.jpeg",
   "/mypos-ultra.jpeg",
   "/mypos-flex.jpeg",
-  "/app-access-gate-v240.js?v=267-bois-public-prive",
+  "/app-access-gate-v240.js?v=269-install-site-fix",
   "/champignons.html?v=255-generateur-separe",
   "/champignons.css?v=267-bois-public-prive",
   "/champignons.js?v=267-bois-public-prive",

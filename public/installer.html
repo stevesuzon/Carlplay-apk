@@ -11,7 +11,7 @@
   var done=document.getElementById('videoDone');
   var referral='';
   try{referral=(new URL(location.href)).searchParams.get('ref')||'';if(referral){localStorage.setItem('carplay_pending_referral',referral);document.cookie='carplay_pending_referral='+encodeURIComponent(referral)+'; Max-Age=2592000; Path=/; SameSite=Lax; Secure'}}catch(e){}
-  var appUrl='/index.html'+(referral?'?ref='+encodeURIComponent(referral):'');
+  var appUrl='/index.html?installation=1'+(referral?'&ref='+encodeURIComponent(referral):'');
   function videoSeen(){try{return localStorage.getItem(VIDEO_KEY)==='1'}catch(e){return false}}
   function setSeen(){try{localStorage.setItem(VIDEO_KEY,'1')}catch(e){};try{localStorage.setItem('carplay_install_video_seen','1')}catch(e){}}
   function render(){
@@ -29,6 +29,7 @@
   }
   action.addEventListener('click',function(){
     if(videoSeen()){
+      try{sessionStorage.setItem('carplay_install_browser_handoff_v269','1')}catch(e){}
       location.href=appUrl;
       return;
     }
@@ -40,6 +41,6 @@
     try{action.scrollIntoView({behavior:'smooth',block:'center'})}catch(e){}
   });
   render();
-  if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=268-ai-video-site').catch(function(){});
+  if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=269-install-site-fix').catch(function(){});
 })();
 </script></body></html>

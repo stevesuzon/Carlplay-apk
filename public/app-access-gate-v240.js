@@ -2,9 +2,22 @@
 'use strict';
 var PATH=(location.pathname||'/').replace(/\/+$/,'')||'/';
 if(PATH==='/installer.html'||PATH==='/installer')return;
-var KEY='carplay_app_identity_v240',SUB='carplay_shared_subscription',PROFILE='carplay_account_profile';
+var KEY='carplay_app_identity_v240',SUB='carplay_shared_subscription',PROFILE='carplay_account_profile',HANDOFF='carplay_install_browser_handoff_v269';
 var installPrompt=null;
 window.addEventListener('beforeinstallprompt',function(e){try{e.preventDefault();installPrompt=e}catch(_){}});
+
+function browserHandoff(){
+  if(PATH!=='/'&&PATH!=='/index.html'&&PATH!=='/index')return false;
+  try{if(sessionStorage.getItem(HANDOFF)==='1')return true}catch(_){}
+  try{if((new URL(location.href)).searchParams.get('installation')==='1'){sessionStorage.setItem(HANDOFF,'1');return true}}catch(_){}
+  return false;
+}
+function allowBrowserSite(d){
+  try{sessionStorage.setItem(HANDOFF,'1')}catch(_){}
+  try{var u=new URL(location.href);u.searchParams.delete('installation');history.replaceState(null,'',u.pathname+(u.searchParams.toString()?'?'+u.searchParams.toString():'')+u.hash)}catch(_){}
+  if(d&&d.remove)d.remove();
+  try{window.scrollTo(0,0)}catch(_){}
+}
 function clean(v){return String(v||'').replace(/\s+/g,' ').trim()}
 function email(v){return clean(v).toLowerCase()}
 function validEmail(v){return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email(v))}
@@ -24,15 +37,16 @@ var primary=videoSeen?'ALLER SUR LE SITE':'REGARDER LA VID\u00c9O';
 var d=shell('<h1>COUTEAU SUISSE</h1><div class="note gold">\ud83d\udcf2 POUR UTILISER L\u2019APPLICATION, ELLE DOIT D\u2019ABORD \u00caTRE AJOUT\u00c9E \u00c0 L\u2019\u00c9CRAN D\u2019ACCUEIL.</div><div class="note" style="margin-top:10px">'+(ios?'Sur iPhone : appuyez sur <b>Partager</b> puis <b>Sur l\u2019\u00e9cran d\u2019accueil</b>. Ensuite ouvrez Couteau Suisse depuis sa nouvelle ic\u00f4ne.':'Installez Couteau Suisse sur votre \u00e9cran d\u2019accueil, puis ouvrez l\u2019application depuis son ic\u00f4ne.')+'</div><button id="gateInstall" class="yellow">'+primary+'</button><a class="gbtn blue" href="/installer.html">VOIR LE GUIDE D\u2019INSTALLATION</a><div class="small">'+(videoSeen?'Vid\u00e9o vue \u2705 \u2014 appuyez sur ALLER SUR LE SITE.':'Regardez d\u2019abord la vid\u00e9o. Apr\u00e8s la vid\u00e9o, ce bouton deviendra \u00ab ALLER SUR LE SITE \u00bb.')+'</div>');
 var b=d.querySelector('#gateInstall');b.onclick=async function(){
 if(!videoSeen){var q='';try{q=location.search||''}catch(_){};location.href='/installer.html'+q;return}
-if(installPrompt){try{installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;setTimeout(function(){location.reload()},600);return}catch(_){}}
-if(ios){alert('Sur iPhone : appuyez sur le bouton Partager de Safari, puis \u00ab Sur l\u2019\u00e9cran d\u2019accueil \u00bb. Ouvrez ensuite Couteau Suisse depuis son ic\u00f4ne.')}else location.href='/installer.html'
+// La vidéo est déjà vue : ce bouton doit réellement afficher le site.
+// On ne relance ni le guide ni la demande d'installation, sinon on crée une boucle.
+allowBrowserSite(d);
 }
 }
 async function postIdentity(x){var r=await fetch('/api/app-identity',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),platform:/iphone|ipad|ipod/i.test(navigator.userAgent)?'ios':(/android/i.test(navigator.userAgent)?'android':'pwa'),firstName:x.firstName,lastName:x.lastName,email:x.email}),cache:'no-store'});var j=await r.json().catch(function(){return {}});if(!r.ok)throw j;try{var tr=await fetch('/api/contest/trial-identity',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),firstName:x.firstName,lastName:x.lastName,email:x.email}),cache:'no-store'}),tj=await tr.json().catch(function(){return {}});if(tr.ok&&tj.expiresAt){var ms=Date.parse(tj.expiresAt);if(Number.isFinite(ms)&&ms>Date.now())localStorage.setItem('carplay_personal_trial_until_ms',String(ms));j.trial=tj}else if(tj&&tj.error==='ABONNEMENT_EXISTANT_A_RECUPERER'){j.existingSubscription=true}}catch(_){}return j}
 function showIdentity(seed){seed=seed||{};var d=shell('<h1>IDENTIFICATION</h1><div class="note gold">✅ L’application est bien ouverte depuis l’écran d’accueil.</div><div class="note" style="margin-top:10px">Pour accéder à <b>toutes les fonctions</b> — marchés, adresses, devis, concours, restaurants, fast-food et <b>Coin Détente & Champignons</b> — renseignez ces informations une seule fois.</div><label>NOM<input id="gateLast" autocomplete="family-name" value=""></label><label>PRÉNOM<input id="gateFirst" autocomplete="given-name" value=""></label><label>ADRESSE E-MAIL<input id="gateEmail" type="email" inputmode="email" autocomplete="email" value=""></label><button id="gateSave">VALIDER ET OUVRIR COUTEAU SUISSE</button><div id="gateMsg" class="err"></div><div class="small">Ces informations seront réutilisées automatiquement dans l’application. <b>Si vous aviez déjà un abonnement</b>, ouvrez ensuite <b>Réglages → Abonnement → ME FAIRE RENVOYER MON CODE D’ABONNEMENT</b>. Le code sera renvoyé à la même adresse e-mail et remettra l’abonnement déjà existant avec ses jours restants. Vous n’aurez pas à ressaisir ces informations dans le coin à champignons.</div>');
 var last=d.querySelector('#gateLast'),first=d.querySelector('#gateFirst'),em=d.querySelector('#gateEmail');last.value=clean(seed.lastName);first.value=clean(seed.firstName);em.value=email(seed.email);d.querySelector('#gateSave').onclick=async function(){var x={lastName:clean(last.value),firstName:clean(first.value),email:email(em.value)},m=d.querySelector('#gateMsg'),b=this;if(x.lastName.length<2||x.firstName.length<2){m.textContent='Nom et prénom obligatoires.';return}if(!validEmail(x.email)){m.textContent='Adresse e-mail invalide.';return}b.disabled=true;b.textContent='ENREGISTREMENT…';m.textContent='';try{var j=await postIdentity(x);persist(j.identity||x);d.remove()}catch(e){/* Ne pas bloquer définitivement l’utilisateur si le réseau tombe juste après la saisie. */persist(x);m.style.color='#72eba5';m.textContent='✅ Informations enregistrées sur ce téléphone.';setTimeout(function(){d.remove()},500)}finally{b.disabled=false;b.textContent='VALIDER ET OUVRIR COUTEAU SUISSE'}}
 }
-function boot(){var x=existing();if(!installed()){showInstall();return}if(complete(x)){persist(x);postIdentity(x).catch(function(){});return}showIdentity(x)}
+function boot(){var x=existing();if(!installed()){if(browserHandoff())return;showInstall();return}if(complete(x)){persist(x);postIdentity(x).catch(function(){});return}showIdentity(x)}
 window.CouteauSuisseGetIdentity=function(){var x=existing();return complete(x)?persist(x):null};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
