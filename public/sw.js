@@ -1,4 +1,4 @@
-const CACHE = "couteau-suisse-v231-10-restaurants-fastfood-chaines";
+const CACHE = "couteau-suisse-v236-logo-couteau-suisse-parrainage-email-photo";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -18,12 +18,16 @@ const CORE = [
   "/installer.html",
   "/tutoriel-comment-installer-iphone.mp4",
   "/manifest.webmanifest",
+  "/couteau-suisse-152.png",
+  "/couteau-suisse-167.png",
   "/couteau-suisse-180.png",
   "/couteau-suisse-192.png",
   "/couteau-suisse-512.png",
+  "/couteau-suisse-1024.png",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=68-notifications-globales",
   "/subscription-web.js?v=208-renouvellement-cumul-jours",
+  "/referral-v232.js?v=236",
   "/subscription-v154-patch.js?v=203",
   "/modification-profile-v156.js?v=173",
   "/sanction-guard-v161.js?v=161",

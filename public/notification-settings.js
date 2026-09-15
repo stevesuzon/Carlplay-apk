@@ -21,7 +21,7 @@
   }
   async function sync(){
     if(!('serviceWorker'in navigator))return;
-    const registration=await navigator.serviceWorker.register('/sw.js?v=20260912-notifications-globales2');
+    const registration=await navigator.serviceWorker.register('/sw.js?v=236-logo-couteau-suisse');
     await navigator.serviceWorker.ready;
     await tellWorker(registration,enabled());
     if(enabled()&&'Notification'in window&&Notification.permission==='granted')await syncAdminPush(registration);
