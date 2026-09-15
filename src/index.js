@@ -2094,7 +2094,14 @@ async function referralStart(request,env){
   if(!validDevice(deviceId)||!token)return json({ok:false,error:"PARRAINAGE_INVALIDE"},400);if(first.length<2||last.length<2)return json({ok:false,error:"NOM_PRENOM_OBLIGATOIRES"},400);if(!validEmail(email))return json({ok:false,error:"EMAIL_OBLIGATOIRE"},400);
   if(!(await registeredVerificationDevice(env,deviceId)))return json({ok:false,error:"AJOUT_ECRAN_ACCUEIL_REQUIS"},403);
   const th=await sha256Text("referral:"+token),invite=await env.DB.prepare("SELECT * FROM contest_referral_invites WHERE token_hash=? LIMIT 1").bind(th).first();if(!invite||Number(invite.expires_at)<now)return json({ok:false,error:"LIEN_PARRAINAGE_EXPIRE"},410);
-  const sponsor=await env.DB.prepare("SELECT * FROM subscriptions WHERE id=? AND active=1 LIMIT 1").bind(invite.sponsor_subscription_id).first();if(!sponsor)return json({ok:false,error:"PARRAIN_INTROUVABLE"},404);if(String(sponsor.phone_device||"")===deviceId||String(sponsor.autoradio_device||"")===deviceId)return json({ok:false,error:"AUTO_PARRAINAGE_INTERDIT"},409);if(normalizeEmail(sponsor.recovery_email_mask)===email)return json({ok:false,error:"AUTO_PARRAINAGE_INTERDIT"},409);
+  const sponsor=await env.DB.prepare("SELECT * FROM subscriptions WHERE id=? AND active=1 LIMIT 1").bind(invite.sponsor_subscription_id).first();if(!sponsor)return json({ok:false,error:"PARRAIN_INTROUVABLE"},404);
+  const sameSponsorEmail=normalizeEmail(sponsor.recovery_email_mask)===email,sameSponsorDevice=String(sponsor.phone_device||"")===deviceId||String(sponsor.autoradio_device||"")===deviceId;
+  // L'adresse e-mail reste la vraie protection contre l'auto-parrainage.
+  // Si le navigateur/PWA a hérité par erreur de l'identifiant appareil du parrain,
+  // on demande au client de recréer automatiquement un identifiant propre au filleul
+  // au lieu d'afficher à tort « On ne peut pas se parrainer soi-même ».
+  if(sameSponsorEmail)return json({ok:false,error:"AUTO_PARRAINAGE_INTERDIT"},409);
+  if(sameSponsorDevice)return json({ok:false,error:"IDENTIFIANT_FILLEUL_A_RECREER"},409);
   const eh=await sha256Text(email),byEmail=await env.DB.prepare("SELECT referee_device_id FROM contest_referrals WHERE email_hash=? LIMIT 1").bind(eh).first(),byDevice=await env.DB.prepare("SELECT * FROM contest_referrals WHERE referee_device_id=? LIMIT 1").bind(deviceId).first();
   if(byEmail&&String(byEmail.referee_device_id)!==deviceId)return json({ok:false,error:"EMAIL_DEJA_PARRAINE"},409);if(byDevice&&String(byDevice.invite_id)!==String(invite.id))return json({ok:false,error:"APPAREIL_DEJA_PARRAINE"},409);
   const es=await env.DB.prepare("SELECT id,phone_device,autoradio_device FROM subscriptions WHERE lower(COALESCE(recovery_email_mask,''))=? AND active=1 ORDER BY id DESC LIMIT 1").bind(email).first();if(es&&String(es.phone_device||"")!==deviceId&&String(es.autoradio_device||"")!==deviceId)return json({ok:false,error:"EMAIL_DEJA_UTILISEE_AUTRE_TELEPHONE"},409);
@@ -2547,7 +2554,7 @@ async function mushroomPhoto(url,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=238-admin-email-devis" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=247-classement-direct" defer></script><script src="/referral-v232.js?v=246-points-fiables" defer></script><script src="/app-access-gate-v240.js?v=269-install-site-fix" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=238-admin-email-devis" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=247-classement-direct" defer></script><script src="/referral-v232.js?v=271-parrainage-identite-filleul" defer></script><script src="/app-access-gate-v240.js?v=271-parrainage-identite-filleul" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
   }
 }
 
