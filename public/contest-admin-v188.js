@@ -26,5 +26,5 @@ async function load(){
   }
 }
 window.loadContestSummary=load;
-add();setTimeout(load,600);setInterval(load,15000);
+add();setTimeout(load,600);setInterval(load,5000);
 })();

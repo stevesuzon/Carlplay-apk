@@ -2384,6 +2384,12 @@ async function contestStatus(request,env){
   const ranking=await env.DB.prepare("SELECT first_name,last_name,points,joined_at,CASE WHEN subscription_id=? THEN 1 ELSE 0 END AS is_me FROM contest_participants WHERE banned=0 ORDER BY points DESC,joined_at ASC").bind(sub?sub.id:-1).all();const results=resultsVisible?(await env.DB.prepare("SELECT * FROM contest_results ORDER BY rank").all()).results||[]:[];
   return json({ok:true,active:!ended,ended,resultsVisible,closed,phase:!ended?"active":resultsVisible?"results":"closed",startAt:Number(cfg.start_at),endAt:Number(cfg.end_at),resultsUntil,appFreeUntil:Number(cfg.end_at)+CONTEST_APP_FREE_EXTRA_MS,daysRemaining:Math.max(0,Math.ceil((Number(cfg.end_at)-now)/86400000)),profile,participant,ranking:ranking.results||[],messages,questions,results,scoreSummary,bonusState,bonusProgress,onboarding});
 }
+async function contestScoreStatus(request,env){
+  const data=await body(request),sub=await contestSubscription(env,data);if(!sub)return json({ok:true,participant:null,ranking:[]});
+  const participant=await env.DB.prepare("SELECT subscription_id,points,banned FROM contest_participants WHERE subscription_id=? LIMIT 1").bind(sub.id).first();
+  const ranking=await env.DB.prepare("SELECT first_name,last_name,points,joined_at,CASE WHEN subscription_id=? THEN 1 ELSE 0 END AS is_me FROM contest_participants WHERE banned=0 ORDER BY points DESC,joined_at ASC").bind(sub.id).all();
+  return json({ok:true,participant:participant?{points:Number(participant.points||0),banned:Number(participant.banned||0)}:null,ranking:ranking.results||[],serverTime:Date.now()});
+}
 async function contestCommunes(url){
   const country=String(url.searchParams.get("country")||"FR").toUpperCase(),area=String(url.searchParams.get("area")||"").trim(),q=String(url.searchParams.get("q")||"").trim();
   if(country==="FR"){if(!/^[0-9A-Z]{2,3}$/i.test(area))return json({ok:false,error:"DEPARTEMENT_INVALIDE"},400);try{const r=await fetch(`https://geo.api.gouv.fr/departements/${encodeURIComponent(area)}/communes?fields=nom,code,centre,codesPostaux&format=json&geometry=centre`,{headers:{accept:"application/json"}});if(!r.ok)throw 0;const a=await r.json();return json({ok:true,communes:(a||[]).map(c=>({name:c.nom,code:c.code,lat:c.centre&&c.centre.coordinates?Number(c.centre.coordinates[1]):null,lon:c.centre&&c.centre.coordinates?Number(c.centre.coordinates[0]):null})).filter(c=>Number.isFinite(c.lat)&&Number.isFinite(c.lon)).sort((a,b)=>a.name.localeCompare(b.name,"fr"))})}catch(_){return json({ok:false,error:"COMMUNES_INDISPONIBLES"},503)}}
@@ -2762,7 +2768,7 @@ async function mushroomPhoto(url,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=281-notifications-prenom" defer></script><script src="/market-update-notifications-v281.js?v=281" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=277-concours-auto-notifications" defer></script><script src="/referral-v232.js?v=273-parrainage-marche-compte" defer></script><script src="/app-access-gate-v240.js?v=276-identite-active-essai" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=282-onboarding-notification-detail" defer></script><script src="/market-update-notifications-v281.js?v=282" defer></script><script src="/notification-detail-v282.js?v=282" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=283-classement-rapide" defer></script><script src="/referral-v232.js?v=273-parrainage-marche-compte" defer></script><script src="/app-access-gate-v240.js?v=284-installation-flow" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
   }
 }
 
@@ -2835,6 +2841,7 @@ export default {
     if (url.pathname === "/api/place-address" && request.method === "GET") return reversePlaceAddress(url, env);
     if (url.pathname === "/api/place-context" && request.method === "GET") return reversePlaceContext(url, env);
     if (url.pathname === "/api/contest/status" && request.method === "POST") return contestStatus(request, env);
+    if (url.pathname === "/api/contest/score" && request.method === "POST") return contestScoreStatus(request, env);
     if (url.pathname === "/api/contest/communes" && request.method === "GET") return contestCommunes(url);
     if (url.pathname === "/api/contest/register" && request.method === "POST") return contestRegister(request, env);
     if (url.pathname === "/api/contest/home-place" && request.method === "POST") return contestHomePlace(request, env);

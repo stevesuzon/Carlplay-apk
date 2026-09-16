@@ -10,7 +10,7 @@
       if (Date.now() - swLastCheck < 30000) return;
       swLastCheck = Date.now();
       try {
-        var registration = await navigator.serviceWorker.register("/sw.js?v=281-notifications-prenom", { updateViaCache: "none" });
+        var registration = await navigator.serviceWorker.register("/sw.js?v=283-modules", { updateViaCache: "none" });
         activateWaiting(registration);
         registration.addEventListener("updatefound", function () {
           var worker = registration.installing;

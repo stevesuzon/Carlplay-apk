@@ -100,7 +100,7 @@ async function loadGpsRequests(){
   }catch(e){gpsRequests.innerHTML='<p class="note">Chargement des demandes impossible.</p>'}
 }
 window.loadGpsRequests=loadGpsRequests;
-setInterval(()=>{const active=localStorage.getItem('carplay_admin_here')==='1';gpsPermissionBox.style.display=active?'block':'none';if(active)loadGpsRequests();},5000);
+setInterval(()=>{const active=localStorage.getItem('carplay_admin_here')==='1';gpsPermissionBox.style.display=active?'block':'none';if(active)loadGpsRequests();},3000);
 
-</script><script src="/notification-settings.js?v=281-notifications-prenom"></script><script src="/contest-admin-v188.js?v=256-demandes-concours"></script>
+</script><script src="/notification-settings.js?v=282-onboarding-notification-detail"></script><script src="/contest-admin-v188.js?v=283-classement-rapide"></script>
 </body></html>
