@@ -957,6 +957,13 @@ Si Android le demande, autorise l’installation d’applications provenant de c
 </button>
 <div class="settingNote" style="padding:0 16px 14px">Accès privé : compteurs des demandes et gestion des abonnements.</div>
 </div>
+<div class="settingRow" id="adminBanSettingRow">
+<button class="settingHead" onclick="location.href='/admin.html#allUsersBox'">
+<span>⛔ BANNIR / DÉBANNIR</span>
+<span>›</span>
+</button>
+<div class="settingNote" style="padding:0 16px 14px">Afficher tous les utilisateurs inscrits et gérer leur accès à l’application.</div>
+</div>
 <div class="settingRow">
 <button class="settingHead" onclick="toggleSection('infoMenu',this)">
 <span>ℹ️ Informations et contact</span>
@@ -1485,7 +1492,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 })();
 </script>
 <style id="updateNotificationStyle">
-#updateNotification{display:none;position:fixed;z-index:2147483647;left:50%;top:22%;transform:translateX(-50%);width:min(520px,90vw);padding:18px 20px;border:3px solid #f39b19;border-radius:22px;background:rgba(5,10,18,.97);color:#fff;text-align:center;box-shadow:0 12px 35px #000c;font-family:Arial,sans-serif;cursor:pointer}
+#updateNotification{display:none;position:fixed;z-index:2147483647;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,92vw);padding:25px 22px;border:4px solid #f39b19;border-radius:28px;background:rgba(5,10,18,.98);color:#fff;text-align:center;box-shadow:0 20px 60px #000e;font-family:Arial,sans-serif;cursor:pointer}
 #updateNotification strong{display:block;font-size:23px;color:#ffd84a;margin-bottom:7px}#updateNotification span{font-size:16px;font-weight:800;line-height:1.3}
 </style>
 <div id="updateNotification" role="status" aria-live="polite"><strong>🔔 APPLICATION MISE À JOUR</strong><span id="updateNotificationText">Une nouvelle mise à jour a été installée.</span></div>
@@ -1501,7 +1508,12 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
   box.onclick=function(){box.style.display='none';clearTimeout(window.__updateNotifTimer)};
   fetch('/app-version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){
     var v=String(j.version||'').trim();if(!v)return;var old=localStorage.getItem('carplay.lastSeenVersion');
-    if(old!==v)show(v,j.message);
+    if(old!==v){
+      show(v,j.message);
+      if(old&&localStorage.getItem('carplay_notifications_enabled')==='1'&&'Notification'in window&&Notification.permission==='granted'&&'serviceWorker'in navigator){
+        navigator.serviceWorker.ready.then(function(registration){return registration.showNotification('✅ Couteau Suisse mis à jour',{body:j.message||'Les dernières nouveautés et mises à jour des marchés sont installées.',icon:'/couteau-suisse-192.png?v=281',badge:'/couteau-suisse-192.png?v=281',tag:'couteau-suisse-update-'+v,renotify:true,data:{url:'/index.html'}})}).catch(function(){});
+      }
+    }
   }).catch(function(){});
 })();
 </script>
@@ -1520,13 +1532,16 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
   }
   function updateAdminVisibility(){
     const row=document.getElementById('adminSettingRow');
-    if(!row)return;
+    const banRow=document.getElementById('adminBanSettingRow');
+    if(!row&&!banRow)return;
     const email=currentAccountEmail();
     const hasAdminSession=localStorage.getItem('carplay_admin_here')==='1'||!!localStorage.getItem('carplay_admin_token');
     // La section admin appartient uniquement au compte Steve Suzon.
     // Ne plus la cacher à cause du statut « présence admin » du serveur :
     // ce statut pouvait rester actif après une ancienne session et masquer l'accès sur le téléphone de Steve.
-    row.style.display=(email===ADMIN_EMAIL||hasAdminSession)?'':'none';
+    const visible=email===ADMIN_EMAIL||hasAdminSession;
+    if(row)row.style.display=visible?'':'none';
+    if(banRow)banRow.style.display=visible?'':'none';
   }
   updateAdminVisibility();
   window.addEventListener('carplay:identity-ready',updateAdminVisibility);
@@ -1829,7 +1844,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 
 <link rel="stylesheet" href="/contact-mail-v99.css?v=99">
 <script src="/contact-mail-v99.js?v=99"></script>
-<script src="/cache-cleanup-v20260910.js?v=20260910-adresses-devis2"></script>
+<script src="/cache-cleanup-v20260910.js?v=281-notifications-prenom"></script>
 <script src="/christmas-market-updater.js"></script>
 
 <script id="removeOldUsersConnectedBoxV2">
@@ -2595,7 +2610,7 @@ window.addEventListener('load',function(){
 <script src="/devis-personnalises-v2.js?v=238-admin-email-devis"></script>
 <script src="/brocante-fiche-achat-v1.js?v=238-compat"></script>
 <script src="/license-ui.js?v=194"></script>
-<script src="/notification-settings.js?v=239-ouverture-reglages"></script><script src="/admin-approval-overlay.js?v=20260912-consulter-fiche1"></script><script src="/auto-market-counter-v204.js?v=204" defer></script>
+<script src="/notification-settings.js?v=281-notifications-prenom"></script><script src="/admin-approval-overlay.js?v=20260912-consulter-fiche1"></script><script src="/auto-market-counter-v204.js?v=204" defer></script>
 </body>
 </html>
 

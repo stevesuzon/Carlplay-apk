@@ -46,7 +46,9 @@
   }
   async function sync(){
     if(!('serviceWorker'in navigator))return;
-    const registration=await navigator.serviceWorker.register('/sw.js?v=272-parrainage-identite-fiable');
+    const registration=await navigator.serviceWorker.register('/sw.js?v=281-notifications-prenom',{updateViaCache:'none'});
+    await registration.update().catch(function(){});
+    if(registration.waiting)registration.waiting.postMessage({type:'SKIP_WAITING'});
     await navigator.serviceWorker.ready;
     await tellWorker(registration,enabled()&&permission()==='granted');
     if(enabled()&&permission()==='granted')await syncAdminPush(registration);

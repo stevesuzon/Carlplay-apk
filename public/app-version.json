@@ -1,4 +1,4 @@
 {
-  "version": "V269",
-  "message": "Correction de l’installation : après avoir regardé la vidéo, « ALLER SUR LE SITE » ouvre maintenant réellement la page Couteau Suisse au lieu de réafficher l’écran d’installation. Le passage est conservé dans l’onglet le temps d’ajouter l’application à l’écran d’accueil. Toutes les fonctions de la V268 sont conservées."
+  "version": "V281",
+  "message": "Toutes les nouveautés affichent maintenant la grande notification de mise à jour. Pour un marché hebdomadaire, voyageur, une brocante ou un autre marché, le prénom de la personne apparaît en premier, par exemple : Tony a mis à jour le marché."
 }

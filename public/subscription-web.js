@@ -1,8 +1,42 @@
 (function () {
-  if ("serviceWorker" in navigator) addEventListener("load", function () { navigator.serviceWorker.register("/sw.js?v=272-parrainage-identite-fiable").catch(function () {}); });
+  if ("serviceWorker" in navigator) {
+    var swLastCheck = 0;
+    var swReloading = false;
+    var swHadController = !!navigator.serviceWorker.controller;
+    function activateWaiting(registration) {
+      if (registration && registration.waiting) registration.waiting.postMessage({ type: "SKIP_WAITING" });
+    }
+    async function checkForAppUpdate() {
+      if (Date.now() - swLastCheck < 30000) return;
+      swLastCheck = Date.now();
+      try {
+        var registration = await navigator.serviceWorker.register("/sw.js?v=281-notifications-prenom", { updateViaCache: "none" });
+        activateWaiting(registration);
+        registration.addEventListener("updatefound", function () {
+          var worker = registration.installing;
+          if (!worker) return;
+          worker.addEventListener("statechange", function () {
+            if (worker.state === "installed") activateWaiting(registration);
+          });
+        });
+        await registration.update();
+        activateWaiting(registration);
+      } catch (_) {}
+    }
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      if (!swHadController || swReloading) return;
+      swReloading = true;
+      location.reload();
+    });
+    addEventListener("load", checkForAppUpdate);
+    addEventListener("pageshow", checkForAppUpdate);
+    addEventListener("focus", checkForAppUpdate);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) checkForAppUpdate(); });
+  }
   var KEY = "carplay_shared_subscription";
   var PAID_KEY = "carplay_paid_activated";
   var EMAIL_KEY = "carplay_recovery_email";
+  var IDENTITY_KEY = "carplay_app_identity_v240";
   var FREE_UNTIL_CACHE_KEY = "carplay_contest_app_free_until_ms";
   var FREE_UNTIL_MS = Number(localStorage.getItem(FREE_UNTIL_CACHE_KEY) || 0);
   var FREE_UNTIL_KNOWN = FREE_UNTIL_MS > 0;
@@ -17,8 +51,31 @@
 
   // Tant que la date serveur n'a jamais pu être récupérée, on ne coupe pas l'application
   // par erreur. Dès qu'elle a été reçue, elle reste mémorisée sur le téléphone.
-  function freeAccess() { return !FREE_UNTIL_KNOWN || Date.now() <= FREE_UNTIL_MS; }
-  function freeSubscription() { return { ok: true, globalFree: true, lifetime: false, expiresAt: FREE_UNTIL_KNOWN ? new Date(FREE_UNTIL_MS).toISOString() : null }; }
+  function personalTrialUntil() { return Number(localStorage.getItem('carplay_personal_trial_until_ms') || 0); }
+  function trialUntil() { var personal=personalTrialUntil();if(personal>Date.now())return personal;if(!FREE_UNTIL_KNOWN)return 0;return FREE_UNTIL_MS; }
+  function freeAccess() { return !FREE_UNTIL_KNOWN || trialUntil() > Date.now(); }
+  function storedIdentity(fallback) {
+    var identity = null;
+    try { identity = JSON.parse(localStorage.getItem(IDENTITY_KEY) || "null"); } catch (_) {}
+    identity = identity || fallback || {};
+    return {
+      firstName: String(identity.firstName || identity.first_name || fallback && (fallback.firstName || fallback.first_name) || "").trim(),
+      lastName: String(identity.lastName || identity.last_name || fallback && (fallback.lastName || fallback.last_name) || "").trim(),
+      email: String(identity.email || fallback && fallback.email || rememberedEmail() || "").trim().toLowerCase()
+    };
+  }
+  function freeSubscription(real) {
+    var identity = storedIdentity(real);
+    return {
+      ok: true,
+      globalFree: true,
+      lifetime: false,
+      expiresAt: trialUntil() ? new Date(trialUntil()).toISOString() : null,
+      firstName: identity.firstName,
+      lastName: identity.lastName,
+      email: identity.email
+    };
+  }
 
   function id() {
     var v = localStorage.getItem("carplay_device_id");
@@ -48,9 +105,9 @@
   function saved() {
     var real = null;
     try { real = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (_) {}
-    if (real && !real.globalFree && valid(real)) return real;
+    if (real && valid(real)) return real;
     if (localStorage.getItem(PAID_KEY) === "1") return real;
-    if (freeAccess()) return freeSubscription();
+    if (freeAccess()) return freeSubscription(real);
     return real;
   }
   function valid(s) { return s && (s.lifetime || (s.expiresAt && Date.parse(s.expiresAt) > Date.now())); }
@@ -298,7 +355,15 @@
     panel.innerHTML = '<div class="settingHead"><span>🔐 ABONNEMENT</span><span>⌄</span></div><div class="settingBody"><div class="sub-current-status" style="margin:4px 0 12px;padding:12px;border:2px solid '+(isActive?'#44d17a':'#ff5a5a')+';border-radius:13px;background:#0b1522;text-align:center;font-weight:950"><div style="font-size:19px">'+state+'</div><div style="margin-top:4px">'+days+'</div><div style="margin-top:4px;font-size:13px;color:#d8e0eb">'+end+'</div></div><a href="https://www.snapchat.com/add/steve_suzon" target="_blank" rel="noopener" style="display:block;margin:0 0 12px;padding:11px;border:2px solid #fffc00;border-radius:12px;background:#272500;color:#fff;text-align:center;text-decoration:none;font:900 14px/1.35 Arial">Pour commander un code : contactez <b>steve_suzon</b> sur Snapchat.<br><strong style="color:#ffdc47">30 € — code valable un an</strong></a><div class="sub-settings"><label><b>1. NOM ET PRÉNOM OBLIGATOIRES</b></label><div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:6px 0 12px"><input class="sub-setting-last-name" type="text" autocomplete="family-name" maxlength="60" placeholder="Nom"><input class="sub-setting-first-name" type="text" autocomplete="given-name" maxlength="60" placeholder="Prénom"></div><label class="sub-setting-email-label"><b>2. ÉCRIVEZ VOTRE ADRESSE E-MAIL COMPLÈTE</b></label><input class="sub-setting-email sub-full-email" type="email" inputmode="email" autocomplete="email" placeholder="Exemple : prenom.nom@gmail.com"><div class="sub-setting-confirmed sub-email-complete" style="display:none;color:#55e58c;font-weight:900;margin:7px 0"></div><div class="sub-setting-warning" style="display:none;font-size:12px;color:#ffd166;margin:4px 0 9px">⚠️ Attention : si l’adresse e-mail est incorrecte, aucune récupération du compte ne sera possible.</div><button class="sub-setting-confirm-email" type="button">CONFIRMER LES INFORMATIONS</button><button class="sub-setting-change-email" type="button" style="display:none">MODIFIER MES INFORMATIONS</button><button class="sub-setting-recover-code" type="button">ME FAIRE RENVOYER MON CODE D’ABONNEMENT</button><small class="sub-recovery-help">Application effacée ou nouveau téléphone ? Renseignez le même nom, prénom et la même adresse e-mail : votre code d’abonnement actuel vous sera renvoyé par e-mail. En le saisissant, vous récupérez exactement l’abonnement déjà existant et le nombre de jours qu’il lui restait — aucune nouvelle période ne remplace l’ancienne.</small><label><b>3. ENTREZ VOTRE CODE D’ABONNEMENT</b></label><input class="sub-setting-code" inputmode="text" autocapitalize="characters" maxlength="6" placeholder="CODE 6 LETTRES / CHIFFRES"><button class="sub-setting-activate">ACTIVER / CHANGER MON CODE</button><div class="sub-settings-message"></div></div></div>'
     var emailField=panel.querySelector('.sub-setting-email'),firstNameField=panel.querySelector('.sub-setting-first-name'),lastNameField=panel.querySelector('.sub-setting-last-name'),emailProof='';if(emailField&&!emailField.value){emailField.value=rememberedEmail()||(s&&s.email)||'';}if(firstNameField)firstNameField.value=(s&&s.firstName)||'';if(lastNameField)lastNameField.value=(s&&s.lastName)||'';
     function showConfirmed(email){emailProof='adresse-confirmee';emailField.value=email;if(firstNameField)firstNameField.disabled=true;if(lastNameField)lastNameField.disabled=true;emailField.style.display='none';panel.querySelector('.sub-setting-email-label').style.display='none';panel.querySelector('.sub-setting-confirmed').style.display='block';panel.querySelector('.sub-setting-confirmed').textContent='✅ ADRESSE E-MAIL VALIDÉE : '+email;panel.querySelector('.sub-setting-warning').style.display='block';panel.querySelector('.sub-setting-confirm-email').style.display='none';panel.querySelector('.sub-setting-change-email').style.display='block';panel.querySelector('.sub-setting-code').disabled=false;panel.querySelector('.sub-setting-activate').disabled=false;}
+    window.CarPlaySyncIdentityToSubscriptionSettings=function(identity){
+      var x=storedIdentity(identity||{});
+      if(firstNameField&&x.firstName)firstNameField.value=x.firstName;
+      if(lastNameField&&x.lastName)lastNameField.value=x.lastName;
+      if(emailField&&x.email){emailField.value=x.email;rememberEmail(x.email);}
+      if(x.firstName.length>=2&&x.lastName.length>=2&&/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(x.email))showConfirmed(x.email);
+    };
     if(emailField&&emailField.value&&firstNameField.value.trim().length>=2&&lastNameField.value.trim().length>=2&&s&&s.email&&s.firstName&&s.lastName){showConfirmed(emailField.value);}
+    window.CarPlaySyncIdentityToSubscriptionSettings(s||{});
     var firstSetting = settings.querySelector(".settingRow");
     if (firstSetting) settings.insertBefore(panel, firstSetting); else settings.appendChild(panel);
     cleanupOldSettingDuplicates(settings, panel);
@@ -321,6 +386,10 @@
       activate(code,email,emailProof,firstName,lastName,detectedType(),function (j) { msg.textContent = j&&j.lifetime?"✅ Compte synchronisé — abonnement à vie chargé.":(j&&j.renewed&&j.addedDays?"✅ Renouvellement ajouté : +"+j.addedDays+" jours. Il reste maintenant "+(j.remainingDays||0)+" jours.":"✅ Compte synchronisé — abonnement chargé."); localStorage.setItem('carplay_open_contest_after_identity','1'); setTimeout(function () { location.reload(); }, 600); }, function (e) { msg.textContent = messageFor(e); });
     };
   }
+
+  window.addEventListener("carplay:identity-ready",function(event){
+    if(window.CarPlaySyncIdentityToSubscriptionSettings)window.CarPlaySyncIdentityToSubscriptionSettings(event&&event.detail||{});
+  });
 
   function adaptPhoneSettings() {
     if (detectedType() !== "phone") return;

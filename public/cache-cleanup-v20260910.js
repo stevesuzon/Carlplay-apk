@@ -1,7 +1,8 @@
 (function(){
   'use strict';
-  var V='20260912-server-sync-v150';
-  var C='carplay-v5-20260912-server-sync-v150';
+  var V='20260916-notifications-prenom-v281';
+  var C='couteau-suisse-v281-notifications-prenom';
+  var PRESERVE='carplay-notification-preference-v1';
   var K='carplay_cache_cleanup_version';
   var UPDATE_KEY='carplay_update_notice_seen';
   var UPDATE_ID='2026-09-12-server-sync-v150';
@@ -55,7 +56,10 @@
   function done(){try{localStorage.setItem(K,V)}catch(e){}}
   if('caches' in window){
     caches.keys().then(function(keys){
-      return Promise.all(keys.filter(function(name){return name!==C}).map(function(name){return caches.delete(name)}));
+      return Promise.all(keys.filter(function(name){
+        if(name===C||name===PRESERVE)return false;
+        return name.indexOf('couteau-suisse-')===0||name.indexOf('carplay-v5-')===0;
+      }).map(function(name){return caches.delete(name)}));
     }).then(done).catch(done);
   }else done();
 })();

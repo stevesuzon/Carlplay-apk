@@ -1,4 +1,5 @@
-const CACHE = "couteau-suisse-v272-parrainage-identite-fiable";
+const VERSION = "V281";
+const CACHE = "couteau-suisse-v281-notifications-prenom";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled() {
@@ -14,7 +15,7 @@ const CORE = [
   "/brocante-fiche-achat-v1.js?v=238-compat",
   "/devis-personnalises-v2.js?v=238-admin-email-devis",
   "/index.html",
-  "/cache-cleanup-v20260910.js?v=20260912-allmarkets-v149",
+  "/cache-cleanup-v20260910.js?v=281-notifications-prenom",
   "/installer.html",
   "/tutoriel-comment-installer-iphone.mp4",
   "/manifest.webmanifest?v=couteau-suisse-v254",
@@ -28,9 +29,10 @@ const CORE = [
   "/couteau-suisse-maskable-512.png?v=255",
   "/mobile-overrides.css?v=64",
   "/weather-all-pages.js?v=68-notifications-globales",
-  "/subscription-web.js?v=256-demandes-concours",
-  "/notification-settings.js?v=243",
-  "/referral-v232.js?v=272-parrainage-identite-fiable",
+  "/subscription-web.js?v=281-notifications-prenom",
+  "/notification-settings.js?v=281-notifications-prenom",
+  "/market-update-notifications-v281.js?v=281",
+  "/referral-v232.js?v=273-parrainage-marche-compte",
   "/subscription-v154-patch.js?v=203",
   "/modification-profile-v156.js?v=173",
   "/sanction-guard-v161.js?v=243",
@@ -54,7 +56,7 @@ const CORE = [
   "/special-marches.html?v=170",
   "/nearby-markets.html?v=247-photo-miniature",
   "/market-presence-global.js?v=177",
-  "/verification-v9.html?v=247-photo-iphone",
+  "/verification-v9.html?v=275-admin-tout-modifier",
   "/modification-demande.html?v=184",
   "/ou-trouver-place.html",
   "/documents-travail.html",
@@ -66,7 +68,7 @@ const CORE = [
   "/mypos-go2.jpeg",
   "/mypos-ultra.jpeg",
   "/mypos-flex.jpeg",
-  "/app-access-gate-v240.js?v=269-install-site-fix",
+  "/app-access-gate-v240.js?v=276-identite-active-essai",
   "/champignons.html?v=255-generateur-separe",
   "/champignons.css?v=267-bois-public-prive",
   "/champignons.js?v=267-bois-public-prive",
@@ -76,54 +78,116 @@ CORE.push(
   "/contact-mail-v99.css?v=99",
   "/contact-mail-v99.js?v=99"
 );
-self.addEventListener("install", (e) => {
-  self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)));
+async function cacheCoreIndividually() {
+  const cache = await caches.open(CACHE);
+  await Promise.allSettled(CORE.map(async (path) => {
+    const request = new Request(path, { cache: "reload" });
+    const response = await fetch(request);
+    if (response && response.ok) await cache.put(request, response);
+  }));
+}
+async function showUpdateNotification() {
+  if (!(await notificationsEnabled())) return;
+  let message = "Les dernières nouveautés et mises à jour des marchés sont installées.";
+  try {
+    const response = await fetch("/app-version.json?_=" + Date.now(), { cache: "no-store" });
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.message) message = String(data.message);
+    }
+  } catch (_) {}
+  await self.registration.showNotification("✅ Couteau Suisse mis à jour", {
+    body: message,
+    icon: "/couteau-suisse-192.png?v=281",
+    badge: "/couteau-suisse-192.png?v=281",
+    tag: "couteau-suisse-update-" + VERSION,
+    renotify: true,
+    data: { url: "/index.html" }
+  });
+}
+self.addEventListener("install", (event) => {
+  event.waitUntil(cacheCoreIndividually().then(() => self.skipWaiting()));
 });
-self.addEventListener("activate", (e) =>
-  e.waitUntil(
-    caches.keys().then((keys) => Promise.all(
-      keys.filter((k) => k !== CACHE && k !== NOTIFICATION_PREF_CACHE).map((k) => caches.delete(k))
-    )).then(() => self.clients.claim())
-  )
-);
+self.addEventListener("activate", (event) => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((name) => {
+      if (name === CACHE || name === NOTIFICATION_PREF_CACHE) return false;
+      return name.startsWith("couteau-suisse-") || name.startsWith("carplay-v5-");
+    }).map((name) => caches.delete(name)));
+    await self.clients.claim();
+    await showUpdateNotification();
+  })());
+});
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
   if (url.pathname.startsWith("/api/")) return;
-  const staticAsset = /\.(?:js|json|css|png|jpe?g|webp|svg|mp4|woff2?)$/i.test(url.pathname);
-  if (staticAsset) {
-    e.respondWith(caches.match(e.request).then((cached) => {
-      const update = fetch(e.request).then((r) => {
-        if (r && r.ok) caches.open(CACHE).then((c) => c.put(e.request, r.clone()));
-        return r;
-      }).catch(() => null);
-      if (cached) { e.waitUntil(update); return cached; }
-      return update.then((r) => r || Response.error());
-    }));
+  if (url.pathname === "/sw.js" || url.pathname === "/app-version.json") {
+    e.respondWith(fetch(e.request, { cache: "no-store" }));
     return;
   }
-  e.respondWith(
-    fetch(e.request, { cache: "no-store" }).then((r) => {
-      if (r && r.ok) caches.open(CACHE).then((x) => x.put(e.request, r.clone()));
-      return r;
-    }).catch(() => caches.match(e.request))
-  );
+  const isNavigation = e.request.mode === "navigate";
+  const isCode = /\.(?:js|json|css|html|webmanifest)$/i.test(url.pathname);
+  if (isNavigation || isCode) {
+    e.respondWith((async () => {
+      try {
+        const response = await fetch(e.request, { cache: "no-store" });
+        if (response && response.ok) {
+          const cache = await caches.open(CACHE);
+          await cache.put(e.request, response.clone());
+        }
+        return response;
+      } catch (_) {
+        return (await caches.match(e.request)) ||
+          (isNavigation ? await caches.match("/index.html") : undefined) ||
+          Response.error();
+      }
+    })());
+    return;
+  }
+  const staticAsset = /\.(?:png|jpe?g|webp|svg|mp4|woff2?)$/i.test(url.pathname);
+  if (staticAsset) {
+    e.respondWith((async () => {
+      const cached = await caches.match(e.request);
+      const update = fetch(e.request).then(async (response) => {
+        if (response && response.ok) {
+          const cache = await caches.open(CACHE);
+          await cache.put(e.request, response.clone());
+        }
+        return response;
+      }).catch(() => null);
+      if (cached) { e.waitUntil(update); return cached; }
+      return (await update) || Response.error();
+    })());
+  }
 });
 self.addEventListener("push", (e) => {
   e.waitUntil(notificationsEnabled().then((enabled) => {
     if (!enabled) return;
-    return self.registration.showNotification("Modification de marché demandée", {
-      body: "Une demande de modification ou de présence d’un marché attend votre réponse OUI ou NON pendant 3 minutes.",
-      icon: "/couteau-suisse-192.png?v=255",
-      badge: "/couteau-suisse-192.png?v=255",
-      tag: "gps-unlock-request",
-      renotify: true,
-      data: { url: "/admin.html#gps-requests" }
+    let payload = {};
+    if (e.data) {
+      try { payload = e.data.json() || {}; }
+      catch (_) { try { payload = { body: e.data.text() }; } catch (_) {} }
+    }
+    const title = String(payload.title || "Modification de marché demandée");
+    const body = String(payload.body || "Une demande de modification ou de présence d’un marché attend votre réponse OUI ou NON pendant 3 minutes.");
+    const target = String(payload.url || "/admin.html#gps-requests");
+    return self.registration.showNotification(title, {
+      body,
+      icon: String(payload.icon || "/couteau-suisse-192.png?v=281"),
+      badge: String(payload.badge || "/couteau-suisse-192.png?v=281"),
+      tag: String(payload.tag || "gps-unlock-request"),
+      renotify: payload.renotify !== false,
+      data: { url: target }
     });
   }));
 });
 self.addEventListener("message", (e) => {
+  if (e.data && e.data.type === "SKIP_WAITING") {
+    e.waitUntil(self.skipWaiting());
+    return;
+  }
   if (e.data && e.data.type === "CARPLAY_NOTIFICATIONS_PREFERENCE") {
     e.waitUntil(saveNotificationPreference(e.data.enabled === true));
   }
