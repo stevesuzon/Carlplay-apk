@@ -1,8 +1,13 @@
 name: Install uploaded CarPlay ZIP
 on:
   push:
+    branches:
+      - main
     paths:
-      - 'CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip'
+      - 'CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5*.zip'
+      - 'CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-v5*.zip'
+      - 'CLOUDFLARE-V5.zip'
+      - '.github/workflows/install-carplay-upload.yml'
   workflow_dispatch:
 
 permissions:
@@ -14,15 +19,49 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Select uploaded ZIP
+        id: select_zip
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP=""
+
+          if [ "${{ github.event_name }}" = "push" ]; then
+            BEFORE="${{ github.event.before }}"
+            AFTER="${{ github.sha }}"
+            if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+              ZIP="$(git diff --name-only "$BEFORE" "$AFTER" | grep -E '^(CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-[Vv]5.*\.zip|CLOUDFLARE-V5\.zip)$' | tail -n 1 || true)"
+            fi
+          fi
+
+          if [ -z "$ZIP" ]; then
+            for CANDIDATE in \
+              'CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-v5.zip' \
+              'CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip' \
+              'CLOUDFLARE-V5.zip'; do
+              if [ -f "$CANDIDATE" ]; then
+                ZIP="$CANDIDATE"
+                break
+              fi
+            done
+          fi
+
+          if [ -z "$ZIP" ] || [ ! -f "$ZIP" ]; then
+            echo "No compatible CarPlay ZIP found"
+            exit 1
+          fi
+
+          echo "Using ZIP: $ZIP"
+          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+
       - name: Replace site with uploaded ZIP
         shell: bash
         run: |
           set -euo pipefail
-          ZIP='CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip'
-          if [ ! -f "$ZIP" ]; then
-            echo "ZIP not found"
-            exit 1
-          fi
+          ZIP='${{ steps.select_zip.outputs.zip }}'
           rm -rf /tmp/carplay-upload
           mkdir -p /tmp/carplay-upload
           unzip -q "$ZIP" -d /tmp/carplay-upload
@@ -37,6 +76,7 @@ jobs:
           rm -rf public src
           cp -a /tmp/carplay-upload/public ./public
           cp -a /tmp/carplay-upload/src ./src
+
       - name: Commit installed site
         shell: bash
         run: |
