@@ -1,4 +1,4 @@
 {
-  "version": "V284",
-  "message": "Parcours d’installation simplifié : Regarder la vidéo devient Installer l’application, puis formulaire Nom/Prénom/E-mail et ouverture du site. Les abonnements actifs conservent leur date de fin."
+  "version": "V287",
+  "message": "Administration simplifiée : suppression de la section séparée Personnes bannies, nettoyage des anciennes fiches sans e-mail et demandes du concours regroupées par personne avec validation avant attribution immédiate des points."
 }
