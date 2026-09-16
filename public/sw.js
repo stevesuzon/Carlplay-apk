@@ -1,10 +1,10 @@
-const VERSION = "V287";
+const VERSION = "V288";
 const BASE_CACHE = "couteau-suisse-v282-onboarding-notification-detail";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v283";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v287";
 const DATA_CACHE = "couteau-suisse-module-data-v283";
-const INSTALL_CACHE = "couteau-suisse-module-install-v286";
+const INSTALL_CACHE = "couteau-suisse-module-install-v288";
 const STATS_CACHE = "couteau-suisse-module-stats-v285";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
@@ -16,7 +16,7 @@ const MODULES={
  [CONTEST_CACHE]:["/contest-v188.js?v=283-classement-rapide"],
  [ADMIN_CACHE]:["/admin.html","/contest-admin-v188.js?v=287-demandes-groupees"],
  [DATA_CACHE]:["/persistent-user-data-v283.js?v=283"],
- [INSTALL_CACHE]:["/installer.html","/app-access-gate-v240.js?v=286-email-obligatoire","/cache-cleanup-v20260910.js?v=283-modules"],
+ [INSTALL_CACHE]:["/installer.html","/app-access-gate-v240.js?v=288-identite-stable","/cache-cleanup-v20260910.js?v=283-modules"],
  [STATS_CACHE]:["/user-stats-v285.js?v=285-15j-2j"]
 };
 async function putFresh(cacheName,path){try{const req=new Request(path,{cache:"reload"}),res=await fetch(req);if(res&&res.ok)(await caches.open(cacheName)).put(req,res.clone())}catch(_){}}

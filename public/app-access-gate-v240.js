@@ -49,9 +49,16 @@ function showInstall(){
   return d;
 }
 async function postIdentity(x){
+  // V288 : l'enregistrement de l'identité est la vérification obligatoire.
+  // La synchronisation de l'essai/abonnement est secondaire : une panne temporaire
+  // de ce second appel ne doit plus faire réapparaître le formulaire à chaque ouverture.
   var r=await fetch('/api/app-identity',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),platform:/iphone|ipad|ipod/i.test(navigator.userAgent)?'ios':(/android/i.test(navigator.userAgent)?'android':'pwa'),firstName:x.firstName,lastName:x.lastName,email:x.email}),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(!r.ok)throw j;
-  var tr=await fetch('/api/contest/trial-identity',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),firstName:x.firstName,lastName:x.lastName,email:x.email}),cache:'no-store'}),tj=await tr.json().catch(function(){return {}});
-  if(!tr.ok)throw tj;
+  var tj={};
+  try{
+    var tr=await fetch('/api/contest/trial-identity',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),firstName:x.firstName,lastName:x.lastName,email:x.email}),cache:'no-store'});
+    tj=await tr.json().catch(function(){return {}});
+    if(!tr.ok)tj={};
+  }catch(_){tj={}}
   if(tj.trial&&tj.expiresAt){var ms=Date.parse(tj.expiresAt);if(Number.isFinite(ms)&&ms>Date.now())localStorage.setItem('carplay_personal_trial_until_ms',String(ms));}
   j.subscription=tj;j.trial=!!tj.trial;j.existingSubscription=!!tj.existingAccount;return j
 }
@@ -65,7 +72,7 @@ function showIdentity(seed){
   b.onclick=async function(){var x={lastName:clean(last.value),firstName:clean(first.value),email:email(em.value)};if(!ready()){m.textContent='Nom, prénom et adresse e-mail valide obligatoires.';return}b.disabled=true;b.textContent='VÉRIFICATION…';m.textContent='';try{var j=await postIdentity(x),identity=persist((j&&j.identity)||x);persistSubscription(j&&j.subscription,identity);var sj=j&&j.subscription||{};if(sj.existingAccount){m.style.color='#72eba5';m.textContent='✅ Abonnement récupéré avec ses jours restants.'}else if(sj.trialMode==='seven_day'){m.style.color='#72eba5';m.textContent='✅ Compte créé — essai de 7 jours activé.'}else{m.style.color='#72eba5';m.textContent='✅ Compte créé — accès gratuit activé pour la période actuelle.'}try{sessionStorage.setItem(HANDOFF,'1')}catch(_){}setTimeout(function(){location.replace(finalSiteUrl())},350)}catch(e){m.style.color='#ff8d8d';if(e&&e.error==='ABONNEMENT_EXISTANT_A_RECUPERER')m.textContent='Cet abonnement existe déjà mais ne peut pas être activé automatiquement avec ces informations. Vérifiez le nom, le prénom et l’adresse e-mail.';else if(e&&e.error==='ESSAI_DEJA_UTILISE')m.textContent='Cet essai gratuit a déjà été utilisé. Un abonnement est nécessaire.';else if(e&&e.error==='IDENTITE_INCOMPLETE')m.textContent='Nom, prénom et adresse e-mail valide obligatoires.';else m.textContent='Impossible d’activer pour le moment. Vérifiez votre connexion et réessayez.'}finally{b.textContent='VALIDER ET OUVRIR COUTEAU SUISSE';ready()}}
 }
 function clearIncompleteLegacyIdentity(){try{var a=normalize(readJson(KEY)),p=normalize(readJson(PROFILE)),s=normalize(readJson(SUB));if(!complete(a))localStorage.removeItem(KEY);if(!validEmail(p.email)){var rp=readJson(PROFILE)||{};delete rp.email;localStorage.setItem(PROFILE,JSON.stringify(rp))}if(!validEmail(s.email)){var rs=readJson(SUB)||{};delete rs.email;localStorage.setItem(SUB,JSON.stringify(rs))}var re=email(localStorage.getItem('carplay_recovery_email')||'');if(re&&!validEmail(re))localStorage.removeItem('carplay_recovery_email')}catch(_){}}
-function boot(){clearIncompleteLegacyIdentity();var x=existing();if(onboardingIdentity()){showIdentity(x);return}if(!installed()){if(browserHandoff())return;showInstall();return}if(complete(x)){persist(x);postIdentity(x).then(function(j){persistSubscription(j&&j.subscription,x)}).catch(function(){showIdentity(x)});return}showIdentity(x)}
+function boot(){clearIncompleteLegacyIdentity();var x=existing();if(onboardingIdentity()&&!complete(x)){showIdentity(x);return}if(!installed()){if(browserHandoff())return;showInstall();return}if(complete(x)){persist(x);postIdentity(x).then(function(j){persistSubscription(j&&j.subscription,x)}).catch(function(){/* V288 : identité locale valide, on garde l'accès et on resynchronisera plus tard. */});return}showIdentity(x)}
 window.CouteauSuisseGetIdentity=function(){var x=existing();return complete(x)?persist(x):null};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();

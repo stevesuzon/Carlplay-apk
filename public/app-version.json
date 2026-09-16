@@ -1,4 +1,4 @@
 {
-  "version": "V287",
-  "message": "Administration simplifiée : suppression de la section séparée Personnes bannies, nettoyage des anciennes fiches sans e-mail et demandes du concours regroupées par personne avec validation avant attribution immédiate des points."
+  "version": "V288",
+  "message": "Correction inscription : une identité valide déjà enregistrée reste mémorisée et le formulaire ne revient plus à chaque ouverture. L'e-mail reste obligatoire pour une nouvelle inscription."
 }
