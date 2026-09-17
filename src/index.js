@@ -2603,101 +2603,6 @@ async function reactivationV242(request,env){
 }
 // ===== FIN V242 =====
 
-
-// ===== COMPTE COMMUN COUTEAU SUISSE <-> LE COMPTOIR =====
-async function ensureSharedAccountTables(env){
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS shared_accounts(
-    id TEXT PRIMARY KEY,email TEXT NOT NULL UNIQUE,first_name TEXT NOT NULL,last_name TEXT NOT NULL,
-    confirmed_at INTEGER,device_id TEXT NOT NULL DEFAULT '',created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL
-  )`).run();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS shared_account_challenges(
-    id TEXT PRIMARY KEY,email TEXT NOT NULL,first_name TEXT NOT NULL,last_name TEXT NOT NULL,
-    device_id TEXT NOT NULL,code_hash TEXT NOT NULL,expires_at INTEGER NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,
-    purpose TEXT NOT NULL,created_at INTEGER NOT NULL,consumed INTEGER NOT NULL DEFAULT 0
-  )`).run();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS shared_account_sessions(
-    id TEXT PRIMARY KEY,account_id TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,device_id TEXT NOT NULL,
-    expires_at INTEGER NOT NULL,created_at INTEGER NOT NULL,last_seen_at INTEGER NOT NULL
-  )`).run();
-  await env.DB.prepare("CREATE INDEX IF NOT EXISTS shared_account_ch_email ON shared_account_challenges(email,created_at)").run();
-  await env.DB.prepare("CREATE INDEX IF NOT EXISTS shared_account_sessions_account ON shared_account_sessions(account_id,expires_at)").run();
-}
-function sharedSafeText(v,max=100){return String(v||'').replace(/\s+/g,' ').trim().slice(0,max)}
-function sharedValidEmail(v){return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v||'').trim().toLowerCase())}
-async function sharedSession(env,request){
-  const h=request.headers.get('authorization')||'',token=h.startsWith('Bearer ')?h.slice(7).trim():'';
-  if(!token)return null; await ensureSharedAccountTables(env); const hash=await sha256Text('shared-session:'+token),now=Date.now();
-  const row=await env.DB.prepare('SELECT s.*,a.email,a.first_name,a.last_name,a.confirmed_at FROM shared_account_sessions s JOIN shared_accounts a ON a.id=s.account_id WHERE s.token_hash=? AND s.expires_at>? LIMIT 1').bind(hash,now).first();
-  if(!row||!row.confirmed_at)return null; await env.DB.prepare('UPDATE shared_account_sessions SET last_seen_at=? WHERE id=?').bind(now,row.id).run(); return row;
-}
-async function sendSharedAccountCode(env,email,firstName,code,purpose){
-  if(!env.BREVO_API_KEY||!env.BREVO_SENDER_EMAIL)throw new Error('EMAIL_CONFIG');
-  const subject=purpose==='login'?'Connexion à votre compte commun — Couteau Suisse / Le Comptoir':'Confirmation de votre compte commun — Couteau Suisse / Le Comptoir';
-  const text=`Votre code de confirmation est : ${code}. Il est valable 10 minutes. Ne communiquez jamais ce code.`;
-  const html=`<div style="font-family:Arial,sans-serif;line-height:1.5"><h2>Compte commun</h2><p>Bonjour ${String(firstName).replace(/[<>]/g,'')},</p><p>${purpose==='login'?'Utilisez ce code pour vous connecter à votre compte commun.':'Utilisez ce code pour confirmer votre compte commun.'}</p><p style="font-size:34px;font-weight:900;letter-spacing:8px">${code}</p><p>Valable 10 minutes.</p><p>Ce compte fonctionne avec Couteau Suisse et Le Comptoir des Enchères.</p></div>`;
-  const r=await fetch('https://api.brevo.com/v3/smtp/email',{method:'POST',headers:{accept:'application/json','content-type':'application/json','api-key':env.BREVO_API_KEY},body:JSON.stringify({sender:{name:'Couteau Suisse',email:String(env.BREVO_SENDER_EMAIL)},to:[{email}],subject,textContent:text,htmlContent:html})});
-  if(!r.ok)throw new Error('EMAIL_SEND');
-}
-async function sharedSubscription(env,email,deviceId){
-  const e=normalizeEmail(email),d=String(deviceId||'').trim();
-  let row=await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND lower(COALESCE(recovery_email_mask,''))=? ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC LIMIT 1").bind(e).first();
-  if(!row && d)row=await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC LIMIT 1").bind(d,d).first();
-  if(!row)return {active:false,startsAt:null,endsAt:null};
-  const active=!!row.lifetime || (!!row.expires_at && Date.parse(row.expires_at)>Date.now());
-  const trial=active && await isContestTrialRow(row).catch(()=>false);
-  return {active:active&&!trial,trial,startsAt:row.redeemed_at?new Date(Number(row.redeemed_at)).toISOString():null,endsAt:row.expires_at||null,lifetime:!!row.lifetime};
-}
-async function sharedTrial(env,email,deviceId,firstName,lastName){
-  const e=normalizeEmail(email),d=String(deviceId||'').trim(); if(!validDevice(d))return null;
-  let row=await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND lower(COALESCE(recovery_email_mask,''))=? ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC LIMIT 1").bind(e).first();
-  if(row){const isTrial=await isContestTrialRow(row).catch(()=>false); if(isTrial&&row.expires_at&&Date.parse(row.expires_at)>Date.now())return {expiresAt:row.expires_at}; if(!isTrial)return null;}
-  const cfg=await ensureContestTables(env),now=Date.now(),globalUntil=Number(cfg.end_at||0),expiryMs=now<=globalUntil?globalUntil:now+POST_PROMO_FIRST_TRIAL_MS;
-  if(row)return {expiresAt:row.expires_at||null};
-  const trialHash=await sha256Text('contest-trial:'+d),trialEmailHash=await sha256Text('contest-trial-email:'+d+':'+e);
-  await env.DB.prepare("INSERT INTO subscriptions(code_hash,expires_at,lifetime,active,phone_device,recovery_email_hash,recovery_email_mask,account_first_name,account_last_name,account_updated_at) VALUES(?,?,0,1,?,?,?,?,?,?)").bind(trialHash,new Date(expiryMs).toISOString(),d,trialEmailHash,e,firstName,lastName,now).run();
-  return {expiresAt:new Date(expiryMs).toISOString()};
-}
-function sharedPublic(a,sub,trial){return {id:a.id,email:a.email,firstName:a.first_name,lastName:a.last_name,confirmed:!!a.confirmed_at,subscription:sub||{active:false},trialExpiresAt:trial?.expiresAt||null,trialMode:trial?'global':'none'};}
-async function sharedRegister(request,env){
-  if(!env.DB)return json({ok:false,message:'Base de données indisponible.'},503); await ensureSharedAccountTables(env);
-  const d=await body(request),first=sharedSafeText(d.firstName,80),last=sharedSafeText(d.lastName,80),email=normalizeEmail(d.email),deviceId=sharedSafeText(d.deviceId,140);
-  if(first.length<2||last.length<2||!sharedValidEmail(email)||!validDevice(deviceId))return json({ok:false,message:'Prénom, nom, e-mail et appareil sont obligatoires.'},400);
-  let a=await env.DB.prepare('SELECT * FROM shared_accounts WHERE email=?').bind(email).first(),now=Date.now();
-  if(!a){const id=crypto.randomUUID();await env.DB.prepare('INSERT INTO shared_accounts(id,email,first_name,last_name,confirmed_at,device_id,created_at,updated_at) VALUES(?,?,?,?,NULL,?,?,?)').bind(id,email,first,last,deviceId,now,now).run();a=await env.DB.prepare('SELECT * FROM shared_accounts WHERE id=?').bind(id).first();}
-  else if(a.confirmed_at){
-    // Do not reveal or transfer an existing confirmed account just from name/e-mail. Send a login challenge.
-    const cid=crypto.randomUUID(),code=randomEmailCode(),hash=await emailCodeHash(cid,code,env);await env.DB.prepare('DELETE FROM shared_account_challenges WHERE email=? AND consumed=0').bind(email).run();
-    await env.DB.prepare('INSERT INTO shared_account_challenges(id,email,first_name,last_name,device_id,code_hash,expires_at,purpose,created_at) VALUES(?,?,?,?,?,?,?,?,?)').bind(cid,email,a.first_name,a.last_name,deviceId,hash,now+600000,'login',now).run();
-    try{await sendSharedAccountCode(env,email,a.first_name,code,'login')}catch(e){await env.DB.prepare('DELETE FROM shared_account_challenges WHERE id=?').bind(cid).run();return json({ok:false,message:'Impossible d’envoyer l’e-mail de confirmation.'},503)}
-    return json({ok:true,pending:true,purpose:'login',challengeId:cid,email,firstName:a.first_name,lastName:a.last_name});
-  }
-  await env.DB.prepare('UPDATE shared_accounts SET first_name=?,last_name=?,device_id=?,updated_at=? WHERE id=?').bind(first,last,deviceId,now,a.id).run().catch(()=>{});
-  const cid=crypto.randomUUID(),code=randomEmailCode(),hash=await emailCodeHash(cid,code,env);await env.DB.prepare('DELETE FROM shared_account_challenges WHERE email=? AND consumed=0').bind(email).run();
-  await env.DB.prepare('INSERT INTO shared_account_challenges(id,email,first_name,last_name,device_id,code_hash,expires_at,purpose,created_at) VALUES(?,?,?,?,?,?,?,?,?)').bind(cid,email,first,last,deviceId,hash,now+600000,'register',now).run();
-  try{await sendSharedAccountCode(env,email,first,code,'register')}catch(e){await env.DB.prepare('DELETE FROM shared_account_challenges WHERE id=?').bind(cid).run();return json({ok:false,message:'Impossible d’envoyer l’e-mail de confirmation.'},503)}
-  return json({ok:true,pending:true,purpose:'register',challengeId:cid,email,firstName:first,lastName:last});
-}
-async function sharedConfirm(request,env){
-  await ensureSharedAccountTables(env);const d=await body(request),cid=String(d.challengeId||''),code=String(d.verificationCode||'').replace(/\D/g,''),deviceId=String(d.deviceId||'').trim(),now=Date.now();
-  if(!cid||!/^[0-9]{6}$/.test(code)||!validDevice(deviceId))return json({ok:false,message:'Code invalide.'},400);
-  const row=await env.DB.prepare('SELECT * FROM shared_account_challenges WHERE id=? AND consumed=0').bind(cid).first();
-  if(!row||now>Number(row.expires_at)||Number(row.attempts)>=5)return json({ok:false,message:'Code expiré ou trop de tentatives.'},403);
-  if(await emailCodeHash(cid,code,env)!==row.code_hash){await env.DB.prepare('UPDATE shared_account_challenges SET attempts=attempts+1 WHERE id=?').bind(cid).run();return json({ok:false,message:'Code incorrect.'},403)}
-  const a=await env.DB.prepare('SELECT * FROM shared_accounts WHERE email=?').bind(row.email).first();if(!a)return json({ok:false,message:'Compte introuvable.'},404);
-  await env.DB.prepare('UPDATE shared_accounts SET confirmed_at=COALESCE(confirmed_at,?),device_id=?,updated_at=? WHERE id=?').bind(now,deviceId,now,a.id).run();
-  await env.DB.prepare('UPDATE shared_account_challenges SET consumed=1 WHERE id=?').bind(cid).run();
-  // Rebind the existing subscription to the newly verified device, without changing its owner or expiry.
-  try{await env.DB.prepare(`UPDATE subscriptions SET phone_device=?,account_first_name=?,account_last_name=?,account_updated_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=(SELECT id FROM subscriptions WHERE active=1 AND lower(COALESCE(recovery_email_mask,''))=? ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC LIMIT 1)`).bind(deviceId,a.first_name,a.last_name,a.email).run()}catch(_){ }
-  let sub=await sharedSubscription(env,a.email,deviceId),trial=null;if(sub.trial){trial={expiresAt:sub.endsAt};sub={...sub,active:false,trial:false};}else if(!sub.active)trial=await sharedTrial(env,a.email,deviceId,a.first_name,a.last_name);
-  const token=crypto.randomUUID()+crypto.randomUUID(),th=await sha256Text('shared-session:'+token),sid=crypto.randomUUID();await env.DB.prepare('INSERT INTO shared_account_sessions(id,account_id,token_hash,device_id,expires_at,created_at,last_seen_at) VALUES(?,?,?,?,?,?,?)').bind(sid,a.id,th,deviceId,now+30*86400000,now,now).run();
-  return json({...sharedPublic(await env.DB.prepare('SELECT * FROM shared_accounts WHERE id=?').bind(a.id).first(),sub,trial),sessionToken:token});
-}
-async function sharedStatus(request,env){
-  const s=await sharedSession(env,request);if(!s)return json({ok:false,message:'Connexion requise.'},401);const a=await env.DB.prepare('SELECT * FROM shared_accounts WHERE id=?').bind(s.account_id).first();let sub=await sharedSubscription(env,a.email,s.device_id),trial=null;if(sub.trial){trial={expiresAt:sub.endsAt};sub={...sub,active:false,trial:false};}else if(!sub.active)trial=await sharedTrial(env,a.email,s.device_id,a.first_name,a.last_name);return json(sharedPublic(a,sub,trial));
-}
-async function sharedLogout(request,env){const h=request.headers.get('authorization')||'',t=h.startsWith('Bearer ')?h.slice(7).trim():'';if(t){await ensureSharedAccountTables(env);await env.DB.prepare('DELETE FROM shared_account_sessions WHERE token_hash=?').bind(await sha256Text('shared-session:'+t)).run()}return json({ok:true});}
-// ===== FIN COMPTE COMMUN =====
-
 // ===== V244 ACCÈS GLOBAL + COIN DÉTENTE & CHAMPIGNONS =====
 function cleanIdentityText(v,max=120){return String(v||'').replace(/\s+/g,' ').trim().slice(0,max)}
 function validIdentityEmail(v){return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(String(v||'').trim())}
@@ -2938,10 +2843,6 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
-    if (url.pathname === "/api/shared-account/register" && request.method === "POST") return sharedRegister(request, env);
-    if (url.pathname === "/api/shared-account/confirm" && request.method === "POST") return sharedConfirm(request, env);
-    if (url.pathname === "/api/shared-account/status" && request.method === "GET") return sharedStatus(request, env);
-    if (url.pathname === "/api/shared-account/logout" && request.method === "POST") return sharedLogout(request, env);
     if (url.pathname === "/api/activate" && request.method === "POST") return activate(request, env);
     if (url.pathname === "/api/status" && request.method === "POST") return subscriptionStatus(request, env);
     if (url.pathname === "/api/subscription-profile-v156" && request.method === "POST") return subscriptionProfileV156(request, env);
