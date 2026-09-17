@@ -1,4 +1,4 @@
 {
-  "version": "V288",
-  "message": "Correction inscription : une identité valide déjà enregistrée reste mémorisée et le formulaire ne revient plus à chaque ouverture. L'e-mail reste obligatoire pour une nouvelle inscription."
+  "version": "292",
+  "message": "Période d’essai affichée pour les nouveaux et anciens utilisateurs, synchronisée avec le serveur et masquée dès qu’un abonnement annuel ou à vie est actif."
 }

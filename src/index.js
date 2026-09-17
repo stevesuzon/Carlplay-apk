@@ -2595,6 +2595,44 @@ async function adminAllUsersV278(request,env){
   result.sort((a,b)=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'})||a.email.localeCompare(b.email));
   return json({ok:true,users:result,count:result.length});
 }
+
+// ===== V289 : MESSAGES DIRECTS ADMIN AUX UTILISATEURS BANNIS =====
+async function ensureAdminDirectMessagesV289(env){
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS admin_direct_messages(
+    id TEXT PRIMARY KEY, sanction_id INTEGER, subscription_id INTEGER, email TEXT, device_id TEXT,
+    message TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, seen_at INTEGER
+  )`).run();
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_direct_messages_target ON admin_direct_messages(device_id,email,expires_at)").run();
+}
+async function adminDirectMessageV289(request,env){
+  if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
+  await ensureAdminDirectMessagesV289(env);
+  if(request.method==='GET'){
+    const d=await body(request),deviceId=String(d.deviceId||'').trim().slice(0,140),email=normalizeEmail(d.email);
+    if(!deviceId&&!validEmail(email))return json({ok:true,messages:[]});
+    const rows=await env.DB.prepare(`SELECT id,message,created_at,expires_at FROM admin_direct_messages WHERE expires_at>? AND (seen_at IS NULL) AND (device_id=? OR (?<>'' AND email=?)) ORDER BY created_at DESC LIMIT 5`).bind(Date.now(),deviceId,email,email).all();
+    return json({ok:true,messages:rows.results||[]});
+  }
+  if(request.method==='POST'){
+    if(!(await adminAuthorized(request,env)))return json({ok:false,error:'SECRET_INCORRECT'},401);
+    const d=await body(request),action=String(d.action||'send'),message=String(d.message||'').trim().slice(0,800);
+    if(action==='seen'){
+      const id=String(d.id||'').trim(),deviceId=String(d.deviceId||'').trim().slice(0,140),email=normalizeEmail(d.email);
+      if(!id)return json({ok:false,error:'MESSAGE_INVALIDE'},400);
+      await env.DB.prepare("UPDATE admin_direct_messages SET seen_at=? WHERE id=? AND (device_id=? OR (?<>'' AND email=?))").bind(Date.now(),id,deviceId,email,email).run();
+      return json({ok:true});
+    }
+    const sanctionId=Number(d.sanctionId||0),row=await env.DB.prepare("SELECT id,subscription_id,email,last_device_id,app_banned FROM market_user_sanctions WHERE id=? LIMIT 1").bind(sanctionId).first();
+    if(!row||!Number(row.app_banned))return json({ok:false,error:'UTILISATEUR_NON_BANNI'},409);
+    if(!message)return json({ok:false,error:'MESSAGE_VIDE'},400);
+    const now=Date.now(),id='admmsg-'+now+'-'+Math.random().toString(36).slice(2,10);
+    await env.DB.prepare("INSERT INTO admin_direct_messages(id,sanction_id,subscription_id,email,device_id,message,created_at,expires_at,seen_at) VALUES(?,?,?,?,?,?,?,?,NULL)").bind(id,Number(row.id),row.subscription_id||null,normalizeEmail(row.email)||'',String(row.last_device_id||''),message,now,now+7*86400000).run();
+    return json({ok:true,id,expiresAt:now+7*86400000});
+  }
+  return json({ok:false,error:'METHODE_INVALIDE'},405);
+}
+// ===== FIN V289 =====
+
 async function sanctionStatusV242(request,env){
   if(!env.DB)return json({ok:true,appBanned:false,contributionBlocked:false,refusalCount:0,reactivationRequested:false});await ensureSanctionTablesV242(env);const d=await body(request),deviceId=String(d.deviceId||'').trim(),email=normalizeEmail(d.email),emailHash=validEmail(email)?await sha256Text(email):'',sub=await subscriptionForBanV242(env,deviceId,email),row=await sanctionRowV242(env,{subscriptionId:sub&&sub.id,emailHash:emailHash||(sub&&sub.recovery_email_hash)||'',deviceId});return json({ok:true,appBanned:!!Number(row&&row.app_banned),contributionBlocked:!!Number(row&&row.contribution_blocked),refusalCount:Number(row&&row.refusal_count||0),reactivationRequested:!!Number(row&&row.reactivation_requested)});
 }
@@ -2632,9 +2670,24 @@ async function appIdentity(request,env){
   await env.DB.prepare(`INSERT INTO app_identities(email,first_name,last_name,device_id,created_at,updated_at) VALUES(?,?,?,?,?,?)
     ON CONFLICT(email) DO UPDATE SET first_name=excluded.first_name,last_name=excluded.last_name,device_id=excluded.device_id,updated_at=excluded.updated_at`)
     .bind(email,firstName,lastName,deviceId,now,now).run();
+  // V290 : si la personne est bannie, son identité renseignée dans Réglages
+  // est immédiatement recopiée dans la fiche de bannissement afin que
+  // l'administrateur puisse voir le nouveau nom/prénom et l'e-mail validé.
+  try{
+    await ensureSanctionTablesV242(env);
+    const emailHash=await sha256Text(email);
+    const sanction=await env.DB.prepare(`SELECT id FROM market_user_sanctions
+      WHERE (email_hash=? AND email_hash<>'') OR (last_device_id=? AND ?<>'')
+      ORDER BY updated_at DESC LIMIT 1`).bind(emailHash,deviceId,deviceId).first();
+    if(sanction){
+      await env.DB.prepare(`UPDATE market_user_sanctions
+        SET email_hash=?,email=?,requester_name=?,last_device_id=CASE WHEN ?<>'' THEN ? ELSE last_device_id END,updated_at=?
+        WHERE id=?`).bind(emailHash,email,firstName+' '+lastName,deviceId,deviceId,now,Number(sanction.id)).run();
+    }
+  }catch(_){/* l'identité reste enregistrée même si la synchronisation sanction échoue */}
   if(deviceId)await env.DB.prepare(`INSERT INTO app_installations(device_id,platform,first_seen,last_seen) VALUES(?,?,?,?)
     ON CONFLICT(device_id) DO UPDATE SET platform=excluded.platform,last_seen=excluded.last_seen`).bind(deviceId,platform,seen,seen).run();
-  return json({ok:true,identity:{firstName,lastName,email}});
+  return json({ok:true,identity:{firstName,lastName,email},identityUpdatedAt:now});
 }
 
 const MUSHROOM_PHOTO_MAX_BYTES=650000, MUSHROOM_ACCESS_DAYS=365, MUSHROOM_CONTEST_POINTS=50;
@@ -2908,6 +2961,7 @@ export default {
     if (url.pathname === "/api/admin/banned-users" && (request.method === "GET" || request.method === "POST")) return adminBannedUsersV242(request, env);
     if (url.pathname === "/api/admin/users" && request.method === "GET") return adminAllUsersV278(request, env);
     if (url.pathname === "/api/sanction/status" && request.method === "POST") return sanctionStatusV242(request, env);
+    if (url.pathname === "/api/admin/direct-message" && (request.method === "GET" || request.method === "POST")) return adminDirectMessageV289(request, env);
     if (url.pathname === "/api/reactivation-request" && request.method === "POST") return reactivationV242(request, env);
     if (url.pathname === "/api/admin/contest" && request.method === "GET") return adminContest(request, env);
     if (url.pathname === "/api/admin/contest/action" && request.method === "POST") return adminContestAction(request, env);
