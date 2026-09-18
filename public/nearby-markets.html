@@ -23,6 +23,10 @@
 .card .market-actions{clear:both!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:4px!important;margin-top:6px!important}
 .card .market-actions .open,.card .market-actions .details{min-height:36px!important;padding:4px 2px!important;border-radius:8px!important;font-size:8.5px!important;line-height:1.12!important;text-align:center!important}
 .card .market-actions .open{background:#138be8!important;color:#fff!important}.card .market-actions .details{background:#f39b19!important;color:#fff!important}
+.card .competitionBox{clear:both!important;margin-top:6px!important;padding:6px!important;border:2px solid #f39b19!important;border-radius:8px!important;background:#05090f!important;color:#fff!important;font-size:9px!important;line-height:1.2!important;font-weight:950!important}
+.card .adminAttendance{display:none;grid-column:1/-1;min-height:36px!important;padding:5px!important;border:0!important;border-radius:8px!important;background:#8d5cff!important;color:#fff!important;font-size:9px!important;font-weight:950!important;cursor:pointer}
+.aroundNotice{margin:10px 0 0;padding:13px;border-radius:14px;background:#07111d;border:2px solid #6fe0ff;color:#fff;font-size:16px;line-height:1.3;font-weight:950;text-align:center}
+.attendanceModal{position:fixed;inset:0;z-index:10020;display:none;align-items:center;justify-content:center;padding:18px;background:#000d}.attendanceModal.open{display:flex}.attendanceBox{width:min(540px,94vw);max-height:82vh;overflow:auto;padding:18px;border:3px solid #8d5cff;border-radius:20px;background:#0a1320}.attendanceBox h2{margin:0 0 12px;color:#c7b5ff}.attendancePerson{padding:10px;margin:7px 0;border-radius:11px;background:#152238;font-weight:900}.attendanceClose{width:100%;min-height:46px;margin-top:12px;border:0;border-radius:11px;background:#f39b19;font-weight:950;cursor:pointer}
 .marketVerificationDot{width:13px!important;height:13px!important;right:6px!important;top:6px!important}.marketFavoriteStar{right:27px!important;top:2px!important;font-size:25px!important}
 @media(max-width:340px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px!important}.card{padding:6px!important}.card .name{font-size:14px!important}}
 </style>
@@ -32,6 +36,7 @@
 <a class="back" href="index.html">← RETOUR</a>
 <section class="hero">
 <h1 id="marketHeading">📍 MARCHÉS À MOINS DE 80 KM</h1>
+<div id="aroundNotice" class="aroundNotice" style="display:none">SI VOUS N’AVEZ PAS EU D’EMPLACEMENT, CES MARCHÉS S’AFFICHENT AUTOUR DU GPS OÙ VOUS ÊTES ACTUELLEMENT.</div>
 <div id="status" class="status">Recherche des marchés d’aujourd’hui…</div>
 </section>
 <section id="cards" class="cards"></section>
@@ -39,6 +44,7 @@
 <div id="photoModal" class="photo-modal" role="dialog" aria-modal="true" aria-label="Photo agrandie du marché">
   <div class="photo-box"><button id="photoClose" class="photo-close" type="button" aria-label="Fermer">×</button><img id="photoLarge" alt=""></div>
 </div>
+<div id="attendanceModal" class="attendanceModal" role="dialog" aria-modal="true"><div class="attendanceBox"><h2 id="attendanceTitle">Marchands inscrits</h2><div id="attendanceList"></div><button id="attendanceClose" class="attendanceClose" type="button">FERMER</button></div></div>
 <script src="market-data-fr.js?v=20260905-unified"></script>
 <script src="markets-44-complete.js?v=20260902-complet"></script>
 <script src="markets-france-national.js?v=20260902-national"></script>
@@ -59,21 +65,28 @@
 <script>
 (() => {
   'use strict';
-  const LIMIT_KM = 80;
+  const params = new URLSearchParams(location.search);
+  const aroundMode = params.get('mode') === 'around';
+  const LIMIT_KM = aroundMode ? 15 : 80;
+  const COUNTER_SERVER = 'https://carplay-metiers.appli-suzon.workers.dev';
   const DAYS = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
   let viewDate = new Date();
-  let showTomorrow = viewDate.getHours() >= 15;
+  let showTomorrow = !aroundMode && viewDate.getHours() >= 15;
   if(showTomorrow) viewDate.setDate(viewDate.getDate()+1);
   let selectedDay = DAYS[viewDate.getDay()];
-  let viewToken = viewDate.getFullYear()+'-'+viewDate.getMonth()+'-'+viewDate.getDate()+'-'+(showTomorrow?'tomorrow':'today');
+  let viewToken = viewDate.getFullYear()+'-'+viewDate.getMonth()+'-'+viewDate.getDate()+'-'+(showTomorrow?'tomorrow':'today')+'-'+(aroundMode?'around':'80');
   const heading = document.getElementById('marketHeading');
   const status = document.getElementById('status');
   const cards = document.getElementById('cards');
+  const aroundNotice = document.getElementById('aroundNotice');
   const photoModal = document.getElementById('photoModal');
   const photoLarge = document.getElementById('photoLarge');
+  const attendanceModal = document.getElementById('attendanceModal');
+  const attendanceTitle = document.getElementById('attendanceTitle');
+  const attendanceList = document.getElementById('attendanceList');
   const storedNumber = key => { const raw=localStorage.getItem(key); return raw===null||String(raw).trim()===''?NaN:Number(raw); };
-  const userLat = storedNumber('return_lat');
-  const userLon = storedNumber('return_lon');
+  const userLat = aroundMode ? NaN : storedNumber('return_lat');
+  const userLon = aroundMode ? NaN : storedNumber('return_lon');
   let disabledKeys = new Set();
   let disabledSignature = '';
 
@@ -97,6 +110,13 @@
   const favoriteKey = (country,row) => 'marketFavoriteDeviceOnlyV1:'+country+':'+identity(country,row);
   const isFavorite = (country,row) => { try { return localStorage.getItem(favoriteKey(country,row))==='1'; } catch(e){ return false; } };
   const esc = v => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const currentTrade = () => String(localStorage.getItem('market_trade')||'').trim();
+  const tradeDevice = () => { let id=localStorage.getItem('shared_trade_device'); if(!id){id='a'+Date.now().toString(36)+Math.random().toString(36).slice(2);localStorage.setItem('shared_trade_device',id)} return id; };
+  const appDevice = () => String(localStorage.getItem('carplay_device_id')||'').trim();
+  const attendanceIdentity = () => { let x={}; try{x=JSON.parse(localStorage.getItem('carplay_app_identity_v240')||'{}')||{}}catch(e){}; if(!x.firstName&&!x.lastName){try{const q=JSON.parse(localStorage.getItem('carplay_shared_subscription')||'{}')||{};x.firstName=q.firstName||'';x.lastName=q.lastName||'';x.email=q.email||''}catch(e){}} return {firstName:String(x.firstName||x.first_name||'').trim(),lastName:String(x.lastName||x.last_name||'').trim(),email:String(x.email||'').trim().toLowerCase()}; };
+  const isAdmin = () => localStorage.getItem('carplay_admin_here')==='1' && !!(localStorage.getItem('carplay_admin_token')||localStorage.getItem('carplay_admin_secret'));
+  const adminToken = () => localStorage.getItem('carplay_admin_token')||localStorage.getItem('carplay_admin_secret')||'';
+  const marketDateKey = () => viewDate.getFullYear()+'-'+String(viewDate.getMonth()+1).padStart(2,'0')+'-'+String(viewDate.getDate()).padStart(2,'0')+'-compteurs-reels-v6-20260824-zero-general';
   const distanceKm = (a,b,c,d) => { const R=6371,p=Math.PI/180,da=(c-a)*p,db=(d-b)*p,x=Math.sin(da/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(db/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
   const isToday = row => {
     const value=norm(row?.[4]);
@@ -202,7 +222,7 @@
     return result;
   }
 
-  function keepWithin80(list,lat,lon){
+  function keepWithinRadius(list,lat,lon){
     const out=[];
     for(const item of list){
       const d=distanceKm(lat,lon,item.p.lat,item.p.lon);
@@ -224,8 +244,8 @@
 
   function render(list){
     const period=showTomorrow?'demain':'aujourd’hui';
-    if(!list.length){status.textContent='Aucun marché prévu '+period+' ('+selectedDay+') à moins de 80 km.';cards.innerHTML='';return;}
-    status.textContent=list.length+' marché'+(list.length>1?'s':'')+' pour '+period+' — '+selectedDay.toUpperCase()+' — à moins de 80 km, du plus proche au plus éloigné.';
+    if(!list.length){status.textContent='Aucun marché prévu '+period+' ('+selectedDay+') à moins de '+LIMIT_KM+' km.';cards.innerHTML='';return;}
+    status.textContent=list.length+' marché'+(list.length>1?'s':'')+' pour '+period+' — '+selectedDay.toUpperCase()+' — à moins de '+LIMIT_KM+' km, du plus proche au plus éloigné.';
     cards.innerHTML=list.map(item=>{
       const r=item.row, s=saved(item.country,r)||{};
       const place=cleanCardText(r[3]||'À préciser');
@@ -242,7 +262,7 @@
       const link=navigationUrl(destination);
       const details=item.special?('special-marches.html?country='+item.country+'&type='+item.special):((item.country==='be'?'belgique-marches-final.html':'marches-final.html')+'?area='+encodeURIComponent(r[0])+'&day='+encodeURIComponent(selectedDay)+'&q='+encodeURIComponent(r[3]||r[2]||''));
       const verifyKey=verificationKey(item.country,r);
-      const verifyUrl='verification-v9.html?k='+encodeURIComponent(verifyKey)+'&n='+encodeURIComponent(name)+'&t='+encodeURIComponent(r[5]||'')+'&c='+encodeURIComponent(r[7]||'')+'&mk='+encodeURIComponent(marketKey)+'&country='+encodeURIComponent(item.country)+'&lat='+encodeURIComponent(r[10]??'')+'&lon='+encodeURIComponent(r[11]??'')+'&back='+encodeURIComponent('nearby-markets.html')+'&photo=1';
+      const verifyUrl='verification-v9.html?k='+encodeURIComponent(verifyKey)+'&n='+encodeURIComponent(name)+'&t='+encodeURIComponent(r[5]||'')+'&c='+encodeURIComponent(r[7]||'')+'&mk='+encodeURIComponent(marketKey)+'&country='+encodeURIComponent(item.country)+'&lat='+encodeURIComponent(r[10]??'')+'&lon='+encodeURIComponent(r[11]??'')+'&back='+encodeURIComponent(aroundMode?'nearby-markets.html?mode=around':'nearby-markets.html')+'&photo=1';
       const photo=r[14]?'<button type="button" class="market-photo" data-src="'+esc(r[14])+'" data-caption="'+esc(r[15]||('Photo du '+name))+'"><img loading="lazy" src="'+esc(r[14])+'" alt="'+esc(r[15]||('Photo du '+name))+'"></button>':'<a class="market-photo-add" href="'+verifyUrl+'">📷 AJOUTER UNE PHOTO<br>GPS sur place + photo obligatoire</a>';
       const fav=isFavorite(item.country,r);
       const complete=s.time&&s.count&&s.draw, dotGreen=!!complete||builtInVerified(r);
@@ -257,19 +277,23 @@
         '<div class="meta">Humeur du placier : <span class="shared-welcome">'+esc(welcome)+'</span></div>'+
         '<div class="meta">Responsable : <span class="shared-placer">'+esc(placer)+'</span></div>'+
         '<div class="meta">Modèle de clients : <span class="shared-client-model">'+esc(clientModel)+'</span></div>'+
-        '<div class="market-actions"><a class="open" data-navigation="1" target="_blank" rel="noopener" href="'+link+'">ALLER AU MARCHÉ</a><a class="details" href="'+details+'">VOIR LA FICHE MARCHÉ</a></div></article>';
+        '<div class="competitionBox" data-competition="'+esc(marketKey)+'">Concurrence : chargement…</div>'+
+        '<div class="market-actions"><a class="open" data-navigation="1" data-attendance-market="'+esc(marketKey)+'" target="_blank" rel="noopener" href="'+link+'">ALLER AU MARCHÉ</a><a class="details" href="'+details+'">VOIR LA FICHE MARCHÉ</a><button type="button" class="adminAttendance" data-admin-market="'+esc(marketKey)+'">👥 MARCHANDS INSCRITS</button></div></article>';
     }).join('');
     wireFavorites();
     wirePhotos();
+    wireAttendanceChoice();
     loadShared(list);
+    loadCompetitionCounts(list);
+    loadAdminAttendance(list);
   }
 
   function wireFavorites(){cards.querySelectorAll('.marketFavoriteStar').forEach(btn=>{if(btn.dataset.wired)return;btn.dataset.wired='1';btn.addEventListener('click',()=>{let on=false;try{on=localStorage.getItem(btn.dataset.favoriteKey)==='1';if(on)localStorage.removeItem(btn.dataset.favoriteKey);else localStorage.setItem(btn.dataset.favoriteKey,'1');on=!on}catch(e){}btn.classList.toggle('active',on);btn.textContent=on?'★':'☆';btn.setAttribute('aria-label',on?'Retirer des favoris':'Ajouter aux favoris');btn.setAttribute('title',on?'Retirer des favoris':'Ajouter aux favoris');});});}
   function wirePhotos(){cards.querySelectorAll('.market-photo').forEach(button=>{if(button.dataset.wired)return;button.dataset.wired='1';button.addEventListener('click',()=>{photoLarge.src=button.dataset.src;photoLarge.alt=button.dataset.caption||'Photo du marché';photoModal.classList.add('open');});});}
   function refreshVisibleStatus(){
     const n=cards.querySelectorAll('.card').length,period=showTomorrow?'demain':'aujourd’hui';
-    if(!n){status.textContent='Aucun marché prévu '+period+' ('+selectedDay+') à moins de 80 km.';return}
-    status.textContent=n+' marché'+(n>1?'s':'')+' pour '+period+' — '+selectedDay.toUpperCase()+' — à moins de 80 km, du plus proche au plus éloigné.';
+    if(!n){status.textContent='Aucun marché prévu '+period+' ('+selectedDay+') à moins de '+LIMIT_KM+' km.';return}
+    status.textContent=n+' marché'+(n>1?'s':'')+' pour '+period+' — '+selectedDay.toUpperCase()+' — à moins de '+LIMIT_KM+' km, du plus proche au plus éloigné.';
   }
 
   function loadShared(list){
@@ -279,28 +303,57 @@
     }).catch(()=>{});
   }
 
+  function competitionNote(){return '<div style="margin-top:4px;color:#b8c3cf;font-size:8px">Seuls les utilisateurs de l’application sont comptés.</div>'}
+  function loadCompetitionCounts(list){
+    const trade=currentTrade();
+    cards.querySelectorAll('[data-competition]').forEach(box=>{
+      if(!trade){box.innerHTML='⚠️ Enregistrez votre métier pour voir la concurrence'+competitionNote();return}
+      const market=box.getAttribute('data-competition'),url=COUNTER_SERVER+'/api/count?market='+encodeURIComponent(market)+'&date='+encodeURIComponent(marketDateKey())+'&trade='+encodeURIComponent(trade.toLowerCase());
+      fetch(url,{cache:'no-store'}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(j=>{const n=Number(j.count||0);box.innerHTML=n===0?'Aucun marchand de <b>'+esc(trade)+'</b> n’est en route pour ce marché'+competitionNote():'<b style="color:#ffd36d;font-size:16px">'+n+'</b> marchand'+(n>1?'s':'')+' de <b>'+esc(trade)+'</b> '+(n>1?'sont':'est')+' en route pour ce marché'+competitionNote()}).catch(()=>{box.innerHTML='⚠️ Concurrence indisponible'+competitionNote()});
+    });
+  }
+  function mirrorAttendance(market,trade){
+    const who=attendanceIdentity();
+    return fetch('/api/market-attendance',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:appDevice(),tradeDeviceId:tradeDevice(),market:market,date:marketDateKey(),trade:trade,firstName:who.firstName,lastName:who.lastName,email:who.email}),keepalive:true}).catch(()=>null);
+  }
+  function wireAttendanceChoice(){
+    cards.querySelectorAll('[data-attendance-market]').forEach(link=>{if(link.dataset.attendanceWired)return;link.dataset.attendanceWired='1';link.addEventListener('click',()=>{const trade=currentTrade();if(!trade)return;const market=link.getAttribute('data-attendance-market');try{fetch(COUNTER_SERVER+'/api/choose',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({device:tradeDevice(),market:market,date:marketDateKey(),trade:trade}),keepalive:true}).catch(()=>{})}catch(e){}mirrorAttendance(market,trade);},true)});
+  }
+  const attendanceCache={};
+  function loadAdminAttendance(list){
+    if(!isAdmin())return;
+    const markets=list.map(item=>identity(item.country,item.row));
+    fetch('/api/admin/market-attendance/batch',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+adminToken()},body:JSON.stringify({date:marketDateKey(),markets:markets}),cache:'no-store'}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(j=>{
+      Object.keys(j.states||{}).forEach(k=>{attendanceCache[k]=j.states[k]||[]});
+      cards.querySelectorAll('[data-admin-market]').forEach(btn=>{const rows=attendanceCache[btn.getAttribute('data-admin-market')]||[];if(rows.length){btn.style.display='block';btn.textContent='👥 MARCHANDS INSCRITS ('+rows.length+')';btn.onclick=()=>showAttendance(btn.getAttribute('data-admin-market'),rows)}else btn.style.display='none'});
+    }).catch(()=>{});
+  }
+  function showAttendance(market,rows){attendanceTitle.textContent='Marchands inscrits — '+rows.length;attendanceList.innerHTML=rows.map(x=>'<div class="attendancePerson">'+esc(([x.firstName,x.lastName].filter(Boolean).join(' ')||'Nom non renseigné'))+'<br><span style="color:#ffd36d">'+esc(x.trade||'Métier non renseigné')+'</span></div>').join('');attendanceModal.classList.add('open')}
+  document.getElementById('attendanceClose').addEventListener('click',()=>attendanceModal.classList.remove('open'));
+  attendanceModal.addEventListener('click',e=>{if(e.target===attendanceModal)attendanceModal.classList.remove('open')});
+
   function closePhoto(){photoModal.classList.remove('open');photoLarge.removeAttribute('src');}
   document.getElementById('photoClose').addEventListener('click',closePhoto);
   photoModal.addEventListener('click',event=>{if(event.target===photoModal)closePhoto();});
   document.addEventListener('keydown',event=>{if(event.key==='Escape')closePhoto();});
 
   async function start(){
-    heading.textContent='📍 '+(showTomorrow?'MARCHÉS POUR DEMAIN — ':'MARCHÉS D’AUJOURD’HUI — ')+selectedDay.toUpperCase();
-    status.textContent=(showTomorrow?'Demain : ':'Aujourd’hui : ')+selectedDay+' — calcul des marchés à moins de 80 km…';
+    if(aroundMode){heading.textContent='📍 MARCHÉS AUTOUR DE MOI';aroundNotice.style.display='block';status.textContent='Aujourd’hui : '+selectedDay+' — recherche des marchés à moins de 15 km autour de votre position GPS actuelle…'}
+    else{heading.textContent='📍 '+(showTomorrow?'MARCHÉS POUR DEMAIN — ':'MARCHÉS D’AUJOURD’HUI — ')+selectedDay.toUpperCase();aroundNotice.style.display='none';status.textContent=(showTomorrow?'Demain : ':'Aujourd’hui : ')+selectedDay+' — calcul des marchés à moins de 80 km…'}
     try{
       let lat=userLat, lon=userLon;
-      if(!Number.isFinite(lat)||!Number.isFinite(lon)){
+      if(aroundMode || !Number.isFinite(lat)||!Number.isFinite(lon)){
         const live=await currentPosition();
         lat=live&&Number.isFinite(live.lat)?live.lat:NaN;
         lon=live&&Number.isFinite(live.lon)?live.lon:NaN;
       }
       if(!Number.isFinite(lat)||!Number.isFinite(lon)){
-        status.textContent='Position introuvable. Enregistre d’abord « Retourner sur la place » ou autorise le GPS.';
+        status.textContent=aroundMode?'Position GPS actuelle introuvable. Autorisez la localisation du téléphone puis réessayez.':'Position introuvable. Enregistre d’abord « Retourner sur la place » ou autorise le GPS.';
         return;
       }
       await loadDisabledKeys();
       const todayRows=rowsForToday();
-      const nearby=keepWithin80(todayRows,lat,lon);
+      const nearby=keepWithinRadius(todayRows,lat,lon);
       render(nearby);
     }catch(e){status.textContent='Impossible de calculer les marchés. Réessaie.';}
   }
@@ -308,9 +361,9 @@
   setInterval(async()=>{
     const changed=await loadDisabledKeys();
     if(changed){start();return;}
-    const current=new Date(),tomorrow=current.getHours()>=15,target=new Date(current);
+    const current=new Date(),tomorrow=!aroundMode&&current.getHours()>=15,target=new Date(current);
     if(tomorrow)target.setDate(target.getDate()+1);
-    const token=target.getFullYear()+'-'+target.getMonth()+'-'+target.getDate()+'-'+(tomorrow?'tomorrow':'today');
+    const token=target.getFullYear()+'-'+target.getMonth()+'-'+target.getDate()+'-'+(tomorrow?'tomorrow':'today')+'-'+(aroundMode?'around':'80');
     if(token===viewToken)return;
     viewDate=target;showTomorrow=tomorrow;selectedDay=DAYS[viewDate.getDay()];viewToken=token;start();
   },30000);

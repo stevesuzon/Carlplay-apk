@@ -255,6 +255,15 @@
   function currentTrade() {
     return String(localStorage.getItem("market_trade") || "").trim();
   }
+  function appDeviceId(){ return String(localStorage.getItem("carplay_device_id")||"").trim(); }
+  function attendanceIdentity(){ var x={}; try{x=JSON.parse(localStorage.getItem("carplay_app_identity_v240")||"{}")||{}}catch(e){}; if(!x.firstName&&!x.lastName){try{var q=JSON.parse(localStorage.getItem("carplay_shared_subscription")||"{}")||{};x.firstName=q.firstName||"";x.lastName=q.lastName||"";x.email=q.email||""}catch(e){}} return {firstName:String(x.firstName||x.first_name||"").trim(),lastName:String(x.lastName||x.last_name||"").trim(),email:String(x.email||"").trim().toLowerCase()}; }
+  function mirrorAttendance(r,date,trade){ var who=attendanceIdentity(); try{return fetch("/api/market-attendance",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({deviceId:appDeviceId(),tradeDeviceId:deviceId(),market:identity(r),date:date,trade:trade,firstName:who.firstName,lastName:who.lastName,email:who.email}),keepalive:true}).catch(function(){})}catch(e){} }
+  function isAdminSession(){return localStorage.getItem("carplay_admin_here")==="1"&&!!(localStorage.getItem("carplay_admin_token")||localStorage.getItem("carplay_admin_secret"))}
+  function adminToken(){return localStorage.getItem("carplay_admin_token")||localStorage.getItem("carplay_admin_secret")||""}
+  var adminAttendanceCache={};
+  function showAdminAttendance(market){var rows=adminAttendanceCache[market]||[],html='<h2>MARCHANDS INSCRITS</h2>'; if(!rows.length)html+='<p>Aucune personne avec un métier enregistrée sur ce marché.</p>'; else html+=rows.map(function(x){return '<p style="padding:10px;border-radius:12px;background:#14263a"><b>'+esc(([x.firstName,x.lastName].filter(Boolean).join(" ")||"Nom non renseigné"))+'</b><br><span style="color:#ffd36d">'+esc(x.trade||"Métier non renseigné")+'</span></p>'}).join(''); html+='<div class="bubbleBtns"><button id="closeAttendance" class="blue">FERMER</button></div>';bubble(html);bindTap(el("closeAttendance"),closeBubble)}
+  window.showAdminMarketAttendance=showAdminAttendance;
+  function loadAdminAttendance(rs){if(!isAdminSession()||!rs||!rs.length)return;var markets=rs.map(identity),date=countDate(currentDay);fetch("/api/admin/market-attendance/batch",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+adminToken()},body:JSON.stringify({date:date,markets:markets}),cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){adminAttendanceCache=j.states||{};for(var i=0;i<rs.length;i++){var key=identity(rs[i]),btn=el("admin_attendance_"+i),rows=adminAttendanceCache[key]||[];if(btn&&rows.length){btn.style.display="flex";btn.textContent="👥 MARCHANDS INSCRITS ("+rows.length+")";btn.setAttribute("data-market-key",key)}else if(btn)btn.style.display="none"}}).catch(function(){})}
   var tradeChoices = [
     "Brocante",
     "Matelas",
@@ -438,6 +447,7 @@
             trade: trade,
           }),
         }).catch(function () {});
+        mirrorAttendance(r,date,trade);
       } catch (e) {}
       gps(r);
     });
@@ -465,6 +475,7 @@
           }),
           keepalive: true,
         }).catch(function () {});
+        mirrorAttendance(r,date,trade);
       } catch (e) {}
       closeBubble();
       gps(r);
@@ -707,12 +718,13 @@
         url +
         '">' +
         (saved(r) ? "MODIFIER" : "VÉRIFIER") +
-        "</a></div></article>";
+        '</a><button type="button" id="admin_attendance_' + i + '" class="adminAttendance" style="display:none" onclick="window.showAdminMarketAttendance(this.getAttribute(\'data-market-key\'));return false">👥 MARCHANDS INSCRITS</button></div></article>';
     }
     el("cards").innerHTML =
       html ||
       '<article class="card empty">Aucun marché enregistré pour ce jour.</article>';
     loadCounts(rs);
+    loadAdminAttendance(rs);
   }
   function loadWeather(rs) {
     var date = nextDate(currentDay),

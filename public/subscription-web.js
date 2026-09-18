@@ -280,6 +280,7 @@
     if (t.id === "contactMailButton") return "Mail";
     if (t.id === "housePhotoButton") return "Mesurer une maison";
     if (t.id === "nearby80Button") return "Marchés à moins de 80 km";
+    if (t.id === "nearby15Button") return "Marchés autour de moi";
     if (t.matches && t.matches(".card.blue")) return "Marchés";
     if (t.matches && t.matches(".directBtn.place")) return "Mes papiers";
     if (t.matches && t.matches(".directBtn.docs")) return "Démarches pro";
@@ -291,7 +292,7 @@
   function protectFeatures() {
     if (unlocked()) return;
     applyAddressReadOnly();
-    var selectors="#contactMailButton,#housePhotoButton,#nearby80Button,.card.blue,.directBtn.place,.directBtn.docs,.small.green,.small.red";
+    var selectors="#contactMailButton,#housePhotoButton,#nearby80Button,#nearby15Button,.card.blue,.directBtn.place,.directBtn.docs,.small.green,.small.red";
     document.querySelectorAll(selectors).forEach(function (el) { addLock(el, "VERROUILLÉ"); });
     document.addEventListener("click", function (e) {
       if (unlocked()) return;

@@ -2701,6 +2701,39 @@ async function appIdentity(request,env){
   return json({ok:true,identity:{firstName,lastName,email}});
 }
 
+
+async function ensureMarketAttendanceTables(env){
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_attendance(
+    id TEXT PRIMARY KEY, device_id TEXT NOT NULL, trade_device_id TEXT NOT NULL DEFAULT '', market_id TEXT NOT NULL, market_date TEXT NOT NULL, trade TEXT NOT NULL,
+    first_name TEXT NOT NULL DEFAULT '', last_name TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL
+  )`).run();
+  await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS market_attendance_device_date_idx ON market_attendance(device_id,market_date)").run();
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS market_attendance_market_date_idx ON market_attendance(market_id,market_date)").run();
+}
+async function marketAttendance(request,env){
+  if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);
+  await ensureMarketAttendanceTables(env);await ensureAppIdentityTables(env);
+  const d=await body(request),deviceId=cleanIdentityText(d.deviceId||d.tradeDeviceId,140),tradeDeviceId=cleanIdentityText(d.tradeDeviceId,140),market=cleanIdentityText(d.market,500),date=cleanIdentityText(d.date,80),trade=cleanIdentityText(d.trade,80);
+  if(!deviceId||!market||!date||!trade)return json({ok:false,error:'PARAMETRES_MANQUANTS'},400);
+  let firstName='',lastName='',email='';
+  try{const person=await env.DB.prepare("SELECT first_name,last_name,email FROM app_identities WHERE device_id=? ORDER BY updated_at DESC LIMIT 1").bind(deviceId).first();if(person){firstName=cleanIdentityText(person.first_name,80);lastName=cleanIdentityText(person.last_name,80);email=cleanIdentityText(person.email,190).toLowerCase()}}catch(_){}
+  if(!firstName)firstName=cleanIdentityText(d.firstName,80);if(!lastName)lastName=cleanIdentityText(d.lastName,80);if(!email)email=cleanIdentityText(d.email,190).toLowerCase();
+  const now=Date.now(),id='att-'+now.toString(36)+'-'+crypto.randomUUID();
+  await env.DB.prepare("DELETE FROM market_attendance WHERE device_id=? AND market_date=?").bind(deviceId,date).run();
+  await env.DB.prepare("INSERT INTO market_attendance(id,device_id,trade_device_id,market_id,market_date,trade,first_name,last_name,email,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)").bind(id,deviceId,tradeDeviceId,market,date,trade,firstName,lastName,email,now).run();
+  await env.DB.prepare("DELETE FROM market_attendance WHERE updated_at<?").bind(now-3*86400000).run();
+  return json({ok:true});
+}
+async function adminMarketAttendanceBatch(request,env){
+  if(!(await adminAuthorized(request,env)))return json({ok:false,error:'SECRET_INCORRECT'},401);
+  if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);
+  await ensureMarketAttendanceTables(env);const d=await body(request),date=cleanIdentityText(d.date,80),markets=Array.isArray(d.markets)?d.markets.map(x=>cleanIdentityText(x,500)).filter(Boolean).slice(0,250):[];
+  if(!date||!markets.length)return json({ok:true,states:{}});
+  const wanted=new Set(markets),rows=(await env.DB.prepare("SELECT market_id,trade,first_name,last_name,email,updated_at FROM market_attendance WHERE market_date=? AND trade<>'' ORDER BY updated_at DESC").bind(date).all()).results||[],states={};
+  for(const r of rows){const k=String(r.market_id||'');if(!wanted.has(k))continue;const firstName=cleanIdentityText(r.first_name,80),lastName=cleanIdentityText(r.last_name,80),trade=cleanIdentityText(r.trade,80);if(!trade||(!firstName&&!lastName))continue;(states[k]||(states[k]=[])).push({firstName,lastName,trade});}
+  return json({ok:true,states});
+}
+
 const MUSHROOM_PHOTO_MAX_BYTES=650000, MUSHROOM_ACCESS_DAYS=365, MUSHROOM_CONTEST_POINTS=50;
 async function ensureMushroomTables(env){
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_spots(
@@ -2883,7 +2916,7 @@ async function mushroomPhoto(url,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=282-onboarding-notification-detail" defer></script><script src="/market-update-notifications-v281.js?v=282" defer></script><script src="/notification-detail-v282.js?v=282" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=291-organisateur-hors-gains" defer></script><script src="/referral-v232.js?v=273-parrainage-marche-compte" defer></script><script src="/app-access-gate-v240.js?v=286-email-obligatoire" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=292-nearby15-lock" defer></script><script src="/market-update-notifications-v281.js?v=282" defer></script><script src="/notification-detail-v282.js?v=282" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=291-organisateur-hors-gains" defer></script><script src="/referral-v232.js?v=273-parrainage-marche-compte" defer></script><script src="/app-access-gate-v240.js?v=286-email-obligatoire" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
   }
 }
 
@@ -2921,6 +2954,8 @@ export default {
     if (url.pathname === "/api/installations" && request.method === "POST") return installations(request, env);
     if (url.pathname === "/api/user-stats" && request.method === "GET") return publicUserStats(env);
     if (url.pathname === "/api/app-identity" && request.method === "POST") return appIdentity(request, env);
+    if (url.pathname === "/api/market-attendance" && request.method === "POST") return marketAttendance(request, env);
+    if (url.pathname === "/api/admin/market-attendance/batch" && request.method === "POST") return adminMarketAttendanceBatch(request, env);
     if (url.pathname === "/api/mushrooms/access" && request.method === "POST") return mushroomAccess(request, env);
     if (url.pathname === "/api/mushrooms/search" && request.method === "POST") return mushroomSearch(request, env);
     if (url.pathname === "/api/mushrooms/analyze" && request.method === "POST") return mushroomAnalyze(request, env);

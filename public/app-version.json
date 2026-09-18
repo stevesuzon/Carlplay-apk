@@ -1,4 +1,4 @@
 {
-  "version": "V291",
-  "message": "Concours : Steve Suzon reste visible avec ses points mais est identifié comme organisateur hors gains. Les récompenses sont automatiquement attribuées aux participants éligibles suivants."
+  "version": "V293",
+  "message": "Concours : affichage des points simplifié à 2 décimales maximum avec virgule française (ex. 314,14 pts). Les autres fonctions et données restent inchangées."
 }

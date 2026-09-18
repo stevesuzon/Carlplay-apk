@@ -1,7 +1,7 @@
-const VERSION = "V291";
-const BASE_CACHE = "couteau-suisse-v282-onboarding-notification-detail";
+const VERSION = "V293";
+const BASE_CACHE = "couteau-suisse-v292-marches-autour-compteurs";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
-const CONTEST_CACHE = "couteau-suisse-module-contest-v291";
+const CONTEST_CACHE = "couteau-suisse-module-contest-v293";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v287";
 const DATA_CACHE = "couteau-suisse-module-data-v283";
 const INSTALL_CACHE = "couteau-suisse-module-install-v286";
@@ -10,10 +10,10 @@ const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled(){const cache=await caches.open(NOTIFICATION_PREF_CACHE),r=await cache.match(NOTIFICATION_PREF_URL);return !!r&&(await r.text())==="1"}
 async function saveNotificationPreference(enabled){const cache=await caches.open(NOTIFICATION_PREF_CACHE);await cache.put(NOTIFICATION_PREF_URL,new Response(enabled?"1":"0"))}
-const BASE_CORE=["/index.html","/mobile-overrides.css?v=64","/weather-all-pages.js?v=68-notifications-globales","/subscription-web.js?v=282-onboarding-notification-detail","/notification-settings.js?v=282-onboarding-notification-detail","/market-update-notifications-v281.js?v=282","/home-work.css?v=64","/home-work.js?v=64","/markets-final.css?v=126-favori-fluide"];
+const BASE_CORE=["/index.html","/mobile-overrides.css?v=64","/weather-all-pages.js?v=68-notifications-globales","/subscription-web.js?v=292-nearby15-lock","/notification-settings.js?v=282-onboarding-notification-detail","/market-update-notifications-v281.js?v=282","/home-work.css?v=64","/home-work.js?v=64","/markets-final.css?v=126-favori-fluide"];
 const MODULES={
  [ICON_CACHE]:["/manifest.webmanifest?v=283-icons","/couteau-suisse-v283-152.png?v=283","/couteau-suisse-v283-167.png?v=283","/couteau-suisse-v283-180.png?v=283","/couteau-suisse-v283-192.png?v=283","/couteau-suisse-v283-512.png?v=283","/couteau-suisse-v283-1024.png?v=283","/couteau-suisse-v283-maskable-192.png?v=283","/couteau-suisse-v283-maskable-512.png?v=283"],
- [CONTEST_CACHE]:["/contest-v188.js?v=291-organisateur-hors-gains"],
+ [CONTEST_CACHE]:["/contest-v188.js?v=293-points-2-decimales"],
  [ADMIN_CACHE]:["/admin.html","/contest-admin-v188.js?v=287-demandes-groupees"],
  [DATA_CACHE]:["/persistent-user-data-v283.js?v=283"],
  [INSTALL_CACHE]:["/installer.html","/app-access-gate-v240.js?v=286-email-obligatoire","/cache-cleanup-v20260910.js?v=283-modules"],
