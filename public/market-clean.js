@@ -183,28 +183,9 @@
     node.ontouchend = run;
     node.onclick = run;
   }
-  async function gps(r) {
-    // Le point GPS officiel d'un marché est partagé côté serveur.
-    // On le relit juste avant la navigation afin que tous les utilisateurs
-    // utilisent exactement le même point validé, même si le fichier local
-    // contient encore d'anciennes coordonnées.
-    var serverLocation = null;
-    try {
-      var key = identity(r);
-      var resp = await fetch('/api/market-verifications?marketKey=' + encodeURIComponent(key), { cache: 'no-store' });
-      if (resp.ok) {
-        var state = await resp.json();
-        if (state && state.location && Number.isFinite(Number(state.location.latitude)) && Number.isFinite(Number(state.location.longitude))) {
-          serverLocation = state.location;
-          r[10] = Number(state.location.latitude);
-          r[11] = Number(state.location.longitude);
-          if (state.location.address) r[8] = state.location.address;
-        }
-      }
-    } catch (_) {}
-
-    var rawLat = serverLocation ? serverLocation.latitude : r[10],
-      rawLon = serverLocation ? serverLocation.longitude : r[11],
+  function gps(r) {
+    var rawLat = r[10],
+      rawLon = r[11],
       hasCoords =
         rawLat !== null &&
         rawLat !== undefined &&

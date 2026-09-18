@@ -42,20 +42,11 @@ async function loadAllUsers(){
     if(!r.ok||!j.ok)throw new Error(j.error||'Chargement impossible');
     adminUsers=j.users||[];allUsersCount.textContent='('+adminUsers.length+')';
     allUsersList.innerHTML=adminUsers.map((u,i)=>{
-      const state=u.banned?'BANNI':'ACCÈS ACTIF',identityOk=!!(String(u.firstName||'').trim()&&String(u.lastName||'').trim()&&String(u.email||'').trim());
-      const identityLine=identityOk?'<span class="installedMeta" style="color:#55e58c;font-weight:950">✅ IDENTITÉ RENSEIGNÉE : '+safeHtml(u.lastName+' '+u.firstName)+'</span>':'<span class="installedMeta" style="color:#ffd166;font-weight:950">⚠️ IDENTITÉ À RENSEIGNER</span>';
-      const action=u.isAdmin?'<button class="adminProtected" disabled>🔐 COMPTE ADMINISTRATEUR PROTÉGÉ</button>':u.banned?'<button class="unbanBtn" onclick="toggleUserBan('+i+',false)">DÉBANNIR</button><button class="banBtn" style="background:#7b4fd1" onclick="sendBannedUserMessage('+i+')">💬 ENVOYER UN MESSAGE</button>':'<button class="banBtn" onclick="toggleUserBan('+i+',true)">BANNIR</button>';
-      return '<div class="installedPerson'+(u.banned?' isBanned':'')+'"><strong>'+safeHtml(u.name||'Nom non renseigné')+'</strong><span class="installedMeta">'+safeHtml(u.email||'E-mail non renseigné')+'</span>'+identityLine+'<span class="userState">'+state+'</span>'+action+'</div>';
+      const state=u.banned?'BANNI':'ACCÈS ACTIF',action=u.isAdmin?'<button class="adminProtected" disabled>🔐 COMPTE ADMINISTRATEUR PROTÉGÉ</button>':u.banned?'<button class="unbanBtn" onclick="toggleUserBan('+i+',false)">DÉBANNIR</button>':'<button class="banBtn" onclick="toggleUserBan('+i+',true)">BANNIR</button>';
+      return '<div class="installedPerson'+(u.banned?' isBanned':'')+'"><strong>'+safeHtml(u.name||'Nom non renseigné')+'</strong><span class="installedMeta">'+safeHtml(u.email||'E-mail non renseigné')+'</span><span class="userState">'+state+'</span>'+action+'</div>';
     }).join('')||'<p class="note">Aucun utilisateur inscrit trouvé.</p>';
   }catch(e){allUsersCount.textContent='';allUsersList.innerHTML='<p class="note">Chargement des utilisateurs impossible.</p>'}
 }
-async function sendBannedUserMessage(index){
-  const u=adminUsers[Number(index)];if(!u||u.isAdmin||!u.banned||!u.sanctionId)return;
-  const defaultMsg='Veuillez enregistrer votre vrai prénom et votre vraie adresse e-mail dans la section Réglages de Couteau Suisse.';
-  const message=prompt('Message à afficher pendant 15 secondes sur l’écran d’accueil de cette personne :',defaultMsg);
-  if(message===null)return; if(!String(message).trim())return alert('Le message ne peut pas être vide.');
-  allUsersStatus.style.display='block';allUsersStatus.textContent='Envoi du message…';
-  try{const r=await fetch('/api/admin/direct-message',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+secret.value},body:JSON.stringify({action:'send',sanctionId:u.sanctionId,message:String(message).trim()})}),j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'Envoi impossible');allUsersStatus.textContent='✅ Message envoyé. Il apparaîtra 15 secondes en haut à gauche chez cette personne.';}catch(e){allUsersStatus.textContent='⚠️ '+(e.message||'Envoi impossible')}}
 async function toggleUserBan(index,shouldBan){
   const u=adminUsers[Number(index)];if(!u||u.isAdmin)return;
   const verb=shouldBan?'Bannir':'Débannir';if(!confirm(verb+' '+(u.name||u.email||'cet utilisateur')+' ?'))return;

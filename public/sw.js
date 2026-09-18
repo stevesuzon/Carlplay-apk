@@ -1,10 +1,10 @@
-const VERSION = "V288";
+const VERSION = "V291";
 const BASE_CACHE = "couteau-suisse-v282-onboarding-notification-detail";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
-const CONTEST_CACHE = "couteau-suisse-module-contest-v283";
+const CONTEST_CACHE = "couteau-suisse-module-contest-v291";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v287";
 const DATA_CACHE = "couteau-suisse-module-data-v283";
-const INSTALL_CACHE = "couteau-suisse-module-install-v288";
+const INSTALL_CACHE = "couteau-suisse-module-install-v286";
 const STATS_CACHE = "couteau-suisse-module-stats-v285";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
@@ -13,10 +13,10 @@ async function saveNotificationPreference(enabled){const cache=await caches.open
 const BASE_CORE=["/index.html","/mobile-overrides.css?v=64","/weather-all-pages.js?v=68-notifications-globales","/subscription-web.js?v=282-onboarding-notification-detail","/notification-settings.js?v=282-onboarding-notification-detail","/market-update-notifications-v281.js?v=282","/home-work.css?v=64","/home-work.js?v=64","/markets-final.css?v=126-favori-fluide"];
 const MODULES={
  [ICON_CACHE]:["/manifest.webmanifest?v=283-icons","/couteau-suisse-v283-152.png?v=283","/couteau-suisse-v283-167.png?v=283","/couteau-suisse-v283-180.png?v=283","/couteau-suisse-v283-192.png?v=283","/couteau-suisse-v283-512.png?v=283","/couteau-suisse-v283-1024.png?v=283","/couteau-suisse-v283-maskable-192.png?v=283","/couteau-suisse-v283-maskable-512.png?v=283"],
- [CONTEST_CACHE]:["/contest-v188.js?v=283-classement-rapide"],
+ [CONTEST_CACHE]:["/contest-v188.js?v=291-organisateur-hors-gains"],
  [ADMIN_CACHE]:["/admin.html","/contest-admin-v188.js?v=287-demandes-groupees"],
  [DATA_CACHE]:["/persistent-user-data-v283.js?v=283"],
- [INSTALL_CACHE]:["/installer.html","/app-access-gate-v240.js?v=288-identite-stable","/cache-cleanup-v20260910.js?v=283-modules"],
+ [INSTALL_CACHE]:["/installer.html","/app-access-gate-v240.js?v=286-email-obligatoire","/cache-cleanup-v20260910.js?v=283-modules"],
  [STATS_CACHE]:["/user-stats-v285.js?v=285-15j-2j"]
 };
 async function putFresh(cacheName,path){try{const req=new Request(path,{cache:"reload"}),res=await fetch(req);if(res&&res.ok)(await caches.open(cacheName)).put(req,res.clone())}catch(_){}}

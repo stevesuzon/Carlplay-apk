@@ -5,32 +5,13 @@
   function email(){try{var e=localStorage.getItem('carplay_recovery_email');if(e)return String(e).trim().toLowerCase()}catch(e){}try{var s=subscription();if(s&&s.email)return String(s.email).trim().toLowerCase()}catch(e){}try{var m=document.cookie.match(/(?:^|; )carplay_recovery_email=([^;]*)/);if(m)return String(decodeURIComponent(m[1])||'').trim().toLowerCase()}catch(e){}return''}
   function code(){var s=subscription();return s&&s.code?String(s.code):''}
   var overlay=null,checking=false,last=null;
-  function directDeviceId(){return deviceId()}
-  function showAdminBubble(m){
-    if(!m||!m.id||!m.message)return;
-    try{if(localStorage.getItem('carplay_admin_direct_seen_'+m.id)==='1')return}catch(e){}
-    var old=document.getElementById('carplayAdminDirectBubbleV289');if(old)old.remove();
-    var b=document.createElement('div');b.id='carplayAdminDirectBubbleV289';
-    b.style.cssText='position:fixed;left:12px;top:12px;z-index:2147483646;width:min(420px,calc(100vw - 24px));background:linear-gradient(145deg,#7b4fd1,#4b2c8f);color:#fff;border:3px solid #fff;border-radius:18px;padding:14px 16px;box-shadow:0 10px 35px rgba(0,0,0,.55);font:900 16px Arial,sans-serif;line-height:1.35';
-    var title=document.createElement('div');title.textContent='💬 MESSAGE DE L’ADMINISTRATEUR';title.style.cssText='font-size:13px;color:#ffe69a;margin-bottom:7px;font-weight:1000';
-    var body=document.createElement('div');body.textContent=m.message;
-    var days=document.createElement('div');days.id='carplayAdminBubbleDays';days.style.cssText='margin-top:8px;font-size:12px;color:#eee;font-weight:900';try{var sub=subscription();if(sub&&sub.lifetime)days.textContent='Abonnement à vie';else if(sub&&sub.expiresAt){var left=Math.max(0,Math.ceil((Date.parse(sub.expiresAt)-Date.now())/86400000));days.textContent=left+' JOUR'+(left>1?'S':'')+' RESTANT'+(left>1?'S':'')}else days.textContent='Aucun abonnement actif pour le moment';}catch(e){days.textContent='';}
-    b.appendChild(title);b.appendChild(body);b.appendChild(days);document.body.appendChild(b);
-    try{localStorage.setItem('carplay_admin_direct_seen_'+m.id,'1')}catch(e){}
-    fetch('/api/admin/direct-message',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'seen',id:m.id,deviceId:directDeviceId(),email:email()})}).catch(function(){});
-    setTimeout(function(){if(b&&b.parentNode)b.remove()},15000);
-  }
-  async function pollAdminBubble(){
-    try{var r=await fetch('/api/admin/direct-message?deviceId='+encodeURIComponent(directDeviceId())+'&email='+encodeURIComponent(email()),{cache:'no-store'});if(!r.ok)return;var j=await r.json(),m=(j.messages||[])[0];if(m)showAdminBubble(m)}catch(e){}
-  }
-
   function remember(k,v){try{if(v)localStorage.setItem(k,'1');else localStorage.removeItem(k)}catch(e){}}
   function makeOverlay(pending){
     if(!document.body){document.addEventListener('DOMContentLoaded',function(){makeOverlay(pending)},{once:true});return}
     if(!overlay){
       overlay=document.createElement('div');overlay.id='carplaySanctionOverlay';
-      overlay.innerHTML='<div id="carplaySanctionCard"><div class="banTitle">⛔ APPLICATION BANNIE</div><div class="banMessage">Veuillez enregistrer votre vrai prénom et votre vraie adresse e-mail dans la section Réglages de Couteau Suisse.</div><div class="banHelp">Pour être débanni, renseignez votre vrai <b>nom</b>, votre vrai <b>prénom</b> et votre vraie <b>adresse e-mail</b> dans <b>Réglages</b>.</div><div class="banYellow">POUR ÊTRE DÉBANNI</div><button id="carplayReactivateBtn">DEMANDE DE RÉACTIVATION</button><div id="carplayReactivateState"></div></div>';
-      var style=document.createElement('style');style.id='carplaySanctionStyle';style.textContent='#carplaySanctionOverlay{position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.98);display:flex;align-items:center;justify-content:center;padding:18px}#carplaySanctionCard{width:min(680px,94vw);min-height:min(560px,88vh);background:#07111c;border:5px solid #f39b19;border-radius:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;box-shadow:0 0 0 9999px #000;text-align:center;font-family:Arial,sans-serif}.banTitle{font-size:30px;font-weight:1000;color:#ff5a5a;margin-bottom:18px}.banMessage{font-size:22px;line-height:1.35;font-weight:950;color:#fff}.banHelp{font-size:19px;line-height:1.4;font-weight:850;color:#dfe8f1;margin-top:20px}.banYellow{font-size:28px;font-weight:1000;color:#ffd43b;margin:24px 0 16px;text-transform:uppercase}#carplayReactivateBtn{width:100%;min-height:82px;border:0;border-radius:18px;background:#f39b19;color:#111;font:1000 22px Arial,sans-serif;padding:16px}#carplayReactivateBtn:disabled{background:#555;color:#eee}#carplayReactivateState{min-height:28px;margin-top:18px;color:#fff;font:900 17px Arial,sans-serif;text-align:center;line-height:1.35}';
+      overlay.innerHTML='<div id="carplaySanctionCard"><button id="carplayReactivateBtn">DEMANDE DE RÉACTIVATION</button><div id="carplayReactivateState"></div></div>';
+      var style=document.createElement('style');style.id='carplaySanctionStyle';style.textContent='#carplaySanctionOverlay{position:fixed;inset:0;z-index:2147483647;background:#000;display:flex;align-items:center;justify-content:center;padding:18px}#carplaySanctionCard{width:min(620px,94vw);min-height:min(520px,74vh);background:#000;border:5px solid #f39b19;border-radius:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;box-shadow:0 0 0 9999px #000}#carplayReactivateBtn{width:100%;min-height:92px;border:0;border-radius:18px;background:#f39b19;color:#111;font:1000 24px Arial,sans-serif;padding:16px}#carplayReactivateBtn:disabled{background:#555;color:#eee}#carplayReactivateState{min-height:28px;margin-top:18px;color:#fff;font:900 17px Arial,sans-serif;text-align:center;line-height:1.35}';
       document.head.appendChild(style);document.body.appendChild(overlay);
       document.getElementById('carplayReactivateBtn').onclick=sendRequest;
     }
@@ -58,6 +39,4 @@
   try{if(localStorage.getItem('carplay_app_banned_v161')==='1')makeOverlay(false);else if(localStorage.getItem('carplay_contribution_blocked_v161')==='1')contributionBlockedPage()}catch(e){}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',check,{once:true});else check();
   setInterval(check,10000);
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',pollAdminBubble,{once:true});else pollAdminBubble();
-  setInterval(pollAdminBubble,5000);
 })();

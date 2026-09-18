@@ -1228,10 +1228,14 @@ async function saveMarketPhoto(env, marketKey, deviceId, photo, locationOverride
 
   const current = await env.DB.prepare("SELECT quality_score,replacement_count,device_id FROM market_photo_metadata WHERE market_key=?").bind(marketKey).first();
   const replacementsUsed = current ? Math.max(0,Number(current.replacement_count||0)) : 0;
+  const recordAcceptedUpload = async () => {
+    await env.DB.prepare(`INSERT INTO market_photo_uploads(market_key,device_id,uploaded_at) VALUES(?,?,CURRENT_TIMESTAMP)
+      ON CONFLICT(market_key,device_id) DO UPDATE SET uploaded_at=CURRENT_TIMESTAMP`).bind(marketKey, deviceId).run();
+  };
   if (current && replacementsUsed >= 2 && !photoOverride) return { ok:false, error:"PHOTO_VERROUILLEE_APRES_2_REMPLACEMENTS", replacementsUsed:2, replacementsRemaining:0 };
   if (current && !photoOverride) {
-    if ((inspection.validationMode||'ai') === 'fallback') return { ok:true, keptExisting:true, message:"CONTROLE_AUTO_INDISPONIBLE_PHOTO_EXISTANTE_CONSERVEE", qualityScore:inspection.qualityScore, stallCount:inspection.stallCount, distanceMeters:Math.round(distance), replacementsUsed, replacementsRemaining:Math.max(0,2-replacementsUsed), validationMode:'fallback' };
-    if (Number(inspection.qualityScore||0) <= Number(current.quality_score||0)) return { ok:true, keptExisting:true, message:"LA_PHOTO_EXISTANTE_EST_MEILLEURE_OU_EQUIVALENTE", qualityScore:inspection.qualityScore, stallCount:inspection.stallCount, distanceMeters:Math.round(distance), replacementsUsed, replacementsRemaining:Math.max(0,2-replacementsUsed), validationMode:inspection.validationMode||'ai' };
+    if ((inspection.validationMode||'ai') === 'fallback') { await recordAcceptedUpload(); return { ok:true, keptExisting:true, acceptedForContest:true, message:"CONTROLE_AUTO_INDISPONIBLE_PHOTO_EXISTANTE_CONSERVEE", qualityScore:inspection.qualityScore, stallCount:inspection.stallCount, distanceMeters:Math.round(distance), replacementsUsed, replacementsRemaining:Math.max(0,2-replacementsUsed), validationMode:'fallback' }; }
+    if (Number(inspection.qualityScore||0) <= Number(current.quality_score||0)) { await recordAcceptedUpload(); return { ok:true, keptExisting:true, acceptedForContest:true, message:"LA_PHOTO_EXISTANTE_EST_MEILLEURE_OU_EQUIVALENTE", qualityScore:inspection.qualityScore, stallCount:inspection.stallCount, distanceMeters:Math.round(distance), replacementsUsed, replacementsRemaining:Math.max(0,2-replacementsUsed), validationMode:inspection.validationMode||'ai' }; }
   }
 
   const objectKey = env.MARKET_PHOTOS ? `market-photos/${await sha256Text(marketKey)}.jpg` : `d1:${await sha256Text(marketKey)}`;
@@ -1249,8 +1253,7 @@ async function saveMarketPhoto(env, marketKey, deviceId, photo, locationOverride
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
     ON CONFLICT(market_key) DO UPDATE SET object_key=excluded.object_key,mime_type=excluded.mime_type,device_id=excluded.device_id,user_latitude=excluded.user_latitude,user_longitude=excluded.user_longitude,market_latitude=excluded.market_latitude,market_longitude=excluded.market_longitude,distance_meters=excluded.distance_meters,quality_score=excluded.quality_score,stall_count=excluded.stall_count,ai_reason=excluded.ai_reason,replacement_count=excluded.replacement_count,captured_at=excluded.captured_at,updated_at=CURRENT_TIMESTAMP`)
     .bind(marketKey, objectKey, "image/jpeg", deviceId, userLat, userLon, marketLat, marketLon, distance, inspection.qualityScore, inspection.stallCount, inspection.reason, newReplacementCount, capturedAt).run();
-  await env.DB.prepare(`INSERT INTO market_photo_uploads(market_key,device_id,uploaded_at) VALUES(?,?,CURRENT_TIMESTAMP)
-    ON CONFLICT(market_key,device_id) DO UPDATE SET uploaded_at=CURRENT_TIMESTAMP`).bind(marketKey, deviceId).run();
+  await recordAcceptedUpload();
   return { ok:true, replaced:!!current, distanceMeters:Math.round(distance), stallCount:inspection.stallCount, qualityScore:inspection.qualityScore, capturedAt, replacementsUsed:newReplacementCount, replacementsRemaining:Math.max(0,2-newReplacementCount), locked:newReplacementCount>=2, validationMode:inspection.validationMode||"ai" };
 }
 
@@ -1310,13 +1313,20 @@ async function submitMarketVerification(request, env) {
         locationVote=locationResult?{latitude:locationResult.latitude,longitude:locationResult.longitude,accuracy:Number.isFinite(ac)?ac:0,address:locationResult.address,locked:true}:null;
       }
     } else if (photo && photo.ok && locationResult) {
-      locationVote={latitude:locationResult.latitude,longitude:locationResult.longitude,accuracy:Number(data.photo.accuracy||0),address:locationResult.address,locked:true};
+      const ac=Number(data.photo.accuracy||0),la=Number(locationResult.latitude),lo=Number(locationResult.longitude),addr=String(locationResult.address||'');
+      if(Number.isFinite(la)&&Number.isFinite(lo)){
+        await env.DB.prepare(`INSERT INTO market_location_votes(market_key,device_id,latitude,longitude,accuracy,address,created_at,updated_at) VALUES(?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+          ON CONFLICT(market_key,device_id) DO UPDATE SET latitude=excluded.latitude,longitude=excluded.longitude,accuracy=excluded.accuracy,address=excluded.address,updated_at=CURRENT_TIMESTAMP`)
+          .bind(marketKey,deviceId,la,lo,Number.isFinite(ac)?ac:0,addr).run();
+      }
+      locationVote={latitude:la,longitude:lo,accuracy:Number.isFinite(ac)?ac:0,address:addr,locked:true};
     }
   }
   if(grantUsed&&grantRow){await env.DB.prepare("UPDATE gps_unlock_requests SET consumed=1,status='consumed',updated_at=? WHERE id=? AND consumed=0").bind(Date.now(),grantRow.id).run();await recordMarketUpdateAnnouncement(env,grantRow,grantRow.scope);}
   if(confirmsPresence){await env.DB.prepare(`INSERT INTO market_verification_consensus(market_key,field,value_norm,value_display,confirmations,updated_at) VALUES(?,'exists','oui','Oui',1,CURRENT_TIMESTAMP) ON CONFLICT(market_key,field) DO UPDATE SET value_norm='oui',value_display='Oui',confirmations=1,updated_at=CURRENT_TIMESTAMP`).bind(marketKey).run();}
-  if(photo&&photo.ok&&!isAdminRequest) await queueContestMarketReview(env,deviceId,marketKey,String(data.marketName||'Marché'),photo);
-  return json({ ok: true, required: 1, locationRequired:1, results, photo, locationResult, locationVote, state: await marketVerificationState(env, marketKey) });
+  let contestReview=null;
+  if(photo&&photo.ok) contestReview=await queueContestMarketReview(env,deviceId,marketKey,String(data.marketName||'Marché'),photo,isAdminRequest);
+  return json({ ok: true, required: 1, locationRequired:1, results, photo, locationResult, locationVote, contestReview, state: await marketVerificationState(env, marketKey) });
 }
 
 async function getMarketVerification(url, env) {
@@ -1400,6 +1410,7 @@ async function vigilanceForPlace(url) {
 
 // ===== JEU CONCOURS V189 =====
 function contestCleanName(v){return String(v||"").trim().replace(/\s+/g," ").slice(0,80)}
+function contestIsOrganizer(firstName,lastName){return (contestCleanName(firstName)+" "+contestCleanName(lastName)).toLocaleLowerCase("fr")===ONLY_ADMIN_NAME.toLocaleLowerCase("fr")}
 function contestId(){return crypto.randomUUID()}
 function contestKm(a,b,c,d){return haversineMeters(Number(a),Number(b),Number(c),Number(d))/1000}
 function contestFiveMonthEnd(start){const d=new Date(Number(start)||Date.now());d.setMonth(d.getMonth()+5);return d.getTime()}
@@ -2402,22 +2413,24 @@ async function contestMarketBreakdown(env,deviceId,marketKey,distanceKm){
 
 async function finalizeContestIfNeeded(env){
   const cfg=await ensureContestTables(env);if(Date.now()<Number(cfg.end_at)||cfg.finalized_at)return cfg;
-  const top=await env.DB.prepare("SELECT * FROM contest_participants WHERE banned=0 ORDER BY points DESC, joined_at ASC LIMIT 5").all();let rank=0;
-  for(const p of top.results||[]){rank++;const reward=rank<=2?"Abonnement à vie":"1 an d’abonnement gratuit";await env.DB.prepare("INSERT OR REPLACE INTO contest_results(rank,subscription_id,first_name,last_name,points,reward) VALUES(?,?,?,?,?,?)").bind(rank,p.subscription_id,p.first_name,p.last_name,p.points,reward).run();const sub=await env.DB.prepare("SELECT * FROM subscriptions WHERE id=?").bind(p.subscription_id).first();if(sub){if(rank<=2)await env.DB.prepare("UPDATE subscriptions SET lifetime=1,expires_at=NULL,active=1,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(sub.id).run();else if(!sub.lifetime){const base=Math.max(Date.now(),sub.expires_at?Date.parse(sub.expires_at):0),d=new Date(base);d.setFullYear(d.getFullYear()+1);await env.DB.prepare("UPDATE subscriptions SET expires_at=?,active=1,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(d.toISOString(),sub.id).run()}const email=String(sub.recovery_email_mask||"");if(validEmail(email)&&!email.includes("***"))await sendContestMail(env,email,"Félicitations — vous êtes gagnant du concours Couteau Suisse",`Félicitations ${p.first_name} ${p.last_name} !\nVous terminez n°${rank} du concours avec ${p.points} points.\nVotre gain : ${reward}.`)}}
+  const all=await env.DB.prepare("SELECT * FROM contest_participants WHERE banned=0 ORDER BY points DESC, joined_at ASC").all();
+  const top=(all.results||[]).filter(p=>!contestIsOrganizer(p.first_name,p.last_name)).slice(0,5);let rank=0;
+  for(const p of top){rank++;const reward=rank<=2?"Abonnement à vie":"1 an d’abonnement gratuit";await env.DB.prepare("INSERT OR REPLACE INTO contest_results(rank,subscription_id,first_name,last_name,points,reward) VALUES(?,?,?,?,?,?)").bind(rank,p.subscription_id,p.first_name,p.last_name,p.points,reward).run();const sub=await env.DB.prepare("SELECT * FROM subscriptions WHERE id=?").bind(p.subscription_id).first();if(sub){if(rank<=2)await env.DB.prepare("UPDATE subscriptions SET lifetime=1,expires_at=NULL,active=1,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(sub.id).run();else if(!sub.lifetime){const base=Math.max(Date.now(),sub.expires_at?Date.parse(sub.expires_at):0),d=new Date(base);d.setFullYear(d.getFullYear()+1);await env.DB.prepare("UPDATE subscriptions SET expires_at=?,active=1,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(d.toISOString(),sub.id).run()}const email=String(sub.recovery_email_mask||"");if(validEmail(email)&&!email.includes("***"))await sendContestMail(env,email,"Félicitations — vous êtes gagnant du concours Couteau Suisse",`Félicitations ${p.first_name} ${p.last_name} !\nVous terminez n°${rank} parmi les participants éligibles aux gains avec ${p.points} points.\nVotre gain : ${reward}.`)}}
   const finalizedAt=Date.now();await env.DB.prepare("UPDATE contest_config SET finalized_at=?,results_until=? WHERE id=1").bind(finalizedAt,finalizedAt+CONTEST_RESULTS_MS).run();return await env.DB.prepare("SELECT * FROM contest_config WHERE id=1").first();
 }
 
 async function contestStatus(request,env){
   const data=await body(request),cfg=await finalizeContestIfNeeded(env),sub=await contestSubscription(env,data),now=Date.now(),ended=now>=Number(cfg.end_at),resultsUntil=Number(cfg.results_until||((cfg.finalized_at||0)+CONTEST_RESULTS_MS)),resultsVisible=!!cfg.finalized_at&&ended&&now<resultsUntil,closed=ended&&!resultsVisible;let profile=null,participant=null,messages=[],questions=[],scoreSummary=null,bonusState=null,bonusProgress=null;
   let onboarding=null;
-  if(sub){profile={firstName:String(sub.account_first_name||""),lastName:String(sub.account_last_name||""),email:String(sub.recovery_email_mask||"")};const currentDevice=String(data.deviceId||"").trim();if(validDevice(currentDevice))await env.DB.prepare("UPDATE contest_participants SET device_id=?,updated_at=? WHERE subscription_id=? AND device_id<>?").bind(currentDevice,now,sub.id,currentDevice).run();participant=await env.DB.prepare("SELECT subscription_id,first_name,last_name,home_country,home_area,home_commune,return_place_lat,return_place_lon,return_place_label,camping_active,camping_lat,camping_lon,camping_label,camping_updated_at,points,banned,alert_count,change_allowed,auto_enrolled,joined_at FROM contest_participants WHERE subscription_id=?").bind(sub.id).first();const installed=await registeredVerificationDevice(env,currentDevice);if(participant){await applyPendingReferralRewards(env,sub.id);participant=await env.DB.prepare("SELECT subscription_id,first_name,last_name,home_country,home_area,home_commune,return_place_lat,return_place_lon,return_place_label,camping_active,camping_lat,camping_lon,camping_label,camping_updated_at,points,banned,alert_count,change_allowed,auto_enrolled,joined_at FROM contest_participants WHERE subscription_id=?").bind(sub.id).first();bonusState=await contestRefreshBonusState(env,sub.id);scoreSummary=await contestScoreSummary(env,sub.id);bonusProgress=contestBonusProgress(scoreSummary.marketCount);const ob=await env.DB.prepare("SELECT status,start_at,end_at FROM contest_bonus_periods WHERE subscription_id=? AND source_key='onboarding-home-place' LIMIT 1").bind(sub.id).first();onboarding={installed,identity:!!(String(sub.account_first_name||'').trim()&&String(sub.account_last_name||'').trim()&&String(sub.recovery_email_hash||'').trim()),returnPlaceSaved:!!String(participant.return_place_label||'').trim(),bonusWon:!!ob,bonusStatus:ob&&ob.status||''};const m=await env.DB.prepare("SELECT id,kind,message,created_at FROM contest_messages WHERE subscription_id=? AND read_at IS NULL ORDER BY created_at DESC LIMIT 8").bind(sub.id).all();messages=m.results||[];const q=await env.DB.prepare("SELECT id,new_place,previous_place,message,user_answer,status,created_at FROM contest_travel_alerts WHERE subscription_id=? AND status='pending' AND user_answer='' ORDER BY created_at DESC").bind(sub.id).all();questions=q.results||[]}}
-  const ranking=await env.DB.prepare("SELECT first_name,last_name,points,joined_at,CASE WHEN subscription_id=? THEN 1 ELSE 0 END AS is_me FROM contest_participants WHERE banned=0 ORDER BY points DESC,joined_at ASC").bind(sub?sub.id:-1).all();const results=resultsVisible?(await env.DB.prepare("SELECT * FROM contest_results ORDER BY rank").all()).results||[]:[];
+  if(sub){await contestBackfillLegacyMarketPoints(env,sub.id);profile={firstName:String(sub.account_first_name||""),lastName:String(sub.account_last_name||""),email:String(sub.recovery_email_mask||"")};const currentDevice=String(data.deviceId||"").trim();if(validDevice(currentDevice))await env.DB.prepare("UPDATE contest_participants SET device_id=?,updated_at=? WHERE subscription_id=? AND device_id<>?").bind(currentDevice,now,sub.id,currentDevice).run();participant=await env.DB.prepare("SELECT subscription_id,first_name,last_name,home_country,home_area,home_commune,return_place_lat,return_place_lon,return_place_label,camping_active,camping_lat,camping_lon,camping_label,camping_updated_at,points,banned,alert_count,change_allowed,auto_enrolled,joined_at FROM contest_participants WHERE subscription_id=?").bind(sub.id).first();const installed=await registeredVerificationDevice(env,currentDevice);if(participant){await applyPendingReferralRewards(env,sub.id);participant=await env.DB.prepare("SELECT subscription_id,first_name,last_name,home_country,home_area,home_commune,return_place_lat,return_place_lon,return_place_label,camping_active,camping_lat,camping_lon,camping_label,camping_updated_at,points,banned,alert_count,change_allowed,auto_enrolled,joined_at FROM contest_participants WHERE subscription_id=?").bind(sub.id).first();bonusState=await contestRefreshBonusState(env,sub.id);scoreSummary=await contestScoreSummary(env,sub.id);bonusProgress=contestBonusProgress(scoreSummary.marketCount);const ob=await env.DB.prepare("SELECT status,start_at,end_at FROM contest_bonus_periods WHERE subscription_id=? AND source_key='onboarding-home-place' LIMIT 1").bind(sub.id).first();onboarding={installed,identity:!!(String(sub.account_first_name||'').trim()&&String(sub.account_last_name||'').trim()&&String(sub.recovery_email_hash||'').trim()),returnPlaceSaved:!!String(participant.return_place_label||'').trim(),bonusWon:!!ob,bonusStatus:ob&&ob.status||''};const m=await env.DB.prepare("SELECT id,kind,message,created_at FROM contest_messages WHERE subscription_id=? AND read_at IS NULL ORDER BY created_at DESC LIMIT 8").bind(sub.id).all();messages=m.results||[];const q=await env.DB.prepare("SELECT id,new_place,previous_place,message,user_answer,status,created_at FROM contest_travel_alerts WHERE subscription_id=? AND status='pending' AND user_answer='' ORDER BY created_at DESC").bind(sub.id).all();questions=q.results||[]}}
+  if(participant)participant.is_organizer=contestIsOrganizer(participant.first_name,participant.last_name)?1:0;
+  const ranking=await env.DB.prepare("SELECT first_name,last_name,points,joined_at,CASE WHEN subscription_id=? THEN 1 ELSE 0 END AS is_me,CASE WHEN lower(trim(first_name))='steve' AND lower(trim(last_name))='suzon' THEN 1 ELSE 0 END AS is_organizer FROM contest_participants WHERE banned=0 ORDER BY points DESC,joined_at ASC").bind(sub?sub.id:-1).all();const results=resultsVisible?(await env.DB.prepare("SELECT * FROM contest_results ORDER BY rank").all()).results||[]:[];
   return json({ok:true,active:!ended,ended,resultsVisible,closed,phase:!ended?"active":resultsVisible?"results":"closed",startAt:Number(cfg.start_at),endAt:Number(cfg.end_at),resultsUntil,appFreeUntil:Number(cfg.end_at)+CONTEST_APP_FREE_EXTRA_MS,daysRemaining:Math.max(0,Math.ceil((Number(cfg.end_at)-now)/86400000)),profile,participant,ranking:ranking.results||[],messages,questions,results,scoreSummary,bonusState,bonusProgress,onboarding});
 }
 async function contestScoreStatus(request,env){
   const data=await body(request),sub=await contestSubscription(env,data);if(!sub)return json({ok:true,participant:null,ranking:[]});
   const participant=await env.DB.prepare("SELECT subscription_id,points,banned FROM contest_participants WHERE subscription_id=? LIMIT 1").bind(sub.id).first();
-  const ranking=await env.DB.prepare("SELECT first_name,last_name,points,joined_at,CASE WHEN subscription_id=? THEN 1 ELSE 0 END AS is_me FROM contest_participants WHERE banned=0 ORDER BY points DESC,joined_at ASC").bind(sub.id).all();
+  const ranking=await env.DB.prepare("SELECT first_name,last_name,points,joined_at,CASE WHEN subscription_id=? THEN 1 ELSE 0 END AS is_me,CASE WHEN lower(trim(first_name))='steve' AND lower(trim(last_name))='suzon' THEN 1 ELSE 0 END AS is_organizer FROM contest_participants WHERE banned=0 ORDER BY points DESC,joined_at ASC").bind(sub.id).all();
   return json({ok:true,participant:participant?{points:Number(participant.points||0),banned:Number(participant.banned||0)}:null,ranking:ranking.results||[],serverTime:Date.now()});
 }
 async function contestCommunes(url){
@@ -2440,22 +2453,73 @@ async function contestCommuneRequest(request,env){const data=await body(request)
 async function contestTravelAnswer(request,env){const data=await body(request),sub=await contestSubscription(env,data);if(!sub)return json({ok:false,error:"ABONNEMENT_REQUIS"},403);const id=String(data.id||""),ans=String(data.answer||"").toLowerCase();const row=await env.DB.prepare("SELECT * FROM contest_travel_alerts WHERE id=? AND subscription_id=? AND status='pending'").bind(id,sub.id).first();if(!row)return json({ok:false,error:"ALERTE_INTROUVABLE"},404);let place="";if(ans==="non"&&Number.isFinite(Number(data.lat))&&Number.isFinite(Number(data.lon)))place=await contestPlaceLabel(Number(data.lat),Number(data.lon));await env.DB.prepare("UPDATE contest_travel_alerts SET user_answer=?,answer_place=?,answered_at=? WHERE id=?").bind(ans==="oui"?"oui":"non",place,Date.now(),id).run();return json({ok:true,place})}
 async function contestReadMessages(request,env){const data=await body(request),sub=await contestSubscription(env,data);if(!sub)return json({ok:false,error:"ABONNEMENT_REQUIS"},403);await env.DB.prepare("UPDATE contest_messages SET read_at=? WHERE subscription_id=? AND read_at IS NULL").bind(Date.now(),sub.id).run();return json({ok:true})}
 
-async function queueContestMarketReview(env,deviceId,marketKey,marketName,photo){
+async function queueContestMarketReview(env,deviceId,marketKey,marketName,photo,autoApprove=false,historicalBackfill=false){
   try{
     const cfg=await ensureContestTables(env);if(Date.now()>=Number(cfg.end_at))return;
     let p=await env.DB.prepare("SELECT * FROM contest_participants WHERE device_id=? AND banned=0 LIMIT 1").bind(deviceId).first();
     if(!p){const linked=await env.DB.prepare("SELECT id FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC,id DESC LIMIT 1").bind(deviceId,deviceId).first();if(linked){p=await env.DB.prepare("SELECT * FROM contest_participants WHERE subscription_id=? AND banned=0 LIMIT 1").bind(linked.id).first();if(p){await env.DB.prepare("UPDATE contest_participants SET device_id=?,updated_at=? WHERE subscription_id=?").bind(deviceId,Date.now(),linked.id).run();p.device_id=deviceId}}}
-    if(!p)return;
-    if(await env.DB.prepare("SELECT id FROM contest_market_points WHERE subscription_id=? AND market_key=?").bind(p.subscription_id,marketKey).first())return;
-    if(await env.DB.prepare("SELECT id FROM contest_market_reviews WHERE subscription_id=? AND market_key=?").bind(p.subscription_id,marketKey).first())return;
-    const meta=await env.DB.prepare("SELECT market_latitude,market_longitude,captured_at,device_id FROM market_photo_metadata WHERE market_key=?").bind(marketKey).first();if(!meta||String(meta.device_id)!==String(deviceId))return;
-    const lat=Number(meta.market_latitude),lon=Number(meta.market_longitude);if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
+    if(!p)return {ok:false,reason:'PARTICIPANT_CONCOURS_INTROUVABLE'};
+    if(await env.DB.prepare("SELECT id FROM contest_market_points WHERE subscription_id=? AND market_key=?").bind(p.subscription_id,marketKey).first())return {ok:true,alreadyAwarded:true};
+    const existingReview=await env.DB.prepare("SELECT id,status,points FROM contest_market_reviews WHERE subscription_id=? AND market_key=?").bind(p.subscription_id,marketKey).first();
+    if(existingReview)return {ok:true,pending:String(existingReview.status||'')==='pending',already:true,reviewId:existingReview.id,plannedPoints:Number(existingReview.points||0)};
+    const upload=await env.DB.prepare("SELECT uploaded_at FROM market_photo_uploads WHERE market_key=? AND device_id=? LIMIT 1").bind(marketKey,deviceId).first();
+    if(!upload)return {ok:false,reason:'PHOTO_UTILISATEUR_NON_ENREGISTREE'};
+    const ownLoc=await env.DB.prepare("SELECT latitude,longitude,address FROM market_location_votes WHERE market_key=? AND device_id=? LIMIT 1").bind(marketKey,deviceId).first();
+    const official=await env.DB.prepare("SELECT latitude,longitude,address FROM market_location_consensus WHERE market_key=? LIMIT 1").bind(marketKey).first();
+    const meta=await env.DB.prepare("SELECT market_latitude,market_longitude,captured_at,device_id FROM market_photo_metadata WHERE market_key=?").bind(marketKey).first();
+    const loc=ownLoc||official||(meta?{latitude:meta.market_latitude,longitude:meta.market_longitude,address:''}:null);
+    if(!loc)return {ok:false,reason:'GPS_MARCHE_INTROUVABLE'};
+    const lat=Number(loc.latitude),lon=Number(loc.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lon))return {ok:false,reason:'GPS_MARCHE_INVALIDE'};
     const campingOn=Number(p.camping_active)===1&&Number.isFinite(Number(p.camping_lat))&&Number.isFinite(Number(p.camping_lon)),startLat=campingOn?Number(p.camping_lat):(Number.isFinite(Number(p.return_place_lat))?Number(p.return_place_lat):Number(p.home_lat)),startLon=campingOn?Number(p.camping_lon):(Number.isFinite(Number(p.return_place_lon))?Number(p.return_place_lon):Number(p.home_lon));
-    const hasStart=Number.isFinite(startLat)&&Number.isFinite(startLon)&&!(startLat===0&&startLon===0),rawKm=hasStart?contestKm(startLat,startLon,lat,lon):0,score=await contestMarketBreakdown(env,deviceId,marketKey,rawKm),bonus=await contestRefreshBonusState(env,p.subscription_id),multiplier=bonus.active?Math.max(1,Number(bonus.active.multiplier||1)):1,pts=score.basePoints*multiplier,place=await contestPlaceLabel(lat,lon);
+    const hasStart=Number.isFinite(startLat)&&Number.isFinite(startLon)&&!(startLat===0&&startLon===0),rawKm=hasStart?contestKm(startLat,startLon,lat,lon):0,score=await contestMarketBreakdown(env,deviceId,marketKey,rawKm),bonus=historicalBackfill?{active:null}:await contestRefreshBonusState(env,p.subscription_id),multiplier=historicalBackfill?1:(bonus.active?Math.max(1,Number(bonus.active.multiplier||1)):1),pts=score.basePoints*multiplier,place=await contestPlaceLabel(lat,lon);
     const prevRows=await env.DB.prepare("SELECT market_lat,market_lon,place_label FROM contest_market_points WHERE subscription_id=? ORDER BY awarded_at DESC LIMIT 5").bind(p.subscription_id).all();const prev=(prevRows.results||[])[0];let unusual=0,previousPlace="";if(campingOn){const jump=contestKm(startLat,startLon,lat,lon);if(jump>=350){unusual=1;previousPlace=String(p.camping_label||"").trim()||await contestPlaceLabel(startLat,startLon)}}else if(prev&&(prevRows.results||[]).length>=3){const jump=contestKm(prev.market_lat,prev.market_lon,lat,lon);if(jump>=350){unusual=1;previousPlace=prev.place_label||await contestPlaceLabel(prev.market_lat,prev.market_lon)}}
-    const rid=contestId();await env.DB.prepare("INSERT INTO contest_market_reviews(id,subscription_id,market_key,market_name,device_id,market_lat,market_lon,place_label,photo_captured_at,distance_km,base_points,multiplier,points,breakdown_json,unusual,previous_place,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(rid,p.subscription_id,marketKey,String(marketName||"Marché").slice(0,160),deviceId,lat,lon,place,String(meta.captured_at||photo&&photo.capturedAt||""),score.distanceKm,score.basePoints,multiplier,pts,JSON.stringify(score.items),unusual,previousPlace,Date.now()).run();
+    const rid=contestId();await env.DB.prepare("INSERT INTO contest_market_reviews(id,subscription_id,market_key,market_name,device_id,market_lat,market_lon,place_label,photo_captured_at,distance_km,base_points,multiplier,points,breakdown_json,unusual,previous_place,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(rid,p.subscription_id,marketKey,String(marketName||"Marché").slice(0,160),deviceId,lat,lon,place,String(photo&&photo.capturedAt||upload.uploaded_at||meta&&meta.captured_at||""),score.distanceKm,score.basePoints,multiplier,pts,JSON.stringify(score.items),unusual,previousPlace,Date.now()).run();
+    if(autoApprove){
+      const duplicate=await env.DB.prepare("SELECT id FROM contest_market_points WHERE subscription_id=? AND market_key=?").bind(p.subscription_id,marketKey).first();
+      if(!duplicate){await env.DB.prepare("INSERT INTO contest_market_points(subscription_id,market_key,market_name,distance_km,points,base_points,multiplier,breakdown_json,market_lat,market_lon,place_label,awarded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").bind(p.subscription_id,marketKey,String(marketName||"Marché").slice(0,160),score.distanceKm,pts,score.basePoints,multiplier,JSON.stringify(score.items),lat,lon,place,Date.now()).run();await contestAddScoreEvent(env,p.subscription_id,'market',marketKey,String(marketName||'Marché'),score.basePoints,multiplier,pts);await contestApplyMarketMilestones(env,p.subscription_id);if(Number(score.distanceKm)>150)await contestEnqueueBonus(env,p.subscription_id,2,historicalBackfill?"rattrapage d’un ancien trajet aller de plus de 150 km":"trajet aller de plus de 150 km validé en mode administrateur","long-trip:"+marketKey,CONTEST_LONG_TRIP_BONUS_MS,true)}
+      await env.DB.prepare("UPDATE contest_market_reviews SET status='approved',decided_at=? WHERE id=?").bind(Date.now(),rid).run();
+      const autoTitle=historicalBackfill?`🎉 Rattrapage concours : votre ancienne fiche ${String(marketName||'marché')} a été retrouvée et comptabilisée.`:`🎉 Mode administrateur : votre fiche ${String(marketName||'marché')} est comptabilisée automatiquement.`;
+      await contestPushMessage(env,p.subscription_id,`${autoTitle}\n${contestCongratsMessage({distance_km:score.distanceKm,breakdown_json:JSON.stringify(score.items),multiplier},pts)}\n🏆 Votre classement vient d’être mis à jour.`,"approved");
+      return {ok:true,autoApproved:true,historicalBackfill:!!historicalBackfill,awardedPoints:pts};
+    }
     if(unusual){const msg=`⚠️ Nous avons détecté un déplacement inhabituel vers ${place}. Vous êtes parti avec les campings ? Si oui, vérifiez que votre lieu de camping est bien à jour dans « Lieu de départ ». Un ancien emplacement ou de mauvaises coordonnées peuvent déclencher des alertes. Au troisième déplacement inhabituel non justifié, vous risquez d'être exclu du classement.`;await env.DB.prepare("INSERT INTO contest_travel_alerts(id,subscription_id,review_id,new_place,previous_place,message,created_at) VALUES(?,?,?,?,?,?,?)").bind(contestId(),p.subscription_id,rid,place,previousPlace,msg,Date.now()).run()}
-  }catch(_){}
+    return {ok:true,pending:true,reviewId:rid,plannedPoints:pts};
+  }catch(e){return {ok:false,reason:'ERREUR_CREATION_DEMANDE_POINTS'}}
+}
+
+
+function contestLegacyMarketName(marketKey){
+  const parts=String(marketKey||'').split('|');
+  if(parts[0]==='special')return String(parts[3]||parts[2]||'Marché').trim()||'Marché';
+  return String(parts[2]||parts[1]||'Marché').trim()||'Marché';
+}
+async function contestBackfillLegacyMarketPoints(env,targetSubscriptionId=0){
+  try{
+    await ensureMarketVerificationTables(env);
+    const participantQuery=targetSubscriptionId?await env.DB.prepare("SELECT * FROM contest_participants WHERE subscription_id=? AND banned=0").bind(targetSubscriptionId).all():await env.DB.prepare("SELECT * FROM contest_participants WHERE banned=0").all();
+    const participants=participantQuery.results||[];
+    let recovered=0;
+    for(const p of participants){
+      const sub=await env.DB.prepare("SELECT phone_device,autoradio_device FROM subscriptions WHERE id=? LIMIT 1").bind(p.subscription_id).first();
+      const devices=[p.device_id,sub&&sub.phone_device,sub&&sub.autoradio_device].map(x=>String(x||'').trim()).filter((x,i,a)=>validDevice(x)&&a.indexOf(x)===i);
+      for(const deviceId of devices){
+        const q=await env.DB.prepare(`SELECT market_key,uploaded_at AS captured_at FROM market_photo_uploads WHERE device_id=?
+          UNION SELECT market_key,captured_at FROM market_photo_metadata WHERE device_id=? LIMIT 120`).bind(deviceId,deviceId).all();
+        for(const c of q.results||[]){
+          const marketKey=cleanMarketKey(c.market_key);if(!marketKey)continue;
+          if(await env.DB.prepare("SELECT id FROM contest_market_points WHERE subscription_id=? AND market_key=?").bind(p.subscription_id,marketKey).first())continue;
+          if(await env.DB.prepare("SELECT id FROM contest_market_reviews WHERE subscription_id=? AND market_key=?").bind(p.subscription_id,marketKey).first())continue;
+          const upload=await env.DB.prepare("SELECT uploaded_at FROM market_photo_uploads WHERE market_key=? AND device_id=? LIMIT 1").bind(marketKey,deviceId).first();
+          if(!upload){await env.DB.prepare("INSERT OR IGNORE INTO market_photo_uploads(market_key,device_id,uploaded_at) VALUES(?,?,?)").bind(marketKey,deviceId,String(c.captured_at||new Date().toISOString())).run();}
+          const named=await env.DB.prepare("SELECT market_name FROM gps_unlock_requests WHERE market_key=? AND market_name<>'' ORDER BY requested_at DESC LIMIT 1").bind(marketKey).first();
+          const marketName=String(named&&named.market_name||contestLegacyMarketName(marketKey)).slice(0,160);
+          const r=await queueContestMarketReview(env,deviceId,marketKey,marketName,{ok:true,capturedAt:String(c.captured_at||'')},true,true);
+          if(r&&r.autoApproved&&r.historicalBackfill)recovered++;
+        }
+      }
+    }
+    return {ok:true,recovered};
+  }catch(e){return {ok:false,recovered:0};}
 }
 
 
@@ -2496,7 +2560,7 @@ async function expireAdminPendingRequests(env){
   try{await env.DB.prepare("UPDATE contest_travel_alerts SET status='expired' WHERE status='pending' AND created_at<?").bind(cutoff).run()}catch(_){}
 }
 async function adminContest(request,env){
-  if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);await expireAdminPendingRequests(env);const cfg=await finalizeContestIfNeeded(env);const participants=(await env.DB.prepare("SELECT subscription_id,first_name,last_name,home_commune,home_area,camping_active,camping_label,camping_updated_at,points,banned,alert_count,joined_at FROM contest_participants ORDER BY points DESC,joined_at ASC").all()).results||[];for(const p of participants){const b=await contestRefreshBonusState(env,p.subscription_id);p.active_bonus=b.active?{multiplier:b.active.multiplier,end_at:b.active.end_at}:null}
+  if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);await expireAdminPendingRequests(env);const cfg=await finalizeContestIfNeeded(env);await contestBackfillLegacyMarketPoints(env);const participants=(await env.DB.prepare("SELECT subscription_id,first_name,last_name,home_commune,home_area,camping_active,camping_label,camping_updated_at,points,banned,alert_count,joined_at FROM contest_participants ORDER BY points DESC,joined_at ASC").all()).results||[];for(const p of participants){const b=await contestRefreshBonusState(env,p.subscription_id);p.active_bonus=b.active?{multiplier:b.active.multiplier,end_at:b.active.end_at}:null}
   const reviews=(await env.DB.prepare("SELECT r.*,p.first_name,p.last_name,p.alert_count FROM contest_market_reviews r JOIN contest_participants p ON p.subscription_id=r.subscription_id WHERE r.status='pending' ORDER BY r.created_at DESC").all()).results||[];for(const r of reviews){try{r.breakdown=JSON.parse(r.breakdown_json||'[]')}catch(_){r.breakdown=[]}}
   const mushrooms=(await env.DB.prepare("SELECT r.*,p.first_name,p.last_name,s.wood_name,s.department,s.species,s.note,s.is_private,s.created_at AS spot_created_at FROM contest_mushroom_reviews r JOIN contest_participants p ON p.subscription_id=r.subscription_id LEFT JOIN mushroom_spots s ON s.id=r.spot_id WHERE r.status='pending' ORDER BY r.created_at DESC").all()).results||[];for(const r of mushrooms){try{r.photo_url=await mushroomSignedPhotoUrl(env,r.spot_id,r.spot_created_at||r.created_at)}catch(_){r.photo_url=''}}
   const reports=(await env.DB.prepare("SELECT r.*,p.first_name,p.last_name,p.home_commune,p.home_area FROM contest_reports r JOIN contest_participants p ON p.subscription_id=r.subscription_id WHERE r.status='pending' ORDER BY r.created_at DESC").all()).results||[];for(const r of reports){r.suggested_multiplier=r.kind==='idee'?contestIdeaMultiplier(r.description):null}const communes=(await env.DB.prepare("SELECT c.*,p.first_name,p.last_name,p.home_commune,p.home_area FROM contest_commune_requests c JOIN contest_participants p ON p.subscription_id=c.subscription_id WHERE c.status='pending' ORDER BY c.created_at DESC").all()).results||[];const alerts=(await env.DB.prepare("SELECT a.*,p.first_name,p.last_name,p.alert_count FROM contest_travel_alerts a JOIN contest_participants p ON p.subscription_id=a.subscription_id WHERE a.status='pending' ORDER BY a.created_at DESC").all()).results||[];return json({ok:true,config:cfg,participants,reviews,mushrooms,reports,communes,alerts})
@@ -2595,44 +2659,6 @@ async function adminAllUsersV278(request,env){
   result.sort((a,b)=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'})||a.email.localeCompare(b.email));
   return json({ok:true,users:result,count:result.length});
 }
-
-// ===== V289 : MESSAGES DIRECTS ADMIN AUX UTILISATEURS BANNIS =====
-async function ensureAdminDirectMessagesV289(env){
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS admin_direct_messages(
-    id TEXT PRIMARY KEY, sanction_id INTEGER, subscription_id INTEGER, email TEXT, device_id TEXT,
-    message TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, seen_at INTEGER
-  )`).run();
-  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_direct_messages_target ON admin_direct_messages(device_id,email,expires_at)").run();
-}
-async function adminDirectMessageV289(request,env){
-  if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
-  await ensureAdminDirectMessagesV289(env);
-  if(request.method==='GET'){
-    const d=await body(request),deviceId=String(d.deviceId||'').trim().slice(0,140),email=normalizeEmail(d.email);
-    if(!deviceId&&!validEmail(email))return json({ok:true,messages:[]});
-    const rows=await env.DB.prepare(`SELECT id,message,created_at,expires_at FROM admin_direct_messages WHERE expires_at>? AND (seen_at IS NULL) AND (device_id=? OR (?<>'' AND email=?)) ORDER BY created_at DESC LIMIT 5`).bind(Date.now(),deviceId,email,email).all();
-    return json({ok:true,messages:rows.results||[]});
-  }
-  if(request.method==='POST'){
-    if(!(await adminAuthorized(request,env)))return json({ok:false,error:'SECRET_INCORRECT'},401);
-    const d=await body(request),action=String(d.action||'send'),message=String(d.message||'').trim().slice(0,800);
-    if(action==='seen'){
-      const id=String(d.id||'').trim(),deviceId=String(d.deviceId||'').trim().slice(0,140),email=normalizeEmail(d.email);
-      if(!id)return json({ok:false,error:'MESSAGE_INVALIDE'},400);
-      await env.DB.prepare("UPDATE admin_direct_messages SET seen_at=? WHERE id=? AND (device_id=? OR (?<>'' AND email=?))").bind(Date.now(),id,deviceId,email,email).run();
-      return json({ok:true});
-    }
-    const sanctionId=Number(d.sanctionId||0),row=await env.DB.prepare("SELECT id,subscription_id,email,last_device_id,app_banned FROM market_user_sanctions WHERE id=? LIMIT 1").bind(sanctionId).first();
-    if(!row||!Number(row.app_banned))return json({ok:false,error:'UTILISATEUR_NON_BANNI'},409);
-    if(!message)return json({ok:false,error:'MESSAGE_VIDE'},400);
-    const now=Date.now(),id='admmsg-'+now+'-'+Math.random().toString(36).slice(2,10);
-    await env.DB.prepare("INSERT INTO admin_direct_messages(id,sanction_id,subscription_id,email,device_id,message,created_at,expires_at,seen_at) VALUES(?,?,?,?,?,?,?,?,NULL)").bind(id,Number(row.id),row.subscription_id||null,normalizeEmail(row.email)||'',String(row.last_device_id||''),message,now,now+7*86400000).run();
-    return json({ok:true,id,expiresAt:now+7*86400000});
-  }
-  return json({ok:false,error:'METHODE_INVALIDE'},405);
-}
-// ===== FIN V289 =====
-
 async function sanctionStatusV242(request,env){
   if(!env.DB)return json({ok:true,appBanned:false,contributionBlocked:false,refusalCount:0,reactivationRequested:false});await ensureSanctionTablesV242(env);const d=await body(request),deviceId=String(d.deviceId||'').trim(),email=normalizeEmail(d.email),emailHash=validEmail(email)?await sha256Text(email):'',sub=await subscriptionForBanV242(env,deviceId,email),row=await sanctionRowV242(env,{subscriptionId:sub&&sub.id,emailHash:emailHash||(sub&&sub.recovery_email_hash)||'',deviceId});return json({ok:true,appBanned:!!Number(row&&row.app_banned),contributionBlocked:!!Number(row&&row.contribution_blocked),refusalCount:Number(row&&row.refusal_count||0),reactivationRequested:!!Number(row&&row.reactivation_requested)});
 }
@@ -2670,24 +2696,9 @@ async function appIdentity(request,env){
   await env.DB.prepare(`INSERT INTO app_identities(email,first_name,last_name,device_id,created_at,updated_at) VALUES(?,?,?,?,?,?)
     ON CONFLICT(email) DO UPDATE SET first_name=excluded.first_name,last_name=excluded.last_name,device_id=excluded.device_id,updated_at=excluded.updated_at`)
     .bind(email,firstName,lastName,deviceId,now,now).run();
-  // V290 : si la personne est bannie, son identité renseignée dans Réglages
-  // est immédiatement recopiée dans la fiche de bannissement afin que
-  // l'administrateur puisse voir le nouveau nom/prénom et l'e-mail validé.
-  try{
-    await ensureSanctionTablesV242(env);
-    const emailHash=await sha256Text(email);
-    const sanction=await env.DB.prepare(`SELECT id FROM market_user_sanctions
-      WHERE (email_hash=? AND email_hash<>'') OR (last_device_id=? AND ?<>'')
-      ORDER BY updated_at DESC LIMIT 1`).bind(emailHash,deviceId,deviceId).first();
-    if(sanction){
-      await env.DB.prepare(`UPDATE market_user_sanctions
-        SET email_hash=?,email=?,requester_name=?,last_device_id=CASE WHEN ?<>'' THEN ? ELSE last_device_id END,updated_at=?
-        WHERE id=?`).bind(emailHash,email,firstName+' '+lastName,deviceId,deviceId,now,Number(sanction.id)).run();
-    }
-  }catch(_){/* l'identité reste enregistrée même si la synchronisation sanction échoue */}
   if(deviceId)await env.DB.prepare(`INSERT INTO app_installations(device_id,platform,first_seen,last_seen) VALUES(?,?,?,?)
     ON CONFLICT(device_id) DO UPDATE SET platform=excluded.platform,last_seen=excluded.last_seen`).bind(deviceId,platform,seen,seen).run();
-  return json({ok:true,identity:{firstName,lastName,email},identityUpdatedAt:now});
+  return json({ok:true,identity:{firstName,lastName,email}});
 }
 
 const MUSHROOM_PHOTO_MAX_BYTES=650000, MUSHROOM_ACCESS_DAYS=365, MUSHROOM_CONTEST_POINTS=50;
@@ -2872,7 +2883,7 @@ async function mushroomPhoto(url,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=282-onboarding-notification-detail" defer></script><script src="/market-update-notifications-v281.js?v=282" defer></script><script src="/notification-detail-v282.js?v=282" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=283-classement-rapide" defer></script><script src="/referral-v232.js?v=273-parrainage-marche-compte" defer></script><script src="/app-access-gate-v240.js?v=288-identite-stable" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=282-onboarding-notification-detail" defer></script><script src="/market-update-notifications-v281.js?v=282" defer></script><script src="/notification-detail-v282.js?v=282" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=291-organisateur-hors-gains" defer></script><script src="/referral-v232.js?v=273-parrainage-marche-compte" defer></script><script src="/app-access-gate-v240.js?v=286-email-obligatoire" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
   }
 }
 
@@ -2961,7 +2972,6 @@ export default {
     if (url.pathname === "/api/admin/banned-users" && (request.method === "GET" || request.method === "POST")) return adminBannedUsersV242(request, env);
     if (url.pathname === "/api/admin/users" && request.method === "GET") return adminAllUsersV278(request, env);
     if (url.pathname === "/api/sanction/status" && request.method === "POST") return sanctionStatusV242(request, env);
-    if (url.pathname === "/api/admin/direct-message" && (request.method === "GET" || request.method === "POST")) return adminDirectMessageV289(request, env);
     if (url.pathname === "/api/reactivation-request" && request.method === "POST") return reactivationV242(request, env);
     if (url.pathname === "/api/admin/contest" && request.method === "GET") return adminContest(request, env);
     if (url.pathname === "/api/admin/contest/action" && request.method === "POST") return adminContestAction(request, env);
