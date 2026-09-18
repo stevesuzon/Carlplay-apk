@@ -304,12 +304,14 @@
   }
 
   function competitionNote(){return '<div style="margin-top:4px;color:#b8c3cf;font-size:8px">Seuls les utilisateurs de l’application sont comptés.</div>'}
+  const attendanceCounts={};
+  function refreshNearbyAdminButton(btn){if(!btn||!isAdmin())return;const market=btn.getAttribute('data-admin-market'),rows=attendanceCache[market]||[],n=Math.max(Number(attendanceCounts[market]||0),rows.length);if(n>0){btn.style.display='block';btn.textContent='👥 MARCHANDS INSCRITS ('+n+')';btn.onclick=()=>showAttendance(market,rows,n)}else btn.style.display='none'}
   function loadCompetitionCounts(list){
     const trade=currentTrade();
     cards.querySelectorAll('[data-competition]').forEach(box=>{
       if(!trade){box.innerHTML='⚠️ Enregistrez votre métier pour voir la concurrence'+competitionNote();return}
       const market=box.getAttribute('data-competition'),url=COUNTER_SERVER+'/api/count?market='+encodeURIComponent(market)+'&date='+encodeURIComponent(marketDateKey())+'&trade='+encodeURIComponent(trade.toLowerCase());
-      fetch(url,{cache:'no-store'}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(j=>{const n=Number(j.count||0);box.innerHTML=n===0?'Aucun marchand de <b>'+esc(trade)+'</b> n’est en route pour ce marché'+competitionNote():'<b style="color:#ffd36d;font-size:16px">'+n+'</b> marchand'+(n>1?'s':'')+' de <b>'+esc(trade)+'</b> '+(n>1?'sont':'est')+' en route pour ce marché'+competitionNote()}).catch(()=>{box.innerHTML='⚠️ Concurrence indisponible'+competitionNote()});
+      fetch(url,{cache:'no-store'}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(j=>{const n=Number(j.count||0);attendanceCounts[market]=n;box.innerHTML=n===0?'Aucun marchand de <b>'+esc(trade)+'</b> n’est en route pour ce marché'+competitionNote():'<b style="color:#ffd36d;font-size:16px">'+n+'</b> marchand'+(n>1?'s':'')+' de <b>'+esc(trade)+'</b> '+(n>1?'sont':'est')+' en route pour ce marché'+competitionNote();(()=>{let b=null;cards.querySelectorAll('[data-admin-market]').forEach(x=>{if(x.getAttribute('data-admin-market')===market)b=x});refreshNearbyAdminButton(b)})()}).catch(()=>{box.innerHTML='⚠️ Concurrence indisponible'+competitionNote()});
     });
   }
   function mirrorAttendance(market,trade){
@@ -325,10 +327,10 @@
     const markets=list.map(item=>identity(item.country,item.row));
     fetch('/api/admin/market-attendance/batch',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+adminToken()},body:JSON.stringify({date:marketDateKey(),markets:markets}),cache:'no-store'}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(j=>{
       Object.keys(j.states||{}).forEach(k=>{attendanceCache[k]=j.states[k]||[]});
-      cards.querySelectorAll('[data-admin-market]').forEach(btn=>{const rows=attendanceCache[btn.getAttribute('data-admin-market')]||[];if(rows.length){btn.style.display='block';btn.textContent='👥 MARCHANDS INSCRITS ('+rows.length+')';btn.onclick=()=>showAttendance(btn.getAttribute('data-admin-market'),rows)}else btn.style.display='none'});
+      cards.querySelectorAll('[data-admin-market]').forEach(refreshNearbyAdminButton);
     }).catch(()=>{});
   }
-  function showAttendance(market,rows){attendanceTitle.textContent='Marchands inscrits — '+rows.length;attendanceList.innerHTML=rows.map(x=>'<div class="attendancePerson">'+esc(([x.firstName,x.lastName].filter(Boolean).join(' ')||'Nom non renseigné'))+'<br><span style="color:#ffd36d">'+esc(x.trade||'Métier non renseigné')+'</span></div>').join('');attendanceModal.classList.add('open')}
+  function showAttendance(market,rows,expected){expected=Math.max(Number(expected||0),rows.length);attendanceTitle.textContent='Marchands inscrits — '+expected;attendanceList.innerHTML=rows.map(x=>'<div class="attendancePerson">'+esc(([x.firstName,x.lastName].filter(Boolean).join(' ')||'Nom non renseigné'))+'<br><span style="color:#ffd36d">'+esc(x.trade||'Métier non renseigné')+'</span></div>').join('')+(expected>rows.length?'<div class="attendancePerson" style="color:#fff2a8"><b>'+(expected-rows.length)+' ancienne'+(expected-rows.length>1?'s':'')+' inscription'+(expected-rows.length>1?'s':'')+'</b> détectée'+(expected-rows.length>1?'s':'')+'. Le nom n’était pas enregistré par l’ancienne version.</div>':'');attendanceModal.classList.add('open')}
   document.getElementById('attendanceClose').addEventListener('click',()=>attendanceModal.classList.remove('open'));
   attendanceModal.addEventListener('click',e=>{if(e.target===attendanceModal)attendanceModal.classList.remove('open')});
 

@@ -1,4 +1,4 @@
 {
-  "version": "V293",
-  "message": "Concours : affichage des points simplifié à 2 décimales maximum avec virgule française (ex. 314,14 pts). Les autres fonctions et données restent inchangées."
+  "version": "V294",
+  "message": "Connexion et installation : un compte déjà enregistré ne redemande plus l’identité après une erreur réseau, le parcours vidéo Android ne boucle plus, et le bouton administrateur des marchands apparaît dès qu’un compteur métier est supérieur à zéro. Les autres données restent inchangées."
 }

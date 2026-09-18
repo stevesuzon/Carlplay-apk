@@ -43,10 +43,11 @@ async function choose(m,country){
   var t=trade();if(!t)return false;
   var market=[String(country||'FR').toLowerCase(),m.area||'',m.name||'',m.city||'',m.day||dayKey(),m.address||''].join('|');
   var once='autoMarketPresenceV204:'+dateKey()+':'+market+':'+norm(t);
-  if(localStorage.getItem(once)==='1')return false;
+  function mirrorIdentity(){try{var who=JSON.parse(localStorage.getItem('carplay_app_identity_v240')||'{}')||{};return fetch('/api/market-attendance',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:localStorage.getItem('carplay_device_id')||'',tradeDeviceId:device(),market:market,date:dateKey(),trade:t,firstName:who.firstName||who.first_name||'',lastName:who.lastName||who.last_name||'',email:who.email||''}),keepalive:true}).catch(function(){})}catch(_){return Promise.resolve()}}
+  if(localStorage.getItem(once)==='1'){await mirrorIdentity();return false}
   var r=await fetch(COUNTER+'/api/choose',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device:device(),market:market,date:dateKey(),trade:t}),keepalive:true});
   if(!r.ok)throw 0;
-  try{var who=JSON.parse(localStorage.getItem('carplay_app_identity_v240')||'{}')||{};fetch('/api/market-attendance',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:localStorage.getItem('carplay_device_id')||'',tradeDeviceId:device(),market:market,date:dateKey(),trade:t,firstName:who.firstName||who.first_name||'',lastName:who.lastName||who.last_name||'',email:who.email||''}),keepalive:true}).catch(function(){})}catch(_){ }
+  await mirrorIdentity();
   localStorage.setItem(once,'1');window.dispatchEvent(new CustomEvent('carplay-market-auto-counted',{detail:{market:market,trade:t}}));return true;
 }
 async function scan(){
