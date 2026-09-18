@@ -1,4 +1,4 @@
 {
-  "version": "V294",
-  "message": "Connexion et installation : un compte déjà enregistré ne redemande plus l’identité après une erreur réseau, le parcours vidéo Android ne boucle plus, et le bouton administrateur des marchands apparaît dès qu’un compteur métier est supérieur à zéro. Les autres données restent inchangées."
+  "version": "V295",
+  "message": "Administration : Demandes à valider passe tout en haut des Réglages avec le compteur total. Toutes les demandes sont regroupées par personne avec nom, prénom, e-mail et nombre de messages ; chaque fiche s’ouvre en grand. La validation attribue les points prévus aux demandes concours concernées et les nouvelles demandes déclenchent l’alerte administrateur. Les autres données restent inchangées."
 }
