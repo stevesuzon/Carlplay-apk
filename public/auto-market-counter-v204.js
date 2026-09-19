@@ -16,7 +16,7 @@ function creds(){
   if(d.length<16){d='phone-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12);localStorage.setItem('carplay_device_id',d)}
   return{code:c,deviceId:d,deviceType:'phone'};
 }
-function dateKey(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'-compteurs-reels-v6-20260824-zero-general'}
+function dateKey(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function dayKey(){return['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][new Date().getDay()]}
 function meters(a,b,c,d){var p=Math.PI/180,da=(c-a)*p,db=(d-b)*p,x=Math.sin(da/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(db/2)**2;return 12742000*Math.asin(Math.sqrt(x))}
 function beProvince(v){v=norm(v);var m={'bruxelles':'bruxelles','antwerpen':'anvers','anvers':'anvers','limburg':'limbourg','limbourg':'limbourg','west vlaanderen':'flandre-occidentale','flandre occidentale':'flandre-occidentale','oost vlaanderen':'flandre-orientale','flandre orientale':'flandre-orientale','vlaams brabant':'brabant-flamand','brabant flamand':'brabant-flamand','brabant wallon':'brabant-wallon','hainaut':'hainaut','henegouwen':'hainaut','liege':'liege','luik':'liege','luxembourg':'luxembourg','namur':'namur','namen':'namur'};for(var k in m)if(v.indexOf(k)>=0)return m[k];return''}
@@ -43,12 +43,9 @@ async function choose(m,country){
   var t=trade();if(!t)return false;
   var market=[String(country||'FR').toLowerCase(),m.area||'',m.name||'',m.city||'',m.day||dayKey(),m.address||''].join('|');
   var once='autoMarketPresenceV204:'+dateKey()+':'+market+':'+norm(t);
-  function mirrorIdentity(){try{var who=JSON.parse(localStorage.getItem('carplay_app_identity_v240')||'{}')||{};return fetch('/api/market-attendance',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:localStorage.getItem('carplay_device_id')||'',tradeDeviceId:device(),market:market,date:dateKey(),trade:t,firstName:who.firstName||who.first_name||'',lastName:who.lastName||who.last_name||'',email:who.email||''}),keepalive:true}).catch(function(){})}catch(_){return Promise.resolve()}}
-  if(localStorage.getItem(once)==='1'){await mirrorIdentity();return false}
+  if(localStorage.getItem(once)==='1')return false;
   var r=await fetch(COUNTER+'/api/choose',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device:device(),market:market,date:dateKey(),trade:t}),keepalive:true});
-  if(!r.ok)throw 0;
-  await mirrorIdentity();
-  localStorage.setItem(once,'1');window.dispatchEvent(new CustomEvent('carplay-market-auto-counted',{detail:{market:market,trade:t}}));return true;
+  if(!r.ok)throw 0;localStorage.setItem(once,'1');window.dispatchEvent(new CustomEvent('carplay-market-auto-counted',{detail:{market:market,trade:t}}));return true;
 }
 async function scan(){
   if(!trade()||!navigator.geolocation)return;

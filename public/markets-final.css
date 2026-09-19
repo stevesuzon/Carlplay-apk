@@ -26,7 +26,7 @@ body #weatherBubble{display:none!important}
 .card .meta[style]{font-size:16px!important}
 .card [id^="competition_"]{font-size:14px!important;padding:9px!important;border-width:2px!important}
 .card .actions{display:grid!important;grid-template-columns:1fr!important;gap:7px!important;margin-top:10px!important}
-.card .actions .go,.card .actions .verify,.card .actions .adminAttendance{min-height:48px!important;font-size:13px!important;padding:7px!important}
+.card .actions .go,.card .actions .verify{min-height:48px!important;font-size:13px!important;padding:7px!important}
 .card .sharedMarketPhoto{width:min(150px,100%)!important;aspect-ratio:1/1!important;height:auto!important;object-fit:contain!important;margin:9px auto!important}
 @media(max-width:760px){
   .cards{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important}
@@ -34,7 +34,7 @@ body #weatherBubble{display:none!important}
   .card .name{font-size:16px!important;padding-right:17px}
   .card .meta,.card .meta[style]{font-size:11px!important;line-height:1.2!important;overflow-wrap:anywhere}
   .card [id^="competition_"]{font-size:10px!important;padding:6px!important;margin-top:7px!important}
-  .card .actions .go,.card .actions .verify,.card .actions .adminAttendance{min-height:40px!important;font-size:10px!important;line-height:1.1!important}
+  .card .actions .go,.card .actions .verify{min-height:40px!important;font-size:10px!important;line-height:1.1!important}
   .marketVerificationDot{width:14px!important;height:14px!important;right:7px!important;top:7px!important}
   .card .sharedMarketPhoto{width:100%!important;max-width:120px!important;aspect-ratio:1/1!important;height:auto!important;object-fit:contain!important;margin:7px auto!important;border-width:2px!important;border-radius:10px!important}
 }
@@ -107,7 +107,7 @@ body #weatherBubble{display:none!important}
   gap:7px!important;
   margin-top:9px!important;
 }
-.card .actions .go,.card .actions .verify,.card .actions .adminAttendance{
+.card .actions .go,.card .actions .verify{
   min-height:45px!important;
   padding:6px!important;
   border-radius:10px!important;
@@ -131,7 +131,7 @@ body #weatherBubble{display:none!important}
   .card .addMarketPhoto{width:38%!important;min-height:78px!important;margin:3px 6px 5px 0!important;font-size:8px!important}
   .card [id^="competition_"]{font-size:9px!important;padding:5px!important;margin-top:6px!important;border-radius:8px!important}
   .card .actions{grid-template-columns:1fr 1fr!important;gap:4px!important;margin-top:6px!important}
-  .card .actions .go,.card .actions .verify,.card .actions .adminAttendance{min-height:36px!important;font-size:8.5px!important;padding:4px 2px!important;border-radius:8px!important}
+  .card .actions .go,.card .actions .verify{min-height:36px!important;font-size:8.5px!important;padding:4px 2px!important;border-radius:8px!important}
   .marketVerificationDot{width:13px!important;height:13px!important;right:6px!important;top:6px!important}
 }
 
@@ -146,5 +146,3 @@ body #weatherBubble{display:none!important}
 
 /* V127 - menu déroulant France */
 .frDepartmentSelect{width:min(680px,94%);height:64px;border:3px solid #62d8ff;border-radius:18px;background:#081727;color:#fff;font-size:24px;font-weight:900;padding:0 18px;margin:10px auto;display:block}.frDepartmentOpen{display:block;margin:10px auto 0;min-width:210px;min-height:54px;border:0;border-radius:16px;background:linear-gradient(135deg,#168ef2,#0576d7);color:#fff;font-size:19px;font-weight:950}.departmentPicker .areaDirectList:has(.frDepartmentSelect){display:block!important;max-width:760px;margin:0 auto}@media(max-width:720px){.frDepartmentSelect{height:56px;font-size:18px}.frDepartmentOpen{min-height:48px;font-size:16px}}
-
-.card .actions .adminAttendance{grid-column:1/-1!important;background:#8d5cff!important;color:#fff!important;border:0!important;font-weight:950!important;align-items:center!important;justify-content:center!important;text-align:center!important;cursor:pointer!important}

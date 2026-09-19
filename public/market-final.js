@@ -255,16 +255,6 @@
   function currentTrade() {
     return String(localStorage.getItem("market_trade") || "").trim();
   }
-  function appDeviceId(){ return String(localStorage.getItem("carplay_device_id")||"").trim(); }
-  function attendanceIdentity(){ var x={}; try{x=JSON.parse(localStorage.getItem("carplay_app_identity_v240")||"{}")||{}}catch(e){}; if(!x.firstName&&!x.lastName){try{var q=JSON.parse(localStorage.getItem("carplay_shared_subscription")||"{}")||{};x.firstName=q.firstName||"";x.lastName=q.lastName||"";x.email=q.email||""}catch(e){}} return {firstName:String(x.firstName||x.first_name||"").trim(),lastName:String(x.lastName||x.last_name||"").trim(),email:String(x.email||"").trim().toLowerCase()}; }
-  function mirrorAttendance(r,date,trade){ var who=attendanceIdentity(); try{return fetch("/api/market-attendance",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({deviceId:appDeviceId(),tradeDeviceId:deviceId(),market:identity(r),date:date,trade:trade,firstName:who.firstName,lastName:who.lastName,email:who.email}),keepalive:true}).catch(function(){})}catch(e){} }
-  function isAdminSession(){return localStorage.getItem("carplay_admin_here")==="1"&&!!(localStorage.getItem("carplay_admin_token")||localStorage.getItem("carplay_admin_secret"))}
-  function adminToken(){return localStorage.getItem("carplay_admin_token")||localStorage.getItem("carplay_admin_secret")||""}
-  var adminAttendanceCache={},adminAttendanceCounts={};
-  function refreshAdminAttendanceButton(index,key){if(!isAdminSession())return;var btn=el("admin_attendance_"+index);if(!btn)return;var rows=adminAttendanceCache[key]||[],n=Math.max(Number(adminAttendanceCounts[key]||0),rows.length);if(n>0){btn.style.display="flex";btn.textContent="👥 MARCHANDS INSCRITS ("+n+")";btn.setAttribute("data-market-key",key)}else btn.style.display="none"}
-  function showAdminAttendance(market){var rows=adminAttendanceCache[market]||[],expected=Math.max(Number(adminAttendanceCounts[market]||0),rows.length),html='<h2>MARCHANDS INSCRITS</h2>'; if(rows.length)html+=rows.map(function(x){return '<p style="padding:10px;border-radius:12px;background:#14263a"><b>'+esc(([x.firstName,x.lastName].filter(Boolean).join(" ")||"Nom non renseigné"))+'</b><br><span style="color:#ffd36d">'+esc(x.trade||"Métier non renseigné")+'</span></p>'}).join(''); if(expected>rows.length)html+='<p style="padding:10px;border-radius:12px;background:#302900;color:#fff2a8"><b>'+esc(String(expected-rows.length))+' ancienne'+(expected-rows.length>1?'s':'')+' inscription'+(expected-rows.length>1?'s':'')+'</b> détectée'+(expected-rows.length>1?'s':'')+'. Le nom n’avait pas encore été enregistré par l’ancienne version. Il apparaîtra dès que la personne utilisera de nouveau Couteau Suisse sur un marché.</p>'; if(!expected)html+='<p>Aucune personne avec un métier enregistrée sur ce marché.</p>'; html+='<div class="bubbleBtns"><button id="closeAttendance" class="blue">FERMER</button></div>';bubble(html);bindTap(el("closeAttendance"),closeBubble)}
-  window.showAdminMarketAttendance=showAdminAttendance;
-  function loadAdminAttendance(rs){if(!isAdminSession()||!rs||!rs.length)return;var markets=rs.map(identity),date=countDate(currentDay);fetch("/api/admin/market-attendance/batch",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+adminToken()},body:JSON.stringify({date:date,markets:markets}),cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){adminAttendanceCache=j.states||{};for(var i=0;i<rs.length;i++)refreshAdminAttendanceButton(i,identity(rs[i]))}).catch(function(){})}
   var tradeChoices = [
     "Brocante",
     "Matelas",
@@ -448,7 +438,6 @@
             trade: trade,
           }),
         }).catch(function () {});
-        mirrorAttendance(r,date,trade);
       } catch (e) {}
       gps(r);
     });
@@ -476,7 +465,6 @@
           }),
           keepalive: true,
         }).catch(function () {});
-        mirrorAttendance(r,date,trade);
       } catch (e) {}
       closeBubble();
       gps(r);
@@ -558,7 +546,6 @@
                 (n > 1 ? "sont" : "est") +
                 " en route pour ce marché";
         box.innerHTML = line + countNote();
-        if(isAdminSession()){var key=identity(r);adminAttendanceCounts[key]=n;refreshAdminAttendanceButton(index,key)}
       })
       .catch(function () {
         if (finished) return;
@@ -720,13 +707,12 @@
         url +
         '">' +
         (saved(r) ? "MODIFIER" : "VÉRIFIER") +
-        '</a><button type="button" id="admin_attendance_' + i + '" class="adminAttendance" style="display:none" onclick="window.showAdminMarketAttendance(this.getAttribute(\'data-market-key\'));return false">👥 MARCHANDS INSCRITS</button></div></article>';
+        "</a></div></article>";
     }
     el("cards").innerHTML =
       html ||
       '<article class="card empty">Aucun marché enregistré pour ce jour.</article>';
     loadCounts(rs);
-    loadAdminAttendance(rs);
   }
   function loadWeather(rs) {
     var date = nextDate(currentDay),

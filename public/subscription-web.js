@@ -280,7 +280,6 @@
     if (t.id === "contactMailButton") return "Mail";
     if (t.id === "housePhotoButton") return "Mesurer une maison";
     if (t.id === "nearby80Button") return "Marchés à moins de 80 km";
-    if (t.id === "nearby15Button") return "Marchés autour de moi";
     if (t.matches && t.matches(".card.blue")) return "Marchés";
     if (t.matches && t.matches(".directBtn.place")) return "Mes papiers";
     if (t.matches && t.matches(".directBtn.docs")) return "Démarches pro";
@@ -292,7 +291,7 @@
   function protectFeatures() {
     if (unlocked()) return;
     applyAddressReadOnly();
-    var selectors="#contactMailButton,#housePhotoButton,#nearby80Button,#nearby15Button,.card.blue,.directBtn.place,.directBtn.docs,.small.green,.small.red";
+    var selectors="#contactMailButton,#housePhotoButton,#nearby80Button,.card.blue,.directBtn.place,.directBtn.docs,.small.green,.small.red";
     document.querySelectorAll(selectors).forEach(function (el) { addLock(el, "VERROUILLÉ"); });
     document.addEventListener("click", function (e) {
       if (unlocked()) return;
@@ -329,34 +328,14 @@
   }
 
   function addAdminMessageCounter() {
-    if(localStorage.getItem("carplay_admin_here")!=="1")return;
-    var settings=document.getElementById("settings"),secret=localStorage.getItem("carplay_admin_secret")||"";
-    if(!settings||!secret)return;
-    var row=document.getElementById("adminMessageCounter");
-    if(!row){
-      row=document.createElement("div");row.className="settingRow";row.id="adminMessageCounter";
-      row.innerHTML='<button class="settingHead" type="button" style="border:2px solid #39d878"><span>✅ VOUS AVEZ <b>0</b> DEMANDE À VALIDER</span><span>›</span></button><div class="settingNote" style="padding:0 16px 14px">Toutes les demandes : marchés France, Belgique, voyageurs, concours, champignons, bugs/problèmes et messages.</div>';
-      var first=settings.querySelector(".settingRow");if(first)settings.insertBefore(row,first);else settings.appendChild(row);
-      row.querySelector("button").onclick=function(){location.href="/admin.html#gpsPermissionBox"};
-    }else{
-      var firstNow=settings.querySelector(".settingRow");if(firstNow&&firstNow!==row)settings.insertBefore(row,firstNow);
-    }
-    var lastCount=-1;
-    function refreshAdminCount(){
-      Promise.all([
-        fetch("/api/admin/app-messages",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{messages:[]}}),
-        fetch("/api/admin/contest",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{reviews:[],mushrooms:[],reports:[],communes:[],alerts:[]}}),
-        fetch("/api/admin/gps-unlock-requests",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{requests:[]}})
-      ]).then(function(x){
-        var c=x[1]||{},n=(x[0].messages||[]).length+(c.reviews||[]).length+(c.mushrooms||[]).length+(c.reports||[]).length+(c.communes||[]).length+(c.alerts||[]).length+(x[2].requests||[]).length;
-        var label=row.querySelector("span");if(label)label.innerHTML='✅ VOUS AVEZ <b>'+n+'</b> DEMANDE'+(n>1?'S':'')+' À VALIDER';
-        row.dataset.pendingCount=String(n);
-        if(lastCount>=0&&n>lastCount){row.animate([{transform:"scale(1)"},{transform:"scale(1.025)"},{transform:"scale(1)"}],{duration:700});}
-        lastCount=n;
-      }).catch(function(){});
-    }
-    window.refreshAdminMessageCounter=refreshAdminCount;refreshAdminCount();
-    if(!window.__carplayAdminCountTimer)window.__carplayAdminCountTimer=setInterval(refreshAdminCount,5000);
+    if(localStorage.getItem("carplay_admin_here")!=="1")return;var settings=document.getElementById("settings"),secret=localStorage.getItem("carplay_admin_secret")||"";if(!settings||!secret||document.getElementById("adminMessageCounter"))return;
+    var row=document.createElement("div");row.className="settingRow";row.id="adminMessageCounter";row.innerHTML='<button class="settingHead" type="button"><span>✅ VOUS AVEZ <b>0</b> DEMANDE À VALIDER</span><span>›</span></button>';
+    var a=document.getElementById("adminSettingRow");if(a)a.parentNode.insertBefore(row,a.nextSibling);else settings.appendChild(row);row.querySelector("button").onclick=function(){location.href="/admin.html#gpsPermissionBox"};
+    Promise.all([
+      fetch("/api/admin/app-messages",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{messages:[]}}),
+      fetch("/api/admin/contest",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{reviews:[],reports:[],communes:[],alerts:[]}}),
+      fetch("/api/admin/gps-unlock-requests",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{requests:[]}})
+    ]).then(function(x){var c=x[1]||{},n=(x[0].messages||[]).length+(c.reviews||[]).length+(c.reports||[]).length+(c.communes||[]).length+(c.alerts||[]).length+(x[2].requests||[]).length;row.querySelector("span").innerHTML='✅ VOUS AVEZ <b>'+n+'</b> DEMANDE'+(n>1?'S':'')+' À VALIDER'}).catch(function(){});
   }
 
   function settingsPanel() {

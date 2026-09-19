@@ -1,4 +1,4 @@
 {
-  "version": "V295",
-  "message": "Administration : Demandes à valider passe tout en haut des Réglages avec le compteur total. Toutes les demandes sont regroupées par personne avec nom, prénom, e-mail et nombre de messages ; chaque fiche s’ouvre en grand. La validation attribue les points prévus aux demandes concours concernées et les nouvelles demandes déclenchent l’alerte administrateur. Les autres données restent inchangées."
+  "version": "296",
+  "message": "Concours : rattrapage des fiches déjà remplies et calcul gasoil détaillé. À 2,40 €/L, l’application affiche désormais les litres utilisés, le coût en euros et attribue le même montant en points de déplacement, sans double crédit."
 }

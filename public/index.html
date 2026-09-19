@@ -154,14 +154,10 @@ body.homePage.homeChromeHidden #directArticle{opacity:1!important;pointer-events
 </style>
 <style id="homeDepartmentSearchStyle">
 #homeDepartmentSearch{position:relative;z-index:10;margin:-38px 0 9px;padding:0;border:0;background:transparent}
-#homeMarketQuickButtons{display:grid;grid-template-columns:1fr 1fr;gap:9px;width:100%}
-#nearby80Button,#nearby15Button{width:100%;min-height:64px;border:3px solid #111;border-radius:17px;color:#111;display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 10px;font:950 15px Arial,sans-serif;box-shadow:0 7px 18px #0007;cursor:pointer;text-align:center}
-#nearby80Button{background:linear-gradient(135deg,#ff9a19,#ff5b00)}
-#nearby15Button{background:linear-gradient(135deg,#6fe0ff,#16a3ff)}
-#nearby80Button .pencil,#nearby15Button .pencil{font-size:22px;line-height:1;filter:grayscale(1) brightness(.1)}
-#nearby80Button .nearText,#nearby15Button .nearText{line-height:1.05;text-align:center}
-#nearby15Button small{display:block;margin-top:3px;font-size:9px;line-height:1.1;font-weight:950}
-@media(max-width:720px){#homeDepartmentSearch{margin:-38px 0 9px}#homeMarketQuickButtons{gap:6px}#nearby80Button,#nearby15Button{min-height:64px;font-size:12px;padding:7px 5px}#nearby80Button .pencil,#nearby15Button .pencil{font-size:18px}#nearby15Button small{font-size:8px}}
+#nearby80Button{width:100%;min-height:58px;border:3px solid #111;border-radius:17px;background:linear-gradient(135deg,#ff9a19,#ff5b00);color:#111;display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 16px;font:950 17px Arial,sans-serif;box-shadow:0 7px 18px #0007;cursor:pointer}
+#nearby80Button .pencil{font-size:25px;line-height:1;filter:grayscale(1) brightness(.1)}
+#nearby80Button .nearText{line-height:1.08;text-align:center}
+@media(max-width:720px){#homeDepartmentSearch{margin:-38px 0 9px}#nearby80Button{min-height:56px;font-size:15px;padding:9px 12px}#nearby80Button .pencil{font-size:22px}}
 .addressBookTile{position:relative;overflow:hidden;cursor:pointer;padding:0!important;background:#08752f!important}
 .addressBookTitle{display:none!important}
 .addressBookVisual{display:none!important}
@@ -377,7 +373,7 @@ body.house-measure-open #weatherBubble,body.house-measure-open .gear,body.house-
   #housePhotoButton .houseBtnIcon{font-size:17px!important}
   #housePhotoButton .houseBtnText{font-size:13px!important;line-height:1.02!important}
   #homeDepartmentSearch{margin:12px 10px 14px!important}
-  #nearby80Button,#nearby15Button{min-height:64px!important}
+  #nearby80Button{min-height:58px!important}
 }
 </style><style id="clientDuplicateAndServicesFix">
 #houseFirstName,#houseLastName,#housePhone{display:none!important}
@@ -844,17 +840,11 @@ opacity:.9;
   <div class="gear" onclick="toggleSettings()">⚙</div>
 </div>
 </div>
-<section id="homeDepartmentSearch" aria-label="Recherche rapide de marchés">
-  <div id="homeMarketQuickButtons">
-    <button id="nearby80Button" type="button" aria-label="Afficher les marchés à moins de 80 kilomètres">
-      <span class="pencil" aria-hidden="true">✏️</span>
-      <span class="nearText">MARCHÉS À MOINS DE 80 KM</span>
-    </button>
-    <button id="nearby15Button" type="button" aria-label="Afficher les marchés autour de ma position actuelle">
-      <span class="pencil" aria-hidden="true">📍</span>
-      <span class="nearText">MARCHÉS AUTOUR DE MOI<small>Pas de place sur le marché ?<br>Regardez autour de moi</small></span>
-    </button>
-  </div>
+<section id="homeDepartmentSearch" aria-label="Marchés autour de 80 kilomètres">
+  <button id="nearby80Button" type="button" aria-label="Afficher les marchés autour de 80 kilomètres">
+    <span class="pencil" aria-hidden="true">✏️</span>
+    <span class="nearText">MARCHÉS À MOINS DE 80 KM</span>
+  </button>
 </section><div class="grid homeDesignGrid">
   <div class="card blue" onclick="location.href='choix-marches-final.html'">
     <div class="tag">FRANCE + BELGIQUE</div>
@@ -1492,14 +1482,12 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 </script>
 <script id="homeDepartmentSearchScript">
 (function(){
-  var btn80=document.getElementById('nearby80Button'),btn15=document.getElementById('nearby15Button');
-  if(btn80)btn80.addEventListener('click',function(){
+  var btn=document.getElementById('nearby80Button');
+  if(!btn)return;
+  btn.addEventListener('click',function(){
     var lat=localStorage.getItem('return_lat'),lon=localStorage.getItem('return_lon');
     if(!lat||!lon){alert('Enregistre d’abord ta position avec « Retourner sur la place ».');return;}
     location.href='nearby-markets.html';
-  });
-  if(btn15)btn15.addEventListener('click',function(){
-    location.href='nearby-markets.html?mode=around';
   });
 })();
 </script>
@@ -2622,7 +2610,8 @@ window.addEventListener('load',function(){
 <script src="/devis-personnalises-v2.js?v=238-admin-email-devis"></script>
 <script src="/brocante-fiche-achat-v1.js?v=238-compat"></script>
 <script src="/license-ui.js?v=194"></script>
-<script src="/notification-settings.js?v=282-onboarding-notification-detail"></script><script src="/admin-approval-overlay.js?v=295-demandes-toutes"></script><script src="/user-stats-v285.js?v=285-15j-2j"></script><script src="/auto-market-counter-v204.js?v=294-attendance-backfill" defer></script>
+<script src="/notification-settings.js?v=282-onboarding-notification-detail"></script><script src="/admin-approval-overlay.js?v=20260912-consulter-fiche1"></script><script src="/sanction-guard-v161.js?v=289-direct-message"></script><script src="/user-stats-v285.js?v=285-15j-2j"></script><script src="/auto-market-counter-v204.js?v=204" defer></script>
+<script src="/trial-home-banner-v292.js?v=292"></script>
 </body>
 </html>
 
