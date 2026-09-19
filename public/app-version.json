@@ -1,4 +1,4 @@
 {
-  "version": "302",
-  "message": "Optimisation Cloudflare D1 : le concours, les contrôles administrateur, les présences et les vérifications utilisent beaucoup moins de lectures. Les données, points, fiches, photos, abonnements et réglages existants sont conservés."
+  "version": "303",
+  "message": "Comptage utilisateurs corrigé : une personne = un compte unique avec nom, prénom et e-mail. Les comptes valides sont ajoutés automatiquement au concours, sans doublon par e-mail. Le compte administrateur reste hors concours et ne reçoit pas de points. Optimisations D1 V302 conservées."
 }

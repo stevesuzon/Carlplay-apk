@@ -1,4 +1,4 @@
-const VERSION = "V302";
+const VERSION = "V303";
 const BASE_CACHE = "couteau-suisse-module-base-v302-d1";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v302";
