@@ -30,6 +30,6 @@ window.loadAdminAppMessages=load;
 document.addEventListener('DOMContentLoaded',function(){
   var b=box(),toggle=document.getElementById('toggleAppMessages'),list=document.getElementById('appMessagesList');var gps=document.getElementById('gpsPermissionBox'),ban=document.getElementById('bannedUsersBox');if(b&&gps)b.insertAdjacentElement('afterend',gps);if(gps&&ban)gps.insertAdjacentElement('afterend',ban);
   if(toggle)toggle.onclick=function(){var open=list.style.display!=='none';list.style.display=open?'none':'block';var c=document.getElementById('appMessagesCount');this.innerHTML='VOUS AVEZ <span id="appMessagesCount">'+(c?c.textContent:'0')+'</span> MESSAGE(S) — '+(open?'VOIR':'MASQUER');if(!open)load()};
-  setTimeout(load,500);setInterval(load,12000);
+  setTimeout(load,500);setInterval(function(){if(!document.hidden)load()},30000);
 });
 })();

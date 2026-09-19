@@ -42,6 +42,6 @@
   window.addEventListener('pageshow',forceRefresh);
   window.addEventListener('focus',forceRefresh);
   document.addEventListener('visibilitychange',function(){if(!document.hidden)forceRefresh()});
-  setInterval(function(){if(!document.hidden)forceRefresh()},8000);
+  setInterval(function(){if(!document.hidden)forceRefresh()},30000);
   refresh(true);
 })();

@@ -1317,7 +1317,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(10,'Vérification de l’application…','Contrôle de la page d’accueil et des réglages.');
     await check('/index.html');
     setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications de gains.');
-    await check('/contest-v188.js?v=300-auto-controle-gasoil');
+    await check('/contest-v188.js?v=302-d1');
     setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique, brocantes, Noël et marchés voyageurs.');
     await Promise.allSettled([check('/marches-final.html'),check('/belgique-marches-final.html'),check('/special-marches.html'),check('/traveller-markets.html')]);
     setProgress(48,'Vérification des champignons…','Contrôle des fiches Champignons et des coins enregistrés.');
@@ -1325,7 +1325,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes à consulter.');
     await Promise.allSettled([check('/notification-settings.js?v=282-onboarding-notification-detail'),check('/market-update-notifications-v281.js?v=282')]);
     setProgress(72,'Vérification du compte…','Contrôle de l’abonnement, de l’identité et des réglages.');
-    await Promise.allSettled([check('/subscription-web.js?v=300-admin-noms-controle'),check('/license-ui.js?v=194')]);
+    await Promise.allSettled([check('/subscription-web.js?v=302-d1'),check('/license-ui.js?v=194')]);
     setProgress(82,'Recherche d’une nouvelle version…','Le service de mise à jour vérifie uniquement les modules nécessaires.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
@@ -2668,7 +2668,7 @@ window.addEventListener('load',function(){
 <script src="/devis-personnalises-v2.js?v=238-admin-email-devis"></script>
 <script src="/brocante-fiche-achat-v1.js?v=238-compat"></script>
 <script src="/license-ui.js?v=194"></script>
-<script src="/notification-settings.js?v=282-onboarding-notification-detail"></script><script src="/admin-approval-overlay.js?v=20260912-consulter-fiche1"></script><script src="/sanction-guard-v161.js?v=289-direct-message"></script><script src="/user-stats-v285.js?v=285-15j-2j"></script><script src="/auto-market-counter-v204.js?v=204" defer></script>
+<script src="/notification-settings.js?v=282-onboarding-notification-detail"></script><script src="/admin-approval-overlay.js?v=302-d1"></script><script src="/sanction-guard-v161.js?v=302-d1"></script><script src="/user-stats-v285.js?v=302-d1"></script><script src="/auto-market-counter-v204.js?v=204" defer></script>
 <script src="/trial-home-banner-v292.js?v=292"></script>
 </body>
 </html>

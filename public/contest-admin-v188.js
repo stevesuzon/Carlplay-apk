@@ -16,8 +16,8 @@ async function load(){
   if(!box||localStorage.getItem('carplay_admin_here')!=='1'){if(box)box.style.display='none';return}
   box.style.display='block';
   try{
-    var j=await api('/api/admin/contest');
-    var n=(j.participants||[]).length;
+    var j=await api('/api/admin/contest?summary=1');
+    var n=Number(j.participantCount||0);
     var c=document.getElementById('contestParticipantCount');if(c)c.textContent=String(n);
     var st=document.getElementById('contestAdminStatus');
     if(st)st.textContent='Concours : '+(Date.now()<Number(j.config&&j.config.end_at||0)?'en cours':'terminé')+'. Les fiches et demandes des participants sont regroupées juste en dessous. Les fiches terrain sont déjà créditées et restent à contrôler ; les bugs / idées attendent votre validation.';
@@ -26,5 +26,5 @@ async function load(){
   }
 }
 window.loadContestSummary=load;
-add();setTimeout(load,600);setInterval(load,5000);
+add();setTimeout(load,600);setInterval(function(){if(!document.hidden)load()},60000);
 })();

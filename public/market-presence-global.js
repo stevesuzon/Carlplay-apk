@@ -31,6 +31,6 @@
   new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true});
   window.addEventListener('pageshow',sync);window.addEventListener('focus',sync);
   document.addEventListener('visibilitychange',function(){if(!document.hidden)sync()});
-  setInterval(function(){if(!document.hidden)sync()},8000);
+  setInterval(function(){if(!document.hidden)sync()},30000);
   sync();
 })();

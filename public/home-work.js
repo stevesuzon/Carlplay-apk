@@ -56,6 +56,6 @@
     fetch('/api/presence',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId()}),cache:'no-store'}).then(loadCount).catch(function(){});
   }
   setTimeout(function(){ping();loadCount();},250);
-  setInterval(function(){ping();loadCount();},45000);
+  setInterval(function(){if(!document.hidden){ping();loadCount();}},120000);
   addEventListener('online',function(){ping();loadCount();});
 })();

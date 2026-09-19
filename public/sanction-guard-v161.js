@@ -57,7 +57,7 @@
   }
   try{if(localStorage.getItem('carplay_app_banned_v161')==='1')makeOverlay(false);else if(localStorage.getItem('carplay_contribution_blocked_v161')==='1')contributionBlockedPage()}catch(e){}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',check,{once:true});else check();
-  setInterval(check,10000);
+  setInterval(function(){if(!document.hidden)check()},60000);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',pollAdminBubble,{once:true});else pollAdminBubble();
-  setInterval(pollAdminBubble,5000);
+  setInterval(function(){if(!document.hidden)pollAdminBubble()},30000);
 })();

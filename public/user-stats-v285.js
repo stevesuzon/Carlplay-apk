@@ -71,7 +71,7 @@
   function start(){
     ensureBadge();
     sync();
-    setInterval(loadStats,60000);
+    setInterval(function(){if(!document.hidden)loadStats()},300000);
     addEventListener('online',sync);
     addEventListener('resize',positionBadge);
     if(window.ResizeObserver){var c=document.getElementById('connectedUsersBadge');if(c)new ResizeObserver(positionBadge).observe(c)}

@@ -30,6 +30,6 @@
   document.getElementById('q')&&document.getElementById('q').addEventListener('input',schedule);
   window.addEventListener('pageshow',function(){lastSignature='';schedule()});
   window.addEventListener('focus',function(){lastSignature='';schedule()});
-  setInterval(function(){if(document.hidden)return;syncDisabled().then(function(changed){if(changed){lastSignature='';decorate()}})},8000);
+  setInterval(function(){if(document.hidden)return;syncDisabled().then(function(changed){if(changed){lastSignature='';decorate()}})},30000);
   schedule();
 })();

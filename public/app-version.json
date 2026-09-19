@@ -1,4 +1,4 @@
 {
-  "version": "301",
-  "message": "Réglages : le bouton Mise à jour ouvre maintenant une bulle de progression de 0 à 100 % et indique en direct les parties vérifiées : application, concours, marchés, Champignons, notifications et compte. La mise à jour reste ciblée et ne supprime pas les adresses, devis, photos ni données personnelles."
+  "version": "302",
+  "message": "Optimisation Cloudflare D1 : le concours, les contrôles administrateur, les présences et les vérifications utilisent beaucoup moins de lectures. Les données, points, fiches, photos, abonnements et réglages existants sont conservés."
 }
