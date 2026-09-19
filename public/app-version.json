@@ -1,4 +1,4 @@
 {
-  "version": "296",
-  "message": "Concours : rattrapage des fiches déjà remplies et calcul gasoil détaillé. À 2,40 €/L, l’application affiche désormais les litres utilisés, le coût en euros et attribue le même montant en points de déplacement, sans double crédit."
+  "version": "300",
+  "message": "Concours : les fiches marchés, Noël, brocantes, voyageurs et Champignons créditent maintenant les points automatiquement, avec le trajet/gasoil. L’administrateur garde le contrôle : OUI conserve les points, NON les retire. Les bugs et idées restent soumis à validation. Les boutons du concours sont plus grands."
 }

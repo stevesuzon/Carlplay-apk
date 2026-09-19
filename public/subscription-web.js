@@ -328,14 +328,37 @@
   }
 
   function addAdminMessageCounter() {
-    if(localStorage.getItem("carplay_admin_here")!=="1")return;var settings=document.getElementById("settings"),secret=localStorage.getItem("carplay_admin_secret")||"";if(!settings||!secret||document.getElementById("adminMessageCounter"))return;
-    var row=document.createElement("div");row.className="settingRow";row.id="adminMessageCounter";row.innerHTML='<button class="settingHead" type="button"><span>✅ VOUS AVEZ <b>0</b> DEMANDE À VALIDER</span><span>›</span></button>';
-    var a=document.getElementById("adminSettingRow");if(a)a.parentNode.insertBefore(row,a.nextSibling);else settings.appendChild(row);row.querySelector("button").onclick=function(){location.href="/admin.html#gpsPermissionBox"};
-    Promise.all([
-      fetch("/api/admin/app-messages",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{messages:[]}}),
-      fetch("/api/admin/contest",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{reviews:[],reports:[],communes:[],alerts:[]}}),
-      fetch("/api/admin/gps-unlock-requests",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{requests:[]}})
-    ]).then(function(x){var c=x[1]||{},n=(x[0].messages||[]).length+(c.reviews||[]).length+(c.reports||[]).length+(c.communes||[]).length+(c.alerts||[]).length+(x[2].requests||[]).length;row.querySelector("span").innerHTML='✅ VOUS AVEZ <b>'+n+'</b> DEMANDE'+(n>1?'S':'')+' À VALIDER'}).catch(function(){});
+    if(localStorage.getItem("carplay_admin_here")!=="1")return;
+    var settings=document.getElementById("settings"),secret=localStorage.getItem("carplay_admin_secret")||"";
+    if(!settings||!secret)return;
+    var row=document.getElementById("adminMessageCounter");
+    if(!row){
+      row=document.createElement("div");row.className="settingRow";row.id="adminMessageCounter";row.innerHTML='<button class="settingHead" type="button"><span>✅ VOUS AVEZ <b>0</b> DEMANDE À CONTRÔLER</span><span>›</span></button>';
+      var a=document.getElementById("adminSettingRow");if(a)a.parentNode.insertBefore(row,a.nextSibling);else settings.appendChild(row);
+      row.querySelector("button").onclick=function(){location.href="/admin.html#gpsPermissionBox"};
+    }
+    function personName(x){return String(((x&&x.first_name)||'')+' '+((x&&x.last_name)||'')).trim()||String((x&&x.requester_name)||'').trim()||'Utilisateur'}
+    function refresh(){
+      Promise.all([
+        fetch("/api/admin/app-messages",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{messages:[]}}),
+        fetch("/api/admin/contest",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{reviews:[],mushrooms:[],reports:[],communes:[],alerts:[]}}),
+        fetch("/api/admin/gps-unlock-requests",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{requests:[]}})
+      ]).then(function(x){
+        var c=x[1]||{},items=[];
+        (x[0].messages||[]).forEach(function(v){items.push({t:Number(v.created_at||0),name:personName(v),kind:String(v.kind||'Message')})});
+        (c.reviews||[]).forEach(function(v){items.push({t:Number(v.created_at||0),name:personName(v),kind:'Fiche marché / événement'})});
+        (c.mushrooms||[]).forEach(function(v){items.push({t:Number(v.created_at||0),name:personName(v),kind:'Fiche Champignons'})});
+        (c.reports||[]).forEach(function(v){items.push({t:Number(v.created_at||0),name:personName(v),kind:String(v.kind||'Bug / idée')})});
+        (c.communes||[]).forEach(function(v){items.push({t:Number(v.created_at||0),name:personName(v),kind:'Changement de commune'})});
+        (c.alerts||[]).forEach(function(v){items.push({t:Number(v.created_at||0),name:personName(v),kind:'Alerte déplacement'})});
+        (x[2].requests||[]).forEach(function(v){items.push({t:Number(v.requested_at||v.created_at||0),name:personName(v),kind:'Modification marché'})});
+        items.sort(function(a,b){return b.t-a.t});var n=items.length,latest=items[0]||null,span=row.querySelector("span");
+        span.innerHTML='✅ VOUS AVEZ <b>'+n+'</b> DEMANDE'+(n>1?'S':'')+' À CONTRÔLER'+(latest?' — <small style="display:block;margin-top:4px">Dernière : '+String(latest.name).replace(/[<>&]/g,'')+'</small>':'');
+        if(latest&&latest.t){var key=latest.t+'|'+latest.name+'|'+latest.kind,oldKey=localStorage.getItem('carplay_admin_pending_latest_v300')||'';if(oldKey&&oldKey!==key&&localStorage.getItem('carplay_notifications_enabled')==='1'&&'Notification'in window&&Notification.permission==='granted'&&'serviceWorker'in navigator){navigator.serviceWorker.ready.then(function(reg){return reg.showNotification('✅ '+latest.name+' — nouvelle demande',{body:latest.kind+'. Ouvrez Administration pour consulter la fiche.',icon:'/couteau-suisse-v283-192.png?v=283',badge:'/couteau-suisse-v283-192.png?v=283',tag:'admin-pending-'+latest.t,renotify:true,data:{url:'/admin.html#gpsPermissionBox'}})}).catch(function(){})}localStorage.setItem('carplay_admin_pending_latest_v300',key)}
+      }).catch(function(){});
+    }
+    refresh();
+    if(!window.__carplayAdminCounterTimer)window.__carplayAdminCounterTimer=setInterval(refresh,10000);
   }
 
   function settingsPanel() {

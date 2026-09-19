@@ -20,7 +20,7 @@ async function load(){
     var n=(j.participants||[]).length;
     var c=document.getElementById('contestParticipantCount');if(c)c.textContent=String(n);
     var st=document.getElementById('contestAdminStatus');
-    if(st)st.textContent='Concours : '+(Date.now()<Number(j.config&&j.config.end_at||0)?'en cours':'terminé')+'. Les demandes des participants sont regroupées juste en dessous dans « Demandes à valider ».';
+    if(st)st.textContent='Concours : '+(Date.now()<Number(j.config&&j.config.end_at||0)?'en cours':'terminé')+'. Les fiches et demandes des participants sont regroupées juste en dessous. Les fiches terrain sont déjà créditées et restent à contrôler ; les bugs / idées attendent votre validation.';
   }catch(e){
     var st2=document.getElementById('contestAdminStatus');if(st2)st2.textContent='Concours indisponible pour le moment.';
   }
