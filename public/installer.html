@@ -1,17 +1,47 @@
 <!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes"><meta name="theme-color" content="#050505"><link rel="manifest" href="/manifest.webmanifest?v=283-icons"><meta name="apple-mobile-web-app-title" content="Couteau Suisse"><meta name="application-name" content="Couteau Suisse"><link rel="apple-touch-icon" sizes="180x180" href="/couteau-suisse-v283-180.png?v=283"><title>Installer Couteau Suisse</title>
-<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#050505;color:#fff;font-family:Arial,sans-serif;padding:18px;display:flex;justify-content:center}main{width:min(680px,100%);margin:auto;text-align:center}.panel{background:#111;border:2px solid #333;border-radius:28px;padding:24px;box-shadow:0 15px 45px #000}.logo{width:105px;height:105px;border-radius:24px}h1{font-size:clamp(34px,9vw,52px);line-height:1.05;margin:12px 0 8px}.instructions{background:#142537;border-radius:18px;padding:16px 15px;margin:0 0 16px;text-align:left;font-size:18px;line-height:1.45;font-weight:800}.instructions strong{color:#ffd43b}.instructions ol{margin:8px 0 0;padding-left:25px}.instructions li{margin:7px 0}.action{display:flex;width:100%;min-height:68px;border:0;border-radius:20px;padding:15px 14px;margin:14px 0;align-items:center;justify-content:center;font-size:clamp(19px,5.7vw,27px);font-weight:950;text-decoration:none;cursor:pointer}.action.watch{background:#ffd43b;color:#111}.action.ready{background:#1478d1;color:#fff;box-shadow:0 0 0 3px rgba(74,164,255,.16)}.hint{font-size:15px;line-height:1.4;color:#c7d5e2;margin:0 0 14px}.videoWrap{margin-top:8px}video{display:block;width:100%;max-height:78vh;border:3px solid #ffd400;border-radius:22px;background:#000;box-shadow:0 12px 40px #000}.done{display:none;margin-top:15px;padding:13px;border-radius:15px;background:#113823;color:#83f0a8;font-size:18px;font-weight:900}.done.show{display:block}</style></head>
-<body><main><section class="panel"><img class="logo" src="/couteau-suisse-192.png?v=282" alt="Couteau Suisse"><h1>COUTEAU SUISSE</h1><div class="instructions"><strong>📲 COMMENT INSTALLER L’APPLICATION</strong><ol><li>Appuyez sur <b>REGARDER LA VIDÉO</b> et regardez-la jusqu’à la fin.</li><li>À la fin, <b>ce même bouton</b> devient <b>INSTALLER L’APPLICATION</b>. Rien ne s’ouvre automatiquement.</li><li>Appuyez sur <b>INSTALLER L’APPLICATION</b> : le formulaire <b>Nom + Prénom + Adresse e-mail</b> s’ouvre.</li><li>Après validation, votre compte est enregistré ou récupéré, puis le site Couteau Suisse s’ouvre.</li><li>Si un abonnement est déjà actif avec ces informations, il est récupéré avec sa <b>date de fin existante</b>. Sur iPhone, ajoutez ensuite le site à l’écran d’accueil via <b>Partager → Sur l’écran d’accueil</b>.</li></ol></div><button id="installAction" class="action watch" type="button">REGARDER LA VIDÉO</button><p id="actionHint" class="hint">La vidéo doit être regardée jusqu’à la fin avant de pouvoir continuer.</p><div class="videoWrap"><video id="iphoneVideo" controls playsinline preload="metadata" poster="/couteau-suisse-512.png?v=282"><source src="/tutoriel-comment-installer-iphone.mp4" type="video/mp4"></video></div><div id="videoDone" class="done">✅ VIDÉO TERMINÉE — APPUYEZ MAINTENANT SUR « INSTALLER L’APPLICATION ».</div></section></main>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
+<meta name="theme-color" content="#050505">
+<link rel="manifest" href="/manifest.webmanifest?v=283-icons">
+<meta name="apple-mobile-web-app-title" content="Couteau Suisse">
+<meta name="application-name" content="Couteau Suisse">
+<link rel="apple-touch-icon" sizes="180x180" href="/couteau-suisse-v283-180.png?v=283">
+<title>Installer Couteau Suisse</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#050505;color:#fff;font-family:Arial,sans-serif;padding:18px;display:flex;justify-content:center}main{width:min(680px,100%);margin:auto;text-align:center}.panel{background:#111;border:2px solid #333;border-radius:28px;padding:24px;box-shadow:0 15px 45px #000}.logo{width:105px;height:105px;border-radius:24px}h1{font-size:clamp(34px,9vw,52px);line-height:1.05;margin:12px 0 8px}.intro{background:#142537;border-radius:18px;padding:16px 15px;margin:0 0 16px;font-size:18px;line-height:1.45;font-weight:800}.intro strong{color:#ffd43b}.action{display:flex;width:100%;min-height:68px;border:0;border-radius:20px;padding:15px 14px;margin:14px 0;align-items:center;justify-content:center;font-size:clamp(18px,5.4vw,26px);font-weight:950;text-decoration:none;cursor:pointer}.installBtn{background:#1478d1;color:#fff;box-shadow:0 0 0 3px rgba(74,164,255,.16)}.siteBtn{background:#159447;color:#fff}.siteBtn[disabled]{background:#555d66;color:#e1e4e8;cursor:not-allowed;box-shadow:none}.hint{font-size:15px;line-height:1.45;color:#c7d5e2;margin:0 0 14px}.guide{display:none;text-align:left;margin-top:16px;padding:16px;border:2px solid #3aa7ff;border-radius:20px;background:#081b2d}.guide.show{display:block}.guide h2{margin:0 0 12px;text-align:center;font-size:24px;color:#7bc6ff}.os{padding:13px 14px;border-radius:16px;background:#142537;margin:12px 0}.os h3{margin:0 0 7px;font-size:20px}.os ol{margin:6px 0 0;padding-left:24px;line-height:1.45;font-weight:800}.os li{margin:7px 0}.closeGuide{background:#ffd43b;color:#111}.done{display:none;margin-top:13px;padding:13px;border-radius:15px;background:#113823;color:#83f0a8;font-size:17px;font-weight:900}.done.show{display:block}.small{font-size:13px;color:#9fb2c3;line-height:1.4;margin-top:12px}
+</style>
+</head>
+<body>
+<main><section class="panel">
+<img class="logo" src="/couteau-suisse-192.png?v=282" alt="Couteau Suisse">
+<h1>COUTEAU SUISSE</h1>
+<div class="intro"><strong>📲 AVANT D’ALLER SUR LE SITE</strong><br>Appuyez d’abord sur <b>INSTALLATION iPHONE / ANDROID</b>. Une explication courte vous indique comment mettre Couteau Suisse sur l’écran d’accueil. Ensuite, fermez l’explication et appuyez sur <b>ALLER SUR LE SITE</b>.</div>
+<button id="installHelp" class="action installBtn" type="button">📲 INSTALLATION iPHONE / ANDROID</button>
+<div id="guide" class="guide" aria-hidden="true">
+  <h2>COMMENT INSTALLER</h2>
+  <div class="os"><h3>🍎 iPhone / iPad</h3><ol><li>Ouvrez Couteau Suisse dans <b>Safari</b>.</li><li>Appuyez sur le bouton <b>Partager</b> (carré avec une flèche vers le haut).</li><li>Choisissez <b>Sur l’écran d’accueil</b>.</li><li>Appuyez sur <b>Ajouter</b>.</li></ol></div>
+  <div class="os"><h3>🤖 Android</h3><ol><li>Ouvrez Couteau Suisse dans <b>Chrome</b>.</li><li>Appuyez sur le menu <b>⋮</b> en haut à droite.</li><li>Choisissez <b>Installer l’application</b> ou <b>Ajouter à l’écran d’accueil</b>.</li><li>Confirmez avec <b>Installer</b> ou <b>Ajouter</b>.</li></ol></div>
+  <button id="closeGuide" class="action closeGuide" type="button">J’AI COMPRIS — FERMER</button>
+</div>
+<div id="guideDone" class="done">✅ Explication installation consultée. Vous pouvez maintenant aller sur le site.</div>
+<button id="goSite" class="action siteBtn" type="button" disabled>CLIQUEZ D’ABORD SUR « INSTALLATION iPHONE / ANDROID »</button>
+<p id="siteHint" class="hint">Le bouton « Aller sur le site » se débloque après avoir ouvert les explications d’installation.</p>
+<p class="small">Aucune vidéo ne se lance automatiquement. Rien ne rafraîchit la page en boucle.</p>
+</section></main>
 <script>
 (function(){
-  var VIDEO_KEY='carplay_install_video_seen_v284',LEGACY='carplay_install_video_seen_v282';
-  var video=document.getElementById('iphoneVideo'),action=document.getElementById('installAction'),hint=document.getElementById('actionHint'),done=document.getElementById('videoDone'),referral='';
+  var KEY='carplay_install_guide_seen_v304';
+  var help=document.getElementById('installHelp'),guide=document.getElementById('guide'),close=document.getElementById('closeGuide'),go=document.getElementById('goSite'),done=document.getElementById('guideDone'),hint=document.getElementById('siteHint'),referral='';
   try{referral=(new URL(location.href)).searchParams.get('ref')||'';if(referral){localStorage.setItem('carplay_pending_referral',referral);document.cookie='carplay_pending_referral='+encodeURIComponent(referral)+'; Max-Age=2592000; Path=/; SameSite=Lax; Secure'}}catch(e){}
-  function videoSeen(){try{return localStorage.getItem(VIDEO_KEY)==='1'||localStorage.getItem(LEGACY)==='1'||localStorage.getItem('carplay_install_video_seen_v250')==='1'||localStorage.getItem('carplay_install_video_seen')==='1'}catch(e){return false}}
-  function setSeen(){try{localStorage.setItem(VIDEO_KEY,'1');localStorage.setItem(LEGACY,'1');localStorage.setItem('carplay_install_video_seen','1')}catch(e){}}
-  function render(){var seen=videoSeen();action.classList.toggle('watch',!seen);action.classList.toggle('ready',seen);action.textContent=seen?'INSTALLER L’APPLICATION':'REGARDER LA VIDÉO';hint.textContent=seen?'✅ Vidéo terminée. Appuyez vous-même sur « INSTALLER L’APPLICATION » pour ouvrir le formulaire.':'La vidéo doit être regardée jusqu’à la fin avant de pouvoir continuer.';done.classList.toggle('show',seen)}
-  action.addEventListener('click',function(){if(!videoSeen()){try{video.scrollIntoView({behavior:'smooth',block:'center'})}catch(e){}var p=video.play();if(p&&p.catch)p.catch(function(){});return}var url='/index.html?installation=1&onboarding=identity'+(referral?'&ref='+encodeURIComponent(referral):'');location.href=url});
-  video.addEventListener('ended',function(){setSeen();render();try{action.scrollIntoView({behavior:'smooth',block:'center'})}catch(e){}});
-  render();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=284-installation-flow',{updateViaCache:'none'}).catch(function(){});
+  function seen(){try{return localStorage.getItem(KEY)==='1'}catch(e){return false}}
+  function markSeen(){try{localStorage.setItem(KEY,'1')}catch(e){}}
+  function render(){var ok=seen();go.disabled=!ok;go.textContent=ok?'ALLER SUR LE SITE':'CLIQUEZ D’ABORD SUR « INSTALLATION iPHONE / ANDROID »';hint.textContent=ok?'✅ Vous pouvez maintenant continuer vers Couteau Suisse.':'Le bouton « Aller sur le site » se débloque après avoir ouvert les explications d’installation.';done.classList.toggle('show',ok)}
+  help.addEventListener('click',function(){guide.classList.add('show');guide.setAttribute('aria-hidden','false');try{guide.scrollIntoView({behavior:'smooth',block:'start'})}catch(e){}});
+  close.addEventListener('click',function(){guide.classList.remove('show');guide.setAttribute('aria-hidden','true');markSeen();render();try{go.scrollIntoView({behavior:'smooth',block:'center'})}catch(e){}});
+  go.addEventListener('click',function(){if(!seen()){guide.classList.add('show');guide.setAttribute('aria-hidden','false');return}var url='/index.html?installation=1&onboarding=identity'+(referral?'&ref='+encodeURIComponent(referral):'');location.href=url});
+  render();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=304-installation-email',{updateViaCache:'none'}).catch(function(){});
 })();
-</script></body></html>
+</script>
+</body></html>

@@ -1,4 +1,4 @@
 {
-  "version": "303",
-  "message": "Comptage utilisateurs corrigé : une personne = un compte unique avec nom, prénom et e-mail. Les comptes valides sont ajoutés automatiquement au concours, sans doublon par e-mail. Le compte administrateur reste hors concours et ne reçoit pas de points. Optimisations D1 V302 conservées."
+  "version": "304",
+  "message": "Inscription sécurisée par confirmation e-mail : nom, prénom et e-mail sont saisis, puis le bouton bleu envoie un lien de confirmation. Après clic dans l’e-mail, retour automatique vers Couteau Suisse. Seuls les e-mails confirmés comptent comme utilisateurs valides et entrent au concours. La vidéo de départ a été supprimée et remplacée par une aide courte Installation iPhone / Android, puis un bouton Aller sur le site."
 }
