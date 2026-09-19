@@ -1,4 +1,4 @@
 {
-  "version": "300",
-  "message": "Concours : les fiches marchés, Noël, brocantes, voyageurs et Champignons créditent maintenant les points automatiquement, avec le trajet/gasoil. L’administrateur garde le contrôle : OUI conserve les points, NON les retire. Les bugs et idées restent soumis à validation. Les boutons du concours sont plus grands."
+  "version": "301",
+  "message": "Réglages : le bouton Mise à jour ouvre maintenant une bulle de progression de 0 à 100 % et indique en direct les parties vérifiées : application, concours, marchés, Champignons, notifications et compte. La mise à jour reste ciblée et ne supprime pas les adresses, devis, photos ni données personnelles."
 }
