@@ -1,13 +1,13 @@
-const VERSION = "V310";
+const VERSION = "V313";
 const BASE_CACHE = "couteau-suisse-module-base-v302-d1";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v310";
-const ADMIN_CACHE = "couteau-suisse-module-admin-v302";
+const ADMIN_CACHE = "couteau-suisse-module-admin-v313";
 const DATA_CACHE = "couteau-suisse-module-data-v283";
 const INSTALL_CACHE = "couteau-suisse-module-install-v309";
 const STATS_CACHE = "couteau-suisse-module-stats-v302";
 const MUSHROOM_CACHE = "couteau-suisse-module-mushroom-v300";
-const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v302";
+const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v313";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled(){const cache=await caches.open(NOTIFICATION_PREF_CACHE),r=await cache.match(NOTIFICATION_PREF_URL);return !!r&&(await r.text())==="1"}
@@ -21,7 +21,7 @@ const MODULES={
  [INSTALL_CACHE]:["/installer.html","/app-access-gate-v240.js?v=309-confirmed-direct","/cache-cleanup-v20260910.js?v=283-modules"],
  [STATS_CACHE]:["/user-stats-v285.js?v=302-d1"],
  [MUSHROOM_CACHE]:["/champignons.html","/champignons.js?v=300-concours-auto","/champignons.css?v=300-concours-auto"],
- [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=309-confirmed-direct"]
+ [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=313-classement-notifs"]
 };
 async function putFresh(cacheName,path){try{const req=new Request(path,{cache:"reload"}),res=await fetch(req);if(res&&res.ok)(await caches.open(cacheName)).put(req,res.clone())}catch(_){}}
 async function ensureBase(){const c=await caches.open(BASE_CACHE);await Promise.allSettled(BASE_CORE.map(async p=>{const req=new Request(p);if(await c.match(req))return;const res=await fetch(new Request(p,{cache:"reload"}));if(res&&res.ok)await c.put(req,res)}))}

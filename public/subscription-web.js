@@ -334,13 +334,103 @@
     if(localStorage.getItem("carplay_admin_here")!=="1")return;
     var settings=document.getElementById("settings"),secret=localStorage.getItem("carplay_admin_secret")||"";
     if(!settings||!secret)return;
+
+    if(!document.getElementById('adminPendingInlineStyleV312')){
+      var st=document.createElement('style');st.id='adminPendingInlineStyleV312';st.textContent='\
+#adminMessageCounter .settingBody{max-height:68vh;overflow:auto;padding:10px}\
+.adminPendingStatus{padding:10px;border-radius:11px;background:#0a1422;color:#dbe7f6;font-weight:850;font-size:13px;text-align:center;margin-bottom:8px}\
+.adminPersonMini{margin:8px 0;border:1px solid #ffffff2b;border-radius:13px;background:#121d2b;overflow:hidden}\
+.adminPersonMiniHead{width:100%;min-height:58px;border:0!important;border-radius:0!important;background:#1d2b40!important;color:#fff!important;margin:0!important;padding:11px 12px!important;display:flex;align-items:center;justify-content:space-between;gap:9px;text-align:left}\
+.adminPersonMiniName{display:block;font-size:16px;font-weight:950}.adminPersonMiniEmail{display:block;margin-top:3px;color:#adc1d9;font-size:11px;font-weight:800;word-break:break-all}\
+.adminPersonMiniCount{flex:0 0 auto;background:#2f4260;color:#fff;border-radius:9px;padding:6px 8px;font-size:11px;font-weight:950}\
+.adminPersonMiniItems{display:none;padding:8px}.adminPersonMiniItems.open{display:block}\
+.adminReqMini{margin:7px 0;border:1px solid #4f6687;border-radius:11px;background:#0a111b;overflow:hidden}.adminReqMiniHead{width:100%;min-height:48px;border:0!important;border-radius:0!important;background:#132238!important;color:#fff!important;margin:0!important;padding:9px 10px!important;display:flex;justify-content:space-between;gap:8px;align-items:center;text-align:left;font-size:13px!important}.adminReqMiniPts{color:#74efa6;font-weight:950;white-space:nowrap}.adminReqMiniDetail{display:none;padding:10px;color:#dbe7f6;font-size:13px;line-height:1.45}.adminReqMiniDetail.open{display:block}.adminReqMiniDetail a{color:#71cfff;font-weight:900}.adminReqActions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.adminReqActions button{min-height:42px!important;margin:0!important;padding:8px!important;font-size:12px!important;color:#fff!important}.adminReqYes{background:#168447!important}.adminReqNo{background:#b4323b!important}.adminReqOne{grid-template-columns:1fr}.adminRecentTitle{margin:14px 2px 6px;color:#a9bed5;font-size:12px;font-weight:950}.adminRecentMini{margin:6px 0;padding:9px 10px;border:1px solid #35d06f;border-radius:11px;background:#0d1b15}.adminRecentMini b{display:block}.adminRecentMini small{display:block;color:#a9bed5;word-break:break-all;margin-top:2px}.adminRecentGain{display:block;margin-top:4px;color:#70efa4;font-weight:950;font-size:13px}\
+';document.head.appendChild(st);
+    }
+
     var row=document.getElementById("adminMessageCounter");
     if(!row){
-      row=document.createElement("div");row.className="settingRow";row.id="adminMessageCounter";row.innerHTML='<button class="settingHead" type="button"><span>✅ VOUS AVEZ <b>0</b> DEMANDE À CONTRÔLER</span><span>›</span></button>';
+      row=document.createElement("div");row.className="settingRow";row.id="adminMessageCounter";
+      row.innerHTML='<button class="settingHead" type="button"><span>✅ VOUS AVEZ <b>0</b> DEMANDE À CONTRÔLER</span><span>⌄</span></button><div class="settingBody" id="adminPendingInline"><div class="adminPendingStatus">Chargement des demandes…</div></div>';
       var a=document.getElementById("adminSettingRow");if(a)a.parentNode.insertBefore(row,a.nextSibling);else settings.appendChild(row);
-      row.querySelector("button").onclick=function(){location.href="/admin.html#gpsPermissionBox"};
     }
+    var head=row.querySelector('.settingHead'),bodyEl=row.querySelector('#adminPendingInline');
+
+    function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+    function fmt(v){var n=Math.round(((Number(v)||0)+Number.EPSILON)*100)/100;return n.toFixed(2).replace(/0+$/,'').replace(/[.,]$/,'').replace('.',',')}
     function personName(x){return String(((x&&x.first_name)||'')+' '+((x&&x.last_name)||'')).trim()||String((x&&x.requester_name)||'').trim()||'Utilisateur'}
+    function personEmail(x){return String((x&&x.email)||(x&&x.requester_email)||'').trim()}
+    function pkey(x){var e=personEmail(x).toLowerCase();if(e)return 'e:'+e;var sid=Number(x&&x.subscription_id||0);if(sid)return 's:'+sid;var d=String(x&&x.device_id||'').trim();if(d)return 'd:'+d;return 'n:'+personName(x).toLowerCase()}
+    function labelsGps(x){var z={time:'Horaire du marché',count:'Nombre de commerçants',draw:'Tirage au sort',welcome:'Humeur du placier',placer:'Responsable / placier',clientModel:'Modèle de clients',exists:'Existence du marché',photo:'Photo du marché',gps:'Position GPS'};return z[x.scope]||'Modification du marché'}
+    function add(items,x,kind,detail,points,actionType){items.push({key:pkey(x),name:personName(x),email:personEmail(x),t:Number(x.created_at||x.requested_at||0),kind:kind,detail:detail,points:Number(points||0),actionType:actionType||'',id:String(x.id||'')})}
+
+    function requestDetailHtml(it){
+      return '<div>'+it.detail+'</div>'+(it.points>0?'<div style="margin-top:7px;color:#70efa4;font-weight:950">Points concernés : +'+fmt(it.points)+' pt</div>':'')+actionHtml(it);
+    }
+    function actionHtml(it){
+      if(!it.actionType)return '';
+      if(it.actionType==='app-message')return '<div class="adminReqActions adminReqOne"><button class="adminReqYes" data-admin-action="message-close" data-admin-id="'+esc(it.id)+'">VALIDER / FERMER</button></div>';
+      if(it.actionType==='travel')return '<div class="adminReqActions"><button class="adminReqYes" data-admin-action="travel-question" data-admin-id="'+esc(it.id)+'">ENVOYER LA QUESTION</button><button class="adminReqNo" data-admin-action="travel-close" data-admin-id="'+esc(it.id)+'">FERMER</button></div>';
+      var yesLabel='CONFIRMER',noLabel='REFUSER';
+      if(it.actionType==='review'||it.actionType==='mushroom'){yesLabel='CONFIRMER LA FICHE';noLabel='REFUSER / RETIRER LES POINTS'}
+      if(it.actionType==='report'){yesLabel='CONFIRMER LE BUG / IDÉE';noLabel='REFUSER'}
+      if(it.actionType==='commune'){yesLabel='AUTORISER';noLabel='REFUSER'}
+      if(it.actionType==='gps'){yesLabel='OUI — VALIDER';noLabel='NON — REFUSER'}
+      return '<div class="adminReqActions"><button class="adminReqYes" data-admin-action="approve" data-admin-type="'+esc(it.actionType)+'" data-admin-id="'+esc(it.id)+'">'+yesLabel+'</button><button class="adminReqNo" data-admin-action="deny" data-admin-type="'+esc(it.actionType)+'" data-admin-id="'+esc(it.id)+'">'+noLabel+'</button></div>';
+    }
+
+    function render(items,recent){
+      var groups={},order=[];
+      items.sort(function(a,b){return b.t-a.t}).forEach(function(it){if(!groups[it.key]){groups[it.key]={name:it.name,email:it.email,items:[],t:it.t};order.push(it.key)}groups[it.key].items.push(it);if(!groups[it.key].email&&it.email)groups[it.key].email=it.email});
+      var html='<div class="adminPendingStatus">Appuyez sur une personne, puis sur une demande pour vérifier la fiche ou le bug avant de confirmer.</div>';
+      if(!order.length)html+='<div class="adminPendingStatus">✅ Aucune demande en attente.</div>';
+      order.forEach(function(key,gi){var g=groups[key],gid='admgrp'+gi;html+='<div class="adminPersonMini"><button class="adminPersonMiniHead" data-admin-group="'+gid+'"><span><span class="adminPersonMiniName">'+esc(g.name)+'</span>'+(g.email?'<span class="adminPersonMiniEmail">'+esc(g.email)+'</span>':'')+'</span><span class="adminPersonMiniCount">'+g.items.length+' demande'+(g.items.length>1?'s':'')+'</span></button><div class="adminPersonMiniItems" id="'+gid+'">';g.items.forEach(function(it,ri){var rid=gid+'r'+ri;html+='<div class="adminReqMini"><button class="adminReqMiniHead" data-admin-request="'+rid+'"><span>'+esc(it.kind)+'</span>'+(it.points>0?'<span class="adminReqMiniPts">+'+fmt(it.points)+' pt</span>':'')+'</button><div class="adminReqMiniDetail" id="'+rid+'">'+requestDetailHtml(it)+'</div></div>'});html+='</div></div>'});
+      var rv=(recent||[]).filter(function(x){return Number(x.points||0)>0}).slice(0,10);
+      if(rv.length){html+='<div class="adminRecentTitle">DERNIÈRES FICHES CONFIRMÉES</div>';rv.forEach(function(x){var n=personName(x),e=personEmail(x);html+='<div class="adminRecentMini"><b>'+esc(n)+'</b>'+(e?'<small>'+esc(e)+'</small>':'')+'<span class="adminRecentGain">'+esc(n)+' a gagné '+fmt(x.points)+' pt — '+esc(x.kind||'Fiche confirmée')+'</span></div>'})}
+      bodyEl.innerHTML=html;
+      Array.prototype.forEach.call(bodyEl.querySelectorAll('[data-admin-group]'),function(b){b.onclick=function(){var x=document.getElementById(b.getAttribute('data-admin-group'));if(x)x.classList.toggle('open')}});
+      Array.prototype.forEach.call(bodyEl.querySelectorAll('[data-admin-request]'),function(b){b.onclick=function(){var x=document.getElementById(b.getAttribute('data-admin-request'));if(x)x.classList.toggle('open')}});
+      Array.prototype.forEach.call(bodyEl.querySelectorAll('[data-admin-action]'),function(b){b.onclick=function(ev){ev.stopPropagation();runAction(b)}});
+    }
+
+    function fullRefresh(){
+      bodyEl.innerHTML='<div class="adminPendingStatus">Chargement des demandes…</div>';
+      var h={authorization:'Bearer '+secret};
+      Promise.all([
+        fetch('/api/admin/gps-unlock-requests',{headers:h,cache:'no-store'}).then(function(r){return r.ok?r.json():{requests:[]}}),
+        fetch('/api/admin/contest',{headers:h,cache:'no-store'}).then(function(r){return r.ok?r.json():{reviews:[],mushrooms:[],reports:[],communes:[],alerts:[],recentValidated:[]}}),
+        fetch('/api/admin/app-messages',{headers:h,cache:'no-store'}).then(function(r){return r.ok?r.json():{messages:[]}})
+      ]).then(function(x){
+        var gps=x[0].requests||[],c=x[1]||{},msgs=x[2].messages||[],items=[];
+        gps.forEach(function(v){add(items,v,'MODIFICATION MARCHÉ','E-mail : <b>'+esc(personEmail(v)||'—')+'</b><br>Demande : <b>'+esc(labelsGps(v))+'</b><br>Marché : <b>'+esc(v.market_name||'Marché')+'</b>'+(v.current_value?'<br>Valeur actuelle : <b>'+esc(v.current_value)+'</b>':'')+(v.proposed_value?'<br>Nouvelle valeur : <b>'+esc(v.proposed_value)+'</b>':''),0,'gps')});
+        (c.reviews||[]).forEach(function(v){add(items,v,'FICHE CONCOURS — MARCHÉ','E-mail : <b>'+esc(personEmail(v)||'—')+'</b><br>Marché : <b>'+esc(v.market_name||'Marché')+'</b><br>Lieu : <b>'+esc(v.place_label||'—')+'</b><br>Distance : <b>'+fmt(v.distance_km)+' km</b>'+(v.market_key?'<br><a href="/api/market-photo?marketKey='+encodeURIComponent(v.market_key)+'" target="_blank" rel="noopener">📷 VOIR LA PHOTO AVANT DE CONFIRMER</a>':''),Number(v.points||0),'review')});
+        (c.mushrooms||[]).forEach(function(v){add(items,v,'FICHE CHAMPIGNONS','E-mail : <b>'+esc(personEmail(v)||'—')+'</b><br>Bois : <b>'+esc(v.wood_name||'Bois signalé')+'</b><br>Champignon : <b>'+esc(v.species||'—')+'</b>'+(v.photo_url?'<br><a href="'+esc(v.photo_url)+'" target="_blank" rel="noopener">📷 VOIR LA PHOTO AVANT DE CONFIRMER</a>':''),Number(v.awarded_points||v.base_points||0),'mushroom')});
+        (c.reports||[]).forEach(function(v){var idea=String(v.kind||'')==='idee';add(items,v,idea?'IDÉE CONCOURS':'BUG / PROBLÈME','E-mail : <b>'+esc(personEmail(v)||'—')+'</b><br>Type : <b>'+esc(idea?'IDÉE':'BUG / PROBLÈME')+'</b><br><br>'+esc(v.description||'').replace(/\n/g,'<br>'),idea?0:153,'report')});
+        (c.communes||[]).forEach(function(v){add(items,v,'CHANGEMENT DE COMMUNE','E-mail : <b>'+esc(personEmail(v)||'—')+'</b><br>Commune actuelle : <b>'+esc((v.home_commune||'')+' '+(v.home_area||''))+'</b>',0,'commune')});
+        (c.alerts||[]).forEach(function(v){add(items,v,'ALERTE DÉPLACEMENT','E-mail : <b>'+esc(personEmail(v)||'—')+'</b><br>Avant : <b>'+esc(v.previous_place||'—')+'</b><br>Nouveau lieu : <b>'+esc(v.new_place||'—')+'</b>',0,'travel')});
+        msgs.forEach(function(v){add(items,v,String(v.kind||'MESSAGE').toUpperCase(),'E-mail : <b>'+esc(personEmail(v)||'—')+'</b><br>Adresse : <b>'+esc(v.address||'—')+'</b><br><br>'+esc(v.message||'').replace(/\n/g,'<br>'),0,'app-message')});
+        render(items,c.recentValidated||[]);
+      }).catch(function(){bodyEl.innerHTML='<div class="adminPendingStatus">⚠️ Chargement impossible. Réessayez.</div>'});
+    }
+
+    function runAction(btn){
+      var action=btn.getAttribute('data-admin-action'),id=btn.getAttribute('data-admin-id')||'',type=btn.getAttribute('data-admin-type')||'',url='',payload={};
+      if(action==='message-close'){url='/api/admin/app-messages';payload={id:id}}
+      else if(action==='travel-question'||action==='travel-close'){url='/api/admin/contest/action';payload={type:action,id:id}}
+      else if(type==='gps'){url='/api/admin/gps-unlock-requests';payload={id:id,approve:action==='approve'}}
+      else{url='/api/admin/contest/action';payload={type:type,id:id,approve:action==='approve'}}
+      if(!url)return;
+      btn.disabled=true;bodyEl.querySelector('.adminPendingStatus').textContent='Enregistrement de votre décision…';
+      fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+secret},body:JSON.stringify(payload)}).then(function(r){return r.json().then(function(j){if(!r.ok||!j.ok)throw new Error(j.error||'Action impossible');return j})}).then(function(j){var pts=Number(j.awardedPoints||j.keptPoints||0),removed=Number(j.retractedPoints||0),total=Number(j.newTotalPoints);if(action==='approve'){bodyEl.querySelector('.adminPendingStatus').textContent=pts>0?'✅ Confirmé : '+fmt(pts)+' points. La personne reçoit la notification de confirmation.':'✅ Confirmé. La personne reçoit la notification correspondante.'}else if(removed>0){bodyEl.querySelector('.adminPendingStatus').textContent='❌ Demande refusée : '+fmt(removed)+' points retirés de cette fiche'+(Number.isFinite(total)?'. Total utilisateur : '+fmt(total)+' pt.':'.')+' La personne reçoit la notification de refus.'}else{bodyEl.querySelector('.adminPendingStatus').textContent='❌ Demande refusée. La personne reçoit la notification de refus.'}setTimeout(function(){fullRefresh();refresh()},700)}).catch(function(e){btn.disabled=false;bodyEl.querySelector('.adminPendingStatus').textContent='⚠️ '+(e.message||'Action impossible')});
+    }
+
+    head.onclick=function(){
+      var open=bodyEl.classList.contains('open');
+      Array.prototype.forEach.call(document.querySelectorAll('.settingBody'),function(x){x.classList.remove('open')});
+      Array.prototype.forEach.call(document.querySelectorAll('.settingHead span:last-child'),function(x){x.textContent='⌄'});
+      if(!open){bodyEl.classList.add('open');var a=head.querySelector('span:last-child');if(a)a.textContent='⌃';fullRefresh()}
+    };
+
     function refresh(){
       Promise.all([
         fetch("/api/admin/app-messages",{headers:{authorization:"Bearer "+secret},cache:"no-store"}).then(function(r){return r.ok?r.json():{messages:[]}}),
@@ -352,8 +442,8 @@
         if(c.latest)items.push({t:Number(c.latest.created_at||0),name:personName(c.latest),kind:String(c.latest.kind||'Concours')});
         (x[2].requests||[]).forEach(function(v){items.push({t:Number(v.requested_at||v.created_at||0),name:personName(v),kind:'Modification marché'})});
         items.sort(function(a,b){return b.t-a.t});var n=(x[0].messages||[]).length+Number(c.pendingCount||0)+(x[2].requests||[]).length,latest=items[0]||null,span=row.querySelector("span");
-        span.innerHTML='✅ VOUS AVEZ <b>'+n+'</b> DEMANDE'+(n>1?'S':'')+' À CONTRÔLER'+(latest?' — <small style="display:block;margin-top:4px">Dernière : '+String(latest.name).replace(/[<>&]/g,'')+'</small>':'');
-        if(latest&&latest.t){var key=latest.t+'|'+latest.name+'|'+latest.kind,oldKey=localStorage.getItem('carplay_admin_pending_latest_v300')||'';if(oldKey&&oldKey!==key&&localStorage.getItem('carplay_notifications_enabled')==='1'&&'Notification'in window&&Notification.permission==='granted'&&'serviceWorker'in navigator){navigator.serviceWorker.ready.then(function(reg){return reg.showNotification('✅ '+latest.name+' — nouvelle demande',{body:latest.kind+'. Ouvrez Administration pour consulter la fiche.',icon:'/couteau-suisse-v283-192.png?v=283',badge:'/couteau-suisse-v283-192.png?v=283',tag:'admin-pending-'+latest.t,renotify:true,data:{url:'/admin.html#gpsPermissionBox'}})}).catch(function(){})}localStorage.setItem('carplay_admin_pending_latest_v300',key)}
+        span.innerHTML='✅ VOUS AVEZ <b>'+n+'</b> DEMANDE'+(n>1?'S':'')+' À CONTRÔLER'+(latest?' — <small style="display:block;margin-top:4px">Dernière : '+esc(latest.name)+'</small>':'');
+        if(latest&&latest.t){var key=latest.t+'|'+latest.name+'|'+latest.kind,oldKey=localStorage.getItem('carplay_admin_pending_latest_v312')||'';if(oldKey&&oldKey!==key&&localStorage.getItem('carplay_notifications_enabled')==='1'&&'Notification'in window&&Notification.permission==='granted'&&'serviceWorker'in navigator){navigator.serviceWorker.ready.then(function(reg){return reg.showNotification('✅ '+latest.name+' — nouvelle demande',{body:latest.kind+'. Ouvrez les réglages pour vérifier la fiche avant de confirmer.',icon:'/couteau-suisse-v283-192.png?v=283',badge:'/couteau-suisse-v283-192.png?v=283',tag:'admin-pending-'+latest.t,renotify:true,data:{url:'/#settings'}})}).catch(function(){})}localStorage.setItem('carplay_admin_pending_latest_v312',key)}
       }).catch(function(){});
     }
     refresh();
