@@ -1,4 +1,4 @@
 {
-  "version": "309",
-  "message": "Inscription simplifiée : le formulaire n’apparaît qu’avant la première confirmation e-mail. Dès que l’adresse est confirmée, anciens et nouveaux utilisateurs ouvrent directement Couteau Suisse."
+  "version": "310",
+  "message": "Concours : Steve Suzon peut maintenant participer, gagner des points et apparaître au classement. Son compte reste indiqué non gagnant et les lots reviennent aux participants suivants."
 }
