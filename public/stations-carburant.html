@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#071725">
+<title>Stations ≤ 15 km — Couteau Suisse</title>
+<style>
+:root{--bg:#071725;--panel:#10253a;--panel2:#162f49;--green:#22c55e;--lime:#62e28a;--text:#f8fbff;--muted:#b9c8d8;--orange:#ff961c;--red:#ff4d59;--blue:#21a8ff;--line:#ffffff26}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:linear-gradient(180deg,#071725,#0b1d2f 58%,#071522);color:var(--text);font-family:Arial,Helvetica,sans-serif}body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.wrap{width:min(760px,100%);margin:auto;padding:12px 14px 40px}.top{display:flex;align-items:center;gap:10px;margin:2px 0 14px}.back{width:48px;height:48px;border-radius:15px;border:2px solid #ffffff38;background:#142b43;color:white;font-size:27px;font-weight:900}.logo{width:48px;height:48px;border-radius:14px}.headText{min-width:0}.headText h1{font-size:22px;margin:0;line-height:1.05}.headText p{margin:5px 0 0;color:var(--muted);font-size:12px;font-weight:700}
+.hero{background:linear-gradient(135deg,#0d7d39,#0ecb62);padding:14px;border-radius:24px;box-shadow:0 10px 28px #0007;margin-bottom:12px}.heroTitle{font-size:22px;font-weight:950}.heroSub{font-size:13px;font-weight:750;margin-top:5px;line-height:1.35}.controls{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:12px}.fuel{height:48px;border:0;border-radius:15px;padding:0 12px;font-size:16px;font-weight:900;color:#102038;background:white}.refresh{height:48px;border:2px solid #ffffff88;border-radius:15px;background:#093b23;color:white;padding:0 14px;font-weight:950;font-size:14px}.gpsLine{margin-top:9px;font-size:12px;font-weight:800;color:#edfff3}
+.notice{background:#0b1320;border:1px solid #ffffff1f;border-radius:16px;padding:10px 12px;color:#c9d6e4;font-size:12px;line-height:1.45;margin-bottom:12px}.notice b{color:#fff}.statusLine{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:12px 2px 9px}.statusLine strong{font-size:15px}.statusLine span{font-size:12px;color:var(--muted)}
+.list{display:grid;gap:11px}.card{position:relative;background:linear-gradient(150deg,#17324d,#10253a);border:1px solid var(--line);border-radius:20px;padding:14px;padding-top:48px;box-shadow:0 8px 22px #0005}.cardTools{position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:7px}.verifyDot{width:18px;height:18px;border-radius:50%;background:#ff981d;border:2px solid #ffd18e;box-shadow:0 0 0 2px #0004}.verifyDot.ok{background:#22c55e;border-color:#a8ffc2}.verifyDot.off{background:#66788b;border-color:#a9b6c2}.favStar{width:36px;height:36px;border-radius:12px;border:1px solid #ffffff35;background:#142b43;color:#ffd86a;font-size:24px;font-weight:900;line-height:1;display:grid;place-items:center}.favStar.active{background:#5f4700;border-color:#ffdd69;color:#fff2a3}.cardTop{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.rank{width:30px;height:30px;flex:0 0 30px;border-radius:10px;background:#22c55e;color:#062013;display:grid;place-items:center;font-size:14px;font-weight:950}.main{min-width:0;flex:1}.name{font-size:17px;font-weight:950;line-height:1.18}.addr{margin-top:4px;font-size:12px;color:#c8d5e4;line-height:1.32}.price{text-align:right;white-space:nowrap}.price b{display:block;font-size:24px;color:#79f29f;letter-spacing:-.5px}.price span{font-size:11px;color:#c9d7e4;font-weight:800}.badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.badge{border-radius:999px;padding:5px 8px;font-size:11px;font-weight:900;background:#ffffff12;border:1px solid #ffffff1f}.open{background:#083e25;color:#70f5a0;border-color:#30d27166}.closed{background:#47171d;color:#ff8b92;border-color:#ff5d6666}.unknown{background:#30323a;color:#e5e7eb}.pay{background:#102f5c;color:#8dccff}.shop{background:#48300b;color:#ffd47b}.easy{background:#17440f;color:#b9ff9d;border-color:#69e64f88;box-shadow:0 0 0 1px #69e64f22 inset}.distance{background:#20344d;color:#e9f3ff}.meta{margin-top:10px;font-size:12px;line-height:1.5;color:#cad5e2}.meta strong{color:#fff}.actions{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:12px}.go,.details{height:44px;border-radius:13px;border:0;font-weight:950;font-size:14px;display:flex;align-items:center;justify-content:center;text-decoration:none}.go{background:#19a95b;color:#fff}.details{padding:0 12px;background:#253d58;color:#fff;border:1px solid #ffffff2b}.empty{padding:28px 16px;text-align:center;border:1px dashed #ffffff3b;border-radius:20px;color:#c4d0dc;background:#ffffff08;line-height:1.45}.loader{display:none;padding:24px;text-align:center;font-weight:900}.loader.on{display:block}.source{margin-top:20px;color:#8394a7;font-size:10.5px;line-height:1.4;text-align:center}
+.verifyStation{width:100%;min-height:38px;margin-bottom:10px;border-radius:12px;border:1px solid #ffbd61;background:#3a2b1a;color:#fff0cb;font-size:12px;font-weight:950;letter-spacing:.2px;padding:7px 10px}.verifyStation.done{background:#18324a;border-color:#ffffff35;color:#e9f3ff}.verifyStation.official{background:#18324a;border-color:#ffffff35;color:#e9f3ff}.gplWord{font-weight:1000;color:#f8fbff}.gplWord.green{color:#62e28a}.gplWord.red{color:#ff6670}.gplOpinion{color:#d8e5f2}.officialStation{display:inline-flex;align-items:center;margin:0 0 10px;padding:6px 9px;border-radius:999px;background:#123a2a;border:1px solid #2fc87466;color:#a8f4c6;font-size:10.5px;font-weight:900}.verifiedSummary{margin-top:8px;padding:8px 10px;border-radius:12px;background:#071a12;border:1px solid #36c96f66;font-size:11px;line-height:1.45;color:#d6ffe5}.cigLine{margin-top:7px;font-size:11.5px;font-weight:850;color:#d5e0eb}.choiceGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.choiceGrid.two{grid-template-columns:repeat(2,1fr)}.choice{position:relative}.choice input{position:absolute;opacity:0;pointer-events:none}.choice span{min-height:44px;padding:8px 6px;border-radius:12px;border:1px solid #ffffff2a;background:#1b3855;color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;font-weight:900}.choice input:checked+span{background:#0a6c36;border-color:#55ef91;color:#e0ffea;box-shadow:0 0 0 2px #55ef9130 inset}.modalBack{display:none;position:fixed;inset:0;z-index:20000;background:#000c;padding:12px;align-items:center;justify-content:center}.modalBack.on{display:flex}.modal{width:min(520px,100%);max-height:92vh;overflow:auto;background:#10253a;border:2px solid #ff9b27;border-radius:22px;padding:16px;box-shadow:0 18px 55px #000}.modal h2{margin:0 0 6px;font-size:21px}.modal p{margin:0 0 14px;color:#c8d6e3;font-size:12px;line-height:1.4}.vgroup{margin:12px 0}.vgroup label{display:block;font-size:13px;font-weight:900;margin-bottom:6px}.vgroup select{width:100%;height:46px;border:0;border-radius:12px;padding:0 10px;font-size:15px;font-weight:850;background:#fff;color:#102038}.modalActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}.modalActions button{height:48px;border:0;border-radius:13px;font-size:14px;font-weight:950}.saveVerify{background:#18a95b;color:#fff}.cancelVerify{background:#2a4059;color:#fff}.verifyMsg{min-height:18px;margin-top:8px;font-size:12px;font-weight:850;color:#ffd27a}
+@media(max-width:480px){.wrap{padding-left:10px;padding-right:10px}.headText h1{font-size:20px}.heroTitle{font-size:20px}.card{padding:12px}.price b{font-size:22px}.name{font-size:16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <button class="back" type="button" onclick="history.length>1?history.back():location.href='index.html'">‹</button>
+    <img class="logo" src="/couteau-suisse-v283-192.png?v=283" alt="Couteau Suisse">
+    <div class="headText"><h1>⛽ Stations à 15 km maximum</h1><p>Position GPS actuelle du téléphone</p></div>
+  </div>
+
+  <section class="hero">
+    <div class="heroTitle">Du moins cher au plus cher</div>
+    <div class="heroSub">Choisissez votre carburant. Les prix, horaires et services se réactualisent automatiquement depuis les données officielles françaises.</div>
+    <div class="controls">
+      <select id="fuel" class="fuel" aria-label="Choisir le carburant">
+        <option value="Gazole">Gazole</option>
+        <option value="E10">E10</option>
+        <option value="SP95">SP95</option>
+        <option value="SP98">SP98</option>
+        <option value="E85">E85</option>
+        <option value="GPLc">GPLc</option>
+      </select>
+      <button id="refresh" class="refresh" type="button">↻ ACTUALISER</button>
+    </div>
+    <div id="gpsLine" class="gpsLine">📍 Recherche de votre position…</div>
+  </section>
+
+  <div class="notice"><b>Stations :</b> prix, horaires et automate 24/24 viennent automatiquement de la source officielle. Pour le <b>GPL</b>, seul le mot GPL change de couleur : vert si l’accès 24/24 est confirmé, rouge si un utilisateur confirme « Pas la peine d’y aller ». Pour les autres GPL, vous pouvez choisir <b>Arrangeant / Gentil / Pas la peine d’y aller</b> et confirmer Cigarettes Oui/Non.</div>
+
+  <div class="statusLine"><strong id="resultTitle">Stations trouvées</strong><span id="updated"></span></div>
+  <div id="loader" class="loader">Recherche des stations…</div>
+  <div id="list" class="list"></div>
+  <div class="source">Source prix/horaire : système officiel Prix des carburants — Ministères économiques et financiers. Rayon limité à 15 km autour du GPS du téléphone.</div>
+</div>
+<div id="verifyModal" class="modalBack" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="verifyTitle">
+    <h2 id="verifyTitle">⛽ Vérifier le GPL</h2>
+    <p>Le rond orange en haut à droite devient vert après confirmation. L’étoile reste uniquement le bouton Favori. Seul le mot GPL change de couleur selon le résultat.</p>
+    <div class="vgroup"><label>Comment est l’accès / l’accueil pour le GPL ?</label><div class="choiceGrid">
+      <label class="choice"><input type="radio" name="vOpinion" value="Arrangeant"><span>ARRANGEANT</span></label>
+      <label class="choice"><input type="radio" name="vOpinion" value="Gentil"><span>GENTIL</span></label>
+      <label class="choice"><input type="radio" name="vOpinion" value="Pas la peine d’y aller"><span>PAS LA PEINE D’Y ALLER</span></label>
+    </div></div>
+    <div class="vgroup"><label>Cigarettes vendues dans la station / boutique</label><div class="choiceGrid two">
+      <label class="choice"><input type="radio" name="vCigarettes" value="Oui"><span>🚬 OUI</span></label>
+      <label class="choice"><input type="radio" name="vCigarettes" value="Non"><span>🚭 NON</span></label>
+    </div></div>
+    <div id="verifyMsg" class="verifyMsg"></div>
+    <div class="modalActions"><button id="cancelVerify" class="cancelVerify" type="button">ANNULER</button><button id="saveVerify" class="saveVerify" type="button">CONFIRMER</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var fuelEl=document.getElementById('fuel'), list=document.getElementById('list'), loader=document.getElementById('loader'), gpsLine=document.getElementById('gpsLine'), title=document.getElementById('resultTitle'), updated=document.getElementById('updated');
+  var modal=document.getElementById('verifyModal'), verifyMsg=document.getElementById('verifyMsg');
+  var lastPos=null, fetching=false, lastLoadAt=0, currentItems=[], currentFuel='Gazole', verificationStates={}, verifyingIndex=-1;
+  try{fuelEl.value=localStorage.getItem('fuel_pref_v325')||'Gazole'}catch(_){}
+
+  function esc(v){return String(v==null?'':v).replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function money(v){var n=Number(v);return Number.isFinite(n)?n.toFixed(3).replace('.',',')+' €':'—'}
+  function dist(v){var n=Number(v);if(!Number.isFinite(n))return'';return n<1?Math.round(n*1000)+' m':n.toFixed(n<10?1:0).replace('.',',')+' km'}
+  function safeJson(v){if(!v)return null;if(typeof v==='object')return v;try{return JSON.parse(v)}catch(_){return null}}
+  function stationKey(s){return String(s.id||((s.lat||'')+'|'+(s.lon||'')+'|'+(s.address||'')+'|'+(s.city||''))).slice(0,180)}
+  function favoriteKey(s){return 'fuelStationFavoriteV330:'+stationKey(s)}
+  function isFavorite(s){try{return localStorage.getItem(favoriteKey(s))==='1'}catch(_){return false}}
+  function toggleFavorite(s){try{var k=favoriteKey(s),on=localStorage.getItem(k)==='1';if(on)localStorage.removeItem(k);else localStorage.setItem(k,'1');return !on}catch(_){return false}}
+  function deviceId(){var k='fuel_station_verify_device_v330',v='';try{v=localStorage.getItem(k)||'';if(!v){v='fs-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12);localStorage.setItem(k,v)}}catch(_){v='fs-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12)}return v}
+  function dayStatus(st){
+    if(st.automate24)return {text:'OUVERT 24/24',cls:'open',detail:'Automate carburant accessible 24/24'};
+    var h=safeJson(st.hoursRaw); if(!h)return {text:'HORAIRES À VÉRIFIER',cls:'unknown',detail:st.hoursText||''};
+    var days=h.jour||h['jour']; if(!Array.isArray(days))days=days?[days]:[];
+    var now=new Date(), id=now.getDay()===0?7:now.getDay(), d=days.find(function(x){return Number(x['@id']||x.id)===id});
+    if(!d)return {text:'HORAIRES À VÉRIFIER',cls:'unknown',detail:st.hoursText||''};
+    if(String(d['@ferme']||d.ferme||'')==='1')return {text:'FERMÉ',cls:'closed',detail:'Guichet déclaré fermé aujourd’hui'};
+    var slots=d.horaire||d['horaire']; if(!slots)return {text:'OUVERTURE À VÉRIFIER',cls:'unknown',detail:st.hoursText||''};
+    if(!Array.isArray(slots))slots=[slots];
+    var nowMin=now.getHours()*60+now.getMinutes(), texts=[], isOpen=false;
+    slots.forEach(function(s){var a=String(s['@ouverture']||s.ouverture||''),b=String(s['@fermeture']||s.fermeture||'');if(a&&b){texts.push(a.replace('.',':')+'–'+b.replace('.',':'));var pa=a.split('.'),pb=b.split('.'),am=Number(pa[0])*60+Number(pa[1]||0),bm=Number(pb[0])*60+Number(pb[1]||0);if(Number.isFinite(am)&&Number.isFinite(bm)){if(bm<am){if(nowMin>=am||nowMin<=bm)isOpen=true}else if(nowMin>=am&&nowMin<=bm)isOpen=true}}});
+    return {text:isOpen?'OUVERT':'FERMÉ',cls:isOpen?'open':'closed',detail:texts.length?texts.join(' / '):(st.hoursText||'')};
+  }
+  function navUrl(s){var dest=s.lat+','+s.lon,pref='Google Maps';try{pref=localStorage.getItem('gps_pref')||pref}catch(_){}if(pref==='Waze')return 'https://www.waze.com/ul?ll='+encodeURIComponent(dest)+'&navigate=yes';if(pref==='Plans Apple')return 'https://maps.apple.com/?daddr='+encodeURIComponent(dest)+'&dirflg=d';return 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(dest)+'&travelmode=driving&dir_action=navigate'}
+  function gplTone(s,v){if(s&&s.gplAvailable&&s.automate24)return 'green';if(v&&v.verified&&v.opinion==='Gentil')return 'green';if(v&&v.verified&&v.opinion==='Pas la peine d’y aller')return 'red';return ''}
+  function verifiedText(v){if(!v||!v.verified)return'';var p=[];if(v.opinion)p.push('avis GPL : '+v.opinion);if(v.cigarettes)p.push('cigarettes : '+v.cigarettes);return p.join(' · ')}
+  function render(items,fuel){
+    currentItems=(items||[]).slice().sort(function(a,b){return Number(a.price)-Number(b.price)||Number(a.distanceKm)-Number(b.distanceKm)});currentFuel=fuel;
+    title.textContent=currentItems.length+' station'+(currentItems.length>1?'s':'')+' à ≤ 15 km — '+fuel;
+    if(!currentItems.length){list.innerHTML='<div class="empty">Aucune station avec un prix '+esc(fuel)+' publié dans un rayon de 15 km. Essayez un autre carburant ou actualisez.</div>';return}
+    list.innerHTML=currentItems.map(function(s,i){
+      var key=stationKey(s),v=verificationStates[key]||null, st=dayStatus(s), services=Array.isArray(s.services)?s.services:[], cb=!!s.automate24||services.some(function(x){return /automate\s*cb/i.test(String(x))}), shop=services.some(function(x){return /boutique/i.test(String(x))});
+      var hasGpl=!!s.gplAvailable||fuel==='GPLc'||!!(v&&v.gpl==='Oui'), tone=gplTone(s,v), official24=!!(s.gplAvailable&&s.automate24), verified=!!(v&&v.verified), availability=s.available===false?' · rupture signalée':'', pay=cb?'Carte 24/24':'Paiement selon station', name=shop?'Station avec boutique':'Station-service', fav=isFavorite(s);
+      var upd=s.updatedAt?new Date(s.updatedAt):null, updTxt=upd&&!isNaN(upd)?upd.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'non précisée';
+      var gplVerify='';
+      if(hasGpl){var gplClass=tone?(' '+tone):'';if(official24)gplVerify='<div class="verifyStation official">⛽ <span class="gplWord'+gplClass+'">GPL</span> <span class="gplOpinion">24/24</span></div>';else if(verified)gplVerify='<button class="verifyStation done" type="button" data-verify="'+i+'">⛽ <span class="gplWord'+gplClass+'">GPL</span> <span class="gplOpinion">· '+esc(v.opinion||'Vérifié')+'</span></button>';else gplVerify='<button class="verifyStation" type="button" data-verify="'+i+'">⛽ <span class="gplWord">GPL</span> À VÉRIFIER</button>';}
+      var dotClass=!hasGpl?'off':((official24||verified)?'ok':'');
+      var dotTitle=!hasGpl?'Pas de GPL indiqué':(official24?'GPL 24/24 confirmé par les données':(verified?'GPL vérifié':'GPL à vérifier'));
+      var cigTxt=verified&&v.cigarettes==='Oui'?'🚬 Cigarettes : OUI':verified&&v.cigarettes==='Non'?'🚭 Cigarettes : NON':'🚬 Cigarettes : à vérifier';
+      return '<article class="card"><div class="cardTools"><span class="verifyDot '+dotClass+'" title="'+esc(dotTitle)+'" aria-label="'+esc(dotTitle)+'"></span><button class="favStar '+(fav?'active':'')+'" type="button" data-fav="'+i+'" aria-label="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'" title="Favori">'+(fav?'★':'☆')+'</button></div><div class="officialStation">✓ STATION — DONNÉES OFFICIELLES</div>'+gplVerify+'<div class="cardTop"><div class="rank">'+(i+1)+'</div><div class="main"><div class="name">'+esc(name)+'</div><div class="addr">'+esc((s.address||'')+(s.cp?' · '+s.cp:'')+(s.city?' '+s.city:''))+'</div></div><div class="price"><b>'+money(s.price)+'</b><span>/ litre</span></div></div><div class="badges"><span class="badge '+st.cls+'">'+esc(st.text)+'</span><span class="badge distance">📍 '+esc(dist(s.distanceKm))+'</span><span class="badge pay">💳 '+esc(pay)+'</span>'+(shop?'<span class="badge shop">🏪 Boutique</span>':'')+'</div><div class="meta"><strong>'+esc(fuel)+'</strong>'+esc(availability)+'<br>🕒 '+esc(st.detail||'Horaires non précisés')+'<br>🔄 Prix mis à jour : '+esc(updTxt)+(s.roadType?'<br>🛣️ '+esc(s.roadType):'')+'</div>'+(hasGpl?'<div class="cigLine">'+esc(cigTxt)+'</div>':'')+(verified&&hasGpl?'<div class="verifiedSummary">GPL vérifié : '+esc(verifiedText(v))+'</div>':'')+'<div class="actions"><a class="go" target="_blank" rel="noopener" href="'+esc(navUrl(s))+'">ALLER À LA STATION</a><button class="details" type="button" data-i="'+i+'">SERVICES</button></div></article>';
+    }).join('');
+    list.querySelectorAll('.details').forEach(function(btn){btn.onclick=function(){var s=currentItems[Number(btn.dataset.i)],sv=Array.isArray(s.services)?s.services:[];alert((sv.length?'Services :\n• '+sv.join('\n• '):'Services non renseignés')+'\n\nEspèces : information non garantie par la source officielle.');}});
+    list.querySelectorAll('[data-verify]').forEach(function(btn){btn.onclick=function(){openVerify(Number(btn.dataset.verify))}});
+    list.querySelectorAll('[data-fav]').forEach(function(btn){btn.onclick=function(){var i=Number(btn.dataset.fav),s=currentItems[i],on=toggleFavorite(s);btn.classList.toggle('active',on);btn.textContent=on?'★':'☆';btn.setAttribute('aria-label',on?'Retirer des favoris':'Ajouter aux favoris')}});
+  }
+  async function loadVerificationStates(items){
+    var keys=(items||[]).map(stationKey).filter(Boolean);verificationStates={};if(!keys.length)return;
+    try{var r=await fetch('/api/fuel-station-verifications/batch',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({keys:keys}),cache:'no-store'}),j=await r.json();if(r.ok&&j&&j.ok)verificationStates=j.states||{}}catch(_){}
+  }
+  function openVerify(i){
+    verifyingIndex=i;var s=currentItems[i];if(!s)return;var v=verificationStates[stationKey(s)]||{};
+    document.querySelectorAll('input[name="vOpinion"],input[name="vCigarettes"]').forEach(function(x){x.checked=false});
+    if(v.opinion)document.querySelectorAll('input[name="vOpinion"]').forEach(function(x){if(x.value===v.opinion)x.checked=true});
+    if(v.cigarettes)document.querySelectorAll('input[name="vCigarettes"]').forEach(function(x){if(x.value===v.cigarettes)x.checked=true});
+    verifyMsg.textContent='';modal.classList.add('on');modal.setAttribute('aria-hidden','false');
+  }
+  function closeVerify(){modal.classList.remove('on');modal.setAttribute('aria-hidden','true');verifyingIndex=-1}
+  document.getElementById('cancelVerify').onclick=closeVerify;modal.addEventListener('click',function(e){if(e.target===modal)closeVerify()});
+  document.getElementById('saveVerify').onclick=async function(){
+    var i=verifyingIndex,s=currentItems[i];if(!s)return;var b=this;b.disabled=true;verifyMsg.textContent='Enregistrement…';
+    try{var o=document.querySelector('input[name="vOpinion"]:checked'),c=document.querySelector('input[name="vCigarettes"]:checked');if(!o||!c)throw new Error('Choisissez Arrangeant, Gentil ou Pas la peine d’y aller, puis Oui/Non pour cigarettes.');var payload={stationKey:stationKey(s),deviceId:deviceId(),opinion:o.value,cigarettes:c.value,gpl:'Oui'};var r=await fetch('/api/fuel-station-verifications',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload),cache:'no-store'}),j=await r.json();if(!r.ok||!j||!j.ok)throw new Error(j&&j.message||'Enregistrement impossible');verificationStates[payload.stationKey]=j.state;closeVerify();render(currentItems,currentFuel)}catch(e){verifyMsg.textContent=e.message||'Enregistrement impossible'}finally{b.disabled=false}
+  };
+  async function loadAt(lat,lon){
+    if(fetching)return;fetching=true;loader.classList.add('on');list.innerHTML='';var fuel=fuelEl.value;try{localStorage.setItem('fuel_pref_v325',fuel)}catch(_){}gpsLine.textContent='📍 GPS actuel utilisé — rayon maximum 15 km';
+    try{var r=await fetch('/api/fuel-stations?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon)+'&fuel='+encodeURIComponent(fuel),{cache:'no-store'}),j=await r.json();if(!r.ok||!j||!j.ok)throw new Error((j&&j.message)||'Recherche indisponible');await loadVerificationStates(j.stations||[]);render(j.stations||[],fuel);lastLoadAt=Date.now();updated.textContent='Actualisé '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}catch(e){list.innerHTML='<div class="empty">Impossible de récupérer les stations pour le moment.<br>'+esc(e.message||'Réessayez dans quelques instants.')+'</div>';title.textContent='Stations à ≤ 15 km';}finally{fetching=false;loader.classList.remove('on')}
+  }
+  function locate(force){if(!navigator.geolocation){gpsLine.textContent='❌ GPS non disponible sur ce téléphone';list.innerHTML='<div class="empty">La géolocalisation est nécessaire pour chercher dans un rayon de 15 km.</div>';return}gpsLine.textContent='📍 Recherche de votre position actuelle…';navigator.geolocation.getCurrentPosition(function(p){lastPos={lat:p.coords.latitude,lon:p.coords.longitude};loadAt(lastPos.lat,lastPos.lon)},function(){gpsLine.textContent='❌ Autorisez la localisation pour voir les stations proches';list.innerHTML='<div class="empty">Activez la localisation du navigateur puis appuyez sur ACTUALISER.</div>';},{enableHighAccuracy:true,maximumAge:force?0:45000,timeout:12000})}
+  fuelEl.addEventListener('change',function(){if(lastPos)loadAt(lastPos.lat,lastPos.lon);else locate(false)});document.getElementById('refresh').addEventListener('click',function(){locate(true)});document.addEventListener('visibilitychange',function(){if(!document.hidden&&Date.now()-lastLoadAt>120000)locate(true)});setInterval(function(){if(!document.hidden)locate(true)},300000);locate(false);
+})();
+</script>
+</body>
+</html>

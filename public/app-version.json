@@ -1,4 +1,4 @@
 {
-  "version": "324",
-  "message": "Audit général de Couteau Suisse : import Jours-de-Marché V323 conservé, cache de mise à jour corrigé, liens d’icônes réparés et contrôles de cohérence effectués. Les marchés existants et les données utilisateur sont conservés."
+  "version": "331",
+  "message": "Stations GPL : seule la mention GPL change de couleur. GPL 24/24 ou avis Gentil = vert, Arrangeant = neutre, Pas la peine d’y aller = rouge. Étoile = favori. Vérification GPL avec Arrangeant / Gentil / Pas la peine d’y aller et Cigarettes Oui/Non."
 }

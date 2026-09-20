@@ -1,25 +1,25 @@
-const VERSION = "V324";
-const BASE_CACHE = "couteau-suisse-module-base-v324-audit-general";
+const VERSION = "V331";
+const BASE_CACHE = "couteau-suisse-module-base-v331-gpl-avis";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v310";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v313";
 const DATA_CACHE = "couteau-suisse-module-data-v283";
 const INSTALL_CACHE = "couteau-suisse-module-install-v309";
-const STATS_CACHE = "couteau-suisse-module-stats-v302";
+const STATS_CACHE = "couteau-suisse-module-stats-v325";
 const MUSHROOM_CACHE = "couteau-suisse-module-mushroom-v300";
 const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v313";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled(){const cache=await caches.open(NOTIFICATION_PREF_CACHE),r=await cache.match(NOTIFICATION_PREF_URL);return !!r&&(await r.text())==="1"}
 async function saveNotificationPreference(enabled){const cache=await caches.open(NOTIFICATION_PREF_CACHE);await cache.put(NOTIFICATION_PREF_URL,new Response(enabled?"1":"0"))}
-const BASE_CORE=["/index.html","/mobile-overrides.css?v=64","/weather-all-pages.js?v=68-notifications-globales","/notification-settings.js?v=282-onboarding-notification-detail","/market-update-notifications-v281.js?v=282","/home-work.css?v=64","/home-work.js?v=302-d1","/markets-final.css?v=126-favori-fluide","/choix-marches-final.html?v=324","/special-marches.html?v=324","/nearby-markets.html?v=324","/traveller-markets.html?v=320","/verification-v9.html?v=320","/market-consensus.js?v=320-verification-speciale","/special-market-server-v157.js?v=320-verification-speciale","/brocante-crosscheck-v316.js?v=316","/market-auto-update-v319.js?v=320","/market-attendance-v317.js?v=320","/market-navigation-confirm-v189.js?v=320"];
+const BASE_CORE=["/index.html","/stations-carburant.html?v=330","/mobile-overrides.css?v=64","/weather-all-pages.js?v=68-notifications-globales","/notification-settings.js?v=282-onboarding-notification-detail","/market-update-notifications-v281.js?v=282","/home-work.css?v=64","/home-work.js?v=302-d1","/markets-final.css?v=126-favori-fluide","/choix-marches-final.html?v=324","/special-marches.html?v=324","/nearby-markets.html?v=324","/traveller-markets.html?v=320","/verification-v9.html?v=320","/market-consensus.js?v=320-verification-speciale","/special-market-server-v157.js?v=320-verification-speciale","/brocante-crosscheck-v316.js?v=316","/market-auto-update-v319.js?v=320","/market-attendance-v317.js?v=320","/market-navigation-confirm-v189.js?v=320"];
 const MODULES={
  [ICON_CACHE]:["/manifest.webmanifest?v=283-icons","/couteau-suisse-v283-152.png?v=283","/couteau-suisse-v283-167.png?v=283","/couteau-suisse-v283-180.png?v=283","/couteau-suisse-v283-192.png?v=283","/couteau-suisse-v283-512.png?v=283","/couteau-suisse-v283-1024.png?v=283","/couteau-suisse-v283-maskable-192.png?v=283","/couteau-suisse-v283-maskable-512.png?v=283"],
  [CONTEST_CACHE]:["/contest-v188.js?v=310-admin-participe"],
  [ADMIN_CACHE]:["/admin.html","/contest-admin-v188.js?v=302-d1"],
  [DATA_CACHE]:["/persistent-user-data-v283.js?v=283"],
  [INSTALL_CACHE]:["/installer.html","/app-access-gate-v240.js?v=309-confirmed-direct","/cache-cleanup-v20260910.js?v=283-modules"],
- [STATS_CACHE]:["/user-stats-v285.js?v=302-d1"],
+ [STATS_CACHE]:["/user-stats-v285.js?v=328-stations-verifiees"],
  [MUSHROOM_CACHE]:["/champignons.html","/champignons.js?v=300-concours-auto","/champignons.css?v=300-concours-auto"],
  [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=313-classement-notifs"]
 };

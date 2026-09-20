@@ -46,7 +46,7 @@
   }
   async function sync(){
     if(!('serviceWorker'in navigator))return;
-    const registration=await navigator.serviceWorker.register('/sw.js?v=324-audit-general',{updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('/sw.js?v=330-gpl-favori-verif',{updateViaCache:'none'});
     await registration.update().catch(function(){});
     if(registration.waiting)registration.waiting.postMessage({type:'SKIP_WAITING'});
     await navigator.serviceWorker.ready;

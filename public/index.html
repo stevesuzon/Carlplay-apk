@@ -830,6 +830,14 @@ backdrop-filter:blur(3px);
 pointer-events:none;
 opacity:.9;
 ">● <span id="connectedUsersCount">0</span> connecté(s)</div>
+<button id="fuelStationsQuickBtn" type="button" aria-label="Stations-service à moins de 15 kilomètres" onclick="location.href='stations-carburant.html'">⛽ STATIONS 15 KM</button>
+<style id="fuelStationsQuickStyle">
+#fuelStationsQuickBtn{position:fixed;top:8px;z-index:9999;height:30px;min-width:105px;padding:3px 10px;border-radius:11px;border:1px solid rgba(255,190,58,.82);background:rgba(65,45,12,.82);color:#ffe7a7;font:900 11px Arial,sans-serif;box-shadow:0 3px 10px #0005,0 0 0 1px rgba(255,190,58,.12) inset;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);cursor:pointer;white-space:nowrap;touch-action:manipulation}
+#fuelStationsQuickBtn:hover{border-color:#ffd36a;background:rgba(82,55,10,.9)}#fuelStationsQuickBtn:active{transform:scale(.96)}body.house-measure-open #fuelStationsQuickBtn{display:none!important}@media(max-width:390px){#fuelStationsQuickBtn{height:28px;min-width:92px;padding:2px 7px;font-size:9.5px}}
+</style>
+<script id="fuelStationsQuickPosition">
+(function(){function pos(){var b=document.getElementById('fuelStationsQuickBtn'),u=document.getElementById('totalUsersBadge'),c=document.getElementById('connectedUsersBadge');if(!b)return;var left=10;if(u){var ru=u.getBoundingClientRect();left=Math.ceil(ru.right+6)}else if(c){var rc=c.getBoundingClientRect();left=Math.ceil(rc.right+6)}b.style.left=left+'px'}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',pos);else pos();addEventListener('resize',pos);addEventListener('carplay-user-stats-positioned',pos);setTimeout(pos,250);setTimeout(pos,1000);if(window.ResizeObserver){var ro=new ResizeObserver(pos),c=document.getElementById('connectedUsersBadge'),u=document.getElementById('totalUsersBadge');if(c)ro.observe(c);if(u)ro.observe(u)}})();
+</script>
 <div class="wrap">
 <div class="top">
 <div id="network" class="status">Vérification Internet…</div>
@@ -1329,7 +1337,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(82,'Recherche d’une nouvelle version…','Le service de mise à jour vérifie uniquement les modules nécessaires.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=324-audit-general',{updateViaCache:'none'})]}catch(_){regs=[]}}
+      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=330-gpl-favori-verif',{updateViaCache:'none'})]}catch(_){regs=[]}}
       for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){ }
       var reg=regs[0];
       if(reg&&reg.waiting){
@@ -2668,7 +2676,7 @@ window.addEventListener('load',function(){
 <script src="/devis-personnalises-v2.js?v=238-admin-email-devis"></script>
 <script src="/brocante-fiche-achat-v1.js?v=238-compat"></script>
 <script src="/license-ui.js?v=194"></script>
-<script src="/notification-settings.js?v=282-onboarding-notification-detail"></script><script src="/admin-approval-overlay.js?v=302-d1"></script><script src="/sanction-guard-v161.js?v=302-d1"></script><script src="/user-stats-v285.js?v=302-d1"></script><script src="/auto-market-counter-v204.js?v=204" defer></script>
+<script src="/notification-settings.js?v=282-onboarding-notification-detail"></script><script src="/admin-approval-overlay.js?v=302-d1"></script><script src="/sanction-guard-v161.js?v=302-d1"></script><script src="/user-stats-v285.js?v=328-stations-verifiees"></script><script src="/auto-market-counter-v204.js?v=204" defer></script>
 <script src="/trial-home-banner-v292.js?v=292"></script>
 </body>
 </html>

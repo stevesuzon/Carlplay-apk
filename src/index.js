@@ -3656,6 +3656,191 @@ class InjectMarketLive {
 }
 
 
+
+const FUEL_STATION_DATASET = "prix-des-carburants-en-france-flux-instantane-v2";
+const FUEL_STATION_FIELDS = {
+  Gazole: { price: "gazole_prix", updated: "gazole_maj", rupture: "gazole_rupture_type" },
+  SP95:   { price: "sp95_prix",   updated: "sp95_maj",   rupture: "sp95_rupture_type" },
+  SP98:   { price: "sp98_prix",   updated: "sp98_maj",   rupture: "sp98_rupture_type" },
+  E10:    { price: "e10_prix",    updated: "e10_maj",    rupture: "e10_rupture_type" },
+  E85:    { price: "e85_prix",    updated: "e85_maj",    rupture: "e85_rupture_type" },
+  GPLc:   { price: "gplc_prix",   updated: "gplc_maj",   rupture: "gplc_rupture_type" }
+};
+
+function fuelStationServices(fields) {
+  const direct = fields && fields.services_service;
+  if (Array.isArray(direct)) return direct.map(x => String(x || "")).filter(Boolean);
+  if (direct != null && direct !== "") return String(direct).split(/\s*;\s*/).filter(Boolean);
+  const raw = fields && fields.services;
+  if (!raw) return [];
+  try {
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const value = parsed && parsed.service;
+    if (Array.isArray(value)) return value.map(x => String(x || "")).filter(Boolean);
+    if (value) return [String(value)];
+  } catch (_) {}
+  return [];
+}
+
+function fuelStationCoords(fields) {
+  const g = fields && fields.geom;
+  if (g && Number.isFinite(Number(g.lat)) && Number.isFinite(Number(g.lon))) {
+    return { lat: Number(g.lat), lon: Number(g.lon) };
+  }
+  let lat = Number(fields && fields.latitude), lon = Number(fields && fields.longitude);
+  // Le flux historique encode parfois les coordonnées en degrés * 100000.
+  if (Number.isFinite(lat) && Math.abs(lat) > 90) lat /= 100000;
+  if (Number.isFinite(lon) && Math.abs(lon) > 180) lon /= 100000;
+  return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
+}
+
+function fuelStationAutomate24(fields, services) {
+  const v = String((fields && fields.horaires_automate_24_24) || "").toLowerCase();
+  if (v === "oui" || v === "1" || v === "true") return true;
+  return (services || []).some(x => /automate\s*cb\s*24\s*\/\s*24/i.test(String(x)));
+}
+
+async function fuelStationsNearby(request) {
+  const u = new URL(request.url);
+  const lat = Number(u.searchParams.get("lat")), lon = Number(u.searchParams.get("lon"));
+  const requestedFuel = String(u.searchParams.get("fuel") || "Gazole");
+  const fuel = Object.prototype.hasOwnProperty.call(FUEL_STATION_FIELDS, requestedFuel) ? requestedFuel : "Gazole";
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    return json({ ok:false, error:"GPS_INVALIDE", message:"Position GPS invalide." }, 400);
+  }
+  const cfg = FUEL_STATION_FIELDS[fuel];
+  const point = `geom'POINT(${lon} ${lat})'`;
+  const where = `within_distance(geom, ${point}, 15km) AND ${cfg.price} is not null`;
+  const v2 = new URL(`https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/${FUEL_STATION_DATASET}/records`);
+  v2.searchParams.set("where", where);
+  v2.searchParams.set("order_by", `${cfg.price} ASC`);
+  v2.searchParams.set("limit", "100");
+
+  let rows = [], source = "v2.1";
+  try {
+    const r = await fetch(v2.toString(), { headers: { "User-Agent":"Couteau-Suisse/330 (+fuel-stations)" }, cf: { cacheTtl: 120, cacheEverything: true } });
+    if (!r.ok) throw new Error(`HTTP_${r.status}`);
+    const j = await r.json();
+    rows = Array.isArray(j && j.results) ? j.results : [];
+  } catch (_) {
+    source = "v1";
+    try {
+      const v1 = new URL("https://data.economie.gouv.fr/api/records/1.0/search/");
+      v1.searchParams.set("dataset", FUEL_STATION_DATASET);
+      v1.searchParams.set("rows", "100");
+      v1.searchParams.set("sort", cfg.price);
+      v1.searchParams.set("geofilter.distance", `${lat},${lon},15000`);
+      const r = await fetch(v1.toString(), { headers: { "User-Agent":"Couteau-Suisse/330 (+fuel-stations)" }, cf: { cacheTtl: 120, cacheEverything: true } });
+      if (!r.ok) throw new Error(`HTTP_${r.status}`);
+      const j = await r.json();
+      rows = (Array.isArray(j && j.records) ? j.records : []).map(x => x && x.fields ? x.fields : x);
+    } catch (e) {
+      return json({ ok:false, error:"SOURCE_CARBURANT_INDISPONIBLE", message:"Les prix officiels des carburants sont momentanément indisponibles." }, 502);
+    }
+  }
+
+  const stations = [];
+  for (const f of rows) {
+    if (!f) continue;
+    const coords = fuelStationCoords(f);
+    const price = Number(f[cfg.price]);
+    if (!coords || !Number.isFinite(price) || price <= 0) continue;
+    const distanceKm = haversineMeters(lat, lon, coords.lat, coords.lon) / 1000;
+    if (!Number.isFinite(distanceKm) || distanceKm > 15.05) continue;
+    const services = fuelStationServices(f);
+    const automate24 = fuelStationAutomate24(f, services);
+    stations.push({
+      id: String(f.id || ""),
+      fuel,
+      price,
+      updatedAt: f[cfg.updated] || null,
+      available: !String(f[cfg.rupture] || "").trim(),
+      ruptureType: f[cfg.rupture] || null,
+      lat: coords.lat,
+      lon: coords.lon,
+      distanceKm: Number(distanceKm.toFixed(2)),
+      address: String(f.adresse || ""),
+      cp: String(f.cp || ""),
+      city: String(f.ville || ""),
+      roadType: String(f.pop || "").toUpperCase() === "A" ? "Station autoroutière" : "Station routière",
+      automate24,
+      services,
+      gplAvailable: Number(f.gplc_prix) > 0 && !String(f.gplc_rupture_type || "").trim(),
+      gplPrice: Number(f.gplc_prix) > 0 ? Number(f.gplc_prix) : null,
+      hoursRaw: f.horaires || null,
+      hoursText: f.horaires_jour || null
+    });
+  }
+  stations.sort((a,b) => a.price - b.price || a.distanceKm - b.distanceKm);
+  return json({ ok:true, radiusKm:15, fuel, source, stations, count:stations.length, dataNotice:"Prix et informations issus du flux officiel français, actualisé fréquemment par le producteur." });
+}
+
+async function ensureFuelStationVerificationTable(env) {
+  if (!env || !env.DB) return false;
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS fuel_station_verifications (
+    station_key TEXT PRIMARY KEY, payment TEXT NOT NULL DEFAULT '', boutique TEXT NOT NULL DEFAULT '',
+    open24 TEXT NOT NULL DEFAULT '', gpl TEXT NOT NULL DEFAULT '', cigarettes TEXT NOT NULL DEFAULT '', opinion TEXT NOT NULL DEFAULT '', device_id TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+  try { await env.DB.prepare(`ALTER TABLE fuel_station_verifications ADD COLUMN cigarettes TEXT NOT NULL DEFAULT ''`).run(); } catch (_) {}
+  try { await env.DB.prepare(`ALTER TABLE fuel_station_verifications ADD COLUMN opinion TEXT NOT NULL DEFAULT ''`).run(); } catch (_) {}
+  return true;
+}
+
+function cleanFuelStationKey(value) {
+  return String(value || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 180);
+}
+
+function normalizeStationChoice(kind, value) {
+  value = String(value || '').trim();
+  if (kind === 'opinion') {
+    const allowed = ['Arrangeant', 'Gentil', 'Pas la peine d’y aller'];
+    return allowed.includes(value) ? value : '';
+  }
+  if (kind === 'payment') {
+    const allowed = ['Carte', 'Espèces', 'Carte + espèces', 'Je ne sais pas'];
+    return allowed.includes(value) ? value : '';
+  }
+  const allowed = ['Oui', 'Non', 'Je ne sais pas'];
+  return allowed.includes(value) ? value : '';
+}
+
+async function fuelStationVerificationBatch(request, env) {
+  try {
+    if (!await ensureFuelStationVerificationTable(env)) return json({ok:true,states:{}});
+    const body = await request.json().catch(()=>({}));
+    const keys = [...new Set((Array.isArray(body.keys)?body.keys:[]).map(cleanFuelStationKey).filter(Boolean))].slice(0,100);
+    if (!keys.length) return json({ok:true,states:{}});
+    const q = `SELECT station_key,payment,boutique,open24,gpl,cigarettes,opinion,updated_at FROM fuel_station_verifications WHERE station_key IN (${keys.map(()=>'?').join(',')})`;
+    const rows = (await env.DB.prepare(q).bind(...keys).all()).results || [];
+    const states = {};
+    for (const r of rows) states[r.station_key] = {verified:!!(r.opinion&&r.cigarettes),opinion:r.opinion||'',payment:r.payment||'',boutique:r.boutique||'',open24:r.open24||'',gpl:r.gpl||'',cigarettes:r.cigarettes||'',updatedAt:r.updated_at||''};
+    return json({ok:true,states});
+  } catch (e) {
+    return json({ok:false,error:'STATION_VERIFICATION_BATCH',message:String(e&&e.message||e)},500);
+  }
+}
+
+async function submitFuelStationVerification(request, env) {
+  try {
+    if (!await ensureFuelStationVerificationTable(env)) return json({ok:false,error:'DB_INDISPONIBLE'},503);
+    const body = await request.json().catch(()=>({}));
+    const stationKey = cleanFuelStationKey(body.stationKey);
+    const deviceId = String(body.deviceId || '').trim().slice(0,180);
+    const opinion = normalizeStationChoice('opinion', body.opinion);
+    const cigarettes = normalizeStationChoice('yesno', body.cigarettes);
+    const gpl = normalizeStationChoice('yesno', body.gpl || 'Oui') || 'Oui';
+    if (!stationKey || !deviceId || !opinion || !cigarettes) return json({ok:false,error:'CHOIX_INCOMPLETS',message:'Choisissez Arrangeant, Gentil ou Pas la peine d’y aller, puis Oui/Non pour cigarettes.'},400);
+    await env.DB.prepare(`INSERT INTO fuel_station_verifications(station_key,payment,boutique,open24,gpl,cigarettes,opinion,device_id,updated_at)
+      VALUES(?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+      ON CONFLICT(station_key) DO UPDATE SET gpl=excluded.gpl,cigarettes=excluded.cigarettes,opinion=excluded.opinion,device_id=excluded.device_id,updated_at=CURRENT_TIMESTAMP`)
+      .bind(stationKey,'','','',gpl,cigarettes,opinion,deviceId).run();
+    return json({ok:true,state:{verified:true,opinion,payment:'',boutique:'',open24:'',gpl,cigarettes,updatedAt:new Date().toISOString()}});
+  } catch (e) {
+    return json({ok:false,error:'STATION_VERIFICATION',message:String(e&&e.message||e)},500);
+  }
+}
+
 export default {
   async scheduled(controller, env, ctx) { ctx.waitUntil(runIncrementalMarketRefresh(env)); },
   async fetch(request, env) {
@@ -3674,6 +3859,9 @@ export default {
     if (url.pathname === "/api/presence" && (request.method === "GET" || request.method === "POST")) return presence(request, env);
     if (url.pathname === "/api/installations" && request.method === "POST") return installations(request, env);
     if (url.pathname === "/api/user-stats" && request.method === "GET") return publicUserStats(env);
+    if (url.pathname === "/api/fuel-stations" && request.method === "GET") return fuelStationsNearby(request);
+    if (url.pathname === "/api/fuel-station-verifications/batch" && request.method === "POST") return fuelStationVerificationBatch(request, env);
+    if (url.pathname === "/api/fuel-station-verifications" && request.method === "POST") return submitFuelStationVerification(request, env);
     if (url.pathname === "/api/app-identity/start" && request.method === "POST") return appIdentityStart(request, env);
     if (url.pathname === "/api/app-identity/confirm" && request.method === "GET") return appIdentityConfirm(request, env);
     if (url.pathname === "/api/app-identity/handoff" && request.method === "POST") return appIdentityHandoff(request, env);

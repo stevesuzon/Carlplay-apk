@@ -37,6 +37,7 @@
     var left=118;
     if(connected){var r=connected.getBoundingClientRect();left=Math.ceil(r.right+6)}
     badge.style.left=left+'px';
+    try{window.dispatchEvent(new Event('carplay-user-stats-positioned'))}catch(_){}
   }
   function fmt(n){
     n=Math.max(0,Number(n||0));

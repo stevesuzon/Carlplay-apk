@@ -11,7 +11,7 @@
       if (Date.now() - swLastCheck < 30000) return;
       swLastCheck = Date.now();
       try {
-        var registration = await navigator.serviceWorker.register("/sw.js?v=324-audit-general", { updateViaCache: "none" });
+        var registration = await navigator.serviceWorker.register("/sw.js?v=330-gpl-favori-verif", { updateViaCache: "none" });
         activateWaiting(registration);
         registration.addEventListener("updatefound", function () {
           var worker = registration.installing;
