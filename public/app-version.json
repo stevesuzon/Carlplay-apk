@@ -1,4 +1,4 @@
 {
-  "version": "313",
-  "message": "Concours : après confirmation d’une fiche ou d’un bug avec points, les autres participants reçoivent une notification avec le gain et la nouvelle place au classement. Les refus restent privés."
+  "version": "321",
+  "message": "Recherche par numéro de département ajoutée aux marchés de Noël, brocantes, vide-greniers, foires et autres catégories spéciales. Le mode à moins de 80 km affiche aussi les foires, brocantes et marchés de Noël dès 7 jours avant leur début, puis les retire automatiquement après leur date de fin."
 }

@@ -1,5 +1,5 @@
-const VERSION = "V313";
-const BASE_CACHE = "couteau-suisse-module-base-v302-d1";
+const VERSION = "V321";
+const BASE_CACHE = "couteau-suisse-module-base-v321-recherche-departement-evenements-7j";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v310";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v313";
@@ -12,7 +12,7 @@ const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled(){const cache=await caches.open(NOTIFICATION_PREF_CACHE),r=await cache.match(NOTIFICATION_PREF_URL);return !!r&&(await r.text())==="1"}
 async function saveNotificationPreference(enabled){const cache=await caches.open(NOTIFICATION_PREF_CACHE);await cache.put(NOTIFICATION_PREF_URL,new Response(enabled?"1":"0"))}
-const BASE_CORE=["/index.html","/mobile-overrides.css?v=64","/weather-all-pages.js?v=68-notifications-globales","/notification-settings.js?v=282-onboarding-notification-detail","/market-update-notifications-v281.js?v=282","/home-work.css?v=64","/home-work.js?v=302-d1","/markets-final.css?v=126-favori-fluide"];
+const BASE_CORE=["/index.html","/mobile-overrides.css?v=64","/weather-all-pages.js?v=68-notifications-globales","/notification-settings.js?v=282-onboarding-notification-detail","/market-update-notifications-v281.js?v=282","/home-work.css?v=64","/home-work.js?v=302-d1","/markets-final.css?v=126-favori-fluide","/choix-marches-final.html?v=321","/special-marches.html?v=321","/nearby-markets.html?v=321","/traveller-markets.html?v=320","/verification-v9.html?v=320","/market-consensus.js?v=320-verification-speciale","/special-market-server-v157.js?v=320-verification-speciale","/brocante-crosscheck-v316.js?v=316","/market-auto-update-v319.js?v=320","/market-attendance-v317.js?v=320","/market-navigation-confirm-v189.js?v=320"];
 const MODULES={
  [ICON_CACHE]:["/manifest.webmanifest?v=283-icons","/couteau-suisse-v283-152.png?v=283","/couteau-suisse-v283-167.png?v=283","/couteau-suisse-v283-180.png?v=283","/couteau-suisse-v283-192.png?v=283","/couteau-suisse-v283-512.png?v=283","/couteau-suisse-v283-1024.png?v=283","/couteau-suisse-v283-maskable-192.png?v=283","/couteau-suisse-v283-maskable-512.png?v=283"],
  [CONTEST_CACHE]:["/contest-v188.js?v=310-admin-participe"],

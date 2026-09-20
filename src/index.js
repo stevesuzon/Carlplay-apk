@@ -938,13 +938,25 @@ async function ensureMarketTable(env) {
     draw TEXT NOT NULL DEFAULT '',
     registration TEXT NOT NULL DEFAULT '',
     note TEXT NOT NULL DEFAULT '',
+    phone TEXT NOT NULL DEFAULT '',
+    date_label TEXT NOT NULL DEFAULT '',
+    start_date TEXT NOT NULL DEFAULT '',
+    end_date TEXT NOT NULL DEFAULT '',
+    source_url TEXT NOT NULL DEFAULT '',
     latitude REAL,
     longitude REAL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`).run();
   try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN latitude REAL").run(); } catch (_) {}
   try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN longitude REAL").run(); } catch (_) {}
   try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN registration TEXT NOT NULL DEFAULT ''").run(); } catch (_) {}
+  try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN phone TEXT NOT NULL DEFAULT ''").run(); } catch (_) {}
+  try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN date_label TEXT NOT NULL DEFAULT ''").run(); } catch (_) {}
+  try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN start_date TEXT NOT NULL DEFAULT ''").run(); } catch (_) {}
+  try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN end_date TEXT NOT NULL DEFAULT ''").run(); } catch (_) {}
+  try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN source_url TEXT NOT NULL DEFAULT ''").run(); } catch (_) {}
+  try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP").run(); } catch (_) {}
 }
 
 function cleanMarket(value, max = 240) {
@@ -954,21 +966,27 @@ function cleanMarket(value, max = 240) {
 function normalizeMarket(input) {
   const country = cleanMarket(input.country || input.pays, 2).toUpperCase() === "BE" ? "BE" : "FR";
   const area = cleanMarket(input.area || input.department || input.departement || input.province, 80).toUpperCase();
-  const kind = /brocante/i.test(cleanMarket(input.kind || input.type)) ? "brocante" : "marche";
+  const rawKind = cleanMarket(input.kind || input.type, 80).toLowerCase();
+  const kind = /voyageur|traveller|forain/.test(rawKind) ? "voyageur" : /no[eë]l|christmas|kerst/.test(rawKind) ? "noel" : /brocante|vide[ -]?grenier|foire|braderie|puces|rederie|r[eé]derie/.test(rawKind) ? "brocante" : "marche";
   const name = cleanMarket(input.name || input.nom);
   const city = cleanMarket(input.city || input.ville || input.commune, 120);
-  const day = cleanMarket(input.day || input.jour, 30).toLowerCase();
+  const dateLabel = cleanMarket(input.dateLabel || input.date_label || input.date || input.day || input.jour, 120);
+  const day = cleanMarket(input.day || input.jour || input.dateLabel || input.date_label || input.date, 120).toLowerCase();
   const hours = cleanMarket(input.hours || input.horaires, 80);
   const address = cleanMarket(input.address || input.adresse, 240);
-  const merchants = cleanMarket(input.merchants || input.commercants || input.nombre_commercants, 40);
+  const merchants = cleanMarket(input.merchants || input.commercants || input.nombre_commercants || input.exposants || input.emplacements || input.stands || input.chalets || input.capacity || input.capacite, 60);
   const draw = cleanMarket(input.draw || input.tirage || input.tirage_au_sort, 30);
-  const registration = cleanMarket(input.registration || input.inscription, 120);
+  const registration = cleanMarket(input.registration || input.inscription || input.organizer || input.organisateur, 160);
   const note = cleanMarket(input.note || input.remarques, 500);
+  const phone = cleanMarket(input.phone || input.telephone || input.tel, 40);
+  const startDate = cleanMarket(input.start || input.start_date || input.date_debut, 20);
+  const endDate = cleanMarket(input.end || input.end_date || input.date_fin || startDate, 20);
+  const sourceUrl = cleanMarket(input.sourceUrl || input.source_url || input.url || input.source, 500);
   const latitude = Number(input.latitude != null ? input.latitude : input.lat);
   const longitude = Number(input.longitude != null ? input.longitude : (input.lng != null ? input.lng : input.lon));
   if (!area || !name || !day) return null;
   const fingerprint = [country, area, kind, name, city, day].join("|").toLowerCase();
-  return { fingerprint, country, area, kind, name, city, day, hours, address, merchants, draw, registration, note,
+  return { fingerprint, country, area, kind, name, city, day, hours, address, merchants, draw, registration, note, phone, dateLabel, startDate, endDate, sourceUrl,
     latitude: Number.isFinite(latitude) ? latitude : null,
     longitude: Number.isFinite(longitude) ? longitude : null };
 }
@@ -976,14 +994,15 @@ function normalizeMarket(input) {
 async function listMarkets(env) {
   await ensureMarketTable(env);
   await ensureMarketVerificationTables(env);
-  const result = await env.DB.prepare("SELECT country,area,kind,name,city,day,hours,address,merchants,draw,registration,note,latitude,longitude FROM imported_markets ORDER BY country,area,day,city,name").all();
+  const result = await env.DB.prepare("SELECT country,area,kind,name,city,day,hours,address,merchants,draw,registration,note,phone,date_label,start_date,end_date,source_url,latitude,longitude,updated_at FROM imported_markets ORDER BY country,area,day,city,name").all();
   const removed = await env.DB.prepare("SELECT market_key FROM market_verification_consensus WHERE field='exists' AND lower(value_norm)='non'").all();
   const disabled = new Set((removed.results || []).map(r => String(r.market_key || '')));
   const markets = (result.results || []).filter(m => {
     const key = [String(m.country || '').toLowerCase(),m.area,m.name,m.city,m.day,m.address || ''].join('|');
-    return !disabled.has(key);
+    return !disabled.has(key) && !storedMarketExpired(m);
   });
-  return json({ ok: true, markets });
+  const latest = (result.results || []).reduce((m,r) => String(r.updated_at || '') > m ? String(r.updated_at || '') : m, '');
+  return json({ ok: true, markets, updatedAt: latest || null, serverTime: Date.now() });
 }
 
 async function importMarkets(request, env) {
@@ -998,13 +1017,92 @@ async function importMarkets(request, env) {
     if (!m) { invalid++; continue; }
     const existing = await env.DB.prepare("SELECT fingerprint FROM imported_markets WHERE fingerprint=?").bind(m.fingerprint).first();
     await env.DB.prepare(`INSERT INTO imported_markets
-      (fingerprint,country,area,kind,name,city,day,hours,address,merchants,draw,registration,note,latitude,longitude)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      ON CONFLICT(fingerprint) DO UPDATE SET country=excluded.country,area=excluded.area,kind=excluded.kind,name=excluded.name,city=excluded.city,day=excluded.day,hours=excluded.hours,address=excluded.address,merchants=excluded.merchants,draw=excluded.draw,registration=excluded.registration,note=excluded.note,latitude=excluded.latitude,longitude=excluded.longitude`).bind(m.fingerprint,m.country,m.area,m.kind,m.name,m.city,m.day,m.hours,m.address,m.merchants,m.draw,m.registration,m.note,m.latitude,m.longitude).run();
+      (fingerprint,country,area,kind,name,city,day,hours,address,merchants,draw,registration,note,phone,date_label,start_date,end_date,source_url,latitude,longitude,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+      ON CONFLICT(fingerprint) DO UPDATE SET country=excluded.country,area=excluded.area,kind=excluded.kind,name=excluded.name,city=excluded.city,day=excluded.day,hours=excluded.hours,address=excluded.address,merchants=excluded.merchants,draw=excluded.draw,registration=excluded.registration,note=excluded.note,phone=excluded.phone,date_label=excluded.date_label,start_date=excluded.start_date,end_date=excluded.end_date,source_url=excluded.source_url,latitude=excluded.latitude,longitude=excluded.longitude,updated_at=CURRENT_TIMESTAMP`).bind(m.fingerprint,m.country,m.area,m.kind,m.name,m.city,m.day,m.hours,m.address,m.merchants,m.draw,m.registration,m.note,m.phone,m.dateLabel,m.startDate,m.endDate,m.sourceUrl,m.latitude,m.longitude).run();
     if (existing) updated++; else added++;
   }
   return json({ ok: true, added, updated, duplicates, invalid, total: source.length });
 }
+
+
+// V318 — Mise à jour progressive des marchés : une seule zone/catégorie par passage.
+// Les événements terminés rendent leur zone prioritaire. Le téléphone ne scrute jamais le Web :
+// le Worker met D1 à jour en arrière-plan puis /api/markets diffuse uniquement la base légère.
+const MARKET_REFRESH_FR_AREAS = ["01","02","03","04","05","06","07","08","09","10","11","12","13","14","15","16","17","18","19","2A","2B","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51","52","53","54","55","56","57","58","59","60","61","62","63","64","65","66","67","68","69","70","71","72","73","74","75","76","77","78","79","80","81","82","83","84","85","86","87","88","89","90","91","92","93","94","95","971","972","973","974","976"];
+const MARKET_REFRESH_BE_AREAS = ["bruxelles","anvers","limbourg","flandre-occidentale","flandre-orientale","brabant-flamand","brabant-wallon","hainaut","liege","luxembourg","namur"];
+const MARKET_REFRESH_EVENT_KINDS = new Set(["brocante","noel","voyageur"]);
+
+function marketTodayIso(){return new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10)}
+function marketIsoDate(v){
+  const x=String(v||'').trim(); if(/^\d{4}-\d{2}-\d{2}$/.test(x))return x;
+  const months={janvier:1,fevrier:2,"février":2,mars:3,avril:4,mai:5,juin:6,juillet:7,aout:8,"août":8,septembre:9,octobre:10,novembre:11,decembre:12,"décembre":12,januari:1,februari:2,maart:3,april:4,mei:5,juni:6,juli:7,augustus:8,oktober:10,november:11,december:12};
+  const all=[...x.matchAll(/(\d{1,2})\s+(janvier|f[eé]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[eé]cembre|januari|februari|maart|april|mei|juni|juli|augustus|oktober|december)\s+(20\d{2})/gi)];
+  if(all.length){const m=all[all.length-1],mo=months[m[2].toLowerCase()]||0;return mo?`${m[3]}-${String(mo).padStart(2,'0')}-${String(Number(m[1])).padStart(2,'0')}`:''}
+  const nums=[...x.matchAll(/(\d{1,2})[-\/.](\d{1,2})[-\/.](20\d{2})/g)];
+  if(nums.length){const m=nums[nums.length-1];return `${m[3]}-${String(Number(m[2])).padStart(2,'0')}-${String(Number(m[1])).padStart(2,'0')}`}
+  return '';
+}
+function storedMarketExpired(m){const k=String(m&&m.kind||'').toLowerCase();if(!MARKET_REFRESH_EVENT_KINDS.has(k)&&k!=='brocante')return false;const e=marketIsoDate(m.end_date||m.date_label||m.day);return !!e&&e<marketTodayIso()}
+function marketPlainText(html){return String(html||'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/<br\s*\/?\s*>/gi,'\n').replace(/<\/(?:h1|h2|h3|h4|p|li|div|article|section)>/gi,'\n').replace(/<[^>]+>/g,' ').replace(/&nbsp;|&#160;/gi,' ').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/&eacute;/gi,'é').replace(/&Eacute;/g,'É').replace(/&agrave;/gi,'à').replace(/&egrave;/gi,'è').replace(/&ecirc;/gi,'ê').replace(/&ocirc;/gi,'ô').replace(/&ucirc;/gi,'û').replace(/&ccedil;/gi,'ç').replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim()}
+function marketPhoneFromText(t,country){const re=country==='BE'?/(?:\+32|0)[\s.\-\/]*(?:\d[\s.\-\/]*){8,9}/:/(?:\+33|0)[\s.\-\/]*(?:\d[\s.\-\/]*){9}/;const m=String(t||'').match(re);return m?String(m[0]).replace(/[^0-9+]/g,'').slice(0,20):''}
+function marketCapacityFromText(t){
+  const raw=String(t||'').replace(/\u00a0/g,' ').replace(/[ \t]+/g,' ');
+  let m;
+  // Prefer an exact number of physical pitches/stands/chalets when the source publishes one.
+  m=raw.match(/\b(?:environ\s+|env\.?\s+|pr[eè]s de\s+)?(\d{1,4})\s+(emplacements?|stands?|chalets?)\b(?!\s+par\s+exposant)/i);
+  if(m){const n=m[1],u=m[2].toLowerCase();return n+' '+(u.startsWith('chalet')?'chalets':u.startsWith('stand')?'stands':'emplacements')}
+  // Then use a published exact exhibitor/merchant count.
+  m=raw.match(/\b(?:environ\s+|env\.?\s+|pr[eè]s de\s+)?(\d{1,4})\s+(exposants?|commer[cç]ants?)\b/i);
+  if(m)return m[1]+' '+(/commer/i.test(m[2])?'commerçants':'exposants');
+  // Brocabrac and similar agendas often publish a range such as “Exposants De 50 à 100”.
+  m=raw.match(/\bexposants?\s*[:\-]?\s*(?:de\s+)?(\d{1,4})\s*(?:à|a|-)\s*(\d{1,4})\b/i);
+  if(m)return m[1]+' à '+m[2]+' exposants';
+  m=raw.match(/\bexposants?\s*[:\-]?\s*(moins de|plus de)\s*(\d{1,4})\b/i);
+  if(m)return m[1].replace(/^./,c=>c.toUpperCase())+' '+m[2]+' exposants';
+  // Structured JSON fields occasionally expose a numeric capacity directly.
+  m=raw.match(/\"(?:maxCapacity|capacity|numberOfParticipants|numberOfExhibitors|numberOfStands)\"\s*:\s*\"?(\d{1,4})\b/i);
+  if(m)return m[1]+' emplacements / exposants';
+  return '';
+}
+function marketRejectSpam(title){const t=String(title||'').toLowerCase();return /(retour d.?affection|voyance|rituel|marabout|amour rapide)/.test(t)||(String(title||'').match(/\d/g)||[]).length>8}
+function marketClassFromText(t){t=String(t||'').toLowerCase();if(/no[eë]l|kerst/.test(t))return'noel';if(/voyageur|forain|f[oê]te foraine/.test(t))return'voyageur';if(/brocante|vide[ -]?grenier|foire(?: à| a)? tout|braderie|puces|r[eé]derie|rommel|vlooien/.test(t))return'brocante';return'marche'}
+function marketLabelFromKindText(t){t=String(t||'').toLowerCase();if(/vide[ -]?grenier/.test(t))return'Vide-grenier';if(/foire/.test(t))return'Foire';if(/braderie/.test(t))return'Braderie';if(/puces|vlooien/.test(t))return'Marché aux puces';if(/rommel/.test(t))return'Brocante / Rommelmarkt';return'Brocante'}
+function htmlHeadingBlocks(html){
+  const src=String(html||''), heads=[]; let m;
+  const re=/<h([23])\b[^>]*>([\s\S]*?)<\/h\1>/gi;
+  while((m=re.exec(src))){heads.push({level:Number(m[1]),raw:m[2],text:marketPlainText(m[2]),start:m.index,end:re.lastIndex})}
+  for(let i=0;i<heads.length;i++){heads[i].before=src.slice(i?heads[i-1].end:Math.max(0,heads[i].start-1200),heads[i].start);heads[i].after=src.slice(heads[i].end,heads[i+1]?heads[i+1].start:Math.min(src.length,heads[i].end+1600))}
+  return heads;
+}
+async function sourceDetailInfo(url,country){if(!/^https:\/\//i.test(String(url||'')))return{phone:'',merchants:''};try{const r=await fetch(url,{headers:{'user-agent':'Couteau-Suisse/319 (+market-update)','accept-language':'fr-FR,fr;q=0.9'},cf:{cacheTtl:1800}});if(!r.ok)return{phone:'',merchants:''};const plain=marketPlainText(await r.text());return{phone:marketPhoneFromText(plain,country),merchants:marketCapacityFromText(plain)}}catch(_){return{phone:'',merchants:''}}}
+async function sourceDetailPhone(url,country){return (await sourceDetailInfo(url,country)).phone}
+function parseBrocabrac(html,area){
+  const hs=htmlHeadingBlocks(html),out=[];let date='';
+  for(const h of hs){if(h.level===2){const d=marketIsoDate(h.text);if(d)date=d;continue}if(h.level!==3||!date)continue;let title=h.text.trim();if(!title||marketRejectSpam(title))continue;const after=marketPlainText(h.after).split('\n').map(x=>x.trim()).filter(Boolean).slice(0,8);const info=after.find(x=>/^\d{5}\s*-\s*/.test(x))||'';if(!info)continue;const parts=info.split(/\s+-\s+/),cp=(parts[0]||'').match(/\d{5}/),typ=parts[1]||'',addr=parts.slice(2).join(' - ');const combined=title+' '+typ;if(!/brocante|vide[ -]?grenier|foire(?: à| a)? tout|braderie|puces/i.test(combined))continue;const href=(h.raw.match(/href=["']([^"']+)["']/i)||[])[1]||'';const sourceUrl=href?(href.startsWith('http')?href:'https://brocabrac.fr'+(href.startsWith('/')?'':'/')+href):`https://brocabrac.fr/${area}/`;
+    out.push({country:'FR',area:String(area).toUpperCase(),kind:'brocante',name:title,city:'',day:date,dateLabel:date,start:date,end:date,hours:'',address:[addr,cp&&cp[0]].filter(Boolean).join(', '),merchants:marketCapacityFromText(marketPlainText(h.after)),note:`${marketLabelFromKindText(combined)} — source Brocabrac`,sourceUrl});if(out.length>=50)break}
+  return out;
+}
+function parseBrocantesBe(html,area){
+  const hs=htmlHeadingBlocks(html),out=[];let date='';
+  for(const h of hs){if(h.level===2){const d=marketIsoDate(h.text);if(d)date=d;continue}if(h.level!==3)continue;let title=h.text.trim();if(!title||marketRejectSpam(title))continue;const before=marketPlainText(h.before||'').split('\n').map(x=>x.trim()).filter(Boolean).slice(-8),after=marketPlainText(h.after).split('\n').map(x=>x.trim()).filter(Boolean).slice(0,10);let d=date;for(const x of before.concat(after)){const z=marketIsoDate(x);if(z){d=z;break}}if(!d)continue;const loc=after.find(x=>/^\d{4}\s+/.test(x))||'';if(!loc)continue;const lm=loc.match(/^(\d{4})\s+(.+?)(?:\s+(?:Anvers|Antwerpen|Limbourg|Limburg|Hainaut|Namur|Li[eè]ge|Luxembourg|Brabant|Flandre|Vlaams|West-Vlaanderen|Oost-Vlaanderen|Bruxelles).*)?$/i);const cp=lm?lm[1]:'',city=lm?lm[2].trim():'';const href=(h.raw.match(/href=["']([^"']+)["']/i)||[])[1]||'';const sourceUrl=href?(href.startsWith('http')?href:'https://www.brocantes.be'+(href.startsWith('/')?'':'/')+href):`https://www.brocantes.be/fr/agenda/province/${encodeURIComponent(area)}/Brocantes`;
+    out.push({country:'BE',area:String(area).toUpperCase(),kind:'brocante',name:title,city,day:d,dateLabel:d,start:d,end:d,hours:'',address:[cp,city].filter(Boolean).join(' '),merchants:marketCapacityFromText(marketPlainText(h.after)),note:'Brocante / vide-grenier — source Brocantes.be',sourceUrl});if(out.length>=50)break}
+  return out;
+}
+function deepValuesByKey(obj,re,out=[],depth=0){if(depth>8||obj==null)return out;if(Array.isArray(obj)){for(const v of obj)deepValuesByKey(v,re,out,depth+1);return out}if(typeof obj==='object'){for(const [k,v] of Object.entries(obj)){if(re.test(k))out.push(v);deepValuesByKey(v,re,out,depth+1)}}return out}
+function firstScalar(v){if(v==null)return'';if(typeof v==='string'||typeof v==='number')return String(v);if(Array.isArray(v)){for(const x of v){const z=firstScalar(x);if(z)return z}}if(typeof v==='object'){for(const k of ['fr','nl','en','label','value','name']){if(v[k]!=null){const z=firstScalar(v[k]);if(z)return z}}for(const x of Object.values(v)){const z=firstScalar(x);if(z)return z}}return''}
+function datatourismeToMarket(o,area,queryKind){
+  const label=firstScalar(o&&o.label)||firstScalar(deepValuesByKey(o,/^(name|title)$/i)[0]);if(!label)return null;const addrObj=deepValuesByKey(o,/^address$/i)[0]||{};const city=firstScalar(deepValuesByKey(addrObj,/hasAddressCity|city/i)[0]);const zip=firstScalar(deepValuesByKey(addrObj,/postal|zip/i)[0]);const street=firstScalar(deepValuesByKey(addrObj,/street|address1|addressLocality/i)[0]);const geo=deepValuesByKey(o,/^geo$/i)[0]||{};const lat=Number(firstScalar(deepValuesByKey(geo,/lat/i)[0])),lon=Number(firstScalar(deepValuesByKey(geo,/long|lng|lon/i)[0]));const all=JSON.stringify(o);const dates=[...all.matchAll(/20\d{2}-\d{2}-\d{2}/g)].map(m=>m[0]).sort();const future=dates.filter(d=>d>=marketTodayIso());const start=future[0]||dates[0]||'',end=future[future.length-1]||dates[dates.length-1]||start;if(!start)return null;const phone=marketPhoneFromText(all,'FR');const sourceUrl=String(o.uri||o.url||'');const kind=marketClassFromText(label+' '+all.slice(0,4000));if(queryKind==='brocante'&&kind!=='brocante')return null;if(queryKind==='noel'&&kind!=='noel')return null;return{country:'FR',area:String(area).toUpperCase(),kind:kind||queryKind,name:label,city,day:start,dateLabel:start===end?start:(start+' au '+end),start,end,hours:'',address:[street,zip,city].filter(Boolean).join(', '),phone,merchants:marketCapacityFromText(all),note:'Mise à jour automatique DATAtourisme',sourceUrl,latitude:Number.isFinite(lat)?lat:null,longitude:Number.isFinite(lon)?lon:null}}
+async function upsertAutoMarket(env,raw){const m=normalizeMarket(raw);if(!m)return false;let existing=null;if(m.sourceUrl)existing=await env.DB.prepare('SELECT id,fingerprint FROM imported_markets WHERE source_url=? ORDER BY updated_at DESC LIMIT 1').bind(m.sourceUrl).first();if(existing){await env.DB.prepare(`UPDATE imported_markets SET country=?,area=?,kind=?,name=?,city=?,day=?,hours=?,address=?,merchants=?,draw=?,registration=?,note=?,phone=?,date_label=?,start_date=?,end_date=?,source_url=?,latitude=?,longitude=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(m.country,m.area,m.kind,m.name,m.city,m.day,m.hours,m.address,m.merchants,m.draw,m.registration,m.note,m.phone,m.dateLabel,m.startDate,m.endDate,m.sourceUrl,m.latitude,m.longitude,existing.id).run();return true}await env.DB.prepare(`INSERT INTO imported_markets (fingerprint,country,area,kind,name,city,day,hours,address,merchants,draw,registration,note,phone,date_label,start_date,end_date,source_url,latitude,longitude,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(fingerprint) DO UPDATE SET hours=excluded.hours,address=excluded.address,merchants=CASE WHEN excluded.merchants<>'' THEN excluded.merchants ELSE imported_markets.merchants END,note=excluded.note,phone=CASE WHEN excluded.phone<>'' THEN excluded.phone ELSE imported_markets.phone END,date_label=excluded.date_label,start_date=excluded.start_date,end_date=excluded.end_date,source_url=CASE WHEN excluded.source_url<>'' THEN excluded.source_url ELSE imported_markets.source_url END,latitude=COALESCE(excluded.latitude,imported_markets.latitude),longitude=COALESCE(excluded.longitude,imported_markets.longitude),updated_at=CURRENT_TIMESTAMP`).bind(m.fingerprint,m.country,m.area,m.kind,m.name,m.city,m.day,m.hours,m.address,m.merchants,m.draw,m.registration,m.note,m.phone,m.dateLabel,m.startDate,m.endDate,m.sourceUrl,m.latitude,m.longitude).run();return true}
+async function ensureMarketRefreshTables(env){await ensureMarketTable(env);await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_refresh_state(country TEXT NOT NULL,area TEXT NOT NULL,kind TEXT NOT NULL,next_check_at INTEGER NOT NULL DEFAULT 0,last_check_at INTEGER NOT NULL DEFAULT 0,last_status TEXT NOT NULL DEFAULT '',last_found INTEGER NOT NULL DEFAULT 0,last_message TEXT NOT NULL DEFAULT '',PRIMARY KEY(country,area,kind))`).run();try{await env.DB.prepare('CREATE INDEX IF NOT EXISTS market_refresh_due ON market_refresh_state(next_check_at)').run()}catch(_){} }
+async function seedMarketRefreshQueue(env){await ensureMarketRefreshTables(env);const now=Date.now(),c=await env.DB.prepare('SELECT COUNT(*) n FROM market_refresh_state').first();if(Number(c&&c.n||0)<50){const jobs=[];for(let i=0;i<MARKET_REFRESH_FR_AREAS.length;i++)jobs.push(env.DB.prepare(`INSERT OR IGNORE INTO market_refresh_state(country,area,kind,next_check_at) VALUES('FR',?,'brocante',?)`).bind(MARKET_REFRESH_FR_AREAS[i],now+i*1800000));for(let i=0;i<MARKET_REFRESH_BE_AREAS.length;i++)jobs.push(env.DB.prepare(`INSERT OR IGNORE INTO market_refresh_state(country,area,kind,next_check_at) VALUES('BE',?,'brocante',?)`).bind(MARKET_REFRESH_BE_AREAS[i].toUpperCase(),now+i*1800000));for(let i=0;i<jobs.length;i+=40)await env.DB.batch(jobs.slice(i,i+40))}await env.DB.prepare(`INSERT OR IGNORE INTO market_refresh_state(country,area,kind,next_check_at) SELECT upper(country),upper(area),lower(kind),? FROM imported_markets WHERE kind IN ('marche','voyageur','noel') GROUP BY upper(country),upper(area),lower(kind)`).bind(now+6*3600000).run()}
+async function prioritizeExpiredScopes(env){const today=marketTodayIso(),now=Date.now();const q=await env.DB.prepare("SELECT country,area,kind,MAX(end_date) max_end FROM imported_markets WHERE kind IN ('brocante','noel','voyageur') AND end_date<>'' GROUP BY country,area,kind").all();for(const r of q.results||[]){if(marketIsoDate(r.max_end)&&marketIsoDate(r.max_end)<today)await env.DB.prepare('UPDATE market_refresh_state SET next_check_at=MIN(next_check_at,?) WHERE country=? AND area=? AND kind=?').bind(now,String(r.country).toUpperCase(),String(r.area).toUpperCase(),String(r.kind).toLowerCase()).run()}}
+async function refreshExistingSourceRows(env,country,area,kind){const q=await env.DB.prepare("SELECT id,source_url,phone,merchants,date_label,end_date FROM imported_markets WHERE country=? AND area=? AND kind=? AND source_url<>'' ORDER BY updated_at ASC LIMIT 3").bind(country,area,kind).all();let changed=0;for(const row of q.results||[]){const u=String(row.source_url||'');if(!/^https:\/\//i.test(u))continue;try{const r=await fetch(u,{headers:{'user-agent':'Couteau-Suisse/319 (+market-update)','accept-language':'fr-FR,fr;q=0.9'},cf:{cacheTtl:1800}});if(!r.ok)continue;const ct=r.headers.get('content-type')||'',txt=await r.text();const plain=ct.includes('json')?txt:marketPlainText(txt);const phone=marketPhoneFromText(plain,country);const merchants=marketCapacityFromText(plain);const d=marketIsoDate(plain);if(phone||merchants||d){await env.DB.prepare("UPDATE imported_markets SET phone=CASE WHEN ?<>'' THEN ? ELSE phone END,merchants=CASE WHEN ?<>'' THEN ? ELSE merchants END,date_label=CASE WHEN ?<>'' THEN ? ELSE date_label END,end_date=CASE WHEN ?<>'' THEN ? ELSE end_date END,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(phone,phone,merchants,merchants,d,d,d,d,row.id).run();changed++}}catch(_){}}return changed}
+async function refreshBrocanteScope(env,country,area){let events=[],src='';try{if(country==='FR'){src=`https://brocabrac.fr/${encodeURIComponent(area)}/`;const r=await fetch(src,{headers:{'user-agent':'Mozilla/5.0 Couteau-Suisse/319','accept-language':'fr-FR,fr;q=0.9'},cf:{cacheTtl:1800}});if(r.ok)events=parseBrocabrac(await r.text(),area)}else{const slug=String(area||'').toLowerCase();src=`https://www.brocantes.be/fr/agenda/province/${encodeURIComponent(slug)}/Brocantes`;const r=await fetch(src,{headers:{'user-agent':'Mozilla/5.0 Couteau-Suisse/319','accept-language':'fr-FR,fr;q=0.9'},cf:{cacheTtl:1800}});if(r.ok)events=parseBrocantesBe(await r.text(),slug)}}catch(_){}events=events.filter(x=>!x.end||x.end>=marketTodayIso());for(let i=0;i<Math.min(events.length,5);i++){if(events[i].sourceUrl&&(!events[i].phone||!events[i].merchants)){const d=await sourceDetailInfo(events[i].sourceUrl,country);if(!events[i].phone)events[i].phone=d.phone;if(!events[i].merchants)events[i].merchants=d.merchants}}let n=0;for(const e of events){if(await upsertAutoMarket(env,e))n++}return{count:n,source:src}}
+async function refreshDatatourismeScope(env,area,kind){if(!env.DATATOURISME_API_KEY)return{count:0,skipped:'DATATOURISME_API_KEY absente'};const terms=kind==='brocante'?['brocante','vide-grenier','foire à tout']:kind==='noel'?['marché de Noël']:kind==='voyageur'?['fête foraine']:['marché'];let n=0;for(const term of terms){try{const filters=`isLocatedAt.address.hasAddressCity.isPartOfDepartment.insee[eq]=${area}`;const u='https://api.datatourisme.fr/v1/entertainmentAndEvent?lang=fr&page_size=80&sort=lastUpdate[desc]&search='+encodeURIComponent(term)+'&filters='+encodeURIComponent(filters);const r=await fetch(u,{headers:{'X-API-Key':String(env.DATATOURISME_API_KEY),'accept':'application/json'}});if(!r.ok)continue;const j=await r.json();for(const o of j.objects||[]){const e=datatourismeToMarket(o,area,kind);if(e&&(!e.end||e.end>=marketTodayIso())&&await upsertAutoMarket(env,e))n++}}catch(_){}}return{count:n}}
+async function refreshMarketScope(env,state){const country=String(state.country||'FR').toUpperCase(),area=String(state.area||'').toUpperCase(),kind=String(state.kind||'marche').toLowerCase();let found=0,parts=[];if(kind==='brocante'){const a=await refreshBrocanteScope(env,country,area);found+=a.count;parts.push('agenda:'+a.count)}if(country==='FR'){const a=await refreshDatatourismeScope(env,area,kind);found+=a.count;parts.push(a.skipped||('DATAtourisme:'+a.count))}const rechecked=await refreshExistingSourceRows(env,country,area,kind);parts.push('fiches:'+rechecked);const now=Date.now();let next=now+(kind==='marche'?30:kind==='voyageur'?7:2)*86400000;const max=await env.DB.prepare("SELECT MAX(end_date) e FROM imported_markets WHERE country=? AND area=? AND kind=? AND end_date>=?").bind(country,area,kind,marketTodayIso()).first();if(max&&marketIsoDate(max.e)){const t=Date.parse(marketIsoDate(max.e)+'T23:59:59Z')+86400000;if(t>now&&t<next)next=t}await env.DB.prepare('UPDATE market_refresh_state SET next_check_at=?,last_check_at=?,last_status=?,last_found=?,last_message=? WHERE country=? AND area=? AND kind=?').bind(next,now,'ok',found,parts.join(' · ').slice(0,300),country,area,kind).run();return{country,area,kind,found,message:parts.join(' · ')}}
+async function runIncrementalMarketRefresh(env){if(!env.DB)return null;await seedMarketRefreshQueue(env);await prioritizeExpiredScopes(env);const row=await env.DB.prepare('SELECT country,area,kind,next_check_at FROM market_refresh_state WHERE next_check_at<=? ORDER BY next_check_at ASC LIMIT 1').bind(Date.now()).first();if(!row)return null;try{return await refreshMarketScope(env,row)}catch(e){await env.DB.prepare('UPDATE market_refresh_state SET next_check_at=?,last_check_at=?,last_status=?,last_message=? WHERE country=? AND area=? AND kind=?').bind(Date.now()+6*3600000,Date.now(),'error',String(e&&e.message||e).slice(0,250),row.country,row.area,row.kind).run();return null}}
+async function marketRefreshStatus(env){await ensureMarketRefreshTables(env);const last=await env.DB.prepare('SELECT country,area,kind,last_check_at,last_status,last_found,last_message,next_check_at FROM market_refresh_state ORDER BY last_check_at DESC LIMIT 12').all();const due=await env.DB.prepare('SELECT COUNT(*) n FROM market_refresh_state WHERE next_check_at<=?').bind(Date.now()).first();return json({ok:true,mode:'progressif',due:Number(due&&due.n||0),last:last.results||[],serverTime:Date.now()})}
 
 const MARKET_CONSENSUS_REQUIRED = 1;
 const MARKET_LOCATION_REQUIRED = 1;
@@ -1367,6 +1465,59 @@ async function batchMarketVerifications(request, env) {
   const keys = [...new Set((Array.isArray(data.keys) ? data.keys : []).map(cleanMarketKey).filter(Boolean))].slice(0, 200), states = {};
   for (const key of keys) states[key] = await marketVerificationState(env, key, true);
   return json({ ok: true, required: MARKET_CONSENSUS_REQUIRED, states });
+}
+
+
+async function ensureMarketAttendanceTable(env) {
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_attendance (
+    market_key TEXT NOT NULL,
+    date_key TEXT NOT NULL,
+    actor_key TEXT NOT NULL,
+    device_id TEXT NOT NULL DEFAULT '',
+    first_name TEXT NOT NULL DEFAULT '',
+    last_name TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
+    trade TEXT NOT NULL DEFAULT '',
+    market_name TEXT NOT NULL DEFAULT '',
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (market_key,date_key,actor_key)
+  )`).run();
+  try { await env.DB.prepare("CREATE INDEX IF NOT EXISTS market_attendance_date_idx ON market_attendance(date_key,market_key)").run(); } catch (_) {}
+}
+function marketDateKey(value) {
+  const v=String(value||'').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(v)?v:new Date().toISOString().slice(0,10);
+}
+async function marketAttendance(request,url,env) {
+  if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
+  await ensureMarketAttendanceTable(env);
+  if(request.method==='POST'){
+    const d=await body(request),marketKey=cleanMarketKey(d.marketKey||d.market||''),dateKey=marketDateKey(d.date),deviceId=cleanIdentityText(d.deviceId||d.device||'',120);
+    if(!marketKey||!deviceId)return json({ok:false,error:'MARCHE_OU_APPAREIL_MANQUANT'},400);
+    const email=normalizeEmail(d.email||''),first=cleanIdentityText(d.firstName||d.first_name||'',80),last=cleanIdentityText(d.lastName||d.last_name||'',80),trade=cleanIdentityText(d.trade||'',80),marketName=cleanIdentityText(d.marketName||d.name||'Marché',180);
+    const actorKey=email?('email:'+email):('device:'+deviceId);
+    await env.DB.prepare(`INSERT INTO market_attendance(market_key,date_key,actor_key,device_id,first_name,last_name,email,trade,market_name,updated_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(market_key,date_key,actor_key) DO UPDATE SET device_id=excluded.device_id,first_name=excluded.first_name,last_name=excluded.last_name,email=excluded.email,trade=excluded.trade,market_name=excluded.market_name,updated_at=excluded.updated_at`)
+      .bind(marketKey,dateKey,actorKey,deviceId,first,last,email,trade,marketName,Date.now()).run();
+    try{await env.DB.prepare("DELETE FROM market_attendance WHERE date_key < ?").bind(new Date(Date.now()-8*86400000).toISOString().slice(0,10)).run()}catch(_){}
+    const c=await env.DB.prepare("SELECT COUNT(*) AS n FROM market_attendance WHERE market_key=? AND date_key=?").bind(marketKey,dateKey).first();
+    return json({ok:true,count:Number(c&&c.n||0),marketKey,date:dateKey});
+  }
+  const marketKey=cleanMarketKey(url.searchParams.get('marketKey')||url.searchParams.get('market')||''),dateKey=marketDateKey(url.searchParams.get('date'));
+  if(!marketKey)return json({ok:false,error:'MARCHE_MANQUANT'},400);
+  const c=await env.DB.prepare("SELECT COUNT(*) AS n FROM market_attendance WHERE market_key=? AND date_key=?").bind(marketKey,dateKey).first();
+  return json({ok:true,count:Number(c&&c.n||0),marketKey,date:dateKey});
+}
+async function marketAttendanceBatch(request,env){
+  if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
+  await ensureMarketAttendanceTable(env);const d=await body(request),keys=[...new Set((Array.isArray(d.keys)?d.keys:[]).map(cleanMarketKey).filter(Boolean))].slice(0,250),dateKey=marketDateKey(d.date),counts={};
+  for(const key of keys){const c=await env.DB.prepare("SELECT COUNT(*) AS n FROM market_attendance WHERE market_key=? AND date_key=?").bind(key,dateKey).first();counts[key]=Number(c&&c.n||0)}
+  return json({ok:true,date:dateKey,counts});
+}
+async function adminMarketAttendance(request,url,env){
+  if(!(await adminAuthorized(request,env)))return json({ok:false,error:'SECRET_INCORRECT'},401);if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);await ensureMarketAttendanceTable(env);
+  const marketKey=cleanMarketKey(url.searchParams.get('marketKey')||''),dateKey=marketDateKey(url.searchParams.get('date'));if(!marketKey)return json({ok:false,error:'MARCHE_MANQUANT'},400);
+  const r=await env.DB.prepare("SELECT first_name,last_name,email,trade,updated_at FROM market_attendance WHERE market_key=? AND date_key=? ORDER BY updated_at DESC").bind(marketKey,dateKey).all();return json({ok:true,date:dateKey,people:r.results||[]});
 }
 
 async function disabledMarketPresence(env) {
@@ -3330,7 +3481,7 @@ async function mushroomPhoto(url,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=311-admin-demandes" defer></script><script src="/market-update-notifications-v281.js?v=282" defer></script><script src="/notification-detail-v282.js?v=282" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=310-admin-participe" defer></script><script src="/referral-v232.js?v=273-parrainage-marche-compte" defer></script><script src="/app-access-gate-v240.js?v=309-confirmed-direct" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=311-admin-demandes" defer></script><script src="/market-update-notifications-v281.js?v=282" defer></script><script src="/notification-detail-v282.js?v=282" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-auto-update-v319.js?v=319" defer></script><script src="/market-attendance-v317.js?v=317" defer></script><script src="/market-navigation-confirm-v189.js?v=317" defer></script><script src="/contest-v188.js?v=310-admin-participe" defer></script><script src="/referral-v232.js?v=273-parrainage-marche-compte" defer></script><script src="/app-access-gate-v240.js?v=309-confirmed-direct" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
   }
 }
 
@@ -3351,6 +3502,7 @@ class InjectMarketLive {
 
 
 export default {
+  async scheduled(controller, env, ctx) { ctx.waitUntil(runIncrementalMarketRefresh(env)); },
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
@@ -3397,11 +3549,15 @@ export default {
     if (url.pathname === "/download-autoradio.apk" && request.method === "GET") return downloadAutoradioApk();
     if (url.pathname === "/api/rne-pdf" && request.method === "GET") return downloadRne(url);
     if (url.pathname === "/api/markets" && request.method === "GET") return listMarkets(env);
+    if (url.pathname === "/api/markets/refresh-status" && request.method === "GET") return marketRefreshStatus(env);
     if (url.pathname === "/api/admin/markets/import" && request.method === "POST") return importMarkets(request, env);
     if (url.pathname === "/api/market-verifications" && request.method === "GET") return getMarketVerification(url, env);
     if (url.pathname === "/api/market-verifications" && request.method === "POST") return submitMarketVerification(request, env);
     if (url.pathname === "/api/market-verifications/batch" && request.method === "POST") return batchMarketVerifications(request, env);
     if (url.pathname === "/api/market-update-announcements" && request.method === "GET") return marketUpdateAnnouncements(url, env);
+    if (url.pathname === "/api/market-attendance" && (request.method === "GET" || request.method === "POST")) return marketAttendance(request, url, env);
+    if (url.pathname === "/api/market-attendance/batch" && request.method === "POST") return marketAttendanceBatch(request, env);
+    if (url.pathname === "/api/admin/market-attendance" && request.method === "GET") return adminMarketAttendance(request, url, env);
     if (url.pathname === "/api/market-presence/disabled" && request.method === "GET") return disabledMarketPresence(env);
     if (url.pathname === "/api/market-photo" && request.method === "GET") return marketPhoto(url, env);
     if (url.pathname === "/api/vigilance" && request.method === "GET") return vigilanceForPlace(url);

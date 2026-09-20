@@ -63,6 +63,9 @@
       .marketActions .verify {
         background: #087ee5;
       }
+      .marketActions .call {
+        display:flex;align-items:center;justify-content:center;width:100%;min-height:46px;margin:0;padding:8px;border:0;border-radius:12px;background:#168a4e;color:#fff;text-decoration:none;text-align:center;font-size:12px;font-weight:950;
+      }
       .hero {
         margin: 16px 0;
         padding: 18px;
@@ -115,6 +118,14 @@
         font-size: 21px;
         color: #fff;
       }
+      .item.eventBig{min-height:255px;padding:18px 16px 16px;border-width:3px}
+      .eventTypeBadge{display:inline-flex;align-items:center;gap:7px;margin:0 0 10px;padding:9px 14px;border-radius:999px;font-size:19px;font-weight:1000;letter-spacing:.4px;color:#fff;box-shadow:0 4px 12px #0006}
+      .eventTypeBadge.foire{background:linear-gradient(135deg,#8c35d9,#d56d00)}
+      .eventTypeBadge.brocante{background:linear-gradient(135deg,#e46b00,#ff9a19)}
+      .eventTypeBadge.vide{background:linear-gradient(135deg,#087f72,#17b661)}
+      .eventTypeBadge.braderie{background:linear-gradient(135deg,#b62e55,#f06464)}
+      .item.eventBig .eventDateStrong{font-size:17px;color:#ffe38a;font-weight:1000;margin:5px 0}
+
       .favStar {
         position: absolute;
         right: 42px;
@@ -207,6 +218,10 @@
           font-size: 15px;
           margin-right: 42px;
         }
+        .item.eventBig{min-height:230px;padding:11px;border-width:3px}
+        .eventTypeBadge{font-size:14px;padding:7px 9px;margin-bottom:7px}
+        .item.eventBig .eventDateStrong{font-size:13px}
+
         .meta {
           font-size: 12px;
           line-height: 1.35;
@@ -221,7 +236,8 @@
           gap: 6px;
         }
         .marketActions .go,
-        .marketActions .verify {
+        .marketActions .verify,
+        .marketActions .call {
           min-height: 38px;
           font-size: 10px;
           padding: 6px;
@@ -253,7 +269,7 @@
         </p>
       </section>
       <div class="filters">
-        <input id="q" placeholder="Rechercher une commune ou un marché" />
+        <input id="q" placeholder="Rechercher une commune, un nom ou un département (ex. 91)" />
       </div>
       <div class="count" id="count"></div>
       <section class="list" id="list"></section>
@@ -267,6 +283,7 @@
       window.__FR_DATA = Array.isArray(data) ? data.slice() : [];
     </script>
     <script src="market-data-be.js?v=20260905-dedup-fr"></script>
+    <script src="brocante-crosscheck-v316.js?v=316"></script>
     <script>
       (function () {
         var BE = Array.isArray(data) ? data.slice() : [],
@@ -285,6 +302,30 @@
             .replace(/\s+/g, " ")
             .trim();
         }
+        function mergeRows(base, extra) {
+          var seen = new Set(
+            base.map(function (r) {
+              return norm([r[0], r[1], r[2], r[3], r[4], r[8] || ""].join("|"));
+            }),
+          );
+          (extra || []).forEach(function (r) {
+            var k = norm([r[0], r[1], r[2], r[3], r[4], r[8] || ""].join("|"));
+            if (!seen.has(k)) {
+              seen.add(k);
+              base.push(r);
+            }
+          });
+          return base;
+        }
+        FR = mergeRows(FR, window.CROSS_BROCANTE_FR || []);
+        BE = mergeRows(BE, window.CROSS_BROCANTE_BE || []);
+        try {
+          var live=JSON.parse(localStorage.getItem("server_markets")||"[]");
+          if(Array.isArray(live)) live.forEach(function(m){
+            var c=String(m.country||"FR").toUpperCase()==="BE"?"BE":"FR", row=[m.area||"",m.kind||"marche",m.name||"Marché",m.city||"",m.date_label||m.day||"",m.hours||"",m.note||m.kind||"",m.merchants||"",m.address||m.city||"",m.source_url?[m.source_url]:[],m.latitude==null?null:m.latitude,m.longitude==null?null:m.longitude,m.draw||"",m.registration||"",m.phone||""];
+            if(c==="BE") BE=mergeRows(BE,[row]); else FR=mergeRows(FR,[row]);
+          });
+        } catch(_) {}
         function blob(r) {
           return norm([r[1], r[2], r[4], r[5], r[6], r[8]].join(" "));
         }
@@ -300,7 +341,7 @@
         }
         function isBroc(r) {
           var s = blob(r);
-          return /(brocante|antiquite|puces|vide grenier|rommelmarkt|vlooienmarkt)/.test(
+          return /(brocante|antiquite|puces|vide[ -]?grenier|foire(?: a| à)? tout|foire aux greniers|foire a la brocante|foire à la brocante|braderie|bric ?a ?brac|rederie|réderie|troc et puces|rommelmarkt|vlooienmarkt)/.test(
             s,
           );
         }
@@ -357,19 +398,24 @@
         var rows = src.filter(belongs);
         var names = {
           noel: ["MARCHÉS DE NOËL ", "🎄 "],
-          brocante: ["BROCANTES ", "🧳 "],
+          brocante: ["BROCANTE / VIDE-GRENIER / FOIRE ", "🧳 "],
           saisonnier: ["MARCHÉS SAISONNIERS ", "☀️ "],
           periodique: ["MARCHÉS PÉRIODIQUES ", "📅 "],
         };
         var spec = names[type],
           label = spec[0] + (country === "be" ? "BELGIQUE" : "FRANCE");
         document.getElementById("title").textContent = spec[1] + label;
+        document.getElementById("q").placeholder = country === "fr"
+          ? "Commune, nom ou département (ex. 91)"
+          : "Commune, nom ou province";
         document.getElementById("subtitle").textContent =
           type === "saisonnier"
             ? "Marchés présents seulement pendant une période de l’année. La période publiée reste affichée dans la fiche."
             : type === "periodique"
               ? "Marchés récurrents qui ne sont pas toutes les semaines : toutes les 2 semaines, 1er/2e/3e/4e jour du mois, mensuels ou trimestriels."
-              : "Dates, horaires, adresse, places et GPS disponibles.";
+              : type === "brocante"
+                ? "Brocantes, vide-greniers, foires à tout, braderies et événements de chine. Base locale complétée par plusieurs agendas France et Belgique."
+                : "Dates, horaires, adresse, places et GPS disponibles.";
         function esc(x) {
           return String(x || "").replace(/[&<>\"]/g, function (c) {
             return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" }[
@@ -442,6 +488,8 @@
             encodeURIComponent(marketIdentity(r)) +
             "&country=" +
             encodeURIComponent(country) +
+            "&type=" +
+            encodeURIComponent(type) +
             "&lat=" +
             encodeURIComponent(r[10] == null ? "" : r[10]) +
             "&lon=" +
@@ -464,16 +512,53 @@
           btn.classList.toggle("active", on);
           return false;
         };
+        function cleanPhone(v) { return String(v||"").replace(/[^0-9+]/g,""); }
+        function specialPhone(r) {
+          var p=cleanPhone(r&&r[14]); if(p.length>=8)return p;
+          var text=String((r&&r[6])||"")+" "+String((r&&r[13])||"");
+          var m=text.match(/(?:\+33|\+32|0)[\s.\-]*(?:\d[\s.\-]*){8,10}/);return m?cleanPhone(m[0]):"";
+        }
+        function goLabel(r){var x=norm([r&&r[1],r&&r[2],r&&r[6]].join(" "));if(/vide[ -]?grenier/.test(x))return"ALLER AU VIDE-GRENIER";if(/foire/.test(x))return"ALLER À LA FOIRE";if(/brocante|puces|braderie|rederie|réderie|bric/.test(x))return"ALLER À LA BROCANTE";if(isNoel(r))return"ALLER AU MARCHÉ DE NOËL";return"ALLER AU MARCHÉ";}
+        function eventVisual(r){var x=norm([r&&r[1],r&&r[2],r&&r[6]].join(" "));if(/foire/.test(x))return{cls:"foire",label:"🎪 FOIRE"};if(/vide[ -]?grenier/.test(x))return{cls:"vide",label:"🧺 VIDE-GRENIER"};if(/braderie/.test(x))return{cls:"braderie",label:"🛍️ BRADERIE"};return{cls:"brocante",label:"🧳 BROCANTE"};}
+        function capacityLabel(){if(type==="noel")return"🎄 Nombre de chalets : ";if(type==="brocante")return"👥 Nombre d’emplacements / exposants : ";if(type==="saisonnier")return"👥 Nombre d’emplacements / commerçants : ";return"👥 Nombre de places / commerçants : ";}
+        function eventEndIso(r){var s=String((r&&r[4])||"")+" "+String((r&&r[6])||"");var months={janvier:1,fevrier:2,"février":2,mars:3,avril:4,mai:5,juin:6,juillet:7,aout:8,"août":8,septembre:9,octobre:10,novembre:11,decembre:12,"décembre":12,januari:1,februari:2,maart:3,april:4,mei:5,juni:6,juli:7,augustus:8,oktober:10,december:12},all=[].slice.call(s.matchAll(/(\d{1,2})\s+(janvier|f[eé]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[eé]cembre|januari|februari|maart|april|mei|juni|juli|augustus|oktober|december)\s+(20\d{2})/gi));if(all.length){var m=all[all.length-1],mo=months[String(m[2]).toLowerCase()];return m[3]+"-"+String(mo).padStart(2,"0")+"-"+String(Number(m[1])).padStart(2,"0")}var n=[].slice.call(s.matchAll(/(\d{1,2})[-\/.](\d{1,2})[-\/.](20\d{2})/g));if(n.length){var q=n[n.length-1];return q[3]+"-"+String(Number(q[2])).padStart(2,"0")+"-"+String(Number(q[1])).padStart(2,"0")}return"";}
+        function eventExpired(r){if(type!=="brocante"&&type!=="noel")return false;var e=eventEndIso(r),d=new Date(),today=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");return !!e&&e<today;}
+        function normalizeDepartmentSearch(raw) {
+          raw=String(raw||"").trim().toUpperCase();
+          if(!raw)return"";
+          if(/^2[AB]$/.test(raw))return raw;
+          if(/^\d{1,3}$/.test(raw)){
+            var n=String(Number(raw));
+            return n.length<2?n.padStart(2,"0"):n;
+          }
+          return"";
+        }
+        function areaMatchesDepartment(r,department) {
+          if(!department)return false;
+          var area=String((r&&r[0])||"").trim().toUpperCase();
+          if(/^\d{1,3}$/.test(area)){
+            var n=String(Number(area));
+            area=n.length<2?n.padStart(2,"0"):n;
+          }
+          return area===department;
+        }
         function render() {
-          var needle = norm(document.getElementById("q").value),
+          var searchRaw=document.getElementById("q").value,
+            needle = norm(searchRaw),
+            department = country === "fr" ? normalizeDepartmentSearch(searchRaw) : "",
             out = rows.filter(function (r) {
+              if (eventExpired(r)) return false;
+              if (department) return areaMatchesDepartment(r, department);
               return !needle || norm(r.join(" ")).includes(needle);
             });
           document.getElementById("count").textContent =
             out.length +
             " entrée" +
             (out.length > 1 ? "s" : "") +
-            " dans la base locale";
+            (department ? " dans le département " + department : "") +
+            (type === "brocante"
+              ? " dans la base locale + compléments croisés"
+              : " dans la base locale");
           var box = document.getElementById("list");
           if (!out.length) {
             box.innerHTML =
@@ -513,8 +598,11 @@
                 "Nombre de places non publié officiellement";
               var fav = isFav(r);
               var verifyUrl = marketVerifyUrl(r);
+              var phone = specialPhone(r);
+              var goText = goLabel(r);
+              var ev = type === "brocante" ? eventVisual(r) : null;
               return (
-                '<article class="item card" data-market-key="' +
+                '<article class="item card ' + (ev ? "eventBig" : "") + '" data-market-key="' +
                 esc(marketIdentity(r)) +
                 '"><button class="favStar ' +
                 (fav ? "active" : "") +
@@ -522,7 +610,7 @@
                 idx +
                 ',this)">' +
                 (fav ? "★" : "☆") +
-                '</button><h2>' +
+                '</button>' + (ev ? '<div class="eventTypeBadge '+ev.cls+'">'+ev.label+'</div>' : '') + '<h2>' +
                 esc((r[3] || "") + " — " + (r[2] || "")) +
                 "</h2>" +
                 (specialDistanceText(r)
@@ -532,11 +620,11 @@
                   : "") +
                 '<div class="meta">📍 ' +
                 esc(r[8] || "Adresse à vérifier") +
-                '</div><div class="meta">📅 ' +
+                '</div><div class="meta ' + (ev ? 'eventDateStrong' : '') + '">📅 ' +
                 esc(r[4] || "Date / fréquence à vérifier") +
                 '</div><div class="meta">🕒 ' +
                 esc(r[5] || "Horaire à vérifier") +
-                '</div><div class="meta">👥 Commerçants : ' +
+                '</div><div class="meta">' + esc(capacityLabel()) +
                 esc(String(places).replace(/ officiellement/gi, "")) +
                 '</div><div class="meta">Tirage au sort : ' +
                 esc(
@@ -555,9 +643,9 @@
                     ) +
                     "</div>"
                   : "") +
-                '<div class="marketActions"><a class="go" target="_blank" rel="noopener" href="' +
+                '<div class="marketActions"><a class="go" data-navigation="1" target="_blank" rel="noopener" href="' +
                 maps +
-                '">ALLER AU MARCHÉ</a><a class="verify" href="' +
+                '">' + esc(goText) + '</a>' + (phone?'<a class="call" href="tel:'+esc(phone)+'">APPELER</a>':'') + '<a class="verify" href="' +
                 verifyUrl +
                 '">MODIFIER / VÉRIFIER</a></div></article>'
               );
@@ -568,7 +656,7 @@
         render();
       })();
     </script>
-    <script src="market-consensus.js?v=302-d1"></script>
+    <script src="market-consensus.js?v=320-verification-speciale"></script>
     <script src="new-feature-bubbles.js?v=20260905"></script>
   </body>
 </html>

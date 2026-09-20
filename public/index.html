@@ -1319,7 +1319,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications de gains.');
     await check('/contest-v188.js?v=310-admin-participe');
     setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique, brocantes, Noël et marchés voyageurs.');
-    await Promise.allSettled([check('/marches-final.html'),check('/belgique-marches-final.html'),check('/special-marches.html'),check('/traveller-markets.html')]);
+    await Promise.allSettled([check('/marches-final.html'),check('/belgique-marches-final.html'),check('/special-marches.html?v=321'),check('/traveller-markets.html?v=320'),check('/verification-v9.html?v=320'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
     setProgress(48,'Vérification des champignons…','Contrôle des fiches Champignons et des coins enregistrés.');
     await Promise.allSettled([check('/champignons.html'),check('/champignons.js?v=300-concours-auto')]);
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes à consulter.');
@@ -1329,7 +1329,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(82,'Recherche d’une nouvelle version…','Le service de mise à jour vérifie uniquement les modules nécessaires.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=309-confirmed-direct',{updateViaCache:'none'})]}catch(_){regs=[]}}
+      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=321-recherche-departement-evenements-7j',{updateViaCache:'none'})]}catch(_){regs=[]}}
       for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){ }
       var reg=regs[0];
       if(reg&&reg.waiting){
@@ -1406,7 +1406,7 @@ function importMyAddressesText(){
 function importMyAddresses(file){if(!file)return;var r=new FileReader();r.onload=function(){_importMyAddressesPayload(String(r.result||''))};r.onerror=function(){alert('Impossible de lire ce fichier.')};r.readAsText(file)}
 function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 <script src="/location-permission-v20260911.js?v=20260911"></script>
-<script src="/gps-apple-plans-v141.js?v=248-champignon-visible"></script>
+<script src="/gps-apple-plans-v141.js?v=316-confirm-clear-location"></script>
 <script id="paperWorkRequestForm">
 (function(){
   var modal=document.getElementById('directArticleModal');

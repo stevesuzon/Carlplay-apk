@@ -55,6 +55,22 @@
 <script>window.NEAR_FR = Array.isArray(window.data) ? window.data.slice() : []; window.SPECIAL_FR = window.NEAR_FR.slice();</script>
 <script src="market-data-be.js?v=20260905-80fix-indexes"></script>
 <script>window.NEAR_BE = Array.isArray(window.data) ? window.data.slice() : []; window.SPECIAL_BE = window.NEAR_BE.slice();</script>
+<script src="brocante-crosscheck-v316.js?v=316"></script>
+<script>
+(function(){
+  function n(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()}
+  function merge(base,extra){var seen=new Set((base||[]).map(function(r){return n([r[0],r[1],r[2],r[3],r[4],r[8]||''].join('|'))}));(extra||[]).forEach(function(r){var k=n([r[0],r[1],r[2],r[3],r[4],r[8]||''].join('|'));if(!seen.has(k)){seen.add(k);base.push(r)}});return base}
+  window.SPECIAL_FR=merge(window.SPECIAL_FR||[],window.CROSS_BROCANTE_FR||[]);
+  window.SPECIAL_BE=merge(window.SPECIAL_BE||[],window.CROSS_BROCANTE_BE||[]);
+  try{
+    var live=JSON.parse(localStorage.getItem('server_markets')||'[]');
+    if(Array.isArray(live)) live.forEach(function(m){
+      var row=[m.area||'',m.kind||'marche',m.name||'Marché',m.city||'',m.date_label||m.day||'',m.hours||'',m.note||m.kind||'',m.merchants||'',m.address||m.city||'',m.source_url?[m.source_url]:[],m.latitude==null?null:m.latitude,m.longitude==null?null:m.longitude,m.draw||'',m.registration||'','',''];
+      if(String(m.country||'FR').toUpperCase()==='BE') window.SPECIAL_BE=merge(window.SPECIAL_BE,[row]); else window.SPECIAL_FR=merge(window.SPECIAL_FR,[row]);
+    });
+  }catch(_){ }
+})();
+</script>
 <script src="market-weekly-filter.js?v=20260905-80fix"></script>
 <script>
 (() => {
@@ -111,7 +127,7 @@
   const specialKind = row => {
     const value=norm([row?.[1],row?.[2],row?.[4],row?.[6],row?.[8]].join(' '));
     if(/(^| )(noel|kerst)( |$)/.test(value)) return 'noel';
-    if(/brocante|antiquite|puces|vide grenier|rommelmarkt|vlooienmarkt/.test(value)) return 'brocante';
+    if(/brocante|antiquite|puces|vide grenier|foire a tout|foire aux greniers|foire a la brocante|foire|braderie|bric a brac|rederie|troc et puces|rommelmarkt|vlooienmarkt/.test(value)) return 'brocante';
     if(/saisonnier|saisonniere|marche d ete|zomermarkt|wintermarkt hors noel|uniquement en (ete|hiver|printemps|automne)|pendant (l ete|l hiver|le printemps|l automne)/.test(value)) return 'saisonnier';
     if(/trimestriel|periodique|mensuel|bimensuel|bi mensuel|toutes les 2 semaines|toutes les deux semaines|une semaine sur deux/.test(value)||/(1er|1ere|premier|premiere|2e|2eme|deuxieme|3e|3eme|troisieme|4e|4eme|quatrieme)[^.;]{0,40}(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)/.test(value)||/(chaque|tous les) (1er|2e|3e|4e|premier|deuxieme|troisieme|quatrieme)\b/.test(value)) return 'periodique';
     return '';
@@ -138,6 +154,59 @@
     return /mensuel|trimestriel|periodique/.test(value);
   };
 
+
+  const SPECIAL_UPCOMING_DAYS = 7;
+  const dayOnly = date => new Date(date.getFullYear(),date.getMonth(),date.getDate(),12,0,0,0);
+  function eventWindow(row){
+    const raw=String(row?.[4]||'')+' '+String(row?.[6]||''), value=norm(raw);
+    const monthMap={janvier:0,fevrier:1,mars:2,avril:3,mai:4,juin:5,juillet:6,aout:7,septembre:8,octobre:9,novembre:10,decembre:11,januari:0,februari:1,maart:2,april:3,mei:4,juni:5,juli:6,augustus:7,september:8,oktober:9,november:10,december:11};
+    const mk=(y,m,d)=>localDate(Number(y),Number(m),Number(d));
+    let m=raw.match(/(20\d{2})-(\d{2})-(\d{2})\s*(?:<->|au|a|–|—|-)\s*(20\d{2})-(\d{2})-(\d{2})/i);
+    if(m)return{start:mk(m[1],Number(m[2])-1,m[3]),end:mk(m[4],Number(m[5])-1,m[6])};
+    m=value.match(/(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\s+(20\d{2})\s+(?:au|a|jusqu au|-)\s+(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\s+(20\d{2})/);
+    if(m)return{start:mk(m[3],monthMap[m[2]],m[1]),end:mk(m[6],monthMap[m[5]],m[4])};
+    m=value.match(/(\d{1,2})\s+(?:au|a|-)\s+(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\s+(20\d{2})/);
+    if(m)return{start:mk(m[4],monthMap[m[3]],m[1]),end:mk(m[4],monthMap[m[3]],m[2])};
+    m=raw.match(/(\d{1,2})[-\/.](\d{1,2})[-\/.](20\d{2})\s*(?:au|a|–|—|-)\s*(\d{1,2})[-\/.](\d{1,2})[-\/.](20\d{2})/i);
+    if(m)return{start:mk(m[3],Number(m[2])-1,m[1]),end:mk(m[6],Number(m[5])-1,m[4])};
+    const dates=[];
+    for(const x of raw.matchAll(/\b(20\d{2})-(\d{2})-(\d{2})\b/g))dates.push(mk(x[1],Number(x[2])-1,x[3]));
+    for(const x of value.matchAll(/\b(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\s+(20\d{2})\b/g))dates.push(mk(x[3],monthMap[x[2]],x[1]));
+    for(const x of raw.matchAll(/\b(\d{1,2})[-\/.](\d{1,2})[-\/.](20\d{2})\b/g))dates.push(mk(x[3],Number(x[2])-1,x[1]));
+    if(!dates.length)return null;
+    dates.sort((a,b)=>a-b);return{start:dates[0],end:dates[dates.length-1]};
+  }
+  function specialVisibleNow(row,kind){
+    if(kind!=='brocante'&&kind!=='noel')return specialOccursOn(row,kind);
+    const window=eventWindow(row);
+    if(!window)return specialOccursOn(row,kind);
+    const today=dayOnly(new Date()),horizon=new Date(today);horizon.setDate(horizon.getDate()+SPECIAL_UPCOMING_DAYS);
+    return window.end>=today&&window.start<=horizon;
+  }
+  function eventTiming(row){
+    const window=eventWindow(row);if(!window)return'';
+    const today=dayOnly(new Date());
+    if(window.end<today)return'';
+    if(window.start<=today&&window.end>=today)return'✅ EN COURS';
+    const days=Math.round((window.start-today)/86400000);
+    if(days===1)return'⏳ COMMENCE DEMAIN';
+    if(days>=2&&days<=SPECIAL_UPCOMING_DAYS)return'⏳ COMMENCE DANS '+days+' JOURS';
+    if(days===0)return'⏳ COMMENCE AUJOURD’HUI';
+    return'';
+  }
+  function nearbyGoLabel(row,kind){
+    if(kind==='noel')return'ALLER AU MARCHÉ DE NOËL';
+    if(kind==='brocante'){
+      const x=norm([row?.[1],row?.[2],row?.[6]].join(' '));
+      if(/vide grenier/.test(x))return'ALLER AU VIDE-GRENIER';
+      if(/foire/.test(x))return'ALLER À LA FOIRE';
+      if(/braderie/.test(x))return'ALLER À LA BRADERIE';
+      return'ALLER À LA BROCANTE';
+    }
+    if(kind==='saisonnier')return'ALLER AU MARCHÉ SAISONNIER';
+    if(kind==='periodique')return'ALLER AU MARCHÉ PÉRIODIQUE';
+    return'ALLER AU MARCHÉ';
+  }
   function merchants(row){
     const exact=String(row?.[7] ?? '').trim();
     if(!exact || /non publie/i.test(norm(exact))) return 'Nombre de places non publié';
@@ -190,7 +259,7 @@
       for(const row of specialSource){
         if(isServerDisabled(area.country,row)) continue;
         const kind=specialKind(row);
-        if(!kind||!specialOccursOn(row,kind))continue;
+        if(!kind||!specialVisibleNow(row,kind))continue;
         const p=validPoint(row);
         if(!p)continue;
         const k=area.country+'|'+norm(row?.[0])+'|'+norm(row?.[2])+'|'+norm(row?.[3])+'|'+norm(row?.[4])+'|'+norm(row?.[8]);
@@ -224,8 +293,8 @@
 
   function render(list){
     const period=showTomorrow?'demain':'aujourd’hui';
-    if(!list.length){status.textContent='Aucun marché prévu '+period+' ('+selectedDay+') à moins de 80 km.';cards.innerHTML='';return;}
-    status.textContent=list.length+' marché'+(list.length>1?'s':'')+' pour '+period+' — '+selectedDay.toUpperCase()+' — à moins de 80 km, du plus proche au plus éloigné.';
+    if(!list.length){status.textContent='Aucun marché du jour ni événement prévu dans les 7 prochains jours à moins de 80 km.';cards.innerHTML='';return;}
+    status.textContent=list.length+' résultat'+(list.length>1?'s':'')+' à moins de 80 km : marchés '+period+' + foires, brocantes et marchés de Noël qui commencent dans les 7 jours.';
     cards.innerHTML=list.map(item=>{
       const r=item.row, s=saved(item.country,r)||{};
       const place=cleanCardText(r[3]||'À préciser');
@@ -236,7 +305,11 @@
       const welcome=cleanCardText(s.welcome||'À vérifier');
       const placer=Array.isArray(s.placer)?s.placer.join(', '):cleanCardText(s.placer||'À vérifier');
       const clientModel=cleanCardText(s.clientModel||'À vérifier');
-      const type=item.special==='noel'?'Marché de Noël':item.special==='brocante'?'Brocante':item.special==='saisonnier'?'Marché saisonnier':item.special==='periodique'?'Marché périodique / trimestriel':cleanCardText(r[6]||'Marché hebdomadaire');
+      const type=item.special==='noel'?'Marché de Noël':item.special==='brocante'?'Brocante / vide-grenier / foire':item.special==='saisonnier'?'Marché saisonnier':item.special==='periodique'?'Marché périodique / trimestriel':cleanCardText(r[6]||'Marché hebdomadaire');
+      const goText=nearbyGoLabel(r,item.special||'');
+      const timing=item.special?eventTiming(r):'';
+      const countLabel=item.special==='noel'?'Chalets':item.special==='brocante'?'Emplacements / exposants':'Commerçants';
+      const countKind=item.special==='noel'?'chalets':item.special==='brocante'?'emplacements':'places';
       const marketKey=identity(item.country,r);
       const destination=navigationDestination(r,marketKey);
       const link=navigationUrl(destination);
@@ -246,18 +319,18 @@
       const photo=r[14]?'<button type="button" class="market-photo" data-src="'+esc(r[14])+'" data-caption="'+esc(r[15]||('Photo du '+name))+'"><img loading="lazy" src="'+esc(r[14])+'" alt="'+esc(r[15]||('Photo du '+name))+'"></button>':'<a class="market-photo-add" href="'+verifyUrl+'">📷 AJOUTER UNE PHOTO<br>GPS sur place + photo obligatoire</a>';
       const fav=isFavorite(item.country,r);
       const complete=s.time&&s.count&&s.draw, dotGreen=!!complete||builtInVerified(r);
-      return '<article class="card" data-market-key="'+esc(marketKey)+'"><span class="marketVerificationDot '+(dotGreen?'green':'orange')+'" title="'+(dotGreen?'Fiche vérifiée':'Fiche à vérifier')+'" aria-label="'+(dotGreen?'Fiche vérifiée':'Fiche à vérifier')+'"></span>'+
+      return '<article class="card" data-count-kind="'+esc(countKind)+'" data-market-key="'+esc(marketKey)+'"><span class="marketVerificationDot '+(dotGreen?'green':'orange')+'" title="'+(dotGreen?'Fiche vérifiée':'Fiche à vérifier')+'" aria-label="'+(dotGreen?'Fiche vérifiée':'Fiche à vérifier')+'"></span>'+
         '<button type="button" class="marketFavoriteStar '+(fav?'active':'')+'" data-favorite-key="'+esc(favoriteKey(item.country,r))+'" aria-label="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'" title="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'">'+(fav?'★':'☆')+'</button>'+
         '<div class="name">'+esc(place)+'<span class="distance">'+item.d.toFixed(1)+' km</span></div>'+
         '<div class="meta" style="font-weight:900;font-size:18px;margin-bottom:8px">'+esc(name)+'</div>'+photo+
-        (item.special?'<div class="meta">🛍️ Type : '+esc(type)+'</div><div class="meta">📅 '+esc(r[4]||'Date à vérifier')+'</div>':'')+
+        (item.special?'<div class="meta">🛍️ Type : '+esc(type)+'</div><div class="meta">📅 '+esc(r[4]||'Date à vérifier')+'</div>'+(timing?'<div class="meta" style="color:#ffd84a;font-weight:950">'+esc(timing)+'</div>':''):'')+
         '<div class="meta">🕒 <span class="shared-time">'+esc(hour)+'</span></div>'+
-        '<div class="meta">👥 Commerçants : <span class="shared-count">'+esc(count)+'</span></div>'+
+        '<div class="meta">👥 '+esc(countLabel)+' : <span class="shared-count">'+esc(count)+'</span></div>'+
         '<div class="meta">Tirage au sort : <span class="shared-draw">'+esc(draw)+'</span></div>'+
         '<div class="meta">Humeur du placier : <span class="shared-welcome">'+esc(welcome)+'</span></div>'+
         '<div class="meta">Responsable : <span class="shared-placer">'+esc(placer)+'</span></div>'+
         '<div class="meta">Modèle de clients : <span class="shared-client-model">'+esc(clientModel)+'</span></div>'+
-        '<div class="market-actions"><a class="open" data-navigation="1" target="_blank" rel="noopener" href="'+link+'">ALLER AU MARCHÉ</a><a class="details" href="'+details+'">VOIR LA FICHE MARCHÉ</a></div></article>';
+        '<div class="market-actions"><a class="open" data-navigation="1" target="_blank" rel="noopener" href="'+link+'">'+esc(goText)+'</a><a class="details" href="'+details+'">VOIR LA FICHE</a></div></article>';
     }).join('');
     wireFavorites();
     wirePhotos();
@@ -268,14 +341,14 @@
   function wirePhotos(){cards.querySelectorAll('.market-photo').forEach(button=>{if(button.dataset.wired)return;button.dataset.wired='1';button.addEventListener('click',()=>{photoLarge.src=button.dataset.src;photoLarge.alt=button.dataset.caption||'Photo du marché';photoModal.classList.add('open');});});}
   function refreshVisibleStatus(){
     const n=cards.querySelectorAll('.card').length,period=showTomorrow?'demain':'aujourd’hui';
-    if(!n){status.textContent='Aucun marché prévu '+period+' ('+selectedDay+') à moins de 80 km.';return}
-    status.textContent=n+' marché'+(n>1?'s':'')+' pour '+period+' — '+selectedDay.toUpperCase()+' — à moins de 80 km, du plus proche au plus éloigné.';
+    if(!n){status.textContent='Aucun marché du jour ni événement prévu dans les 7 prochains jours à moins de 80 km.';return}
+    status.textContent=n+' résultat'+(n>1?'s':'')+' à moins de 80 km : marchés '+period+' + événements qui commencent dans les 7 jours.';
   }
 
   function loadShared(list){
     const keys=list.map(item=>{const r=item.row;return[item.country,r[0],r[2],r[3],r[4],r[8]||''].join('|')});
     fetch('/api/market-verifications/batch',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({keys}),cache:'no-store'}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(result=>{
-      cards.querySelectorAll('[data-market-key]').forEach(card=>{const state=result.states&&result.states[card.dataset.marketKey];if(!state)return;const v=state.values||{};if(v.exists&&String(v.exists.value||'').toLowerCase()==='non'){disabledKeys.add(card.dataset.marketKey);try{localStorage.setItem('marketPresenceV174:'+card.dataset.marketKey,'non')}catch(e){}card.remove();return}else if(v.exists&&String(v.exists.value||'').toLowerCase()==='oui'){disabledKeys.delete(card.dataset.marketKey);try{localStorage.removeItem('marketPresenceV174:'+card.dataset.marketKey)}catch(e){}}const done=v.time&&v.count&&v.draw,inProgress=Object.keys(state.leaders||{}).length>0||!!state.photo,dot=card.querySelector('.marketVerificationDot');if(done||inProgress){if(dot){dot.className='marketVerificationDot '+(done?'green':'orange');dot.title=done?'Fiche vérifiée':'Vérification en cours';dot.setAttribute('aria-label',dot.title)}}if(state.location&&Number.isFinite(Number(state.location.latitude))&&Number.isFinite(Number(state.location.longitude))){const go=card.querySelector('[data-navigation]'),destination={lat:Number(state.location.latitude),lon:Number(state.location.longitude),text:Number(state.location.latitude)+','+Number(state.location.longitude)};if(go)go.href=navigationUrl(destination);try{localStorage.setItem('marketLocalLocationV1:'+card.dataset.marketKey,JSON.stringify({latitude:destination.lat,longitude:destination.lon,address:state.location.address||'',pending:false,updatedAt:Date.now()}))}catch(e){}}if(v.time)card.querySelector('.shared-time').textContent=v.time.value;if(v.count)card.querySelector('.shared-count').textContent=v.count.value+' places';if(v.draw&&card.querySelector('.shared-draw'))card.querySelector('.shared-draw').textContent=v.draw.value;if(v.welcome&&card.querySelector('.shared-welcome'))card.querySelector('.shared-welcome').textContent=v.welcome.value;if(v.placer&&card.querySelector('.shared-placer'))card.querySelector('.shared-placer').textContent=v.placer.value;if(v.clientModel&&card.querySelector('.shared-client-model'))card.querySelector('.shared-client-model').textContent=v.clientModel.value;if(state.photo){const add=card.querySelector('.market-photo-add');if(add)add.remove();if(!card.querySelector('.market-photo')){const title=card.querySelector('.name');title.insertAdjacentHTML('afterend','<button type="button" class="market-photo" data-src="'+esc(state.photo.url)+'" data-caption="Vue générale reconnue et liée au point GPS pris sur le marché"><img loading="lazy" src="'+esc(state.photo.url)+'" alt="Vue générale du marché"></button>')}}});wirePhotos();refreshVisibleStatus();
+      cards.querySelectorAll('[data-market-key]').forEach(card=>{const state=result.states&&result.states[card.dataset.marketKey];if(!state)return;const v=state.values||{};if(v.exists&&String(v.exists.value||'').toLowerCase()==='non'){disabledKeys.add(card.dataset.marketKey);try{localStorage.setItem('marketPresenceV174:'+card.dataset.marketKey,'non')}catch(e){}card.remove();return}else if(v.exists&&String(v.exists.value||'').toLowerCase()==='oui'){disabledKeys.delete(card.dataset.marketKey);try{localStorage.removeItem('marketPresenceV174:'+card.dataset.marketKey)}catch(e){}}const done=v.time&&v.count&&v.draw,inProgress=Object.keys(state.leaders||{}).length>0||!!state.photo,dot=card.querySelector('.marketVerificationDot');if(done||inProgress){if(dot){dot.className='marketVerificationDot '+(done?'green':'orange');dot.title=done?'Fiche vérifiée':'Vérification en cours';dot.setAttribute('aria-label',dot.title)}}if(state.location&&Number.isFinite(Number(state.location.latitude))&&Number.isFinite(Number(state.location.longitude))){const go=card.querySelector('[data-navigation]'),destination={lat:Number(state.location.latitude),lon:Number(state.location.longitude),text:Number(state.location.latitude)+','+Number(state.location.longitude)};if(go)go.href=navigationUrl(destination);try{localStorage.setItem('marketLocalLocationV1:'+card.dataset.marketKey,JSON.stringify({latitude:destination.lat,longitude:destination.lon,address:state.location.address||'',pending:false,updatedAt:Date.now()}))}catch(e){}}if(v.time)card.querySelector('.shared-time').textContent=v.time.value;if(v.count){const unit=card.dataset.countKind==='chalets'?' chalets':card.dataset.countKind==='emplacements'?' emplacements':' places';card.querySelector('.shared-count').textContent=v.count.value+unit;}if(v.draw&&card.querySelector('.shared-draw'))card.querySelector('.shared-draw').textContent=v.draw.value;if(v.welcome&&card.querySelector('.shared-welcome'))card.querySelector('.shared-welcome').textContent=v.welcome.value;if(v.placer&&card.querySelector('.shared-placer'))card.querySelector('.shared-placer').textContent=v.placer.value;if(v.clientModel&&card.querySelector('.shared-client-model'))card.querySelector('.shared-client-model').textContent=v.clientModel.value;if(state.photo){const add=card.querySelector('.market-photo-add');if(add)add.remove();if(!card.querySelector('.market-photo')){const title=card.querySelector('.name');title.insertAdjacentHTML('afterend','<button type="button" class="market-photo" data-src="'+esc(state.photo.url)+'" data-caption="Vue générale reconnue et liée au point GPS pris sur le marché"><img loading="lazy" src="'+esc(state.photo.url)+'" alt="Vue générale du marché"></button>')}}});wirePhotos();refreshVisibleStatus();
     }).catch(()=>{});
   }
 
@@ -285,8 +358,8 @@
   document.addEventListener('keydown',event=>{if(event.key==='Escape')closePhoto();});
 
   async function start(){
-    heading.textContent='📍 '+(showTomorrow?'MARCHÉS POUR DEMAIN — ':'MARCHÉS D’AUJOURD’HUI — ')+selectedDay.toUpperCase();
-    status.textContent=(showTomorrow?'Demain : ':'Aujourd’hui : ')+selectedDay+' — calcul des marchés à moins de 80 km…';
+    heading.textContent='📍 À MOINS DE 80 KM — MARCHÉS + ÉVÉNEMENTS';
+    status.textContent=(showTomorrow?'Demain : ':'Aujourd’hui : ')+selectedDay+' — marchés du jour + événements des 7 prochains jours…';
     try{
       let lat=userLat, lon=userLon;
       if(!Number.isFinite(lat)||!Number.isFinite(lon)){

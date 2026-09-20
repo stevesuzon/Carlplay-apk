@@ -1,0 +1,7 @@
+(function(){
+'use strict';if(window.__marketAutoUpdateV319)return;window.__marketAutoUpdateV319=1;var busy=false;
+function signature(j){return String(j&&j.updatedAt||'')+'|'+String(j&&j.markets&&j.markets.length||0)}
+function listingPage(){return /(?:marches-final|belgique-marches-final|special-marches|traveller-markets|nearby-markets|marches-proches)\.html$/i.test(location.pathname)}
+async function sync(initial){if(busy||!navigator.onLine)return;busy=true;try{var r=await fetch('/api/markets?auto_refresh='+Date.now(),{cache:'no-store'}),j=await r.json();if(!r.ok||!j||!Array.isArray(j.markets))throw 0;var next=signature(j),old=localStorage.getItem('markets_server_signature_v319')||'';localStorage.setItem('server_markets',JSON.stringify(j.markets));localStorage.setItem('markets_last_update',new Date().toISOString());localStorage.setItem('markets_server_signature_v319',next);window.dispatchEvent(new CustomEvent('carplay-markets-server-updated',{detail:j}));if(!initial&&old&&next!==old&&listingPage()){var active=document.activeElement,typing=active&&/INPUT|TEXTAREA|SELECT/.test(active.tagName);if(!typing)setTimeout(function(){location.reload()},500)}}catch(e){}finally{busy=false}}
+setTimeout(function(){sync(true)},250);setInterval(function(){if(!document.hidden)sync(false)},5*60*1000);window.addEventListener('online',function(){sync(false)});window.addEventListener('focus',function(){sync(false)});document.addEventListener('visibilitychange',function(){if(!document.hidden)sync(false)});
+})();

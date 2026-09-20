@@ -248,11 +248,28 @@
     var age=Date.now()-Number(ctx.updatedAt||localStorage.getItem('return_context_updated_at')||0);
     if(!ctx._loaded||age>86400000||isVagueAddress(ctx.address))refreshContext(lat,lon);
   };
+  function placeBlackBubble(html,buttons,autoCloseMs){
+    var old=document.getElementById('csPlaceBlackBubble');if(old)old.remove();
+    var wrap=document.createElement('div');wrap.id='csPlaceBlackBubble';
+    wrap.style.cssText='position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(0,0,0,.52)';
+    var card=document.createElement('div');card.style.cssText='width:min(520px,92vw);background:#050505;color:#fff;border:2px solid #ffffff35;border-radius:22px;padding:22px 18px;text-align:center;box-shadow:0 18px 60px #000;font-family:Arial,sans-serif';
+    card.innerHTML=html;
+    if(buttons){var row=document.createElement('div');row.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px';
+      var cancel=document.createElement('button');cancel.textContent='ANNULER';cancel.style.cssText='min-height:52px;border:0;border-radius:13px;background:#3e4753;color:#fff;font:900 16px Arial';cancel.onclick=function(){wrap.remove()};
+      var confirmBtn=document.createElement('button');confirmBtn.textContent='CONFIRMER';confirmBtn.style.cssText='min-height:52px;border:0;border-radius:13px;background:#d12d36;color:#fff;font:900 16px Arial';confirmBtn.onclick=function(){wrap.remove();buttons()};
+      row.append(cancel,confirmBtn);card.appendChild(row);
+    }else{var ok=document.createElement('button');ok.textContent='OK';ok.style.cssText='width:100%;min-height:50px;margin-top:18px;border:0;border-radius:13px;background:#168a4e;color:#fff;font:900 16px Arial';ok.onclick=function(){wrap.remove()};card.appendChild(ok);if(autoCloseMs)setTimeout(function(){if(wrap.isConnected)wrap.remove()},autoCloseMs)}
+    wrap.appendChild(card);document.body.appendChild(wrap);
+  }
   window.clearReturnPlace=function(){
-    ['return_lat','return_lon','return_address','return_full_address','return_nearby','return_saved_at','return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_v216','return_context_v217','return_context_v218','return_context_v221','return_context_v222','return_context_v223','return_context_v224','return_context_v227','return_context_v230','return_context_v231','return_context_updated_at'].forEach(function(k){localStorage.removeItem(k)});
-    currentCtx=null;
-    if(typeof window.showStatuses==='function')window.showStatuses();
-    alert('Emplacement de retour effacé. Au prochain appui, un nouveau point GPS sera enregistré.');
+    var has=localStorage.getItem('return_lat')||localStorage.getItem('return_lon');
+    if(!has){placeBlackBubble('<div style="font-size:25px;font-weight:1000">📍 Aucun emplacement enregistré</div><div style="margin-top:10px;font-size:16px;line-height:1.35">Appuyez sur « Retourner sur la place » pour enregistrer votre position.</div>',null,8000);return}
+    placeBlackBubble('<div style="font-size:25px;font-weight:1000">🗑️ EFFACER L’EMPLACEMENT ?</div><div style="margin-top:10px;font-size:17px;font-weight:800;line-height:1.4">Vous changez d’emplacement ? Confirmez seulement si vous voulez remplacer votre point actuel.</div>',function(){
+      ['return_lat','return_lon','return_address','return_full_address','return_nearby','return_saved_at','return_context_v210','return_context_v211','return_context_v212','return_context_v213','return_context_v214','return_context_v215','return_context_v216','return_context_v217','return_context_v218','return_context_v221','return_context_v222','return_context_v223','return_context_v224','return_context_v227','return_context_v230','return_context_v231','return_context_updated_at'].forEach(function(k){localStorage.removeItem(k)});
+      currentCtx=null;
+      if(typeof window.showStatuses==='function')window.showStatuses();
+      placeBlackBubble('<div style="font-size:24px;font-weight:1000">📍 EMPLACEMENT EFFACÉ</div><div style="margin-top:10px;font-size:17px;font-weight:800;line-height:1.4">N’oubliez pas de rappuyer sur « Retourner sur la place » une fois arrivé à votre nouvel emplacement.</div>',null,10000);
+    });
   };
   window.refreshPrefs();
 })();
