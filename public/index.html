@@ -1329,7 +1329,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(82,'Recherche d’une nouvelle version…','Le service de mise à jour vérifie uniquement les modules nécessaires.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=321-recherche-departement-evenements-7j',{updateViaCache:'none'})]}catch(_){regs=[]}}
+      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=324-audit-general',{updateViaCache:'none'})]}catch(_){regs=[]}}
       for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){ }
       var reg=regs[0];
       if(reg&&reg.waiting){

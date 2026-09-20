@@ -1093,7 +1093,162 @@ function deepValuesByKey(obj,re,out=[],depth=0){if(depth>8||obj==null)return out
 function firstScalar(v){if(v==null)return'';if(typeof v==='string'||typeof v==='number')return String(v);if(Array.isArray(v)){for(const x of v){const z=firstScalar(x);if(z)return z}}if(typeof v==='object'){for(const k of ['fr','nl','en','label','value','name']){if(v[k]!=null){const z=firstScalar(v[k]);if(z)return z}}for(const x of Object.values(v)){const z=firstScalar(x);if(z)return z}}return''}
 function datatourismeToMarket(o,area,queryKind){
   const label=firstScalar(o&&o.label)||firstScalar(deepValuesByKey(o,/^(name|title)$/i)[0]);if(!label)return null;const addrObj=deepValuesByKey(o,/^address$/i)[0]||{};const city=firstScalar(deepValuesByKey(addrObj,/hasAddressCity|city/i)[0]);const zip=firstScalar(deepValuesByKey(addrObj,/postal|zip/i)[0]);const street=firstScalar(deepValuesByKey(addrObj,/street|address1|addressLocality/i)[0]);const geo=deepValuesByKey(o,/^geo$/i)[0]||{};const lat=Number(firstScalar(deepValuesByKey(geo,/lat/i)[0])),lon=Number(firstScalar(deepValuesByKey(geo,/long|lng|lon/i)[0]));const all=JSON.stringify(o);const dates=[...all.matchAll(/20\d{2}-\d{2}-\d{2}/g)].map(m=>m[0]).sort();const future=dates.filter(d=>d>=marketTodayIso());const start=future[0]||dates[0]||'',end=future[future.length-1]||dates[dates.length-1]||start;if(!start)return null;const phone=marketPhoneFromText(all,'FR');const sourceUrl=String(o.uri||o.url||'');const kind=marketClassFromText(label+' '+all.slice(0,4000));if(queryKind==='brocante'&&kind!=='brocante')return null;if(queryKind==='noel'&&kind!=='noel')return null;return{country:'FR',area:String(area).toUpperCase(),kind:kind||queryKind,name:label,city,day:start,dateLabel:start===end?start:(start+' au '+end),start,end,hours:'',address:[street,zip,city].filter(Boolean).join(', '),phone,merchants:marketCapacityFromText(all),note:'Mise à jour automatique DATAtourisme',sourceUrl,latitude:Number.isFinite(lat)?lat:null,longitude:Number.isFinite(lon)?lon:null}}
-async function upsertAutoMarket(env,raw){const m=normalizeMarket(raw);if(!m)return false;let existing=null;if(m.sourceUrl)existing=await env.DB.prepare('SELECT id,fingerprint FROM imported_markets WHERE source_url=? ORDER BY updated_at DESC LIMIT 1').bind(m.sourceUrl).first();if(existing){await env.DB.prepare(`UPDATE imported_markets SET country=?,area=?,kind=?,name=?,city=?,day=?,hours=?,address=?,merchants=?,draw=?,registration=?,note=?,phone=?,date_label=?,start_date=?,end_date=?,source_url=?,latitude=?,longitude=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(m.country,m.area,m.kind,m.name,m.city,m.day,m.hours,m.address,m.merchants,m.draw,m.registration,m.note,m.phone,m.dateLabel,m.startDate,m.endDate,m.sourceUrl,m.latitude,m.longitude,existing.id).run();return true}await env.DB.prepare(`INSERT INTO imported_markets (fingerprint,country,area,kind,name,city,day,hours,address,merchants,draw,registration,note,phone,date_label,start_date,end_date,source_url,latitude,longitude,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(fingerprint) DO UPDATE SET hours=excluded.hours,address=excluded.address,merchants=CASE WHEN excluded.merchants<>'' THEN excluded.merchants ELSE imported_markets.merchants END,note=excluded.note,phone=CASE WHEN excluded.phone<>'' THEN excluded.phone ELSE imported_markets.phone END,date_label=excluded.date_label,start_date=excluded.start_date,end_date=excluded.end_date,source_url=CASE WHEN excluded.source_url<>'' THEN excluded.source_url ELSE imported_markets.source_url END,latitude=COALESCE(excluded.latitude,imported_markets.latitude),longitude=COALESCE(excluded.longitude,imported_markets.longitude),updated_at=CURRENT_TIMESTAMP`).bind(m.fingerprint,m.country,m.area,m.kind,m.name,m.city,m.day,m.hours,m.address,m.merchants,m.draw,m.registration,m.note,m.phone,m.dateLabel,m.startDate,m.endDate,m.sourceUrl,m.latitude,m.longitude).run();return true}
+async function upsertAutoMarket(env,raw){
+  const m=normalizeMarket(raw);if(!m)return false;
+  // V323 : l'empreinte contient le jour. Une URL source peut donc correspondre à plusieurs jours
+  // (ex. mardi + vendredi). On ne fusionne plus deux jours différents sur la seule source_url.
+  await env.DB.prepare(`INSERT INTO imported_markets (fingerprint,country,area,kind,name,city,day,hours,address,merchants,draw,registration,note,phone,date_label,start_date,end_date,source_url,latitude,longitude,updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+    ON CONFLICT(fingerprint) DO UPDATE SET
+      country=excluded.country,area=excluded.area,kind=excluded.kind,name=excluded.name,city=excluded.city,day=excluded.day,
+      hours=CASE WHEN excluded.hours<>'' THEN excluded.hours ELSE imported_markets.hours END,
+      address=CASE WHEN excluded.address<>'' THEN excluded.address ELSE imported_markets.address END,
+      merchants=CASE WHEN excluded.merchants<>'' THEN excluded.merchants ELSE imported_markets.merchants END,
+      draw=CASE WHEN excluded.draw<>'' THEN excluded.draw ELSE imported_markets.draw END,
+      registration=CASE WHEN excluded.registration<>'' THEN excluded.registration ELSE imported_markets.registration END,
+      note=CASE WHEN excluded.note<>'' THEN excluded.note ELSE imported_markets.note END,
+      phone=CASE WHEN excluded.phone<>'' THEN excluded.phone ELSE imported_markets.phone END,
+      date_label=CASE WHEN excluded.date_label<>'' THEN excluded.date_label ELSE imported_markets.date_label END,
+      start_date=CASE WHEN excluded.start_date<>'' THEN excluded.start_date ELSE imported_markets.start_date END,
+      end_date=CASE WHEN excluded.end_date<>'' THEN excluded.end_date ELSE imported_markets.end_date END,
+      source_url=CASE WHEN excluded.source_url<>'' THEN excluded.source_url ELSE imported_markets.source_url END,
+      latitude=COALESCE(excluded.latitude,imported_markets.latitude),longitude=COALESCE(excluded.longitude,imported_markets.longitude),updated_at=CURRENT_TIMESTAMP`)
+    .bind(m.fingerprint,m.country,m.area,m.kind,m.name,m.city,m.day,m.hours,m.address,m.merchants,m.draw,m.registration,m.note,m.phone,m.dateLabel,m.startDate,m.endDate,m.sourceUrl,m.latitude,m.longitude).run();
+  return true;
+}
+
+
+// V323 — Import renforcé Jours-de-Marché.fr, récupérée progressivement par département.
+// Objectif : compléter les marchés classiques / périodiques et récupérer aussi les marchés de Noël
+// ainsi que les vide-greniers, brocantes et foires publiés sur cette source, sans supprimer les sources
+// déjà présentes (DATAtourisme, Brocabrac, Brocantes.be, données locales vérifiées).
+const JDM_FR_SLUGS={
+  "01":"ain","02":"aisne","03":"allier","04":"alpes-de-haute-provence","05":"hautes-alpes","06":"alpes-maritimes","07":"ardeche","08":"ardennes","09":"ariege","10":"aube","11":"aude","12":"aveyron","13":"bouches-du-rhone","14":"calvados","15":"cantal","16":"charente","17":"charente-maritime","18":"cher","19":"correze","20":"corse","21":"cote-d-or","22":"cotes-d-armor","23":"creuse","24":"dordogne","25":"doubs","26":"drome","27":"eure","28":"eure-et-loir","29":"finistere","30":"gard","31":"haute-garonne","32":"gers","33":"gironde","34":"herault","35":"ille-et-vilaine","36":"indre","37":"indre-et-loire","38":"isere","39":"jura","40":"landes","41":"loir-et-cher","42":"loire","43":"haute-loire","44":"loire-atlantique","45":"loiret","46":"lot","47":"lot-et-garonne","48":"lozere","49":"maine-et-loire","50":"manche","51":"marne","52":"haute-marne","53":"mayenne","54":"meurthe-et-moselle","55":"meuse","56":"morbihan","57":"moselle","58":"nievre","59":"nord","60":"oise","61":"orne","62":"pas-de-calais","63":"puy-de-dome","64":"pyrenees-atlantiques","65":"hautes-pyrenees","66":"pyrenees-orientales","67":"bas-rhin","68":"haut-rhin","69":"rhone","70":"haute-saone","71":"saone-et-loire","72":"sarthe","73":"savoie","74":"haute-savoie","75":"paris","76":"seine-maritime","77":"seine-et-marne","78":"yvelines","79":"deux-sevres","80":"somme","81":"tarn","82":"tarn-et-garonne","83":"var","84":"vaucluse","85":"vendee","86":"vienne","87":"haute-vienne","88":"vosges","89":"yonne","90":"territoire-de-belfort","91":"essonne","92":"hauts-de-seine","93":"seine-saint-denis","94":"val-de-marne","95":"val-d-oise"
+};
+const JDM_WEEKDAYS=['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+function jdmDecodeUrl(href){try{return new URL(String(href||''),'https://www.jours-de-marche.fr').href}catch(_){return''}}
+function jdmCityUrls(html){
+  const out=[],seen=new Set(),src=String(html||'');let m;
+  const re=/href=["'](\/\d{5}-[a-z0-9][a-z0-9-]*\/)["']/gi;
+  while((m=re.exec(src))){const u=jdmDecodeUrl(m[1]);if(u&&!seen.has(u)){seen.add(u);out.push(u)}}
+  return out;
+}
+function jdmCleanAddress(v){
+  let s=String(v||'').replace(/\s+/g,' ').trim();
+  if(!s)return'';
+  const mid=Math.floor(s.length/2),a=s.slice(0,mid).trim(),b=s.slice(mid).trim();
+  if(a&&b&&normMarketText(a)===normMarketText(b))s=a;
+  return s.slice(0,240);
+}
+function normMarketText(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,"'").replace(/\s+/g,' ').trim().toLowerCase()}
+function jdmDateRange(text){
+  const t=String(text||'');let m=t.match(/(?:uniquement\s+)?du\s+(\d{1,2})\/(\d{1,2})\/(20\d{2})\s+au\s+(\d{1,2})\/(\d{1,2})\/(20\d{2})/i);
+  if(m)return{start:`${m[3]}-${String(Number(m[2])).padStart(2,'0')}-${String(Number(m[1])).padStart(2,'0')}`,end:`${m[6]}-${String(Number(m[5])).padStart(2,'0')}-${String(Number(m[4])).padStart(2,'0')}`,label:`${m[1]}/${m[2]}/${m[3]} au ${m[4]}/${m[5]}/${m[6]}`};
+  m=t.match(/(?:uniquement\s+)?(?:le\s+)?(\d{1,2})\/(\d{1,2})\/(20\d{2})/i);
+  if(m){const d=`${m[3]}-${String(Number(m[2])).padStart(2,'0')}-${String(Number(m[1])).padStart(2,'0')}`;return{start:d,end:d,label:`${m[1]}/${m[2]}/${m[3]}`}}
+  return{start:'',end:'',label:''};
+}
+function jdmHours(text){
+  const t=String(text||'').replace(/\s+/g,' '),m=t.match(/\bde\s+([0-2]?\d(?:h|:)[0-5]?\d?)\s+(?:à|a)\s+([0-2]?\d(?:h|:)[0-5]?\d?)/i);
+  return m?`${m[1]}-${m[2]}`:'';
+}
+function jdmDays(text){
+  const t=normMarketText(text),out=[];let m=t.match(/jours suivants\s*:\s*([^.;]+?)(?:\s+de\s+\d|\s+info\s*:|\s+adresse\s*:|$)/i);
+  const src=m?m[1]:t;
+  for(const d of JDM_WEEKDAYS)if(new RegExp(`\\b${d}\\b`,'i').test(src))out.push(d);
+  if(out.length)return out;
+  m=t.match(/\ble\s+(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b/i);return m?[m[1].toLowerCase()]:[];
+}
+function jdmPostalCity(text){
+  const t=String(text||'').replace(/\s+/g,' ').trim(),all=[...t.matchAll(/(?:\s|^)à\s+(\d{5})\s+([A-Za-zÀ-ÿŒœ'’ -]{2,80})(?=$|\s+(?:Info|Adresse)\s*:)/gi)];
+  if(all.length){const m=all[all.length-1];return{postal:m[1],city:m[2].trim(),index:m.index}}
+  const b=[...t.matchAll(/\b(\d{5})\s+([A-Za-zÀ-ÿŒœ'’ -]{2,80})$/g)];if(b.length){const m=b[b.length-1];return{postal:m[1],city:m[2].trim(),index:m.index}}
+  return{postal:'',city:'',index:-1};
+}
+function jdmAreaForPostal(area,pc){
+  const a=String(area||'').toUpperCase(),postal=String(pc&&pc.postal||'');
+  if(a!=='20')return a;
+  // Jours-de-Marché regroupe la Corse en département 20 ; l'application garde 2A / 2B.
+  if(/^20[01]/.test(postal))return '2A';
+  if(/^20[246]/.test(postal))return '2B';
+  return '20';
+}
+function jdmAddress(text,pc){
+  const t=String(text||'').replace(/\s+/g,' ').trim(),i=t.toLowerCase().lastIndexOf('adresse :');if(i<0)return'';
+  let a=t.slice(i+9,pc&&pc.index>i?pc.index:t.length).trim();
+  // Les pages répètent souvent deux fois la même adresse avant « à 75000 Ville ».
+  const words=a.split(' ');if(words.length>=4){for(let k=2;k<=Math.floor(words.length/2);k++){const left=words.slice(0,k).join(' '),right=words.slice(k,k*2).join(' ');if(normMarketText(left)===normMarketText(right)){a=left+' '+words.slice(k*2).join(' ');break}}}
+  return jdmCleanAddress(a);
+}
+function jdmFullAddress(address,pc){const a=String(address||'').trim();if(/\b\d{5}\b/.test(a))return a;return[a,pc&&pc.postal,pc&&pc.city].filter(Boolean).join(', ')}
+function jdmPeriodic(text){return /(1er|premier|2e|2eme|deuxieme|3e|3eme|troisieme|4e|4eme|quatrieme)\s+(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+(?:de|du)\s+chaque\s+mois|mensuel|trimestriel|une semaine sur deux|toutes? les deux semaines|toutes? les 2 semaines/i.test(normMarketText(text))}
+function parseJdmMarketPage(html,area,pageUrl){
+  const out=[],hs=htmlHeadingBlocks(html),today=marketTodayIso();
+  for(const h of hs){
+    if(h.level!==3)continue;
+    const title=String(h.text||'').trim(),body=marketPlainText(h.after||'');
+    if(!title||!/ce march[eé] a lieu/i.test(normMarketText(body)))continue;
+    const combined=title+' '+body,kind=marketClassFromText(combined),n=normMarketText(combined);
+    // Le projet exclut les « marchés de producteurs » / drives fermiers des marchés classiques.
+    if(kind==='marche'&&/march[eé] de producteurs?|drive fermier|cagette/.test(n))continue;
+    if(kind==='brocante')continue; // récupérées sur la rubrique vide-greniers.
+    const range=jdmDateRange(body),days=jdmDays(body),hours=jdmHours(body),pc=jdmPostalCity(body),address=jdmAddress(body,pc);
+    const actualArea=jdmAreaForPostal(area,pc);
+    const href=(h.raw.match(/href=["']([^"']+)["']/i)||[])[1]||'',sourceUrl=href?jdmDecodeUrl(href):String(pageUrl||'');
+    const periodic=jdmPeriodic(body),phone=marketPhoneFromText(body,'FR'),merchants=marketCapacityFromText(body);
+    const note=(periodic?'Marché périodique — ':'')+'Source Jours-de-Marché.fr. '+String(body||'').slice(0,420);
+    if(range.end&&range.end<today)continue;
+    if(kind==='noel'||range.start){
+      const day=range.label||range.start||days.join(', ');
+      if(day)out.push({country:'FR',area:actualArea,kind:kind==='noel'?'noel':'marche',name:title,city:pc.city,day,dateLabel:range.label||day,start:range.start,end:range.end||range.start,hours,address:jdmFullAddress(address,pc),merchants,phone,note,sourceUrl});
+      continue;
+    }
+    // IMPORTANT : un même marché présent lundi + dimanche donne bien 2 fiches distinctes.
+    for(const day of days){out.push({country:'FR',area:actualArea,kind:'marche',name:title,city:pc.city,day,dateLabel:day,hours,address:jdmFullAddress(address,pc),merchants,phone,note,sourceUrl})}
+  }
+  return out;
+}
+function parseJdmVideGreniers(html,area,pageUrl){
+  const out=[],hs=htmlHeadingBlocks(html),today=marketTodayIso();
+  for(const h of hs){if(h.level!==3)continue;const title=String(h.text||'').trim(),body=marketPlainText(h.after||''),combined=title+' '+body,n=normMarketText(combined);if(!title||!/vide[ -]?grenier|brocante|foire|bric ?a ?brac|bourse d.?echange|puces/.test(n))continue;
+    const range=jdmDateRange(body),pc=jdmPostalCity(body);if(!range.start)continue;if(range.end&&range.end<today)continue;
+    const href=(h.raw.match(/href=["']([^"']+)["']/i)||[])[1]||'',sourceUrl=href?jdmDecodeUrl(href):String(pageUrl||'');
+    out.push({country:'FR',area:jdmAreaForPostal(area,pc),kind:'brocante',name:title,city:pc.city,day:range.label,dateLabel:range.label,start:range.start,end:range.end||range.start,hours:jdmHours(body),address:[pc.postal,pc.city].filter(Boolean).join(' '),merchants:marketCapacityFromText(body),phone:marketPhoneFromText(body,'FR'),note:`${marketLabelFromKindText(combined)} — source Jours-de-Marché.fr. ${String(body||'').slice(0,380)}`,sourceUrl});
+  }
+  return out;
+}
+async function ensureJdmRefreshTable(env){await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_jdm_refresh_state(area TEXT PRIMARY KEY,city_cursor INTEGER NOT NULL DEFAULT 0,city_count INTEGER NOT NULL DEFAULT 0,next_check_at INTEGER NOT NULL DEFAULT 0,last_check_at INTEGER NOT NULL DEFAULT 0,last_found INTEGER NOT NULL DEFAULT 0,last_pages INTEGER NOT NULL DEFAULT 0,last_message TEXT NOT NULL DEFAULT '')`).run();try{await env.DB.prepare('CREATE INDEX IF NOT EXISTS market_jdm_due ON market_jdm_refresh_state(next_check_at)').run()}catch(_){} }
+async function seedJdmRefreshQueue(env){await ensureJdmRefreshTable(env);const now=Date.now(),jobs=[];for(const area of Object.keys(JDM_FR_SLUGS))jobs.push(env.DB.prepare('INSERT OR IGNORE INTO market_jdm_refresh_state(area,next_check_at) VALUES(?,?)').bind(area,now));for(let i=0;i<jobs.length;i+=40)await env.DB.batch(jobs.slice(i,i+40))}
+async function jdmFetch(url){try{const r=await fetch(url,{headers:{'user-agent':'Mozilla/5.0 (compatible; Couteau-Suisse/324; +https://carplay-telephone.appli-suzon.workers.dev/)','accept-language':'fr-FR,fr;q=0.9','accept':'text/html,application/xhtml+xml'},cf:{cacheTtl:3600}});if(!r.ok)return'';return await r.text()}catch(_){return''}}
+async function refreshJdmArea(env,state){
+  const area=String(state.area||'').toUpperCase(),slug=JDM_FR_SLUGS[area];if(!slug)return{area,count:0,pages:0,pending:false,message:'département non pris en charge'};
+  const deptUrl=`https://www.jours-de-marche.fr/${area}-${slug}/`,deptHtml=await jdmFetch(deptUrl);if(!deptHtml)return{area,count:0,pages:0,pending:false,message:'page département indisponible'};
+  const cityUrls=jdmCityUrls(deptHtml),batchSize=12,start=Math.max(0,Number(state.city_cursor||0))%Math.max(1,cityUrls.length),selected=[];
+  if(cityUrls.length){for(let i=0;i<Math.min(batchSize,cityUrls.length);i++)selected.push(cityUrls[(start+i)%cityUrls.length])}
+  let events=parseJdmMarketPage(deptHtml,area,deptUrl),pages=1;
+  for(const u of selected){const html=await jdmFetch(u);if(!html)continue;pages++;events.push(...parseJdmMarketPage(html,area,u));if(events.length>900)break}
+  const brocUrl=`https://www.jours-de-marche.fr/vide-greniers/${area}-${slug}/`,brocHtml=await jdmFetch(brocUrl);if(brocHtml){pages++;events.push(...parseJdmVideGreniers(brocHtml,area,brocUrl))}
+  // Les mêmes marchés présents sur plusieurs jours restent plusieurs entrées (une par jour),
+  // mais un doublon strict de même marché / ville / jour n'est enregistré qu'une fois par fingerprint D1.
+  let count=0;for(const e of events){if(await upsertAutoMarket(env,e))count++}
+  const consumed=cityUrls.length?Math.min(batchSize,cityUrls.length):0,nextCursor=cityUrls.length?(start+consumed)%cityUrls.length:0,wrapped=!cityUrls.length||start+consumed>=cityUrls.length;
+  const next=Date.now()+(wrapped?30*86400000:2*3600000),msg=`Jours-de-Marché: ${count} fiches · ${pages} pages · villes ${cityUrls.length}`;
+  await env.DB.prepare('UPDATE market_jdm_refresh_state SET city_cursor=?,city_count=?,next_check_at=?,last_check_at=?,last_found=?,last_pages=?,last_message=? WHERE area=?').bind(nextCursor,cityUrls.length,next,Date.now(),count,pages,msg,area).run();
+  return{area,count,pages,pending:!wrapped,message:msg};
+}
+async function runJdmIncremental(env){
+  await seedJdmRefreshQueue(env);
+  const results=[];
+  // Deux lots par passage : assez rapide pour remplir la France, sans lancer tout le pays d'un coup.
+  for(let i=0;i<2;i++){
+    const row=await env.DB.prepare('SELECT area,city_cursor,city_count,next_check_at FROM market_jdm_refresh_state WHERE next_check_at<=? ORDER BY next_check_at ASC,area ASC LIMIT 1').bind(Date.now()).first();
+    if(!row)break;
+    try{results.push(await refreshJdmArea(env,row))}
+    catch(e){await env.DB.prepare('UPDATE market_jdm_refresh_state SET next_check_at=?,last_check_at=?,last_message=? WHERE area=?').bind(Date.now()+6*3600000,Date.now(),String(e&&e.message||e).slice(0,250),row.area).run()}
+  }
+  return results;
+}
+
 async function ensureMarketRefreshTables(env){await ensureMarketTable(env);await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_refresh_state(country TEXT NOT NULL,area TEXT NOT NULL,kind TEXT NOT NULL,next_check_at INTEGER NOT NULL DEFAULT 0,last_check_at INTEGER NOT NULL DEFAULT 0,last_status TEXT NOT NULL DEFAULT '',last_found INTEGER NOT NULL DEFAULT 0,last_message TEXT NOT NULL DEFAULT '',PRIMARY KEY(country,area,kind))`).run();try{await env.DB.prepare('CREATE INDEX IF NOT EXISTS market_refresh_due ON market_refresh_state(next_check_at)').run()}catch(_){} }
 async function seedMarketRefreshQueue(env){await ensureMarketRefreshTables(env);const now=Date.now(),c=await env.DB.prepare('SELECT COUNT(*) n FROM market_refresh_state').first();if(Number(c&&c.n||0)<50){const jobs=[];for(let i=0;i<MARKET_REFRESH_FR_AREAS.length;i++)jobs.push(env.DB.prepare(`INSERT OR IGNORE INTO market_refresh_state(country,area,kind,next_check_at) VALUES('FR',?,'brocante',?)`).bind(MARKET_REFRESH_FR_AREAS[i],now+i*1800000));for(let i=0;i<MARKET_REFRESH_BE_AREAS.length;i++)jobs.push(env.DB.prepare(`INSERT OR IGNORE INTO market_refresh_state(country,area,kind,next_check_at) VALUES('BE',?,'brocante',?)`).bind(MARKET_REFRESH_BE_AREAS[i].toUpperCase(),now+i*1800000));for(let i=0;i<jobs.length;i+=40)await env.DB.batch(jobs.slice(i,i+40))}await env.DB.prepare(`INSERT OR IGNORE INTO market_refresh_state(country,area,kind,next_check_at) SELECT upper(country),upper(area),lower(kind),? FROM imported_markets WHERE kind IN ('marche','voyageur','noel') GROUP BY upper(country),upper(area),lower(kind)`).bind(now+6*3600000).run()}
 async function prioritizeExpiredScopes(env){const today=marketTodayIso(),now=Date.now();const q=await env.DB.prepare("SELECT country,area,kind,MAX(end_date) max_end FROM imported_markets WHERE kind IN ('brocante','noel','voyageur') AND end_date<>'' GROUP BY country,area,kind").all();for(const r of q.results||[]){if(marketIsoDate(r.max_end)&&marketIsoDate(r.max_end)<today)await env.DB.prepare('UPDATE market_refresh_state SET next_check_at=MIN(next_check_at,?) WHERE country=? AND area=? AND kind=?').bind(now,String(r.country).toUpperCase(),String(r.area).toUpperCase(),String(r.kind).toLowerCase()).run()}}
@@ -1101,8 +1256,8 @@ async function refreshExistingSourceRows(env,country,area,kind){const q=await en
 async function refreshBrocanteScope(env,country,area){let events=[],src='';try{if(country==='FR'){src=`https://brocabrac.fr/${encodeURIComponent(area)}/`;const r=await fetch(src,{headers:{'user-agent':'Mozilla/5.0 Couteau-Suisse/319','accept-language':'fr-FR,fr;q=0.9'},cf:{cacheTtl:1800}});if(r.ok)events=parseBrocabrac(await r.text(),area)}else{const slug=String(area||'').toLowerCase();src=`https://www.brocantes.be/fr/agenda/province/${encodeURIComponent(slug)}/Brocantes`;const r=await fetch(src,{headers:{'user-agent':'Mozilla/5.0 Couteau-Suisse/319','accept-language':'fr-FR,fr;q=0.9'},cf:{cacheTtl:1800}});if(r.ok)events=parseBrocantesBe(await r.text(),slug)}}catch(_){}events=events.filter(x=>!x.end||x.end>=marketTodayIso());for(let i=0;i<Math.min(events.length,5);i++){if(events[i].sourceUrl&&(!events[i].phone||!events[i].merchants)){const d=await sourceDetailInfo(events[i].sourceUrl,country);if(!events[i].phone)events[i].phone=d.phone;if(!events[i].merchants)events[i].merchants=d.merchants}}let n=0;for(const e of events){if(await upsertAutoMarket(env,e))n++}return{count:n,source:src}}
 async function refreshDatatourismeScope(env,area,kind){if(!env.DATATOURISME_API_KEY)return{count:0,skipped:'DATATOURISME_API_KEY absente'};const terms=kind==='brocante'?['brocante','vide-grenier','foire à tout']:kind==='noel'?['marché de Noël']:kind==='voyageur'?['fête foraine']:['marché'];let n=0;for(const term of terms){try{const filters=`isLocatedAt.address.hasAddressCity.isPartOfDepartment.insee[eq]=${area}`;const u='https://api.datatourisme.fr/v1/entertainmentAndEvent?lang=fr&page_size=80&sort=lastUpdate[desc]&search='+encodeURIComponent(term)+'&filters='+encodeURIComponent(filters);const r=await fetch(u,{headers:{'X-API-Key':String(env.DATATOURISME_API_KEY),'accept':'application/json'}});if(!r.ok)continue;const j=await r.json();for(const o of j.objects||[]){const e=datatourismeToMarket(o,area,kind);if(e&&(!e.end||e.end>=marketTodayIso())&&await upsertAutoMarket(env,e))n++}}catch(_){}}return{count:n}}
 async function refreshMarketScope(env,state){const country=String(state.country||'FR').toUpperCase(),area=String(state.area||'').toUpperCase(),kind=String(state.kind||'marche').toLowerCase();let found=0,parts=[];if(kind==='brocante'){const a=await refreshBrocanteScope(env,country,area);found+=a.count;parts.push('agenda:'+a.count)}if(country==='FR'){const a=await refreshDatatourismeScope(env,area,kind);found+=a.count;parts.push(a.skipped||('DATAtourisme:'+a.count))}const rechecked=await refreshExistingSourceRows(env,country,area,kind);parts.push('fiches:'+rechecked);const now=Date.now();let next=now+(kind==='marche'?30:kind==='voyageur'?7:2)*86400000;const max=await env.DB.prepare("SELECT MAX(end_date) e FROM imported_markets WHERE country=? AND area=? AND kind=? AND end_date>=?").bind(country,area,kind,marketTodayIso()).first();if(max&&marketIsoDate(max.e)){const t=Date.parse(marketIsoDate(max.e)+'T23:59:59Z')+86400000;if(t>now&&t<next)next=t}await env.DB.prepare('UPDATE market_refresh_state SET next_check_at=?,last_check_at=?,last_status=?,last_found=?,last_message=? WHERE country=? AND area=? AND kind=?').bind(next,now,'ok',found,parts.join(' · ').slice(0,300),country,area,kind).run();return{country,area,kind,found,message:parts.join(' · ')}}
-async function runIncrementalMarketRefresh(env){if(!env.DB)return null;await seedMarketRefreshQueue(env);await prioritizeExpiredScopes(env);const row=await env.DB.prepare('SELECT country,area,kind,next_check_at FROM market_refresh_state WHERE next_check_at<=? ORDER BY next_check_at ASC LIMIT 1').bind(Date.now()).first();if(!row)return null;try{return await refreshMarketScope(env,row)}catch(e){await env.DB.prepare('UPDATE market_refresh_state SET next_check_at=?,last_check_at=?,last_status=?,last_message=? WHERE country=? AND area=? AND kind=?').bind(Date.now()+6*3600000,Date.now(),'error',String(e&&e.message||e).slice(0,250),row.country,row.area,row.kind).run();return null}}
-async function marketRefreshStatus(env){await ensureMarketRefreshTables(env);const last=await env.DB.prepare('SELECT country,area,kind,last_check_at,last_status,last_found,last_message,next_check_at FROM market_refresh_state ORDER BY last_check_at DESC LIMIT 12').all();const due=await env.DB.prepare('SELECT COUNT(*) n FROM market_refresh_state WHERE next_check_at<=?').bind(Date.now()).first();return json({ok:true,mode:'progressif',due:Number(due&&due.n||0),last:last.results||[],serverTime:Date.now()})}
+async function runIncrementalMarketRefresh(env){if(!env.DB)return null;const jdm=await runJdmIncremental(env);await seedMarketRefreshQueue(env);await prioritizeExpiredScopes(env);const row=await env.DB.prepare('SELECT country,area,kind,next_check_at FROM market_refresh_state WHERE next_check_at<=? ORDER BY next_check_at ASC LIMIT 1').bind(Date.now()).first();if(!row)return{joursDeMarche:jdm,marketRefresh:null};try{return{joursDeMarche:jdm,marketRefresh:await refreshMarketScope(env,row)}}catch(e){await env.DB.prepare('UPDATE market_refresh_state SET next_check_at=?,last_check_at=?,last_status=?,last_message=? WHERE country=? AND area=? AND kind=?').bind(Date.now()+6*3600000,Date.now(),'error',String(e&&e.message||e).slice(0,250),row.country,row.area,row.kind).run();return{joursDeMarche:jdm,marketRefresh:null}}}
+async function marketRefreshStatus(env){await ensureMarketRefreshTables(env);await ensureJdmRefreshTable(env);const last=await env.DB.prepare('SELECT country,area,kind,last_check_at,last_status,last_found,last_message,next_check_at FROM market_refresh_state ORDER BY last_check_at DESC LIMIT 12').all();const due=await env.DB.prepare('SELECT COUNT(*) n FROM market_refresh_state WHERE next_check_at<=?').bind(Date.now()).first();const jdm=await env.DB.prepare('SELECT area,city_cursor,city_count,last_check_at,last_found,last_pages,last_message,next_check_at FROM market_jdm_refresh_state ORDER BY last_check_at DESC LIMIT 12').all();const jdmDue=await env.DB.prepare('SELECT COUNT(*) n FROM market_jdm_refresh_state WHERE next_check_at<=?').bind(Date.now()).first();return json({ok:true,mode:'progressif',due:Number(due&&due.n||0),last:last.results||[],joursDeMarche:{due:Number(jdmDue&&jdmDue.n||0),last:jdm.results||[]},serverTime:Date.now()})}
 
 const MARKET_CONSENSUS_REQUIRED = 1;
 const MARKET_LOCATION_REQUIRED = 1;

@@ -1,4 +1,4 @@
 {
-  "version": "321",
-  "message": "Recherche par numéro de département ajoutée aux marchés de Noël, brocantes, vide-greniers, foires et autres catégories spéciales. Le mode à moins de 80 km affiche aussi les foires, brocantes et marchés de Noël dès 7 jours avant leur début, puis les retire automatiquement après leur date de fin."
+  "version": "324",
+  "message": "Audit général de Couteau Suisse : import Jours-de-Marché V323 conservé, cache de mise à jour corrigé, liens d’icônes réparés et contrôles de cohérence effectués. Les marchés existants et les données utilisateur sont conservés."
 }
