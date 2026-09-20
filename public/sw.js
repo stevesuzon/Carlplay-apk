@@ -1,10 +1,10 @@
-const VERSION = "V304";
+const VERSION = "V307";
 const BASE_CACHE = "couteau-suisse-module-base-v302-d1";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v302";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v302";
 const DATA_CACHE = "couteau-suisse-module-data-v283";
-const INSTALL_CACHE = "couteau-suisse-module-install-v304";
+const INSTALL_CACHE = "couteau-suisse-module-install-v307";
 const STATS_CACHE = "couteau-suisse-module-stats-v302";
 const MUSHROOM_CACHE = "couteau-suisse-module-mushroom-v300";
 const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v302";
@@ -18,7 +18,7 @@ const MODULES={
  [CONTEST_CACHE]:["/contest-v188.js?v=302-d1"],
  [ADMIN_CACHE]:["/admin.html","/contest-admin-v188.js?v=302-d1"],
  [DATA_CACHE]:["/persistent-user-data-v283.js?v=283"],
- [INSTALL_CACHE]:["/installer.html","/app-access-gate-v240.js?v=304-email-confirmation-installation","/cache-cleanup-v20260910.js?v=283-modules"],
+ [INSTALL_CACHE]:["/installer.html","/app-access-gate-v240.js?v=307-email-return-fix","/cache-cleanup-v20260910.js?v=283-modules"],
  [STATS_CACHE]:["/user-stats-v285.js?v=302-d1"],
  [MUSHROOM_CACHE]:["/champignons.html","/champignons.js?v=300-concours-auto","/champignons.css?v=300-concours-auto"],
  [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=302-d1"]

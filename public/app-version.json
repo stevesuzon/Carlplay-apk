@@ -1,4 +1,4 @@
 {
-  "version": "304",
-  "message": "Inscription sécurisée par confirmation e-mail : nom, prénom et e-mail sont saisis, puis le bouton bleu envoie un lien de confirmation. Après clic dans l’e-mail, retour automatique vers Couteau Suisse. Seuls les e-mails confirmés comptent comme utilisateurs valides et entrent au concours. La vidéo de départ a été supprimée et remplacée par une aide courte Installation iPhone / Android, puis un bouton Aller sur le site."
+  "version": "307",
+  "message": "Correction de la confirmation e-mail : après validation depuis Mail/Safari, Couteau Suisse reconnaît automatiquement le compte au retour dans l’application et ne renvoie plus vers le formulaire d’inscription."
 }

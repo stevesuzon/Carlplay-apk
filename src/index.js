@@ -843,8 +843,8 @@ async function installations(request, env) {
 }
 
 async function uniqueAppUserCount(env) {
-  // V304 : une personne n'est comptée qu'après confirmation réelle de son e-mail.
-  // Les anciennes installations, abonnements non confirmés et simples saisies ne comptent plus.
+  // V305 : les nouveaux comptes ne sont comptés qu'après confirmation e-mail.
+  // Les comptes déjà enregistrés avant cette fonction sont conservés automatiquement comme comptes historiques.
   try{
     await ensureAppIdentityTables(env);
     const row=await env.DB.prepare(`SELECT COUNT(DISTINCT lower(trim(email))) AS count FROM app_identities
@@ -1561,7 +1561,7 @@ async function contestAutoEnrollIdentityV303(env,cfg,identity){
 async function backfillContestParticipants(env,cfg){
   if(!env.DB||Date.now()>=Number(cfg&&cfg.end_at||0))return;
   try{
-    const now=Date.now(),maintenanceKey='participants-backfill-v304',intervalMs=24*60*60*1000;
+    const now=Date.now(),maintenanceKey='participants-backfill-v305',intervalMs=24*60*60*1000;
     await env.DB.prepare("CREATE TABLE IF NOT EXISTS contest_maintenance_state(key TEXT PRIMARY KEY,last_run INTEGER NOT NULL)").run();
     const claim=await env.DB.prepare(`INSERT INTO contest_maintenance_state(key,last_run) VALUES(?,?)
       ON CONFLICT(key) DO UPDATE SET last_run=excluded.last_run WHERE contest_maintenance_state.last_run<?`).bind(maintenanceKey,now,now-intervalMs).run();
@@ -1573,17 +1573,9 @@ async function backfillContestParticipants(env,cfg){
       const email=normalizeEmail(identity.email);if(seenEmails.has(email))continue;seenEmails.add(email);
       await contestAutoEnrollIdentityV303(env,cfg,identity);
     }catch(_){}}
-    // V304 : les anciens comptes non confirmés restent conservés mais ne sont plus
-    // auto-ajoutés au concours tant que leur adresse e-mail n'a pas été confirmée.
-    try{
-      const migration='participants-email-verified-v304';
-      const done=await env.DB.prepare("SELECT key FROM contest_migrations WHERE key=? LIMIT 1").bind(migration).first();
-      if(!done){
-        await env.DB.prepare("UPDATE contest_participants SET contest_excluded=1,updated_at=? WHERE COALESCE(contest_excluded,0)=0").bind(now).run();
-        for(const identity of identities){try{await contestAutoEnrollIdentityV303(env,cfg,identity)}catch(_){}}
-        await env.DB.prepare("INSERT OR REPLACE INTO contest_migrations(key,applied_at) VALUES(?,?)").bind(migration,now).run();
-      }
-    }catch(_){}
+    // V305 : les comptes déjà enregistrés avant la mise en place de la confirmation e-mail
+    // sont conservés comme comptes existants. Ils ne doivent pas refaire le formulaire.
+    // Le rattrapage ci-dessus remet aussi leurs participants au concours si nécessaire.
     // Le compte administrateur reste un compte utilisateur normal dans le compteur,
     // mais il est explicitement hors concours et ne peut pas recevoir de nouveaux points.
     const adminHash=await sha256Text(ONLY_ADMIN_EMAIL);
@@ -2989,6 +2981,26 @@ async function ensureAppIdentityTables(env){
     )`).run();
     try{await env.DB.prepare("CREATE INDEX IF NOT EXISTS app_identity_links_device_idx ON app_identity_email_links(device_id,email_hash,created_at DESC)").run()}catch(_){}
     try{await env.DB.prepare("CREATE INDEX IF NOT EXISTS app_identity_links_handoff_idx ON app_identity_email_links(handoff_hash,handoff_expires_at)").run()}catch(_){}
+    // V305 : les identités créées avant la V304 existaient déjà dans l'application.
+    // On les considère comme comptes historiques et on ne leur impose pas une nouvelle
+    // confirmation e-mail. La confirmation par lien reste obligatoire uniquement pour
+    // les nouveaux comptes créés à partir de la V304/V305.
+    try{
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS app_identity_migrations(key TEXT PRIMARY KEY,applied_at INTEGER NOT NULL)`).run();
+      const migrationKey='legacy-identities-grandfather-v305',cutoff=1789852260000;
+      const done=await env.DB.prepare("SELECT key FROM app_identity_migrations WHERE key=? LIMIT 1").bind(migrationKey).first();
+      if(!done){
+        await env.DB.prepare(`UPDATE app_identities
+          SET email_verified_at=CASE WHEN created_at>0 THEN created_at ELSE ? END,
+              email_verified_device_id=CASE WHEN trim(COALESCE(device_id,''))<>'' THEN device_id ELSE email_verified_device_id END
+          WHERE COALESCE(email_verified_at,0)<=0
+            AND created_at>0 AND created_at<=?
+            AND length(trim(first_name))>=2 AND length(trim(last_name))>=2
+            AND instr(trim(email),'@')>1
+            AND instr(substr(trim(email),instr(trim(email),'@')+1),'.')>1`).bind(cutoff,cutoff).run();
+        await env.DB.prepare("INSERT OR REPLACE INTO app_identity_migrations(key,applied_at) VALUES(?,?)").bind(migrationKey,Date.now()).run();
+      }
+    }catch(_){}
   })().catch(e=>{_appIdentitySchemaPromise=null;throw e});
   return _appIdentitySchemaPromise;
 }
@@ -3019,9 +3031,15 @@ async function saveVerifiedAppIdentity(env,data,verifiedAt){
 async function verifiedAppIdentityState(env,email,deviceId){
   await ensureAppIdentityTables(env);email=normalizeEmail(email);deviceId=cleanIdentityText(deviceId,140);
   if(!validEmail(email)||!validDevice(deviceId))return {verified:false};
-  const row=await env.DB.prepare(`SELECT email,first_name,last_name,device_id,email_verified_at,email_verified_device_id FROM app_identities WHERE lower(email)=? LIMIT 1`).bind(email).first();
-  if(!row||Number(row.email_verified_at||0)<=0||String(row.email_verified_device_id||'')!==deviceId)return {verified:false};
+  let row=await env.DB.prepare(`SELECT email,first_name,last_name,device_id,created_at,email_verified_at,email_verified_device_id FROM app_identities WHERE lower(email)=? LIMIT 1`).bind(email).first();
+  if(!row||Number(row.email_verified_at||0)<=0)return {verified:false};
   let sub=null;try{sub=await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND (lower(COALESCE(recovery_email_mask,''))=? OR phone_device=? OR autoradio_device=?) ORDER BY CASE WHEN lower(COALESCE(recovery_email_mask,''))=? THEN 0 ELSE 1 END,lifetime DESC,COALESCE(expires_at,'') DESC,id DESC LIMIT 1").bind(email,deviceId,deviceId,email).first()}catch(_){}
+  if(String(row.email_verified_device_id||'')!==deviceId){
+    const historical=Number(row.created_at||0)>0&&Number(row.created_at||0)<=1789852260000;
+    const knownDevice=String(row.device_id||'')===deviceId||!!(sub&&(String(sub.phone_device||'')===deviceId||String(sub.autoradio_device||'')===deviceId));
+    if(!historical||!knownDevice)return {verified:false};
+    try{await env.DB.prepare("UPDATE app_identities SET device_id=?,email_verified_device_id=?,updated_at=? WHERE lower(email)=?").bind(deviceId,deviceId,Date.now(),email).run();row.device_id=deviceId;row.email_verified_device_id=deviceId}catch(_){}
+  }
   let trial=false;try{trial=!!(sub&&await isContestTrialRow(sub))}catch(_){}
   return {verified:true,identity:{firstName:String(row.first_name||''),lastName:String(row.last_name||''),email:String(row.email||email)},deviceId,verifiedAt:Number(row.email_verified_at||0),subscription:sub?{ok:true,email:String(sub.recovery_email_mask||email),firstName:String(sub.account_first_name||row.first_name||''),lastName:String(sub.account_last_name||row.last_name||''),lifetime:!!sub.lifetime,expiresAt:sub.expires_at||null,trial,trialMode:trial?'seven_day':'',existingAccount:!trial}:null};
 }
@@ -3052,7 +3070,7 @@ async function appIdentityStart(request,env){
 async function appIdentityConfirm(request,env){
   if(!env.DB)return new Response('Service indisponible',{status:503});await ensureAppIdentityTables(env);
   const url=new URL(request.url),id=String(url.searchParams.get('id')||'').trim(),token=String(url.searchParams.get('token')||'').trim(),origin=url.origin;
-  const go=(state,handoff='')=>Response.redirect(origin+'/index.html?installation=1&email_confirmed='+encodeURIComponent(state)+(handoff?'&email_handoff='+encodeURIComponent(handoff):''),302);
+  const go=(state,handoff='')=>Response.redirect(origin+'/?installation=1&email_confirmed='+encodeURIComponent(state)+(handoff?'&email_handoff='+encodeURIComponent(handoff):''),302);
   if(!id||!token)return go('invalid');
   const row=await env.DB.prepare("SELECT * FROM app_identity_email_links WHERE id=? LIMIT 1").bind(id).first();if(!row)return go('invalid');
   if(Number(row.expires_at||0)<Date.now())return go('expired');
@@ -3075,8 +3093,8 @@ async function appIdentityHandoff(request,env){
   const hash=await appIdentityHandoffHash(token,env),row=await env.DB.prepare("SELECT * FROM app_identity_email_links WHERE handoff_hash=? LIMIT 1").bind(hash).first(),now=Date.now();
   if(!row||Number(row.confirmed_at||0)<=0||Number(row.handoff_consumed||0)!==0)return json({ok:false,error:'CONFIRMATION_INTROUVABLE'},404);
   if(Number(row.handoff_expires_at||0)<now)return json({ok:false,error:'CONFIRMATION_EXPIREE'},410);
-  await env.DB.prepare("UPDATE app_identity_email_links SET handoff_consumed=1 WHERE id=?").bind(row.id).run();
   const state=await verifiedAppIdentityState(env,row.email,row.device_id);if(!state.verified)return json({ok:false,error:'EMAIL_NON_CONFIRMEE'},403);
+  await env.DB.prepare("UPDATE app_identity_email_links SET handoff_consumed=1 WHERE id=? AND handoff_consumed=0").bind(row.id).run();
   return json({ok:true,...state});
 }
 async function appIdentityStatus(request,env){
@@ -3273,7 +3291,7 @@ async function mushroomPhoto(url,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=300-admin-noms-controle" defer></script><script src="/market-update-notifications-v281.js?v=282" defer></script><script src="/notification-detail-v282.js?v=282" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=300-auto-controle-gasoil" defer></script><script src="/referral-v232.js?v=273-parrainage-marche-compte" defer></script><script src="/app-access-gate-v240.js?v=304-email-confirmation-installation" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=300-admin-noms-controle" defer></script><script src="/market-update-notifications-v281.js?v=282" defer></script><script src="/notification-detail-v282.js?v=282" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=300-auto-controle-gasoil" defer></script><script src="/referral-v232.js?v=273-parrainage-marche-compte" defer></script><script src="/app-access-gate-v240.js?v=307-email-return-fix" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
   }
 }
 
