@@ -1,4 +1,4 @@
 {
-  "version": "307",
-  "message": "Correction de la confirmation e-mail : après validation depuis Mail/Safari, Couteau Suisse reconnaît automatiquement le compte au retour dans l’application et ne renvoie plus vers le formulaire d’inscription."
+  "version": "309",
+  "message": "Inscription simplifiée : le formulaire n’apparaît qu’avant la première confirmation e-mail. Dès que l’adresse est confirmée, anciens et nouveaux utilisateurs ouvrent directement Couteau Suisse."
 }

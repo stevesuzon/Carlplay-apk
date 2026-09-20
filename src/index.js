@@ -3291,7 +3291,7 @@ async function mushroomPhoto(url,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append('<link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=300-admin-noms-controle" defer></script><script src="/market-update-notifications-v281.js?v=282" defer></script><script src="/notification-detail-v282.js?v=282" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=300-auto-controle-gasoil" defer></script><script src="/referral-v232.js?v=273-parrainage-marche-compte" defer></script><script src="/app-access-gate-v240.js?v=307-email-return-fix" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+    element.append('<link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/mobile-overrides.css?v=62"><link rel="stylesheet" href="/subscription-locks.css?v=62"><link rel="stylesheet" href="/home-work.css?v=62"><script src="/weather-all-pages.js?v=68-notifications-globales" defer></script><script src="/subscription-web.js?v=309-confirmed-direct" defer></script><script src="/market-update-notifications-v281.js?v=282" defer></script><script src="/notification-detail-v282.js?v=282" defer></script><script src="/home-work.js?v=62" defer></script><script src="/market-presence-global.js?v=176" defer></script><script src="/market-navigation-confirm-v189.js?v=189" defer></script><script src="/contest-v188.js?v=300-auto-controle-gasoil" defer></script><script src="/referral-v232.js?v=273-parrainage-marche-compte" defer></script><script src="/app-access-gate-v240.js?v=309-confirmed-direct" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
   }
 }
 
@@ -3398,7 +3398,7 @@ export default {
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers: h });
     }
     const type = response.headers.get("content-type") || "";
-    if (type.includes("text/html") && url.pathname !== "/admin.html" && url.pathname !== "/admin" && url.pathname !== "/import-marches.html") {
+    if (type.includes("text/html") && url.pathname !== "/admin.html" && url.pathname !== "/admin" && url.pathname !== "/import-marches.html" && url.pathname !== "/installer.html" && url.pathname !== "/installer") {
       const transformed = new HTMLRewriter().on("head", new InjectAppFiles()).on("a", new FixAndroidLinks()).on("script", new InjectMarketLive()).transform(response);
       const headers = new Headers(transformed.headers);
       headers.set("cache-control", "no-store, no-cache, must-revalidate");

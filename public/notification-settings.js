@@ -46,7 +46,7 @@
   }
   async function sync(){
     if(!('serviceWorker'in navigator))return;
-    const registration=await navigator.serviceWorker.register('/sw.js?v=283-modules',{updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('/sw.js?v=309-confirmed-direct',{updateViaCache:'none'});
     await registration.update().catch(function(){});
     if(registration.waiting)registration.waiting.postMessage({type:'SKIP_WAITING'});
     await navigator.serviceWorker.ready;

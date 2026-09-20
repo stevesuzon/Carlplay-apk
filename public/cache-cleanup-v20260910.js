@@ -1,11 +1,11 @@
 (function(){
 'use strict';
-var V='20260916-modules-v283',K='carplay_cache_cleanup_version';
+var V='20260920-v308-no-install-loop',K='carplay_cache_cleanup_version';
 var KEEP={
   'couteau-suisse-module-icons-v283':1,
-  'couteau-suisse-module-contest-v283':1,
+  'couteau-suisse-module-contest-v302':1,
   'couteau-suisse-module-data-v283':1,
-  'couteau-suisse-module-install-v283':1,
+  'couteau-suisse-module-install-v308':1,
   'carplay-notification-preference-v1':1
 };
 function obsoleteModule(name){return (/^couteau-suisse-module-icons-v/.test(name)||/^couteau-suisse-module-contest-v/.test(name)||/^couteau-suisse-module-data-v/.test(name)||/^couteau-suisse-module-install-v/.test(name))&&!KEEP[name]}

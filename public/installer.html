@@ -21,8 +21,8 @@
 <button id="installHelp" class="action installBtn" type="button">📲 INSTALLATION iPHONE / ANDROID</button>
 <div id="guide" class="guide" aria-hidden="true">
   <h2>COMMENT INSTALLER</h2>
-  <div class="os"><h3>🍎 iPhone / iPad</h3><ol><li>Appuyez sur <b>Aller sur le site</b> puis renseignez <b>Nom + Prénom + Adresse e-mail</b>.</li><li>Appuyez sur <b>Confirmer mon adresse e-mail</b>, ouvrez l’e-mail reçu et confirmez. Vous revenez automatiquement sur <b>Couteau Suisse</b>.</li><li>Dans <b>Safari</b>, appuyez sur <b>Partager</b> (le carré avec la flèche vers le haut).</li><li>Appuyez sur <b>Sur l’écran d’accueil</b>.</li><li>Appuyez sur <b>Ajouter</b>. L’icône Couteau Suisse apparaît sur votre écran d’accueil.</li></ol></div>
-  <div class="os"><h3>🤖 Android</h3><ol><li>Appuyez sur <b>Aller sur le site</b> puis renseignez <b>Nom + Prénom + Adresse e-mail</b>.</li><li>Appuyez sur <b>Confirmer mon adresse e-mail</b>, ouvrez l’e-mail reçu et confirmez. Vous revenez automatiquement sur <b>Couteau Suisse</b>.</li><li>Dans <b>Chrome</b>, appuyez sur le menu <b>⋮</b> en haut à droite.</li><li>Appuyez sur <b>Installer l’application</b> ou <b>Ajouter à l’écran d’accueil</b> selon votre téléphone.</li><li>Confirmez avec <b>Installer</b> ou <b>Ajouter</b>. L’icône Couteau Suisse apparaît sur votre écran d’accueil.</li></ol></div>
+  <div class="os"><h3>🍎 iPhone / iPad</h3><ol><li>Appuyez sur <b>Aller sur le site</b> puis renseignez <b>Nom + Prénom + Adresse e-mail</b>.</li><li>Appuyez sur <b>Confirmer mon adresse e-mail</b>, ouvrez l’e-mail reçu et confirmez. Votre inscription est alors terminée : vous revenez automatiquement sur <b>Couteau Suisse</b> et ce formulaire ne sera plus redemandé.</li><li>Dans <b>Safari</b>, appuyez sur <b>Partager</b> (le carré avec la flèche vers le haut).</li><li>Appuyez sur <b>Sur l’écran d’accueil</b>.</li><li>Appuyez sur <b>Ajouter</b>. L’icône Couteau Suisse apparaît sur votre écran d’accueil.</li></ol></div>
+  <div class="os"><h3>🤖 Android</h3><ol><li>Appuyez sur <b>Aller sur le site</b> puis renseignez <b>Nom + Prénom + Adresse e-mail</b>.</li><li>Appuyez sur <b>Confirmer mon adresse e-mail</b>, ouvrez l’e-mail reçu et confirmez. Votre inscription est alors terminée : vous revenez automatiquement sur <b>Couteau Suisse</b> et ce formulaire ne sera plus redemandé.</li><li>Dans <b>Chrome</b>, appuyez sur le menu <b>⋮</b> en haut à droite.</li><li>Appuyez sur <b>Installer l’application</b> ou <b>Ajouter à l’écran d’accueil</b> selon votre téléphone.</li><li>Confirmez avec <b>Installer</b> ou <b>Ajouter</b>. L’icône Couteau Suisse apparaît sur votre écran d’accueil.</li></ol></div>
   <button id="closeGuide" class="action closeGuide" type="button">J’AI COMPRIS — FERMER</button>
 </div>
 <div id="guideDone" class="done">✅ Explication installation consultée. Vous pouvez maintenant aller sur le site.</div>
@@ -32,7 +32,7 @@
 </section></main>
 <script>
 (function(){
-  var KEY='carplay_install_guide_seen_v307';
+  var KEY='carplay_install_guide_seen_v308';
   var help=document.getElementById('installHelp'),guide=document.getElementById('guide'),close=document.getElementById('closeGuide'),go=document.getElementById('goSite'),done=document.getElementById('guideDone'),hint=document.getElementById('siteHint'),referral='';
   try{referral=(new URL(location.href)).searchParams.get('ref')||'';if(referral){localStorage.setItem('carplay_pending_referral',referral);document.cookie='carplay_pending_referral='+encodeURIComponent(referral)+'; Max-Age=2592000; Path=/; SameSite=Lax; Secure'}}catch(e){}
   function seen(){try{return localStorage.getItem(KEY)==='1'}catch(e){return false}}
@@ -41,7 +41,7 @@
   help.addEventListener('click',function(){guide.classList.add('show');guide.setAttribute('aria-hidden','false');try{guide.scrollIntoView({behavior:'smooth',block:'start'})}catch(e){}});
   close.addEventListener('click',function(){guide.classList.remove('show');guide.setAttribute('aria-hidden','true');markSeen();render();try{go.scrollIntoView({behavior:'smooth',block:'center'})}catch(e){}});
   go.addEventListener('click',function(){if(!seen()){guide.classList.add('show');guide.setAttribute('aria-hidden','false');return}var url='/?installation=1&onboarding=identity'+(referral?'&ref='+encodeURIComponent(referral):'');location.href=url});
-  render();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=307-email-return-fix',{updateViaCache:'none'}).catch(function(){});
+  render();
 })();
 </script>
 </body></html>

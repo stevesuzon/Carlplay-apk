@@ -104,18 +104,23 @@ async function handleEmailConfirmation(){
 function clearIncompleteLegacyIdentity(){try{var a=normalize(readJson(KEY)),p=normalize(readJson(PROFILE)),s=normalize(readJson(SUB));if(!complete(a))localStorage.removeItem(KEY);if(!validEmail(p.email)){var rp=readJson(PROFILE)||{};delete rp.email;localStorage.setItem(PROFILE,JSON.stringify(rp))}if(!validEmail(s.email)){var rs=readJson(SUB)||{};delete rs.email;localStorage.setItem(SUB,JSON.stringify(rs))}var re=email(localStorage.getItem('carplay_recovery_email')||'');if(re&&!validEmail(re))localStorage.removeItem('carplay_recovery_email')}catch(_){} }
 async function boot(){
   clearIncompleteLegacyIdentity();var confirmation=await handleEmailConfirmation();if(confirmation&&confirmation.ok)return;var x=candidate();
-  // V305 : si le lien e-mail a bien validé le compte côté serveur mais que le retour Safari/PWA
-  // a perdu le handoff, on vérifie d'abord le serveur. Cela évite de renvoyer le formulaire en boucle.
+  // V309 : dès qu'un compte est déjà confirmé, ancien OU nouveau, on ouvre directement le site.
+  // Le formulaire ne doit servir qu'une seule fois : avant la première confirmation e-mail.
+  // On vérifie donc l'identité AVANT d'afficher l'aide d'installation ou le formulaire.
+  if(complete(x)){
+    var st=await verifiedStatus(x);
+    if(st&&st.verified){var id=persist(st.identity||x);markVerified(id,st.verifiedAt||Date.now());persistSubscription(st.subscription,id);stopVerificationWatch();removeGate();cleanConfirmationUrl();return}
+    if(st&&st.networkError&&markerMatches(x)){persist(x);removeGate();return}
+  }
+  // Si le lien e-mail a bien validé le compte côté serveur mais que le retour Safari/PWA
+  // a perdu le handoff, une dernière vérification évite de renvoyer le formulaire en boucle.
   if(confirmation&&confirmation.error&&complete(x)){
     var after=await verifiedStatus(x);if(after&&after.verified){var aid=persist(after.identity||x);markVerified(aid,after.verifiedAt||Date.now());persistSubscription(after.subscription,aid);stopVerificationWatch();removeGate();toast('✅ Adresse e-mail confirmée. Bienvenue dans Couteau Suisse !');setTimeout(function(){location.replace(finalSiteUrl())},180);return}
   }
   if(confirmation&&confirmation.error){showIdentity(x,confirmation.error);return}
-  // Le passage depuis la page d'installation autorise seulement à passer l'aide d'installation.
-  // Les utilisateurs déjà enregistrés sont reconnus automatiquement par le serveur et ne refont pas le formulaire.
+  // Un visiteur non encore inscrit voit d'abord l'aide d'installation.
   if(!installed()&&!browserHandoff()){showInstall();return}
   if(complete(x)){
-    var st=await verifiedStatus(x);if(st&&st.verified){var id=persist(st.identity||x);markVerified(id,st.verifiedAt||Date.now());persistSubscription(st.subscription,id);stopVerificationWatch();removeGate();return}
-    if(st&&st.networkError&&markerMatches(x)){persist(x);return}
     showIdentity(x,onboardingIdentity()?'✉️ Confirmez votre adresse e-mail pour terminer votre inscription.':'✉️ Confirmez votre adresse e-mail pour continuer.');return
   }
   showIdentity(x)

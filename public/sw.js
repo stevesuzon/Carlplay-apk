@@ -1,10 +1,10 @@
-const VERSION = "V307";
+const VERSION = "V309";
 const BASE_CACHE = "couteau-suisse-module-base-v302-d1";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v302";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v302";
 const DATA_CACHE = "couteau-suisse-module-data-v283";
-const INSTALL_CACHE = "couteau-suisse-module-install-v307";
+const INSTALL_CACHE = "couteau-suisse-module-install-v309";
 const STATS_CACHE = "couteau-suisse-module-stats-v302";
 const MUSHROOM_CACHE = "couteau-suisse-module-mushroom-v300";
 const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v302";
@@ -18,10 +18,10 @@ const MODULES={
  [CONTEST_CACHE]:["/contest-v188.js?v=302-d1"],
  [ADMIN_CACHE]:["/admin.html","/contest-admin-v188.js?v=302-d1"],
  [DATA_CACHE]:["/persistent-user-data-v283.js?v=283"],
- [INSTALL_CACHE]:["/installer.html","/app-access-gate-v240.js?v=307-email-return-fix","/cache-cleanup-v20260910.js?v=283-modules"],
+ [INSTALL_CACHE]:["/installer.html","/app-access-gate-v240.js?v=309-confirmed-direct","/cache-cleanup-v20260910.js?v=283-modules"],
  [STATS_CACHE]:["/user-stats-v285.js?v=302-d1"],
  [MUSHROOM_CACHE]:["/champignons.html","/champignons.js?v=300-concours-auto","/champignons.css?v=300-concours-auto"],
- [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=302-d1"]
+ [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=309-confirmed-direct"]
 };
 async function putFresh(cacheName,path){try{const req=new Request(path,{cache:"reload"}),res=await fetch(req);if(res&&res.ok)(await caches.open(cacheName)).put(req,res.clone())}catch(_){}}
 async function ensureBase(){const c=await caches.open(BASE_CACHE);await Promise.allSettled(BASE_CORE.map(async p=>{const req=new Request(p);if(await c.match(req))return;const res=await fetch(new Request(p,{cache:"reload"}));if(res&&res.ok)await c.put(req,res)}))}

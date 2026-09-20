@@ -3,6 +3,7 @@
     var swLastCheck = 0;
     var swReloading = false;
     var swHadController = !!navigator.serviceWorker.controller;
+    var swReloadKey = "carplay_sw_controller_reload_v308";
     function activateWaiting(registration) {
       if (registration && registration.waiting) registration.waiting.postMessage({ type: "SKIP_WAITING" });
     }
@@ -10,7 +11,7 @@
       if (Date.now() - swLastCheck < 30000) return;
       swLastCheck = Date.now();
       try {
-        var registration = await navigator.serviceWorker.register("/sw.js?v=283-modules", { updateViaCache: "none" });
+        var registration = await navigator.serviceWorker.register("/sw.js?v=309-confirmed-direct", { updateViaCache: "none" });
         activateWaiting(registration);
         registration.addEventListener("updatefound", function () {
           var worker = registration.installing;
@@ -25,7 +26,9 @@
     }
     navigator.serviceWorker.addEventListener("controllerchange", function () {
       if (!swHadController || swReloading) return;
+      try { if (sessionStorage.getItem(swReloadKey) === "1") return; } catch (_) {}
       swReloading = true;
+      try { sessionStorage.setItem(swReloadKey, "1"); } catch (_) {}
       location.reload();
     });
     addEventListener("load", checkForAppUpdate);
