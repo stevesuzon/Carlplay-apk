@@ -53,9 +53,9 @@ final class SecureResponseCache {
             String[] parts = m.split("\\n", 2);
             long savedAt = Long.parseLong(parts[0]);
             long age = Math.max(0, System.currentTimeMillis() - savedAt);
-            long limit = maxAgeMs > 0 ? maxAgeMs : staleMaxAgeMs;
-            if (age > limit) {
-                if (staleMaxAgeMs <= 0 || age > staleMaxAgeMs) {
+            if (maxAgeMs > 0 && age > maxAgeMs) {
+                if (staleMaxAgeMs <= 0) return null;
+                if (age > staleMaxAgeMs) {
                     meta.delete(); bin.delete(); return null;
                 }
             }
