@@ -3987,9 +3987,9 @@ class InjectAppFiles {
 
 class InjectAutoradioFiles {
   element(element) {
-    // Autoradio : seulement les modules nécessaires au compte, concours et navigation marché.
-    // On évite météo, parrainage, modules pro et observateurs non utiles pour réduire CPU/RAM.
-    element.append('<script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/subscription-locks.css?v=62"><script src="/subscription-web.js?v=377-abonnement-fix" defer></script><script src="/autoradio-notifications-v376.js?v=376" defer></script><script src="/market-update-notifications-v281.js?v=376-shared-devices" defer></script><script src="/notification-detail-v282.js?v=376" defer></script><script src="/market-attendance-v317.js?v=317" defer></script><script src="/market-navigation-confirm-v189.js?v=317" defer></script><script src="/contest-v188.js?v=310-admin-participe" defer></script><script src="/app-access-gate-v240.js?v=375-install-step" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+    // Autoradio : accueil dédié léger + compte, notifications et navigation.
+    // Les modules téléphone/pro et le concours ne sont pas chargés.
+    element.append('<script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/subscription-locks.css?v=62"><script src="/subscription-web.js?v=377-abonnement-fix" defer></script><script src="/autoradio-home-v380.js?v=380" defer></script><script src="/autoradio-notifications-v376.js?v=376" defer></script><script src="/market-update-notifications-v281.js?v=376-shared-devices" defer></script><script src="/notification-detail-v282.js?v=376" defer></script><script src="/market-attendance-v317.js?v=317" defer></script><script src="/market-navigation-confirm-v189.js?v=317" defer></script><script src="/app-access-gate-v240.js?v=375-install-step" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
   }
 }
 
