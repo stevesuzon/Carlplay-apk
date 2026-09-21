@@ -824,19 +824,53 @@ async function ensureInstallationsTable(env) {
   )`).run();
 }
 
+async function ensureHomeInstallationsV360(env) {
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS app_home_installations (
+    device_id TEXT PRIMARY KEY, first_seen INTEGER NOT NULL, last_seen INTEGER NOT NULL
+  )`).run();
+}
+
+// Base manuelle demandée par le propriétaire ; ce n'est pas un total historique mesuré.
+// Initialisée une seule fois en D1, avant l'enregistrement des nouveaux visiteurs.
+async function ensureVisitorBaselineV362(env) {
+  await ensureInstallationsTable(env);
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS app_visitor_counter_baseline (
+    id INTEGER PRIMARY KEY CHECK(id=1), base_total INTEGER NOT NULL,
+    initial_count INTEGER NOT NULL, created_at INTEGER NOT NULL
+  )`).run();
+  await env.DB.prepare(`INSERT OR IGNORE INTO app_visitor_counter_baseline(id,base_total,initial_count,created_at)
+    SELECT 1,475,COUNT(*),? FROM app_installations WHERE length(trim(device_id))>0`)
+    .bind(Math.floor(Date.now()/1000)).run();
+}
+
+async function visitorDisplayTotalV362(env) {
+  await ensureVisitorBaselineV362(env);
+  const row = await env.DB.prepare(`SELECT b.base_total + MAX(0,
+    (SELECT COUNT(*) FROM app_installations WHERE length(trim(device_id))>0)-b.initial_count) AS total
+    FROM app_visitor_counter_baseline b WHERE b.id=1`).first();
+  return Number(row.total);
+}
+
 async function installations(request, env) {
   if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE", count: 0 }, 503);
   await ensureInstallationsTable(env);
   if (request.method === "POST") {
     const data = await body(request);
-    const deviceId = String(data.deviceId || "").slice(0, 100);
+    const deviceId = String(data.deviceId || "").trim().slice(0, 100);
     const platform = String(data.platform || "unknown").slice(0, 32);
     if (!deviceId) return json({ ok: false, error: "APPAREIL_INVALIDE" }, 400);
+    await ensureVisitorBaselineV362(env);
     const now = Math.floor(Date.now() / 1000);
     await env.DB.prepare(`INSERT INTO app_installations(device_id,platform,first_seen,last_seen)
       VALUES(?,?,?,?)
       ON CONFLICT(device_id) DO UPDATE SET platform=excluded.platform,last_seen=excluded.last_seen`)
       .bind(deviceId, platform, now, now).run();
+    if (data.homeScreen === true) {
+      await ensureHomeInstallationsV360(env);
+      await env.DB.prepare(`INSERT INTO app_home_installations(device_id,first_seen,last_seen)
+        VALUES(?,?,?) ON CONFLICT(device_id) DO UPDATE SET last_seen=excluded.last_seen`)
+        .bind(deviceId,now,now).run();
+    }
     return json({ ok: true });
   }
   return json({ ok: false, error: "METHODE_INVALIDE" }, 405);
@@ -855,9 +889,20 @@ async function uniqueAppUserCount(env) {
   }catch(_){return 0}
 }
 
+// V361 : total historique des appareils/navigateurs, avec ou sans compte.
+// Un retour sur le site conserve le même device_id et ne fait pas monter le total.
+async function visitorCountV361(env, start, end) {
+  await ensureInstallationsTable(env);
+  let query = env.DB.prepare(`SELECT COUNT(*) AS count FROM app_installations
+    WHERE length(trim(device_id))>0${start == null ? '' : ' AND first_seen>=? AND first_seen<?'}`);
+  if (start != null) query = query.bind(start, end);
+  const row = await query.first();
+  return Number(row && row.count || 0);
+}
+
 async function publicUserStats(env) {
   if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE", total: 0, new15Days: 0, show15DayGrowth: false }, 503);
-  const total = await uniqueAppUserCount(env);
+  const total = await visitorDisplayTotalV362(env);
   const now = Math.floor(Date.now() / 1000);
   const interval = 15 * 24 * 60 * 60;
   const visibleFor = 2 * 24 * 60 * 60;
@@ -871,15 +916,7 @@ async function publicUserStats(env) {
     periodStart = periodEnd - interval;
     show15DayGrowth = (now - periodEnd) < visibleFor;
     if (show15DayGrowth) {
-      // V303 : les nouveaux utilisateurs sont eux aussi comptés par e-mail unique,
-      // pas par téléphone/installations. app_identities utilise des millisecondes.
-      const row = await env.DB.prepare(`SELECT COUNT(DISTINCT lower(trim(email))) AS count
-        FROM app_identities
-        WHERE email_verified_at>=? AND email_verified_at<?
-          AND email_verified_at>0
-          AND length(trim(first_name))>=2 AND length(trim(last_name))>=2
-          AND instr(trim(email),'@')>1`).bind(periodStart*1000, periodEnd*1000).first();
-      new15Days = Number(row && row.count || 0);
+      new15Days = await visitorCountV361(env, periodStart, periodEnd);
     }
   }
   return json({ ok: true, total, new15Days, show15DayGrowth, periodStart, periodEnd });
@@ -888,8 +925,10 @@ async function publicUserStats(env) {
 async function adminInstallations(request, env) {
   if (!(await adminAuthorized(request, env))) return json({ ok: false, error: "SECRET_INCORRECT" }, 401);
   if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE", count: 0 }, 503);
-  const count = await uniqueAppUserCount(env);
-  return json({ ok: true, count });
+  await ensureHomeInstallationsV360(env);
+  const row = await env.DB.prepare(`SELECT COUNT(*) AS count FROM app_home_installations
+    WHERE length(trim(device_id))>0`).first();
+  return json({ ok: true, count: Number(row && row.count || 0) });
 }
 
 async function downloadAutoradioApk() {

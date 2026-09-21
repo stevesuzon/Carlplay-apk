@@ -1,4 +1,4 @@
 {
-  "version": "V359",
-  "message": "V359 : stations — sur GPL, choix Gentil / Ça dépend, c’est lequel ? / Pas la peine d’y aller conservés. Sur toutes les stations, Cigarettes OUI/NON. Si les horaires officiels manquent, saisie manuelle obligatoire dans Vérifier (ex. 7h-20h ou 24/24), puis affichage sur la fiche. Marchés hebdomadaires inchangés."
+  "version": "V362",
+  "message": "V362 : accueil — base manuelle de 475, puis ajout des nouveaux visiteurs. Administration — uniquement le compteur des installations écran d’accueil."
 }

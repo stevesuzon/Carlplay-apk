@@ -45,7 +45,7 @@
   }
   async function registerVisit(){
     try{
-      await fetch('/api/installations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),platform:platform()}),cache:'no-store',keepalive:true});
+      await fetch('/api/installations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),platform:platform(),homeScreen:!!((window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)||navigator.standalone===true)}),cache:'no-store',keepalive:true});
     }catch(_){}
   }
   async function loadStats(){
@@ -74,6 +74,8 @@
     sync();
     setInterval(function(){if(!document.hidden)loadStats()},300000);
     addEventListener('online',sync);
+    addEventListener('appinstalled',sync);
+    document.addEventListener('visibilitychange',function(){if(!document.hidden)sync()});
     addEventListener('resize',positionBadge);
     if(window.ResizeObserver){var c=document.getElementById('connectedUsersBadge');if(c)new ResizeObserver(positionBadge).observe(c)}
   }
