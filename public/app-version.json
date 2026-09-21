@@ -1,4 +1,4 @@
 {
-  "version": "V344",
-  "message": "V344 : formulaire d’inscription aux foires / brocantes / braderies / marchés voyageurs sans blocage par des pièces inutiles ou absentes. Les pièces n’apparaissent que si elles sont demandées et restent non bloquantes. Marchés hebdomadaires inchangés."
+  "version": "V350",
+  "message": "V350 : Marchés de Noël et autres catégories spéciales gardent le chargement rapide de V349. Stations : GPL affiché à la place de GPLc; vert uniquement pour les stations GPL sans boutique / sans gérant avec automate 24/24; rouge si 'Pas la peine d’y aller'. Marchés hebdomadaires inchangés."
 }

@@ -5,41 +5,49 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
 <title>Inscription événement</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#07111d;color:#fff}.wrap{width:min(760px,94vw);margin:auto;padding:14px}.back{display:inline-block;padding:12px 16px;border-radius:14px;background:#f57c00;color:#fff;text-decoration:none;font-weight:950}.hero{margin:14px 0;padding:16px;border:3px solid #f39b19;border-radius:20px;background:#101a28}.hero h1{margin:0 0 7px;color:#ffd84a;font-size:25px}.hero p{margin:4px 0;color:#dbe8f4;font-weight:800;line-height:1.35}.box{margin:12px 0;padding:14px;border:2px solid #36506c;border-radius:18px;background:#101a28}.box h2{margin:0 0 10px;color:#62d8ff;font-size:20px}.requirements{border-color:#f39b19}.requirements h2{color:#ffd84a}.reqList{display:grid;gap:8px}.reqItem{display:flex;gap:9px;align-items:flex-start;padding:10px;border-radius:12px;background:#081727;border:1px solid #45617e;font-weight:900;line-height:1.35}.reqItem input{width:22px;height:22px;flex:0 0 auto}.reqNone{padding:11px;border-radius:12px;background:#102235;color:#dbe8f4;font-weight:850;line-height:1.4}.uploadBlock{display:none}.uploadBlock.show{display:block}.destination{margin:12px 0;padding:12px;border-radius:14px;border:2px solid #168a4e;background:#0b2a1d;color:#dfffea;font-weight:900;line-height:1.4}.destination strong{color:#8ff0b6}.methodBox{margin:12px 0;padding:13px;border-radius:14px;border:2px solid #62d8ff;background:#0a2034;font-weight:900;line-height:1.45}.methodBox h2{margin:0 0 7px;color:#62d8ff;font-size:19px}.officialLink{display:flex;align-items:center;justify-content:center;width:100%;min-height:56px;margin-top:10px;padding:10px 12px;border-radius:14px;background:#7b3fc6;color:#fff;text-decoration:none;text-align:center;font-size:15px;font-weight:1000}.callLink{background:#168a4e}.contactName{color:#ffd84a;font-size:18px;font-weight:1000}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.label{display:block;margin:9px 0 5px;font-weight:950}.field,select,textarea,input[type=file]{width:100%;min-height:48px;border:2px solid #62d8ff;border-radius:12px;background:#081727;color:#fff;padding:9px 10px;font-size:16px}textarea{min-height:100px;resize:vertical}.checks{display:grid;grid-template-columns:1fr 1fr;gap:8px}.check{display:flex;gap:8px;align-items:flex-start;padding:9px;border:1px solid #45617e;border-radius:12px;background:#081727;font-weight:850}.check input{width:22px;height:22px;flex:0 0 auto}.hint{margin-top:7px;color:#aebed0;font-size:12px;line-height:1.35;font-weight:750}.warning{margin:10px 0;padding:10px;border-radius:12px;background:#3a2b0b;border:1px solid #ffd36c;color:#ffe2a0;font-size:12px;line-height:1.4;font-weight:850}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}.btn{min-height:56px;border:0;border-radius:14px;color:#fff;font-size:15px;font-weight:1000;padding:10px}.green{background:#168a4e}.blue{background:#087ee5}.orange{background:#f57c00}.gray{background:#4b5563}.status{margin-top:10px;padding:10px;border-radius:12px;background:#081727;display:none;font-weight:850;line-height:1.4}.status.show{display:block}.required{color:#ffcf4a}.private{color:#8ff0b6;font-weight:900}.event{font-size:17px;font-weight:950;color:#fff}@media(max-width:600px){.grid2,.checks,.actions{grid-template-columns:1fr}.hero h1{font-size:21px}}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#07111d;color:#fff}.wrap{width:min(760px,94vw);margin:auto;padding:14px}.back{display:inline-block;padding:12px 16px;border-radius:14px;background:#f57c00;color:#fff;text-decoration:none;font-weight:950}.hero{margin:14px 0;padding:16px;border:3px solid #f39b19;border-radius:20px;background:#101a28}.hero h1{margin:0 0 7px;color:#ffd84a;font-size:25px}.hero p{margin:4px 0;color:#dbe8f4;font-weight:800;line-height:1.35}.box{margin:12px 0;padding:14px;border:2px solid #36506c;border-radius:18px;background:#101a28}.box h2{margin:0 0 10px;color:#62d8ff;font-size:20px}.requirements{border-color:#f39b19}.requirements h2{color:#ffd84a}.reqList{display:grid;gap:8px}.reqItem{display:flex;gap:9px;align-items:flex-start;padding:10px;border-radius:12px;background:#081727;border:1px solid #45617e;font-weight:900;line-height:1.35}.reqItem input{width:22px;height:22px;flex:0 0 auto}.reqNone{padding:11px;border-radius:12px;background:#102235;color:#dbe8f4;font-weight:850;line-height:1.4}.uploadBlock{display:none}.uploadBlock.show{display:block}.destination{margin:12px 0;padding:12px;border-radius:14px;border:2px solid #168a4e;background:#0b2a1d;color:#dfffea;font-weight:900;line-height:1.4}.destination strong{color:#8ff0b6}.methodBox{margin:12px 0;padding:13px;border-radius:14px;border:2px solid #62d8ff;background:#0a2034;font-weight:900;line-height:1.45}.methodBox h2{margin:0 0 7px;color:#62d8ff;font-size:19px}.officialLink{display:flex;align-items:center;justify-content:center;width:100%;min-height:56px;margin-top:10px;padding:10px 12px;border-radius:14px;background:#7b3fc6;color:#fff;text-decoration:none;text-align:center;font-size:15px;font-weight:1000}.callLink{background:#168a4e}.contactName{color:#ffd84a;font-size:18px;font-weight:1000}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.label{display:block;margin:9px 0 5px;font-weight:950}.field,select,textarea,input[type=file]{width:100%;min-height:48px;border:2px solid #62d8ff;border-radius:12px;background:#081727;color:#fff;padding:9px 10px;font-size:16px}textarea{min-height:100px;resize:vertical}.checks{display:grid;grid-template-columns:1fr 1fr;gap:8px}.check{display:flex;gap:8px;align-items:flex-start;padding:9px;border:1px solid #45617e;border-radius:12px;background:#081727;font-weight:850}.check input{width:22px;height:22px;flex:0 0 auto}.hint{margin-top:7px;color:#aebed0;font-size:12px;line-height:1.35;font-weight:750}.warning{margin:10px 0;padding:10px;border-radius:12px;background:#3a2b0b;border:1px solid #ffd36c;color:#ffe2a0;font-size:12px;line-height:1.4;font-weight:850}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}.btn{min-height:60px;border:0;border-radius:15px;color:#fff;font-size:16px;font-weight:1000;padding:10px;cursor:pointer;touch-action:manipulation}.btn:disabled{opacity:.38;cursor:not-allowed}.dynField{margin-top:9px}.organizerMissing{color:#ffcf4a;font-weight:950}.green{background:#168a4e}.blue{background:#087ee5}.sms{background:#2f9c52}.orange{background:#f57c00}.gray{background:#4b5563}.shareTitle{margin:18px 0 6px;text-align:center;color:#ffd84a;font-size:20px;font-weight:1000}.optional{color:#aebed0;font-size:12px;font-weight:800}.status{margin-top:10px;padding:10px;border-radius:12px;background:#081727;display:none;font-weight:850;line-height:1.4}.status.show{display:block}.required{color:#ffcf4a}.private{color:#8ff0b6;font-weight:900}.event{font-size:17px;font-weight:950;color:#fff}@media(max-width:600px){.grid2,.checks,.actions{grid-template-columns:1fr}.hero h1{font-size:21px}}
 </style>
 </head>
 <body>
 <main class="wrap">
 <a class="back" href="javascript:history.back()">← RETOUR</a>
 <section class="hero">
-<h1>📝 INSCRIPTION À L’ÉVÉNEMENT</h1>
+<h1>📝 INSCRIPTION</h1>
 <div class="event" id="eventTitle"></div>
 <p id="eventMeta"></p>
 <p id="organizerInfo"></p><p id="sourceStatus" style="color:#62d8ff;font-weight:900"></p>
 </section>
 <section class="methodBox" id="methodBox">
-<h2 id="methodTitle">Comment s’inscrire</h2>
+<h2 id="methodTitle">Inscription</h2>
 <div id="methodText"></div>
-<a id="officialLink" class="officialLink" href="#" target="_blank" rel="noopener" style="display:none"></a>
 <a id="callLink" class="officialLink callLink" href="#" style="display:none">📞 APPELER POUR S’INSCRIRE</a>
 </section>
 <section class="box">
-<h2>Vos coordonnées</h2>
+<h2>Vos renseignements</h2>
 <div class="grid2"><div><label class="label">Nom</label><input class="field" id="lastName" autocomplete="family-name"></div><div><label class="label">Prénom</label><input class="field" id="firstName" autocomplete="given-name"></div></div>
-<label class="label">Adresse e-mail</label><input class="field" id="userEmail" type="email" autocomplete="email">
-<div class="grid2"><div><label class="label">Téléphone</label><input class="field" id="phone" type="tel" autocomplete="tel"></div><div data-event-field="sellerType"><label class="label">Particulier / professionnel</label><select id="sellerType"><option>Particulier</option><option>Professionnel</option></select></div></div>
-<div data-event-field="address"><label class="label">Adresse</label><input class="field" id="address" autocomplete="street-address"></div>
-<div class="grid2"><div data-event-field="meters"><label class="label">Mètres / dimensions de l’emplacement</label><input class="field" id="meters" inputmode="decimal" placeholder="Ex. 6"></div><div data-event-field="vehicle"><label class="label">Véhicule / remorque / immatriculation</label><input class="field" id="vehicle" placeholder="Ex. fourgon + remorque"></div></div>
-<div data-event-field="items"><label class="label">Objets / activité vendus</label><textarea id="items" placeholder="Ex. brocante, vêtements, jouets, antiquités…"></textarea></div>
+<label class="label">Adresse</label><input class="field" id="address" autocomplete="street-address" placeholder="Adresse complète">
+<div class="grid2"><div><label class="label">Adresse e-mail <span class="optional">(facultatif)</span></label><input class="field" id="userEmail" type="email" autocomplete="email"></div><div><label class="label">Numéro de téléphone</label><input class="field" id="phone" type="tel" autocomplete="tel"></div></div>
+<div class="grid2"><div id="metersWrap"><label class="label">Métrage souhaité</label><input class="field" id="meters" inputmode="decimal" placeholder="Ex. 6 mètres"></div><div id="itemsWrap"><label class="label">Articles vendus</label><input class="field" id="items" placeholder="Ex. vêtements, jouets…"></div></div>
+<div id="travellerFields" style="display:none">
+<div class="grid2">
+  <div><label class="label">Véhicule derrière le stand</label>
+    <select id="travellerVehicle"><option value="">Choisir</option><option value="Oui">Oui</option><option value="Non">Non</option></select>
+  </div>
+  <div><label class="label">Barnum</label>
+    <select id="travellerBarnum"><option value="">Choisir</option><option value="Oui">Oui</option><option value="Non">Non</option></select>
+  </div>
+</div>
+</div>
+<div id="dynamicFields"></div>
 </section>
 <section class="box requirements">
-<h2>📎 Pièces demandées pour cet événement</h2>
+<h2>📎 À FOURNIR</h2>
 <div id="requirementsSummary" class="reqList"></div>
 <div id="requirementsNote" class="hint"></div>
 </section>
-<section class="box" id="sourceInfoBox" style="display:none"><h2>ℹ️ Consignes récupérées pour cet événement</h2><div id="sourceInfo"></div></section>
+<section class="box" id="sourceInfoBox" style="display:none"><h2>ℹ️ CONSIGNES</h2><div id="sourceInfo"></div></section>
 <section class="box" id="uploadsBox" style="display:none">
-<h2>Ajouter uniquement les pièces demandées si vous les avez</h2>
+<h2>PIÈCES À JOINDRE</h2>
 <div id="uploadId" class="uploadBlock">
 <label class="label">Pièce d’identité — recto</label><input id="idFront" type="file" accept="image/*,.pdf" capture="environment">
 <label class="label">Pièce d’identité — verso</label><input id="idBack" type="file" accept="image/*,.pdf" capture="environment">
@@ -51,20 +59,17 @@
 <div id="uploadProof" class="uploadBlock"><label class="label">Justificatif de domicile</label><input id="fileProof" type="file" accept="image/*,.pdf"></div>
 <div id="uploadPhotos" class="uploadBlock"><label class="label">Photos du stand / des produits</label><input id="photosFiles" type="file" accept="image/*,.pdf" multiple></div>
 <div id="uploadOther" class="uploadBlock"><label class="label">Autre document demandé par l’organisateur</label><input id="otherFiles" type="file" accept="image/*,.pdf" multiple></div>
-<div class="hint">Seules les pièces indiquées ci-dessus apparaissent ici. Elles ne bloquent jamais le formulaire : si une pièce n’est pas demandée ou si elle n’est pas disponible, vous pouvez quand même préparer et envoyer l’e-mail. Si l’organisateur ne demande pas de photo d’identité, les boutons recto-verso ne sont pas affichés.</div>
+<div class="hint">Uniquement les pièces demandées par l’organisateur.</div>
 </section>
-<section class="box" id="messageBox">
-<h2>Message prérempli</h2>
-<textarea id="message"></textarea>
-<div class="warning">Les pièces affichées proviennent des consignes trouvées pour cet événement. Si une consigne n’est pas suffisamment précise, l’application l’indique au lieu d’inventer une pièce à fournir.</div>
-</section>
+<textarea id="message" style="display:none"></textarea>
 <div class="destination" id="destinationBox"><div class="contactName" id="destinationEvent"></div><div id="destinationText"></div></div>
+<div class="shareTitle">ENVOYER À L’ORGANISATEUR</div>
 <div class="actions" id="mailActions">
-<button class="btn green" id="shareBtn" type="button">📎 JOINDRE LES PIÈCES DEMANDÉES</button>
-<button class="btn blue" id="mailBtn" type="button">✉️ ENVOYER L’INSCRIPTION PAR E-MAIL</button>
+<button class="btn blue" id="mailBtn" type="button">✉️ ENVOYER PAR MAIL</button>
+<button class="btn sms" id="smsBtn" type="button">💬 ENVOYER PAR SMS</button>
 </div>
-<div class="hint" style="margin-top:-5px">Le bouton e-mail reste utilisable même si aucune pièce n’est ajoutée. Il ouvre le message déjà adressé à l’organisateur. Sur iPhone, vérifiez seulement les pièces réellement demandées puis appuyez sur <b>Envoyer</b> dans Mail.</div><div class="status" id="status"></div>
-<p class="private">🔒 Les pièces d’identité et documents ne sont pas stockés par cette page.</p>
+<div class="hint" id="contactHint" style="margin-top:-5px;text-align:center"></div><div class="status" id="status"></div>
+<p class="private">🔒 Documents non stockés.</p>
 </main>
 <script>
 (function(){
@@ -85,10 +90,23 @@ const q=id=>document.getElementById(id);
 function getIdentity(){let a={};try{a=JSON.parse(localStorage.getItem('carplay_app_identity_v240')||'null')||{}}catch(_){}let s={};try{s=JSON.parse(localStorage.getItem('carplay_shared_subscription')||'null')||{}}catch(_){}return{firstName:a.firstName||a.first_name||s.firstName||s.first_name||'',lastName:a.lastName||a.last_name||s.lastName||s.last_name||'',email:a.email||s.email||localStorage.getItem('carplay_recovery_email')||''}}
 function escText(v){return String(v||'').trim()}
 function normalize(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()}
+const travellerSimple=normalize(kind).includes('voyageur');
+function applyTravellerSimpleMode(){
+  if(!travellerSimple) return;
+  q('methodText').textContent='Remplir puis envoyer.';
+  q('sourceStatus').style.display='none';
+  q('organizerInfo').style.display='none';
+  q('travellerFields').style.display='block';
+  q('itemsWrap').style.display='none';
+  q('requirementsSummary').closest('section').style.display='none';
+  q('uploadsBox').style.display='none';
+  q('sourceInfoBox').style.display='none';
+  q('dynamicFields').style.display='none';
+}
 const requirementDefs=[
   {id:'id',label:'Pièce d’identité — recto + verso',rx:/piece d identite|carte d identite|identite|\bcni\b|passeport|recto|verso/,upload:'uploadId'},
   {id:'honor',label:'Attestation sur l’honneur',rx:/attestation[^.;]{0,35}honneur|declaration[^.;]{0,35}honneur/,upload:'uploadHonor'},
-  {id:'siret',label:'SIRET / Kbis',rx:/\bsiret\b|\bkbis\b|extrait k/,upload:'uploadSiret'},
+  {id:'siret',label:'SIRET / Kbis',rx:/\bsiret\b|\bkbis\b|extrait k|num[eé]ro d.?entreprise|bce/,upload:'uploadSiret'},
   {id:'insurance',label:'Attestation d’assurance',rx:/assurance|responsabilite civile|\brc pro\b/,upload:'uploadInsurance'},
   {id:'card',label:'Carte de commerçant ambulant',rx:/carte[^.;]{0,30}(commercant|ambulant)|commercant ambulant/,upload:'uploadCard'},
   {id:'proof',label:'Justificatif de domicile',rx:/justificatif[^.;]{0,25}domicile|preuve[^.;]{0,25}domicile/,upload:'uploadProof'},
@@ -103,14 +121,25 @@ function detectRequirements(){
   return detected;
 }
 function applyEventFields(){
-  const wraps=Array.from(document.querySelectorAll('[data-event-field]'));
-  if(!remoteFields.length){wraps.forEach(el=>el.style.display='');return;}
-  const ids=new Set(remoteFields.map(x=>typeof x==='string'?x:x.id));
-  wraps.forEach(el=>{el.style.display=ids.has(el.getAttribute('data-event-field'))?'':'none'});
+  const box=q('dynamicFields');
+  if(travellerSimple){box.innerHTML='';return;}
+  const ids=new Set((remoteFields||[]).map(x=>String(x&&x.id||'')));
+  if(detected.some(x=>x.id==='siret')) ids.add('siret');
+  const fields=[];
+  if(ids.has('siret')) fields.push(['siretNumber','SIRET / n° entreprise','text','Ex. 123 456 789 00012']);
+  if(ids.has('sellerType')) fields.push(['sellerType','Statut','select','']);
+  if(ids.has('vehicle')) fields.push(['vehicle','Véhicule / remorque / immatriculation','text','']);
+  if(ids.has('address') && !q('address').value){} // adresse est déjà dans la fiche
+  box.innerHTML=fields.map(f=>{
+    if(f[2]==='select') return '<div class="dynField"><label class="label">'+f[1]+'</label><select id="'+f[0]+'"><option value="">Choisir</option><option>Particulier</option><option>Professionnel</option></select></div>';
+    return '<div class="dynField"><label class="label">'+f[1]+'</label><input class="field" id="'+f[0]+'" type="'+f[2]+'" placeholder="'+f[3]+'"></div>';
+  }).join('');
+  fields.forEach(f=>{const el=q(f[0]);if(el)el.addEventListener('input',refreshMessage)});
 }
 
 function renderRequirements(){
   const list=q('requirementsSummary'),note=q('requirementsNote'),box=q('uploadsBox');
+  if(travellerSimple){box.style.display='none';return;}
   const reqs=detectRequirements();
   document.querySelectorAll('.uploadBlock').forEach(el=>el.classList.remove('show'));
   if(!reqs.length){
@@ -119,8 +148,8 @@ function renderRequirements(){
     box.style.display='none';
     return;
   }
-  list.innerHTML=reqs.map((r,i)=>'<label class="reqItem"><input type="checkbox" id="req_'+r.id+'"><span><b>'+r.label+'</b><br><small>À joindre si l’organisateur la demande et si vous l’avez — ne bloque pas l’envoi</small></span></label>').join('');
-  note.textContent='Voici uniquement les pièces repérées dans les consignes de cette foire / brocante / braderie.';
+  list.innerHTML=reqs.map((r,i)=>'<label class="reqItem"><input type="checkbox" id="req_'+r.id+'"><span><b>'+r.label+'</b><br><small>Demandé par l’organisateur</small></span></label>').join('');
+  note.textContent='';
   box.style.display='block';
   reqs.forEach(r=>{const el=q(r.upload);if(el)el.classList.add('show')});
   reqs.forEach(r=>{const cb=q('req_'+r.id);if(cb)cb.addEventListener('change',refreshMessage)});
@@ -134,17 +163,21 @@ function selectedDocs(){
 function buildMessage(){
   const who=[escText(q('firstName').value),escText(q('lastName').value)].filter(Boolean).join(' ');
   const lines=['Bonjour,','','Je souhaite m’inscrire à '+eventName+(city?' à '+city:'')+'.','Date : '+date+'.'];
-  if(who)lines.push('Nom : '+who+'.');
-  if(q('phone').value.trim())lines.push('Téléphone : '+q('phone').value.trim()+'.');
-  if(q('userEmail').value.trim())lines.push('E-mail : '+q('userEmail').value.trim()+'.');
-  if(q('address').value.trim())lines.push('Adresse : '+q('address').value.trim()+'.');
-  lines.push('Statut : '+q('sellerType').value+'.');
-  if(q('meters').value.trim())lines.push('Emplacement souhaité : '+q('meters').value.trim()+' m.');
-  if(q('vehicle').value.trim())lines.push('Véhicule / remorque : '+q('vehicle').value.trim()+'.');
-  if(q('items').value.trim())lines.push('Objets / activité : '+q('items').value.trim()+'.');
-  const docs=selectedDocs();if(docs.length)lines.push('Pièces que je prévois de joindre : '+docs.join(', ')+'.');
-  if(info)lines.push('','Consignes de l’organisateur : '+info);
-  lines.push('','Merci de me confirmer mon inscription et de m’indiquer s’il manque un élément.','','Cordialement,',who);
+  if(who)lines.push('Nom / prénom : '+who);
+  if(q('address').value.trim())lines.push('Adresse : '+q('address').value.trim());
+  if(q('userEmail').value.trim())lines.push('E-mail : '+q('userEmail').value.trim());
+  if(q('phone').value.trim())lines.push('Téléphone : '+q('phone').value.trim());
+  if(q('meters').value.trim())lines.push('Métrage souhaité : '+q('meters').value.trim());
+  if(travellerSimple){
+    if(q('travellerVehicle')&&q('travellerVehicle').value)lines.push('Véhicule derrière le stand : '+q('travellerVehicle').value);
+    if(q('travellerBarnum')&&q('travellerBarnum').value)lines.push('Barnum : '+q('travellerBarnum').value);
+  } else if(q('items').value.trim())lines.push('Articles vendus : '+q('items').value.trim());
+  if(q('siretNumber')&&q('siretNumber').value.trim())lines.push('SIRET / n° entreprise : '+q('siretNumber').value.trim());
+  if(q('sellerType')&&q('sellerType').value.trim())lines.push('Statut : '+q('sellerType').value.trim());
+  if(q('vehicle')&&q('vehicle').value.trim())lines.push('Véhicule / immatriculation : '+q('vehicle').value.trim());
+  const docs=selectedDocs();if(docs.length)lines.push('Pièces prévues : '+docs.join(', '));
+  if(info&&!travellerSimple)lines.push('','Consignes de l’organisateur : '+info);
+  lines.push('','Merci de me confirmer mon inscription.','','Cordialement,',who);
   return lines.join('\n');
 }
 function refreshMessage(){q('message').value=buildMessage()}
@@ -152,17 +185,22 @@ function filesFrom(id){const e=q(id);return e&&e.files?Array.from(e.files):[]}
 function allFiles(){let files=[];['idFront','idBack','fileHonor','fileSiret','fileInsurance','fileCard','fileProof','photosFiles','otherFiles'].forEach(id=>{files=files.concat(filesFrom(id))});return files}
 function status(text){q('status').textContent=text;q('status').classList.add('show')}
 function renderMethod(){
-  const box=q('methodBox'),title=q('methodTitle'),text=q('methodText'),link=q('officialLink'),call=q('callLink');
-  if(mode==='email'){title.textContent='✉️ Inscription par e-mail';text.textContent='Remplis les renseignements ci-dessous. Le message sera préparé pour l’organisateur de cet événement.';}
-  else if(mode==='form'){title.textContent='📝 Inscription sur une fiche officielle';text.textContent='Prépare les renseignements et les pièces indiquées ici, puis ouvre la fiche officielle de cette foire / brocante / braderie.';}
-  else if(mode==='info'){title.textContent='ℹ️ Comment s’inscrire';text.textContent='Les consignes disponibles sont affichées ici. Le site de l’organisateur ne s’ouvre que si tu appuies sur le bouton officiel ci-dessous.';}
-  else {title.textContent='ℹ️ Comment s’inscrire';text.textContent='Consulte les consignes de cet événement avant de contacter l’organisateur.';}
-  link.style.display='none';call.style.display='none';
-  if(actionUrl){link.href=actionUrl;link.style.display='flex';link.textContent=mode==='form'?'OUVRIR LA FICHE OFFICIELLE D’INSCRIPTION':'VOIR LA PAGE OFFICIELLE DE L’ÉVÉNEMENT';}
+  const title=q('methodTitle'),text=q('methodText'),call=q('callLink');
+  title.textContent='📝 Inscription';
+  text.textContent='Remplir puis envoyer directement à l’organisateur.';
+  call.style.display='none';
   if(contactPhone){call.href='tel:'+contactPhone.replace(/[^0-9+]/g,'');call.style.display='flex';}
-  q('mailActions').style.display=target?'grid':'none';q('messageBox').style.display=target?'block':'none';
+  q('mailActions').style.display='grid';
 }
 
+function updateOrganizerButtons(){
+  const mail=q('mailBtn'),sms=q('smsBtn'),hint=q('contactHint');
+  mail.disabled=!target;sms.disabled=!contactPhone;
+  if(target&&contactPhone) hint.textContent='E-mail et SMS vers l’organisateur.';
+  else if(target) hint.textContent='E-mail vers l’organisateur.';
+  else if(contactPhone) hint.textContent='SMS vers l’organisateur.';
+  else {hint.innerHTML='<span class="organizerMissing">Coordonnées organisateur non trouvées.</span>';}
+}
 async function loadEventSource(){
   if(!sourceUrl){q('sourceStatus').textContent='Les consignes détaillées ne sont pas publiées dans une source exploitable.';applyEventFields();return;}
   q('sourceStatus').textContent='🔎 Recherche des pièces et renseignements demandés pour cet événement…';
@@ -184,33 +222,37 @@ async function loadEventSource(){
     }
     q('sourceStatus').textContent='✅ Consignes de cette foire / brocante / braderie récupérées quand elles sont publiées.';
     q('organizerInfo').textContent=info?'Consignes trouvées : '+info:'Consignes précises non publiées.';
-    q('destinationText').innerHTML=target?'Destinataire e-mail : <strong>'+target.replace(/[&<>]/g,'')+'</strong>':(actionUrl?'Inscription à terminer sur la page officielle indiquée ci-dessus.':'Coordonnées de l’organisateur à vérifier.');
-    renderMethod();applyEventFields();renderRequirements();refreshMessage();
+    q('destinationText').innerHTML=(target?'E-mail : <strong>'+target.replace(/[&<>]/g,'')+'</strong><br>':'')+(contactPhone?'Téléphone / SMS : <strong>'+contactPhone.replace(/[&<>]/g,'')+'</strong><br>':'')+(!target&&!contactPhone?(actionUrl?'Coordonnées de l’organisateur à vérifier.':'Coordonnées de l’organisateur à vérifier.'):'');
+    renderMethod();applyEventFields();renderRequirements();applyTravellerSimpleMode();updateOrganizerButtons();refreshMessage();
   }catch(e){q('sourceStatus').textContent='ℹ️ La source n’a pas répondu. Les informations déjà connues restent disponibles.';applyEventFields();}
 }
 const ident=getIdentity();q('firstName').value=ident.firstName;q('lastName').value=ident.lastName;q('userEmail').value=ident.email;q('phone').value=localStorage.getItem('event_reg_phone')||'';q('address').value=localStorage.getItem('event_reg_address')||'';
 q('eventTitle').textContent=eventName;q('eventMeta').textContent=(city?city+' — ':'')+date;q('organizerInfo').textContent=info?'Consignes trouvées : '+info:'Consignes précises non publiées.';
 q('destinationEvent').textContent='Envoi pour : '+eventName+(city?' — '+city:'');
-q('destinationText').innerHTML=target?'Destinataire e-mail : <strong>'+target.replace(/[&<>]/g,'')+'</strong>':(actionUrl?'Inscription à terminer sur la page officielle indiquée ci-dessus.':'Coordonnées de l’organisateur à vérifier.');
-renderMethod();renderRequirements();applyEventFields();refreshMessage();loadEventSource();
-// V344 — Aucun champ ni aucune pièce jointe ne bloque l'ouverture du mail.
+q('destinationText').innerHTML=(target?'E-mail : <strong>'+target.replace(/[&<>]/g,'')+'</strong><br>':'')+(contactPhone?'Téléphone / SMS : <strong>'+contactPhone.replace(/[&<>]/g,'')+'</strong><br>':'')+(!target&&!contactPhone?(actionUrl?'Coordonnées de l’organisateur à vérifier.':'Coordonnées de l’organisateur à vérifier.'):'');
+renderMethod();renderRequirements();applyEventFields();applyTravellerSimpleMode();updateOrganizerButtons();refreshMessage();loadEventSource();
+// V345 — Formulaire simplifié avec partage par e-mail ou SMS. Aucun champ ni pièce ne bloque le partage.
 // Les pièces sont affichées uniquement quand elles sont détectées dans les consignes de l'événement.
-Array.from(document.querySelectorAll('input,select,textarea,button')).forEach(el=>{ if(el.id!=='mailBtn'&&el.id!=='shareBtn') el.required=false; });
-q('mailBtn').disabled=false;q('shareBtn').disabled=false;
-['firstName','lastName','userEmail','phone','address','sellerType','meters','vehicle','items'].forEach(id=>q(id).addEventListener('input',refreshMessage));
+Array.from(document.querySelectorAll('input,select,textarea,button')).forEach(el=>{ el.required=false; });
+updateOrganizerButtons();
+['firstName','lastName','userEmail','phone','address','meters','items'].forEach(id=>q(id).addEventListener('input',refreshMessage));
+['travellerVehicle','travellerBarnum'].forEach(id=>{const el=q(id);if(el)el.addEventListener('change',refreshMessage)});
 q('mailBtn').onclick=function(){
-  if(!target){status('Aucune adresse e-mail fiable n’est enregistrée pour cet événement. Aucun message n’a été adressé.');return;}
-  // Aucun contrôle bloquant sur les champs ou les pièces : l'utilisateur peut envoyer avec les informations disponibles.
   localStorage.setItem('event_reg_phone',q('phone').value.trim());localStorage.setItem('event_reg_address',q('address').value.trim());
-  const subject='Inscription '+eventName;const body=q('message').value;location.href='mailto:'+encodeURIComponent(target)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
-  const files=allFiles();if(files.length)status('Le mail est prêt pour '+target+'. Vérifiez les pièces demandées puis appuyez sur Envoyer dans Mail.');
+  if(!target){status('Adresse e-mail de l’organisateur introuvable.');return;}
+  const subject='Inscription '+eventName;const body=q('message').value;
+  location.href='mailto:'+encodeURIComponent(target)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  status('E-mail pour '+target+'.');
 };
-q('shareBtn').onclick=async function(){
+q('smsBtn').onclick=function(){
   localStorage.setItem('event_reg_phone',q('phone').value.trim());localStorage.setItem('event_reg_address',q('address').value.trim());
-  const files=allFiles();
-  if(!files.length){q('mailBtn').click();return;}
-  const data={title:'Inscription '+eventName,text:q('message').value};data.files=files;
-  try{if(navigator.share&&(!navigator.canShare||navigator.canShare({files:files}))){await navigator.share(data);status('Les pièces demandées sont prêtes au partage. Choisissez Mail et vérifiez que le destinataire est bien '+(target||'celui de l’événement')+'.')}else{status('Votre téléphone ne permet pas de joindre automatiquement ces fichiers. Utilisez le bouton e-mail puis ajoutez seulement les pièces affichées sur cette page.')}}catch(e){if(e&&e.name!=='AbortError')status('Partage impossible. Utilisez le bouton e-mail prérempli.')}
+  const body=q('message').value;
+  const tel=contactPhone?contactPhone.replace(/[^0-9+]/g,''):'';
+  if(!tel){status('Numéro de l’organisateur introuvable.');return;}
+  const isiPhone=/iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const url='sms:'+tel+(isiPhone?'&':'?')+'body='+encodeURIComponent(body);
+  location.href=url;
+  status('SMS pour '+contactPhone+'.');
 };
 })();
 </script>

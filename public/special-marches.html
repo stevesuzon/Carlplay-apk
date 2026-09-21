@@ -275,20 +275,18 @@
       <div class="count" id="count"></div>
       <section class="list" id="list"></section>
     </main>
-    <script src="market-data-fr.js"></script>
-    <script src="markets-france-update-v139.js?v=139"></script>
-    <script src="markets-france-osm-v139.js?v=139"></script>
-    <script src="markets-35-corrections-v142.js?v=142"></script>
-    <script src="markets-35-missing-v143.js?v=143"></script>
     <script>
-      window.__FR_DATA = Array.isArray(data) ? data.slice() : [];
+      (function(){
+        var p=new URLSearchParams(location.search);
+        var country=p.get("country")==="be"?"be":"fr";
+        var requested=p.get("type")||"brocante";
+        var allowed=["noel","brocante","saisonnier","periodique"];
+        var type=allowed.indexOf(requested)>=0?requested:"brocante";
+        document.write('<script src="special-data/'+country+'-'+type+'.js?v=349"><\/script>');
+      })();
     </script>
-    <script src="market-data-be.js?v=20260905-dedup-fr"></script>
-    <script src="brocante-crosscheck-v316.js?v=316"></script>
     <script>
       (function () {
-        var BE = Array.isArray(data) ? data.slice() : [],
-          FR = window.__FR_DATA || [];
         var p = new URLSearchParams(location.search),
           country = p.get("country") === "be" ? "be" : "fr";
         var requested = p.get("type") || "brocante";
@@ -318,15 +316,6 @@
           });
           return base;
         }
-        FR = mergeRows(FR, window.CROSS_BROCANTE_FR || []);
-        BE = mergeRows(BE, window.CROSS_BROCANTE_BE || []);
-        try {
-          var live=JSON.parse(localStorage.getItem("server_markets")||"[]");
-          if(Array.isArray(live)) live.forEach(function(m){
-            var c=String(m.country||"FR").toUpperCase()==="BE"?"BE":"FR", row=[m.area||"",m.kind||"marche",m.name||"Marché",m.city||"",m.date_label||m.day||"",m.hours||"",m.note||m.kind||"",m.merchants||"",m.address||m.city||"",m.source_url?[m.source_url]:[],m.latitude==null?null:m.latitude,m.longitude==null?null:m.longitude,m.draw||"",m.registration||"",m.phone||""];
-            if(c==="BE") BE=mergeRows(BE,[row]); else FR=mergeRows(FR,[row]);
-          });
-        } catch(_) {}
         function blob(r) {
           return norm([r[1], r[2], r[4], r[5], r[6], r[8]].join(" "));
         }
@@ -395,8 +384,17 @@
             return isPeriodic(r) && !isNoel(r) && !isBroc(r) && !isSeasonal(r);
           return false;
         }
-        var src = country === "be" ? BE : FR;
-        var rows = src.filter(belongs);
+        var rows = Array.isArray(window.SPECIAL_DATA) ? window.SPECIAL_DATA.slice() : [];
+        rows = rows.filter(belongs);
+        try {
+          var live=JSON.parse(localStorage.getItem("server_markets")||"[]");
+          if(Array.isArray(live)) live.forEach(function(m){
+            var c=String(m.country||"FR").toUpperCase()==="BE"?"be":"fr";
+            if(c!==country)return;
+            var row=[m.area||"",m.kind||"marche",m.name||"Marché",m.city||"",m.date_label||m.day||"",m.hours||"",m.note||m.kind||"",m.merchants||"",m.address||m.city||"",m.source_url?[m.source_url]:[],m.latitude==null?null:m.latitude,m.longitude==null?null:m.longitude,m.draw||"",m.registration||"",m.phone||""];
+            if(belongs(row)) rows=mergeRows(rows,[row]);
+          });
+        } catch(_) {}
         var names = {
           noel: ["MARCHÉS DE NOËL ", "🎄 "],
           brocante: ["BROCANTE / VIDE-GRENIER / FOIRE ", "🧳 "],

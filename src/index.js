@@ -1132,6 +1132,7 @@ function eventRegistrationExtract(html,baseUrl,country){
 
   const fields=[];const field=(id,label,test)=>{if(test.test(n)&&!fields.some(x=>x.id===id))fields.push({id,label})};
   field('address','Adresse',/\badresse\b|domicile|woonplaats|adres/);
+  field('siret','SIRET / Kbis / numéro d’entreprise',/\bsiret\b|\bkbis\b|numero d.?entreprise|ondernemingsnummer|\bbce\b/);
   field('sellerType','Particulier / professionnel',/particulier|professionnel|commercant|commerçant|handelaar/);
   field('meters','Mètres / dimensions de l’emplacement',/metre(?:s)? lineaire|m[eè]tres? d.?emplacement|dimension.{0,30}emplacement|longueur.{0,30}stand|breedte.{0,30}stand|standplaats.{0,30}meter/);
   field('vehicle','Véhicule / remorque / immatriculation',/vehicule|véhicule|remorque|immatriculation|plaque|voertuig|aanhangwagen|nummerplaat/);

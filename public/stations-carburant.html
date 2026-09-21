@@ -34,14 +34,14 @@
         <option value="SP95">SP95</option>
         <option value="SP98">SP98</option>
         <option value="E85">E85</option>
-        <option value="GPLc">GPLc</option>
+        <option value="GPLc">GPL</option>
       </select>
       <button id="refresh" class="refresh" type="button">↻ ACTUALISER</button>
     </div>
     <div id="gpsLine" class="gpsLine">📍 Recherche de votre position…</div>
   </section>
 
-  <div class="notice"><b>Stations :</b> prix, horaires et automate 24/24 viennent automatiquement de la source officielle. Pour le <b>GPL</b>, seul le mot GPL change de couleur : vert si l’accès 24/24 est confirmé, rouge si un utilisateur confirme « Pas la peine d’y aller ». Pour les autres GPL, vous pouvez choisir <b>Arrangeant / Gentil / Pas la peine d’y aller</b> et confirmer Cigarettes Oui/Non.</div>
+  <div class="notice"><b>Stations :</b> prix, horaires et automate 24/24 viennent automatiquement de la source officielle. Pour le <b>GPL</b>, seul le mot GPL change de couleur : <b>vert uniquement pour une station sans boutique / sans gérant avec automate 24/24</b>, rouge si un utilisateur confirme « Pas la peine d’y aller ». Les autres GPL restent à vérifier.</div>
 
   <div class="statusLine"><strong id="resultTitle">Stations trouvées</strong><span id="updated"></span></div>
   <div id="loader" class="loader">Recherche des stations…</div>
@@ -97,22 +97,27 @@
     return {text:isOpen?'OUVERT':'FERMÉ',cls:isOpen?'open':'closed',detail:texts.length?texts.join(' / '):(st.hoursText||'')};
   }
   function navUrl(s){var dest=s.lat+','+s.lon,pref='Google Maps';try{pref=localStorage.getItem('gps_pref')||pref}catch(_){}if(pref==='Waze')return 'https://www.waze.com/ul?ll='+encodeURIComponent(dest)+'&navigate=yes';if(pref==='Plans Apple')return 'https://maps.apple.com/?daddr='+encodeURIComponent(dest)+'&dirflg=d';return 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(dest)+'&travelmode=driving&dir_action=navigate'}
-  function gplTone(s,v){if(s&&s.gplAvailable&&s.automate24)return 'green';if(v&&v.verified&&v.opinion==='Gentil')return 'green';if(v&&v.verified&&v.opinion==='Pas la peine d’y aller')return 'red';return ''}
+  function displayFuel(f){return f==='GPLc'?'GPL':f}
+  function gplTone(s,v,shop){
+    if(v&&v.verified&&v.opinion==='Pas la peine d’y aller')return 'red';
+    if(s&&s.gplAvailable&&s.automate24&&!shop)return 'green';
+    return '';
+  }
   function verifiedText(v){if(!v||!v.verified)return'';var p=[];if(v.opinion)p.push('avis GPL : '+v.opinion);if(v.cigarettes)p.push('cigarettes : '+v.cigarettes);return p.join(' · ')}
   function render(items,fuel){
     currentItems=(items||[]).slice().sort(function(a,b){return Number(a.price)-Number(b.price)||Number(a.distanceKm)-Number(b.distanceKm)});currentFuel=fuel;
-    title.textContent=currentItems.length+' station'+(currentItems.length>1?'s':'')+' à ≤ 15 km — '+fuel;
-    if(!currentItems.length){list.innerHTML='<div class="empty">Aucune station avec un prix '+esc(fuel)+' publié dans un rayon de 15 km. Essayez un autre carburant ou actualisez.</div>';return}
+    title.textContent=currentItems.length+' station'+(currentItems.length>1?'s':'')+' à ≤ 15 km — '+displayFuel(fuel);
+    if(!currentItems.length){list.innerHTML='<div class="empty">Aucune station avec un prix '+esc(displayFuel(fuel))+' publié dans un rayon de 15 km. Essayez un autre carburant ou actualisez.</div>';return}
     list.innerHTML=currentItems.map(function(s,i){
       var key=stationKey(s),v=verificationStates[key]||null, st=dayStatus(s), services=Array.isArray(s.services)?s.services:[], cb=!!s.automate24||services.some(function(x){return /automate\s*cb/i.test(String(x))}), shop=services.some(function(x){return /boutique/i.test(String(x))});
-      var hasGpl=!!s.gplAvailable||fuel==='GPLc'||!!(v&&v.gpl==='Oui'), tone=gplTone(s,v), official24=!!(s.gplAvailable&&s.automate24), verified=!!(v&&v.verified), availability=s.available===false?' · rupture signalée':'', pay=cb?'Carte 24/24':'Paiement selon station', name=shop?'Station avec boutique':'Station-service', fav=isFavorite(s);
+      var hasGpl=!!s.gplAvailable||fuel==='GPLc'||!!(v&&v.gpl==='Oui'), tone=gplTone(s,v,shop), official24=!!(s.gplAvailable&&s.automate24&&!shop), verified=!!(v&&v.verified), availability=s.available===false?' · rupture signalée':'', pay=cb?'Carte 24/24':'Paiement selon station', name=shop?'Station avec boutique':'Station-service', fav=isFavorite(s);
       var upd=s.updatedAt?new Date(s.updatedAt):null, updTxt=upd&&!isNaN(upd)?upd.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'non précisée';
       var gplVerify='';
-      if(hasGpl){var gplClass=tone?(' '+tone):'';if(official24)gplVerify='<div class="verifyStation official">⛽ <span class="gplWord'+gplClass+'">GPL</span> <span class="gplOpinion">24/24</span></div>';else if(verified)gplVerify='<button class="verifyStation done" type="button" data-verify="'+i+'">⛽ <span class="gplWord'+gplClass+'">GPL</span> <span class="gplOpinion">· '+esc(v.opinion||'Vérifié')+'</span></button>';else gplVerify='<button class="verifyStation" type="button" data-verify="'+i+'">⛽ <span class="gplWord">GPL</span> À VÉRIFIER</button>';}
+      if(hasGpl){var gplClass=tone?(' '+tone):'';if(official24)gplVerify='<div class="verifyStation official">⛽ <span class="gplWord'+gplClass+'">GPL</span> <span class="gplOpinion">· SANS BOUTIQUE · 24/24</span></div>';else if(verified)gplVerify='<button class="verifyStation done" type="button" data-verify="'+i+'">⛽ <span class="gplWord'+gplClass+'">GPL</span> <span class="gplOpinion">· '+esc(v.opinion||'Vérifié')+'</span></button>';else gplVerify='<button class="verifyStation" type="button" data-verify="'+i+'">⛽ <span class="gplWord">GPL</span> À VÉRIFIER</button>';}
       var dotClass=!hasGpl?'off':((official24||verified)?'ok':'');
-      var dotTitle=!hasGpl?'Pas de GPL indiqué':(official24?'GPL 24/24 confirmé par les données':(verified?'GPL vérifié':'GPL à vérifier'));
+      var dotTitle=!hasGpl?'Pas de GPL indiqué':(official24?'GPL sans boutique / automate 24/24':(verified?'GPL vérifié':'GPL à vérifier'));
       var cigTxt=verified&&v.cigarettes==='Oui'?'🚬 Cigarettes : OUI':verified&&v.cigarettes==='Non'?'🚭 Cigarettes : NON':'🚬 Cigarettes : à vérifier';
-      return '<article class="card"><div class="cardTools"><span class="verifyDot '+dotClass+'" title="'+esc(dotTitle)+'" aria-label="'+esc(dotTitle)+'"></span><button class="favStar '+(fav?'active':'')+'" type="button" data-fav="'+i+'" aria-label="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'" title="Favori">'+(fav?'★':'☆')+'</button></div><div class="officialStation">✓ STATION — DONNÉES OFFICIELLES</div>'+gplVerify+'<div class="cardTop"><div class="rank">'+(i+1)+'</div><div class="main"><div class="name">'+esc(name)+'</div><div class="addr">'+esc((s.address||'')+(s.cp?' · '+s.cp:'')+(s.city?' '+s.city:''))+'</div></div><div class="price"><b>'+money(s.price)+'</b><span>/ litre</span></div></div><div class="badges"><span class="badge '+st.cls+'">'+esc(st.text)+'</span><span class="badge distance">📍 '+esc(dist(s.distanceKm))+'</span><span class="badge pay">💳 '+esc(pay)+'</span>'+(shop?'<span class="badge shop">🏪 Boutique</span>':'')+'</div><div class="meta"><strong>'+esc(fuel)+'</strong>'+esc(availability)+'<br>🕒 '+esc(st.detail||'Horaires non précisés')+'<br>🔄 Prix mis à jour : '+esc(updTxt)+(s.roadType?'<br>🛣️ '+esc(s.roadType):'')+'</div>'+(hasGpl?'<div class="cigLine">'+esc(cigTxt)+'</div>':'')+(verified&&hasGpl?'<div class="verifiedSummary">GPL vérifié : '+esc(verifiedText(v))+'</div>':'')+'<div class="actions"><a class="go" target="_blank" rel="noopener" href="'+esc(navUrl(s))+'">ALLER À LA STATION</a><button class="details" type="button" data-i="'+i+'">SERVICES</button></div></article>';
+      return '<article class="card"><div class="cardTools"><span class="verifyDot '+dotClass+'" title="'+esc(dotTitle)+'" aria-label="'+esc(dotTitle)+'"></span><button class="favStar '+(fav?'active':'')+'" type="button" data-fav="'+i+'" aria-label="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'" title="Favori">'+(fav?'★':'☆')+'</button></div><div class="officialStation">✓ STATION — DONNÉES OFFICIELLES</div>'+gplVerify+'<div class="cardTop"><div class="rank">'+(i+1)+'</div><div class="main"><div class="name">'+esc(name)+'</div><div class="addr">'+esc((s.address||'')+(s.cp?' · '+s.cp:'')+(s.city?' '+s.city:''))+'</div></div><div class="price"><b>'+money(s.price)+'</b><span>/ litre</span></div></div><div class="badges"><span class="badge '+st.cls+'">'+esc(st.text)+'</span><span class="badge distance">📍 '+esc(dist(s.distanceKm))+'</span><span class="badge pay">💳 '+esc(pay)+'</span>'+(shop?'<span class="badge shop">🏪 Boutique</span>':'')+'</div><div class="meta"><strong>'+esc(displayFuel(fuel))+'</strong>'+esc(availability)+'<br>🕒 '+esc(st.detail||'Horaires non précisés')+'<br>🔄 Prix mis à jour : '+esc(updTxt)+(s.roadType?'<br>🛣️ '+esc(s.roadType):'')+'</div>'+(hasGpl?'<div class="cigLine">'+esc(cigTxt)+'</div>':'')+(verified&&hasGpl?'<div class="verifiedSummary">GPL vérifié : '+esc(verifiedText(v))+'</div>':'')+'<div class="actions"><a class="go" target="_blank" rel="noopener" href="'+esc(navUrl(s))+'">ALLER À LA STATION</a><button class="details" type="button" data-i="'+i+'">SERVICES</button></div></article>';
     }).join('');
     list.querySelectorAll('.details').forEach(function(btn){btn.onclick=function(){var s=currentItems[Number(btn.dataset.i)],sv=Array.isArray(s.services)?s.services:[];alert((sv.length?'Services :\n• '+sv.join('\n• '):'Services non renseignés')+'\n\nEspèces : information non garantie par la source officielle.');}});
     list.querySelectorAll('[data-verify]').forEach(function(btn){btn.onclick=function(){openVerify(Number(btn.dataset.verify))}});
