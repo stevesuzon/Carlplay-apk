@@ -3958,6 +3958,14 @@ class InjectAppFiles {
   }
 }
 
+class InjectAutoradioFiles {
+  element(element) {
+    // Autoradio : seulement les modules nécessaires au compte, concours et navigation marché.
+    // On évite météo, parrainage, modules pro et observateurs non utiles pour réduire CPU/RAM.
+    element.append('<script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/subscription-locks.css?v=62"><script src="/subscription-web.js?v=311-admin-demandes" defer></script><script src="/market-attendance-v317.js?v=317" defer></script><script src="/market-navigation-confirm-v189.js?v=317" defer></script><script src="/contest-v188.js?v=310-admin-participe" defer></script><script src="/app-access-gate-v240.js?v=370-google-autoradio-install" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+  }
+}
+
 class FixAndroidLinks {
   element(element) {
     const href = element.getAttribute("href") || "";
@@ -4314,14 +4322,15 @@ export default {
     // Ne pas réécrire "/" en "/index.html" ici : avec html_handling automatique,
     // cela peut créer une boucle / <-> /index.html.
     let response = await env.ASSETS.fetch(request);
-    if (url.pathname === "/sw.js" || url.pathname === "/app-version.json") {
+    if (url.pathname === "/sw.js" || url.pathname === "/app-version.json" || url.pathname === "/autoradio-version.json") {
       const h = new Headers(response.headers);
       h.set("cache-control", "no-store, no-cache, must-revalidate, max-age=0");
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers: h });
     }
     const type = response.headers.get("content-type") || "";
     if (type.includes("text/html") && url.pathname !== "/admin.html" && url.pathname !== "/admin" && url.pathname !== "/import-marches.html" && url.pathname !== "/installer.html" && url.pathname !== "/installer") {
-      const transformed = new HTMLRewriter().on("head", new InjectAppFiles()).on("a", new FixAndroidLinks()).on("script", new InjectMarketLive()).transform(response);
+      const autoradio = /CouteauSuisseAutoradio/i.test(request.headers.get("user-agent") || "");
+      const transformed = new HTMLRewriter().on("head", autoradio ? new InjectAutoradioFiles() : new InjectAppFiles()).on("a", new FixAndroidLinks()).on("script", new InjectMarketLive()).transform(response);
       const headers = new Headers(transformed.headers);
       headers.set("cache-control", "no-store, no-cache, must-revalidate");
       return new Response(transformed.body, { status: transformed.status, statusText: transformed.statusText, headers });
