@@ -1102,6 +1102,65 @@ async function sourceDetailInfo(url,country){
   }catch(_){return{phone:'',merchants:'',registration:'',email:''}}
 }
 async function sourceDetailPhone(url,country){return (await sourceDetailInfo(url,country)).phone}
+
+function registrationContextFromText(plain){
+  const lines=String(plain||'').split(/\n+/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean);
+  const hit=/inscri|s.?inscrire|reservation|réservation|exposant|emplacement|particip|stand|dossier|formulaire|piece d.identite|pièce d.identité|identiteitskaart|passeport|paspoort|attestation|siret|kbis|assurance|ambulant|domicile|photo|tarif|prix|paiement|m[eè]tre|vehicule|véhicule|remorque|immatriculation|objets? vendus?|activité|activite/i;
+  const out=[];const seen=new Set();
+  for(let i=0;i<lines.length;i++){
+    if(!hit.test(lines[i]))continue;
+    for(let j=Math.max(0,i-1);j<=Math.min(lines.length-1,i+1);j++){
+      const line=lines[j];if(line.length<3||line.length>500||seen.has(line))continue;seen.add(line);out.push(line);if(out.length>=45)return out.join('\n');
+    }
+  }
+  return out.join('\n');
+}
+function eventRegistrationExtract(html,baseUrl,country){
+  const plain=marketPlainText(String(html||'')).slice(0,350000);
+  const context=registrationContextFromText(plain);
+  const n=String(context||plain).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const req=[];
+  const add=(id,label,test)=>{if(test.test(n)&&!req.some(x=>x.id===id))req.push({id,label})};
+  add('id','Pièce d’identité — recto + verso',/piece d.?identite|carte d.?identite|\bcni\b|passeport|identiteitskaart|paspoort|recto|verso/);
+  add('honor','Attestation sur l’honneur',/attestation.{0,45}honneur|declaration.{0,45}honneur|verklaring op eer/);
+  add('siret','SIRET / Kbis / numéro d’entreprise',/\bsiret\b|\bkbis\b|extrait k|numero d.?entreprise|ondernemingsnummer|\bbce\b/);
+  add('insurance','Attestation d’assurance',/assurance|responsabilite civile|\brc pro\b|verzekering|aansprakelijk/);
+  add('card','Carte de commerçant ambulant',/carte.{0,35}(commercant|ambulant)|commercant ambulant|leurkaart|ambulante handel/);
+  add('proof','Justificatif de domicile',/justificatif.{0,35}domicile|preuve.{0,35}domicile|bewijs.{0,35}woonplaats/);
+  add('photos','Photos du stand / des produits',/photo.{0,45}(stand|produit|article|marchandise)|foto.{0,45}(stand|product|artik)/);
+  add('other','Autre document demandé par l’organisateur',/autorisation parentale|licence|certificat|permis|document complementaire|document supplémentaire/);
+
+  const fields=[];const field=(id,label,test)=>{if(test.test(n)&&!fields.some(x=>x.id===id))fields.push({id,label})};
+  field('address','Adresse',/\badresse\b|domicile|woonplaats|adres/);
+  field('sellerType','Particulier / professionnel',/particulier|professionnel|commercant|commerçant|handelaar/);
+  field('meters','Mètres / dimensions de l’emplacement',/metre(?:s)? lineaire|m[eè]tres? d.?emplacement|dimension.{0,30}emplacement|longueur.{0,30}stand|breedte.{0,30}stand|standplaats.{0,30}meter/);
+  field('vehicle','Véhicule / remorque / immatriculation',/vehicule|véhicule|remorque|immatriculation|plaque|voertuig|aanhangwagen|nummerplaat/);
+  field('items','Objets / activité vendus',/objets? vendus?|nature.{0,30}(objets|marchandises)|produits? vendus?|activite|activité|artikelen|producten/);
+
+  const email=marketEmailFromHtml(html);
+  const phone=marketPhoneFromText(context||plain,country);
+  const registrationUrl=marketRegistrationLinkFromHtml(html,baseUrl);
+  const snippets=String(context||'').split(/\n+/).map(x=>x.trim()).filter(x=>x.length>=12&&x.length<=260).slice(0,12);
+  let price='';
+  for(const line of snippets){if(/(?:tarif|prix|emplacement|stand|m[eè]tre)/i.test(line)&&/\b\d{1,4}(?:[,.]\d{1,2})?\s*(?:€|eur)/i.test(line)){price=line;break}}
+  let deadline='';
+  for(const line of snippets){if(/date limite|avant le|inscri.{0,30}jusqu|cloture|clôture|deadline|uiterlijk/i.test(line)){deadline=line;break}}
+  return{email,phone,registrationUrl,requirements:req,fields,instructions:snippets,price,deadline};
+}
+async function eventRegistrationInfo(request){
+  const u=new URL(request.url),source=String(u.searchParams.get('url')||'').trim(),country=String(u.searchParams.get('country')||'FR').toUpperCase()==='BE'?'BE':'FR';
+  if(!safePublicDiningUrl(source))return json({ok:false,error:'SOURCE_INVALIDE'},400);
+  try{
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),2600);
+    const r=await fetch(source,{headers:{'user-agent':'Mozilla/5.0 (compatible; CouteauSuisseInscription/1.0)','accept':'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.2','accept-language':'fr-FR,fr;q=0.9,nl;q=0.6'},redirect:'follow',signal:controller.signal,cf:{cacheTtl:3600}});
+    clearTimeout(timer);
+    if(!r.ok)return json({ok:false,error:'SOURCE_'+r.status},200);
+    const type=String(r.headers.get('content-type')||'').toLowerCase();
+    if(type&&!/text\/html|application\/xhtml\+xml|text\/plain/.test(type))return json({ok:false,error:'FORMAT_NON_TEXTE',officialUrl:r.url||source},200);
+    const html=(await r.text()).slice(0,600000),data=eventRegistrationExtract(html,r.url||source,country);
+    return json({ok:true,sourceUrl:r.url||source,...data});
+  }catch(_){return json({ok:false,error:'SOURCE_INACCESSIBLE'},200)}
+}
 function parseBrocabrac(html,area){
   const hs=htmlHeadingBlocks(html),out=[];let date='';
   for(const h of hs){if(h.level===2){const d=marketIsoDate(h.text);if(d)date=d;continue}if(h.level!==3||!date)continue;let title=h.text.trim();if(!title||marketRejectSpam(title))continue;const after=marketPlainText(h.after).split('\n').map(x=>x.trim()).filter(Boolean).slice(0,8);const info=after.find(x=>/^\d{5}\s*-\s*/.test(x))||'';if(!info)continue;const parts=info.split(/\s+-\s+/),cp=(parts[0]||'').match(/\d{5}/),typ=parts[1]||'',addr=parts.slice(2).join(' - ');const combined=title+' '+typ;if(!/brocante|vide[ -]?grenier|foire(?: à| a)? tout|braderie|puces/i.test(combined))continue;const href=(h.raw.match(/href=["']([^"']+)["']/i)||[])[1]||'';const sourceUrl=href?(href.startsWith('http')?href:'https://brocabrac.fr'+(href.startsWith('/')?'':'/')+href):`https://brocabrac.fr/${area}/`;
@@ -1369,6 +1428,68 @@ async function refreshBrocanteScope(env,country,area){let events=[],src='';try{i
 async function refreshDatatourismeScope(env,area,kind){if(!env.DATATOURISME_API_KEY)return{count:0,skipped:'DATATOURISME_API_KEY absente'};const terms=kind==='brocante'?['brocante','vide-grenier','foire à tout']:kind==='noel'?['marché de Noël']:kind==='voyageur'?['fête foraine']:['marché'];let n=0;for(const term of terms){try{const filters=`isLocatedAt.address.hasAddressCity.isPartOfDepartment.insee[eq]=${area}`;const u='https://api.datatourisme.fr/v1/entertainmentAndEvent?lang=fr&page_size=80&sort=lastUpdate[desc]&search='+encodeURIComponent(term)+'&filters='+encodeURIComponent(filters);const r=await fetch(u,{headers:{'X-API-Key':String(env.DATATOURISME_API_KEY),'accept':'application/json'}});if(!r.ok)continue;const j=await r.json();for(const o of j.objects||[]){const e=datatourismeToMarket(o,area,kind);if(e&&(!e.end||e.end>=marketTodayIso())&&await upsertAutoMarket(env,e))n++}}catch(_){}}return{count:n}}
 async function refreshMarketScope(env,state){const country=String(state.country||'FR').toUpperCase(),area=String(state.area||'').toUpperCase(),kind=String(state.kind||'marche').toLowerCase();let found=0,parts=[];if(kind==='brocante'){const a=await refreshBrocanteScope(env,country,area);found+=a.count;parts.push('agenda:'+a.count)}if(country==='FR'){const a=await refreshDatatourismeScope(env,area,kind);found+=a.count;parts.push(a.skipped||('DATAtourisme:'+a.count))}const rechecked=await refreshExistingSourceRows(env,country,area,kind);parts.push('fiches:'+rechecked);const now=Date.now();let next=now+(kind==='marche'?30:kind==='voyageur'?7:2)*86400000;const max=await env.DB.prepare("SELECT MAX(end_date) e FROM imported_markets WHERE country=? AND area=? AND kind=? AND end_date>=?").bind(country,area,kind,marketTodayIso()).first();if(max&&marketIsoDate(max.e)){const t=Date.parse(marketIsoDate(max.e)+'T23:59:59Z')+86400000;if(t>now&&t<next)next=t}await env.DB.prepare('UPDATE market_refresh_state SET next_check_at=?,last_check_at=?,last_status=?,last_found=?,last_message=? WHERE country=? AND area=? AND kind=?').bind(next,now,'ok',found,parts.join(' · ').slice(0,300),country,area,kind).run();return{country,area,kind,found,message:parts.join(' · ')}}
 async function runIncrementalMarketRefresh(env){if(!env.DB)return null;const jdm=await runJdmIncremental(env);await seedMarketRefreshQueue(env);await prioritizeExpiredScopes(env);const row=await env.DB.prepare('SELECT country,area,kind,next_check_at FROM market_refresh_state WHERE next_check_at<=? ORDER BY next_check_at ASC LIMIT 1').bind(Date.now()).first();if(!row)return{joursDeMarche:jdm,marketRefresh:null};try{return{joursDeMarche:jdm,marketRefresh:await refreshMarketScope(env,row)}}catch(e){await env.DB.prepare('UPDATE market_refresh_state SET next_check_at=?,last_check_at=?,last_status=?,last_message=? WHERE country=? AND area=? AND kind=?').bind(Date.now()+6*3600000,Date.now(),'error',String(e&&e.message||e).slice(0,250),row.country,row.area,row.kind).run();return{joursDeMarche:jdm,marketRefresh:null}}}
+
+// V343 — Actualisation UNIQUEMENT des événements spéciaux.
+// Marchés hebdomadaires : ne pas modifier / ne pas rescanner ici.
+// Brocantes, braderies et foires : chaque zone est réactualisée tous les 90 jours.
+// Marchés de voyageurs : chaque zone est réactualisée tous les 60 jours.
+const SPECIAL_EVENT_REFRESH_DAYS = { brocante: 90, voyageur: 60 };
+async function ensureSpecialEventRefreshTable(env){
+  await ensureMarketTable(env);
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_special_refresh_state(
+    country TEXT NOT NULL, area TEXT NOT NULL, kind TEXT NOT NULL,
+    next_check_at INTEGER NOT NULL DEFAULT 0, last_check_at INTEGER NOT NULL DEFAULT 0,
+    last_found INTEGER NOT NULL DEFAULT 0, last_message TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY(country,area,kind)
+  )`).run();
+  try{await env.DB.prepare('CREATE INDEX IF NOT EXISTS market_special_refresh_due ON market_special_refresh_state(next_check_at)').run()}catch(_){}
+}
+async function seedSpecialEventRefreshQueue(env){
+  await ensureSpecialEventRefreshTable(env);
+  const now=Date.now(), jobs=[];
+  // Brocantes / braderies / foires : France + Belgique.
+  for(let i=0;i<MARKET_REFRESH_FR_AREAS.length;i++) jobs.push(env.DB.prepare(`INSERT OR IGNORE INTO market_special_refresh_state(country,area,kind,next_check_at) VALUES('FR',?,'brocante',?)`).bind(MARKET_REFRESH_FR_AREAS[i],now+i*60000));
+  for(let i=0;i<MARKET_REFRESH_BE_AREAS.length;i++) jobs.push(env.DB.prepare(`INSERT OR IGNORE INTO market_special_refresh_state(country,area,kind,next_check_at) VALUES('BE',?,'brocante',?)`).bind(MARKET_REFRESH_BE_AREAS[i].toUpperCase(),now+i*60000));
+  // Marchés de voyageurs : même couverture géographique pour pouvoir découvrir de nouvelles fiches.
+  for(let i=0;i<MARKET_REFRESH_FR_AREAS.length;i++) jobs.push(env.DB.prepare(`INSERT OR IGNORE INTO market_special_refresh_state(country,area,kind,next_check_at) VALUES('FR',?,'voyageur',?)`).bind(MARKET_REFRESH_FR_AREAS[i],now+(i+5)*60000));
+  for(let i=0;i<MARKET_REFRESH_BE_AREAS.length;i++) jobs.push(env.DB.prepare(`INSERT OR IGNORE INTO market_special_refresh_state(country,area,kind,next_check_at) VALUES('BE',?,'voyageur',?)`).bind(MARKET_REFRESH_BE_AREAS[i].toUpperCase(),now+(i+5)*60000));
+  for(let i=0;i<jobs.length;i+=40) await env.DB.batch(jobs.slice(i,i+40));
+}
+async function refreshSpecialEventScope(env,state){
+  const country=String(state.country||'FR').toUpperCase(), area=String(state.area||'').toUpperCase(), kind=String(state.kind||'brocante').toLowerCase();
+  if(!(kind in SPECIAL_EVENT_REFRESH_DAYS)) return null;
+  let found=0, parts=[];
+  if(kind==='brocante'){
+    const a=await refreshBrocanteScope(env,country,area); found+=a.count; parts.push('agenda:'+a.count);
+    if(country==='FR'){
+      const d=await refreshDatatourismeScope(env,area,'brocante'); found+=d.count; parts.push(d.skipped||('DATAtourisme:'+d.count));
+    }
+  }else if(kind==='voyageur'){
+    if(country==='FR'){
+      const d=await refreshDatatourismeScope(env,area,'voyageur'); found+=d.count; parts.push(d.skipped||('DATAtourisme:'+d.count));
+    }
+  }
+  // Réactualise aussi les coordonnées et modalités d'inscription des fiches déjà connues.
+  const rechecked=await refreshExistingSourceRows(env,country,area,kind); parts.push('coordonnées/formulaire:'+rechecked);
+  const now=Date.now(), days=SPECIAL_EVENT_REFRESH_DAYS[kind], next=now+days*86400000;
+  await env.DB.prepare(`UPDATE market_special_refresh_state SET next_check_at=?,last_check_at=?,last_found=?,last_message=? WHERE country=? AND area=? AND kind=?`)
+    .bind(next,now,found,parts.join(' · ').slice(0,300),country,area,kind).run();
+  return {country,area,kind,found,nextCheckAt:next,message:parts.join(' · ')};
+}
+async function runSpecialEventRefresh(env){
+  if(!env.DB)return null;
+  await seedSpecialEventRefreshQueue(env);
+  // Une seule zone par heure : charge CPU / sous-requêtes limitée.
+  const row=await env.DB.prepare(`SELECT country,area,kind,next_check_at FROM market_special_refresh_state WHERE next_check_at<=? ORDER BY next_check_at ASC,country,kind,area LIMIT 1`).bind(Date.now()).first();
+  if(!row)return null;
+  try{return await refreshSpecialEventScope(env,row)}
+  catch(e){
+    await env.DB.prepare(`UPDATE market_special_refresh_state SET next_check_at=?,last_check_at=?,last_message=? WHERE country=? AND area=? AND kind=?`)
+      .bind(Date.now()+12*3600000,Date.now(),('ERREUR: '+String(e&&e.message||e)).slice(0,300),row.country,row.area,row.kind).run();
+    return null;
+  }
+}
+
 async function marketRefreshStatus(env){await ensureMarketRefreshTables(env);await ensureJdmRefreshTable(env);const last=await env.DB.prepare('SELECT country,area,kind,last_check_at,last_status,last_found,last_message,next_check_at FROM market_refresh_state ORDER BY last_check_at DESC LIMIT 12').all();const due=await env.DB.prepare('SELECT COUNT(*) n FROM market_refresh_state WHERE next_check_at<=?').bind(Date.now()).first();const jdm=await env.DB.prepare('SELECT area,city_cursor,city_count,last_check_at,last_found,last_pages,last_message,next_check_at FROM market_jdm_refresh_state ORDER BY last_check_at DESC LIMIT 12').all();const jdmDue=await env.DB.prepare('SELECT COUNT(*) n FROM market_jdm_refresh_state WHERE next_check_at<=?').bind(Date.now()).first();return json({ok:true,mode:'progressif',due:Number(due&&due.n||0),last:last.results||[],joursDeMarche:{due:Number(jdmDue&&jdmDue.n||0),last:jdm.results||[]},serverTime:Date.now()})}
 
 const MARKET_CONSENSUS_REQUIRED = 1;
@@ -3995,10 +4116,10 @@ async function submitFuelStationVerification(request, env) {
 
 export default {
   async scheduled(controller, env, ctx) {
-    // V334 : recherche automatique douce activée par défaut. Une seule page source est traitée par heure.
-    // Mettre MARKET_AUTO_REFRESH=0 uniquement si l'administrateur veut arrêter complètement la recherche.
+    // V343 : uniquement événements spéciaux. Les marchés hebdomadaires ne sont pas touchés.
+    // Brocante / braderie / foire : 90 jours par zone. Voyageurs : 60 jours par zone.
     if (String(env.MARKET_AUTO_REFRESH || "1") === "0") return;
-    ctx.waitUntil(runGentleMarketRefresh(env));
+    ctx.waitUntil(runSpecialEventRefresh(env));
   },
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -4048,6 +4169,7 @@ export default {
     if (url.pathname === "/api/admin/gps-unlock-requests" && (request.method === "GET" || request.method === "POST")) return adminGpsUnlockRequests(request, env);
     if (url.pathname === "/download-autoradio.apk" && request.method === "GET") return downloadAutoradioApk();
     if (url.pathname === "/api/rne-pdf" && request.method === "GET") return downloadRne(url);
+    if (url.pathname === "/api/event-registration-info" && request.method === "GET") return eventRegistrationInfo(request);
     if (url.pathname === "/api/markets" && request.method === "GET") return listMarkets(env);
     if (url.pathname === "/api/markets/refresh-status" && request.method === "GET") return marketRefreshStatus(env);
     if (url.pathname === "/api/admin/markets/import" && request.method === "POST") return importMarkets(request, env);

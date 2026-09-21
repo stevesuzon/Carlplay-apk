@@ -13,7 +13,7 @@
 .cards{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;align-items:stretch!important}
 .sectionTitle{grid-column:1/-1;margin:10px 0 2px;padding:10px 12px;border-radius:14px;background:#14263a;color:#ffd84a;font-weight:1000;font-size:20px;border:2px solid #f39b19}
 .specialBadge{display:inline-flex;align-items:center;gap:6px;margin:2px 0 8px;padding:7px 11px;border-radius:999px;color:#fff;font-size:13px;font-weight:1000;letter-spacing:.3px;box-shadow:0 4px 12px #0006}.specialBadge.foire{background:linear-gradient(135deg,#8c35d9,#d56d00)}.specialBadge.brocante{background:linear-gradient(135deg,#e46b00,#ff9a19)}.specialBadge.vide{background:linear-gradient(135deg,#087f72,#17b661)}.specialBadge.braderie{background:linear-gradient(135deg,#b62e55,#f06464)}
-.specialDate{margin-top:2px;font-size:15px!important;line-height:1.25!important;color:#ffe38a!important;font-weight:1000!important}.specialTimer{margin-top:3px;font-size:12px!important;line-height:1.2!important;color:#ffd84a!important;font-weight:950!important}.specialPhone{margin-top:4px;color:#8ff0b6!important;font-weight:950!important}.market-actions.has-three{grid-template-columns:1fr 1fr!important}.market-actions .register{grid-column:1/-1!important;background:#168a4e!important;color:#fff!important}
+.specialDate{margin-top:2px;font-size:15px!important;line-height:1.25!important;color:#ffe38a!important;font-weight:1000!important}.specialTimer{margin-top:3px;font-size:12px!important;line-height:1.2!important;color:#ffd84a!important;font-weight:950!important}.specialPhone{margin-top:4px;color:#8ff0b6!important;font-weight:950!important}.market-actions.has-three{grid-template-columns:1fr 1fr!important}.market-actions .register{grid-column:1/-1!important;display:flex!important;align-items:center!important;justify-content:center!important;min-height:38px!important;padding:6px 5px!important;border-radius:8px!important;background:#168a4e!important;color:#fff!important;text-decoration:none!important;text-align:center!important;font-size:9px!important;line-height:1.15!important;font-weight:1000!important}
 @media(max-width:650px){.sectionTitle{font-size:18px}.specialDate{font-size:14px!important}}
 .card{position:relative!important;min-width:0!important;padding:8px!important;border:2px solid #f39b19!important;border-radius:14px!important;background:rgba(5,17,34,.97)!important;overflow:hidden!important}
 .card .name{font-size:16px!important;line-height:1.05!important;font-weight:950!important;color:#fff!important;padding-right:58px!important;margin-bottom:5px!important;overflow-wrap:anywhere}
@@ -221,19 +221,38 @@
     return m?cleanPhone(m[0]):'';
   }
   function sourceUrls(row){const v=row?.[9];return Array.isArray(v)?v.filter(x=>/^https?:\/\//i.test(String(x||''))):(/^https?:\/\//i.test(String(v||''))?[String(v)]:[]);}
-  function registrationAction(row){
+  function registrationPageUrl(row,opts){
+    const reg=String(row?.[13]||'').trim();
+    const params=new URLSearchParams();
+    if(opts?.email)params.set('email',opts.email);
+    if(opts?.url)params.set('url',opts.url);
+    const src=sourceUrls(row)[0]||''; if(src)params.set('source',src);
+    if(opts?.country)params.set('country',opts.country);
+    if(opts?.phone)params.set('phone',opts.phone);
+    if(opts?.mode)params.set('mode',opts.mode);
+    params.set('event',cleanCardText(row?.[2]||'événement'));
+    params.set('city',cleanCardText(row?.[3]||''));
+    params.set('date',cleanCardText(row?.[4]||'à confirmer'));
+    params.set('info',[reg,row?.[6]||''].filter(Boolean).join(' — '));
+    params.set('kind','brocante-foire-braderie');
+    return 'event-registration.html?'+params.toString();
+  }
+  function registrationAction(row,country){
     const reg=String(row?.[13]||'').trim(), phone=specialPhone(row), all=[reg,row?.[6],row?.[8]].filter(Boolean).join(' ');
     const emailMatch=all.match(/(?:mailto:)?([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i);
+    const direct=(reg.match(/https?:\/\/[^\s<>'"]+/i)||[])[0];
+    const urls=sourceUrls(row), registrationWords=/inscri|exposant|emplacement|formulaire|r[eé]serv|particip|contacter|organisateur/i.test(reg);
     if(emailMatch){
       const email=emailMatch[1];
-      const href='event-registration.html?email='+encodeURIComponent(email)+'&event='+encodeURIComponent(cleanCardText(row?.[2]||'événement'))+'&city='+encodeURIComponent(cleanCardText(row?.[3]||''))+'&date='+encodeURIComponent(cleanCardText(row?.[4]||'à confirmer'))+'&info='+encodeURIComponent([reg,row?.[6]||''].filter(Boolean).join(' — '))+'&kind='+encodeURIComponent('brocante-foire-braderie');
-      return{href,label:'PRÉPARER MON INSCRIPTION',kind:'internal'};
+      return{href:registrationPageUrl(row,{email,url:direct||(registrationWords?urls[0]:''),phone,mode:'email',country:(country||'fr').toUpperCase()}),label:'PRÉPARER MON INSCRIPTION',kind:'internal'};
     }
-    const direct=(reg.match(/https?:\/\/[^\s<>'"]+/i)||[])[0];
-    if(direct)return{href:direct,label:/form|inscri|register|reservation|reserve/i.test(reg)?'REMPLIR LA FICHE D’INSCRIPTION':'VOIR L’INSCRIPTION',kind:'web'};
+    if(direct){
+      return{href:registrationPageUrl(row,{url:direct,phone,mode:'form',country:(country||'fr').toUpperCase()}),label:'COMMENT S’INSCRIRE',kind:'internal'};
+    }
     if(phone)return{href:'tel:'+phone,label:'APPELER POUR S’INSCRIRE',kind:'phone'};
-    const urls=sourceUrls(row),registrationWords=/inscri|exposant|emplacement|formulaire|r[eé]serv|particip|contacter|organisateur/i.test(reg);
-    if(urls.length&&registrationWords)return{href:urls[0],label:'VOIR COMMENT S’INSCRIRE',kind:'web'};
+    if(urls.length&&registrationWords){
+      return{href:registrationPageUrl(row,{url:urls[0],mode:'info',country:(country||'fr').toUpperCase()}),label:'COMMENT S’INSCRIRE',kind:'internal'};
+    }
     return null;
   }
   function eventVisual(row){
@@ -373,7 +392,7 @@
       const fav=isFavorite(item.country,r);
       const complete=s.time&&s.count&&s.draw, dotGreen=!!complete||builtInVerified(r);
       const phone=item.special?specialPhone(r):'';
-      const regAction=item.special?registrationAction(r):null;
+      const regAction=item.special?registrationAction(r,item.country):null;
       const specialTop=item.special?(visual?'<div class="specialBadge '+visual.cls+'">'+esc(visual.label)+'</div>':'')+'<div class="meta specialDate">📅 '+esc(dateLabel)+'</div>'+(timing?'<div class="meta specialTimer">'+esc(timing)+'</div>':'')+(phone?'<div class="meta specialPhone">📞 '+esc(phone)+'</div>':''):'<div class="meta" style="font-weight:900;font-size:18px;margin-bottom:8px">'+esc(name)+'</div>';
       return '<article class="card" data-count-kind="'+esc(countKind)+'" data-market-key="'+esc(marketKey)+'"><span class="marketVerificationDot '+(dotGreen?'green':'orange')+'" title="'+(dotGreen?'Fiche vérifiée':'Fiche à vérifier')+'" aria-label="'+(dotGreen?'Fiche vérifiée':'Fiche à vérifier')+'"></span>'+
         '<button type="button" class="marketFavoriteStar '+(fav?'active':'')+'" data-favorite-key="'+esc(favoriteKey(item.country,r))+'" aria-label="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'" title="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'">'+(fav?'★':'☆')+'</button>'+

@@ -515,17 +515,27 @@
         };
         function cleanPhone(v) { return String(v||"").replace(/[^0-9+]/g,""); }
         function specialPhone(r) {
-          var p=cleanPhone(r&&r[14]); if(p.length>=8)return p;
+          var p=cleanPhone((r&&r[15])||(r&&r[14])); if(p.length>=8)return p;
           var text=String((r&&r[6])||"")+" "+String((r&&r[13])||"");
           var m=text.match(/(?:\+33|\+32|0)[\s.\-]*(?:\d[\s.\-]*){8,10}/);return m?cleanPhone(m[0]):"";
         }
         function sourceUrls(r){var v=r&&r[9];return Array.isArray(v)?v.filter(function(x){return /^https?:\/\//i.test(String(x||''))}):(/^https?:\/\//i.test(String(v||''))?[String(v)]:[]);}
+        function registrationPageUrl(r,opts){
+          var reg=String((r&&r[13])||'').trim(),params=new URLSearchParams();
+          if(opts&&opts.email)params.set('email',opts.email);
+          if(opts&&opts.url)params.set('url',opts.url);
+          var src=sourceUrls(r)[0]||'';if(src)params.set('source',src);params.set('country',country.toUpperCase());
+          if(opts&&opts.phone)params.set('phone',opts.phone);
+          if(opts&&opts.mode)params.set('mode',opts.mode);
+          params.set('event',String((r&&r[2])||'événement'));params.set('city',String((r&&r[3])||''));params.set('date',String((r&&r[4])||'à confirmer'));params.set('info',[reg,(r&&r[6])||''].filter(Boolean).join(' — '));params.set('kind','brocante-foire-braderie');
+          return 'event-registration.html?'+params.toString();
+        }
         function registrationAction(r){
-          var reg=String((r&&r[13])||'').trim(),phone=specialPhone(r),all=[reg,r&&r[6],r&&r[8]].filter(Boolean).join(' '),m=all.match(/(?:mailto:)?([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i);
-          if(m){var email=m[1],href='event-registration.html?email='+encodeURIComponent(email)+'&event='+encodeURIComponent(String((r&&r[2])||'événement'))+'&city='+encodeURIComponent(String((r&&r[3])||''))+'&date='+encodeURIComponent(String((r&&r[4])||'à confirmer'))+'&info='+encodeURIComponent([reg,(r&&r[6])||''].filter(Boolean).join(' — '))+'&kind='+encodeURIComponent('brocante-foire-braderie');return{href:href,label:'PRÉPARER MON INSCRIPTION',kind:'internal'};}
-          var direct=(reg.match(/https?:\/\/[^\s<>'"]+/i)||[])[0];if(direct)return{href:direct,label:/form|inscri|register|reservation|reserve/i.test(reg)?'REMPLIR LA FICHE D’INSCRIPTION':'VOIR L’INSCRIPTION',kind:'web'};
+          var reg=String((r&&r[13])||'').trim(),phone=specialPhone(r),all=[reg,r&&r[6],r&&r[8]].filter(Boolean).join(' '),m=all.match(/(?:mailto:)?([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i),direct=(reg.match(/https?:\/\/[^\s<>'"]+/i)||[])[0],urls=sourceUrls(r),hasWords=/inscri|exposant|emplacement|formulaire|r[eé]serv|particip|contacter|organisateur/i.test(reg);
+          if(m)return{href:registrationPageUrl(r,{email:m[1],url:direct||(hasWords?urls[0]:''),phone:phone,mode:'email'}),label:'PRÉPARER MON INSCRIPTION',kind:'internal'};
+          if(direct)return{href:registrationPageUrl(r,{url:direct,phone:phone,mode:'form'}),label:'COMMENT S’INSCRIRE',kind:'internal'};
           if(phone)return{href:'tel:'+phone,label:'APPELER POUR S’INSCRIRE',kind:'phone'};
-          var urls=sourceUrls(r);if(urls.length&&/inscri|exposant|emplacement|formulaire|r[eé]serv|particip|contacter|organisateur/i.test(reg))return{href:urls[0],label:'VOIR COMMENT S’INSCRIRE',kind:'web'};
+          if(urls.length&&hasWords)return{href:registrationPageUrl(r,{url:urls[0],mode:'info'}),label:'COMMENT S’INSCRIRE',kind:'internal'};
           return null;
         }
         function goLabel(r){var x=norm([r&&r[1],r&&r[2],r&&r[6]].join(" "));if(/vide[ -]?grenier/.test(x))return"ALLER AU VIDE-GRENIER";if(/braderie/.test(x))return"ALLER À LA BRADERIE";if(/foire/.test(x))return"ALLER À LA FOIRE";if(/brocante|puces|rederie|réderie|bric/.test(x))return"ALLER À LA BROCANTE";if(isNoel(r))return"ALLER AU MARCHÉ DE NOËL";return"ALLER AU MARCHÉ";}
@@ -657,9 +667,9 @@
                   : "") +
                 '<div class="marketActions"><a class="go" data-navigation="1" target="_blank" rel="noopener" href="' +
                 maps +
-                '">' + esc(goText) + '</a>' + (phone?'<a class="call" href="tel:'+esc(phone)+'">APPELER</a>':'') + '<a class="verify" href="' +
+                '">' + esc(goText) + '</a>' + (phone&&(!regAction||regAction.kind!=="phone")?'<a class="call" href="tel:'+esc(phone)+'">APPELER</a>':'') + '<a class="verify" href="' +
                 verifyUrl +
-                '">MODIFIER / VÉRIFIER</a></div></article>'
+                '">MODIFIER / VÉRIFIER</a>' + (regAction?'<a class="register" '+(regAction.kind==="web"?'target="_blank" rel="noopener" ':'')+'href="'+esc(regAction.href)+'">'+esc(regAction.label)+'</a>':'') + '</div></article>'
               );
             })
             .join("");

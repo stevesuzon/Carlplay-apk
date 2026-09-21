@@ -1,4 +1,4 @@
 {
-  "version": "V339",
-  "message": "V339 : chaque formulaire d’inscription affiche en haut uniquement les pièces réellement demandées pour l’événement. Les zones de photo/document n’apparaissent que si elles sont nécessaires. En bas, le formulaire indique clairement la foire/brocante concernée et l’adresse e-mail destinataire."
+  "version": "V344",
+  "message": "V344 : formulaire d’inscription aux foires / brocantes / braderies / marchés voyageurs sans blocage par des pièces inutiles ou absentes. Les pièces n’apparaissent que si elles sont demandées et restent non bloquantes. Marchés hebdomadaires inchangés."
 }
