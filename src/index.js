@@ -2951,7 +2951,12 @@ async function reversePlaceContext(url,env){
 }
 
 async function contestHomePlace(request,env){
-  await ensureContestTables(env);const data=await body(request),sub=await contestSubscription(env,data);if(!sub)return json({ok:false,error:'ABONNEMENT_REQUIS'},403);const p=await env.DB.prepare("SELECT * FROM contest_participants WHERE subscription_id=? AND banned=0").bind(sub.id).first();if(!p)return json({ok:true,participant:false});
+  await ensureContestTables(env);const data=await body(request);
+  // L'autoradio partage bien le même abonnement et les mêmes points, mais son bouton
+  // « Retourner sur la place » reste uniquement un repère de navigation local au véhicule.
+  // Il ne doit jamais devenir le point de départ utilisé pour calculer les points du concours.
+  if(String(data.deviceType||'').toLowerCase()==='autoradio')return json({ok:true,participant:true,ignoredForPoints:true});
+  const sub=await contestSubscription(env,data);if(!sub)return json({ok:false,error:'ABONNEMENT_REQUIS'},403);const p=await env.DB.prepare("SELECT * FROM contest_participants WHERE subscription_id=? AND banned=0").bind(sub.id).first();if(!p)return json({ok:true,participant:false});
   const lat=Number(data.lat),lon=Number(data.lon);if(!Number.isFinite(lat)||!Number.isFinite(lon))return json({ok:false,error:'POSITION_INVALIDE'},400);let label=String(data.address||'').trim().slice(0,240);if(!label)label=await contestPlaceLabel(lat,lon);
   const already=Number.isFinite(Number(p.return_place_lat))&&Number.isFinite(Number(p.return_place_lon))&&String(p.return_place_label||'').trim();
   if(!already){await env.DB.prepare("UPDATE contest_participants SET return_place_lat=?,return_place_lon=?,return_place_label=?,updated_at=? WHERE subscription_id=?").bind(lat,lon,label,Date.now(),sub.id).run()}
