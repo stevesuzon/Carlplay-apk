@@ -493,18 +493,14 @@ async function verifiedIdentityCanReplaceSubscriptionDevice(env,deviceId,row,ema
   try{
     if(!validDevice(deviceId)||!row||!validEmail(email))return false;
     await ensureAppIdentityTables(env);
-    const normEmail=normalizeEmail(email);
-    const verified=await env.DB.prepare("SELECT verified_at FROM app_identity_verified_devices WHERE email=? AND device_id=? AND verified_at>0 LIMIT 1")
-      .bind(normEmail,deviceId).first();
-    if(!verified)return false;
-    const ai=await env.DB.prepare("SELECT email,first_name,last_name,email_verified_at FROM app_identities WHERE lower(email)=? AND email_verified_at>0 LIMIT 1")
-      .bind(normEmail).first();
+    const ai=await env.DB.prepare("SELECT email,first_name,last_name,email_verified_at FROM app_identities WHERE device_id=? AND lower(email)=? AND email_verified_at>0 ORDER BY updated_at DESC LIMIT 1")
+      .bind(deviceId,normalizeEmail(email)).first();
     if(!ai)return false;
     const aiFirst=String(ai.first_name||"").trim(),aiLast=String(ai.last_name||"").trim();
     const rowFirst=String(row.account_first_name||firstName||"").trim(),rowLast=String(row.account_last_name||lastName||"").trim();
     if(rowFirst&&rowLast&&(subscriptionIdentityKey(rowFirst)!==subscriptionIdentityKey(aiFirst)||subscriptionIdentityKey(rowLast)!==subscriptionIdentityKey(aiLast)))return false;
     const stored=normalizeEmail(row.recovery_email_mask||"");
-    if(validEmail(stored)&&!stored.includes("***")&&stored!==normEmail)return false;
+    if(validEmail(stored)&&!stored.includes("***")&&stored!==normalizeEmail(email))return false;
     return true;
   }catch(_){return false}
 }
@@ -596,8 +592,8 @@ async function activate(request, env) {
 
   // Code déjà rattaché à un compte : connexion/récupération normale, sans ajouter
   // une seconde fois les 365 jours.
-  // Un abonnement accepte un seul téléphone et un seul autoradio.
-  // Un nouvel appareil du même type peut remplacer l'ancien uniquement après confirmation e-mail.
+  // Un abonnement accepte un seul téléphone et un seul autoradio. Le même code
+  // ne peut pas remplacer silencieusement l'un de ces deux appareils.
   const occupiedDevice = type === "autoradio" ? String(row.autoradio_device || "") : String(row.phone_device || "");
   if (occupiedDevice && occupiedDevice !== deviceId) {
     const canReplace=await verifiedIdentityCanReplaceSubscriptionDevice(env,deviceId,row,email,firstName,lastName);
@@ -2347,8 +2343,8 @@ async function contestTrialIdentity(request,env){
   if(firstName.length<2||lastName.length<2)return json({ok:false,error:"NOM_PRENOM_OBLIGATOIRES"},400);
   if(!validEmail(email))return json({ok:false,error:"EMAIL_OBLIGATOIRE"},400);
   await ensureAppIdentityTables(env);
-  const verifiedIdentity=await env.DB.prepare("SELECT verified_at FROM app_identity_verified_devices WHERE email=? AND device_id=? AND verified_at>0 LIMIT 1").bind(email,deviceId).first();
-  if(!verifiedIdentity)return json({ok:false,error:"EMAIL_NON_CONFIRMEE",message:"Confirmez votre adresse e-mail depuis le lien reçu avant d’activer le compte."},403);
+  const verifiedIdentity=await env.DB.prepare("SELECT email_verified_at,email_verified_device_id FROM app_identities WHERE lower(email)=? LIMIT 1").bind(email).first();
+  if(!verifiedIdentity||Number(verifiedIdentity.email_verified_at||0)<=0||String(verifiedIdentity.email_verified_device_id||'')!==deviceId)return json({ok:false,error:"EMAIL_NON_CONFIRMEE",message:"Confirmez votre adresse e-mail depuis le lien reçu avant d’activer le compte."},403);
   const emailHash=await sha256Text(email),trialHash=await sha256Text("contest-trial:"+deviceId),trialEmailHash=await sha256Text("contest-trial-email:"+deviceId+":"+email);
   let row=await env.DB.prepare("SELECT * FROM subscriptions WHERE phone_device=? OR autoradio_device=? OR lower(COALESCE(recovery_email_mask,''))=? ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC LIMIT 1").bind(deviceId,deviceId,email).first();
   if(row){
@@ -3678,23 +3674,6 @@ async function ensureAppIdentityTables(env){
     )`).run();
     try{await env.DB.prepare("CREATE INDEX IF NOT EXISTS app_identity_links_device_idx ON app_identity_email_links(device_id,email_hash,created_at DESC)").run()}catch(_){}
     try{await env.DB.prepare("CREATE INDEX IF NOT EXISTS app_identity_links_handoff_idx ON app_identity_email_links(handoff_hash,handoff_expires_at)").run()}catch(_){}
-    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS app_identity_verified_devices(
-      email TEXT NOT NULL,device_id TEXT NOT NULL,verified_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,
-      PRIMARY KEY(email,device_id)
-    )`).run();
-    try{await env.DB.prepare("CREATE INDEX IF NOT EXISTS app_identity_verified_devices_device_idx ON app_identity_verified_devices(device_id,email)").run()}catch(_){}
-    // Une même adresse e-mail peut être confirmée sur 1 téléphone + 1 autoradio.
-    // On conserve chaque appareil confirmé au lieu d'écraser le précédent.
-    try{
-      await env.DB.prepare(`INSERT OR IGNORE INTO app_identity_verified_devices(email,device_id,verified_at,updated_at)
-        SELECT lower(email),device_id,CASE WHEN confirmed_at>0 THEN confirmed_at ELSE created_at END,CASE WHEN confirmed_at>0 THEN confirmed_at ELSE created_at END
-        FROM app_identity_email_links
-        WHERE confirmed_at>0 AND length(trim(device_id))>=8 AND instr(lower(email),'@')>1`).run();
-      await env.DB.prepare(`INSERT OR IGNORE INTO app_identity_verified_devices(email,device_id,verified_at,updated_at)
-        SELECT lower(email),COALESCE(NULLIF(email_verified_device_id,''),device_id),email_verified_at,updated_at
-        FROM app_identities
-        WHERE email_verified_at>0 AND length(trim(COALESCE(NULLIF(email_verified_device_id,''),device_id)))>=8`).run();
-    }catch(_){}
     // V305 : les identités créées avant la V304 existaient déjà dans l'application.
     // On les considère comme comptes historiques et on ne leur impose pas une nouvelle
     // confirmation e-mail. La confirmation par lien reste obligatoire uniquement pour
@@ -3733,9 +3712,6 @@ async function saveVerifiedAppIdentity(env,data,verifiedAt){
   await env.DB.prepare(`INSERT INTO app_identities(email,first_name,last_name,device_id,created_at,updated_at,email_verified_at,email_verified_device_id)
     VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET first_name=excluded.first_name,last_name=excluded.last_name,device_id=excluded.device_id,updated_at=excluded.updated_at,email_verified_at=MAX(app_identities.email_verified_at,excluded.email_verified_at),email_verified_device_id=excluded.email_verified_device_id`)
     .bind(email,firstName,lastName,deviceId,now,now,verified,deviceId).run();
-  await env.DB.prepare(`INSERT INTO app_identity_verified_devices(email,device_id,verified_at,updated_at)
-    VALUES(?,?,?,?) ON CONFLICT(email,device_id) DO UPDATE SET verified_at=MAX(app_identity_verified_devices.verified_at,excluded.verified_at),updated_at=excluded.updated_at`)
-    .bind(email,deviceId,verified,now).run();
   try{
     await ensureSanctionTablesV242(env);const emailHash=await sha256Text(email);
     const sanction=await env.DB.prepare(`SELECT id FROM market_user_sanctions WHERE (email_hash=? AND email_hash<>'') OR (last_device_id=? AND ?<>'') ORDER BY updated_at DESC LIMIT 1`).bind(emailHash,deviceId,deviceId).first();
@@ -3751,12 +3727,11 @@ async function verifiedAppIdentityState(env,email,deviceId){
   let row=await env.DB.prepare(`SELECT email,first_name,last_name,device_id,created_at,email_verified_at,email_verified_device_id FROM app_identities WHERE lower(email)=? LIMIT 1`).bind(email).first();
   if(!row||Number(row.email_verified_at||0)<=0)return {verified:false};
   let sub=null;try{sub=await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND (lower(COALESCE(recovery_email_mask,''))=? OR phone_device=? OR autoradio_device=?) ORDER BY CASE WHEN lower(COALESCE(recovery_email_mask,''))=? THEN 0 ELSE 1 END,lifetime DESC,COALESCE(expires_at,'') DESC,id DESC LIMIT 1").bind(email,deviceId,deviceId,email).first()}catch(_){}
-  const multiVerified=await env.DB.prepare("SELECT verified_at FROM app_identity_verified_devices WHERE email=? AND device_id=? AND verified_at>0 LIMIT 1").bind(email,deviceId).first();
-  if(!multiVerified){
+  if(String(row.email_verified_device_id||'')!==deviceId){
     const historical=Number(row.created_at||0)>0&&Number(row.created_at||0)<=1789852260000;
-    const knownDevice=String(row.device_id||'')===deviceId||String(row.email_verified_device_id||'')===deviceId||!!(sub&&(String(sub.phone_device||'')===deviceId||String(sub.autoradio_device||'')===deviceId));
+    const knownDevice=String(row.device_id||'')===deviceId||!!(sub&&(String(sub.phone_device||'')===deviceId||String(sub.autoradio_device||'')===deviceId));
     if(!historical||!knownDevice)return {verified:false};
-    try{await env.DB.prepare("INSERT OR IGNORE INTO app_identity_verified_devices(email,device_id,verified_at,updated_at) VALUES(?,?,?,?)").bind(email,deviceId,Number(row.email_verified_at||Date.now()),Date.now()).run()}catch(_){}
+    try{await env.DB.prepare("UPDATE app_identities SET device_id=?,email_verified_device_id=?,updated_at=? WHERE lower(email)=?").bind(deviceId,deviceId,Date.now(),email).run();row.device_id=deviceId;row.email_verified_device_id=deviceId}catch(_){}
   }
   let trial=false;try{trial=!!(sub&&await isContestTrialRow(sub))}catch(_){}
   return {verified:true,identity:{firstName:String(row.first_name||''),lastName:String(row.last_name||''),email:String(row.email||email)},deviceId,verifiedAt:Number(row.email_verified_at||0),subscription:sub?{ok:true,email:String(sub.recovery_email_mask||email),firstName:String(sub.account_first_name||row.first_name||''),lastName:String(sub.account_last_name||row.last_name||''),lifetime:!!sub.lifetime,expiresAt:sub.expires_at||null,trial,trialMode:trial?'seven_day':'',existingAccount:!trial}:null};
@@ -4015,9 +3990,9 @@ class InjectAppFiles {
 
 class InjectAutoradioFiles {
   element(element) {
-    // Autoradio : seulement les modules nécessaires au compte, notifications et navigation marché.
+    // Autoradio : seulement les modules nécessaires au compte, concours et navigation marché.
     // On évite météo, parrainage, modules pro et observateurs non utiles pour réduire CPU/RAM.
-    element.append('<script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/subscription-locks.css?v=62"><script src="/subscription-web.js?v=377-abonnement-fix" defer></script><script src="/autoradio-notifications-v376.js?v=376" defer></script><script src="/market-update-notifications-v281.js?v=376-shared-devices" defer></script><script src="/notification-detail-v282.js?v=376" defer></script><script src="/market-attendance-v317.js?v=317" defer></script><script src="/market-navigation-confirm-v189.js?v=317" defer></script><script src="/app-access-gate-v240.js?v=375-install-step" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+    element.append('<script src="/persistent-user-data-v283.js?v=283"></script><link rel="stylesheet" href="/subscription-locks.css?v=62"><script src="/subscription-web.js?v=377-abonnement-fix" defer></script><script src="/autoradio-notifications-v376.js?v=376" defer></script><script src="/market-update-notifications-v281.js?v=376-shared-devices" defer></script><script src="/notification-detail-v282.js?v=376" defer></script><script src="/market-attendance-v317.js?v=317" defer></script><script src="/market-navigation-confirm-v189.js?v=317" defer></script><script src="/contest-v188.js?v=310-admin-participe" defer></script><script src="/app-access-gate-v240.js?v=375-install-step" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
   }
 }
 

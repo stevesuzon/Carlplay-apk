@@ -1,7 +1,7 @@
 {
-  "versionCode": 379,
-  "versionName": "V379-Autoradio",
-  "webRevision": "379-zoom-hourly-cache",
-  "checkEveryHours": 1,
+  "versionCode": 378,
+  "versionName": "V378-Autoradio",
+  "webRevision": "378-autoradio-home-150",
+  "checkEveryHours": 5,
   "download": "/download-autoradio.apk"
 }
