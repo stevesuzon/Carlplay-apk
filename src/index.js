@@ -526,6 +526,8 @@ async function activate(request, env) {
 
     if (candidates) {
       const account = candidates;
+      const occupiedDevice = type === "autoradio" ? String(account.autoradio_device || "") : String(account.phone_device || "");
+      if (occupiedDevice && occupiedDevice !== deviceId) return json({ok:false,error:"APPAREIL_DEJA_UTILISE"},409);
       const storedEmail = String(account.recovery_email_hash || "");
       const storedFirst = String(account.account_first_name || "");
       const storedLast = String(account.account_last_name || "");
@@ -571,6 +573,10 @@ async function activate(request, env) {
 
   // Code déjà rattaché à un compte : connexion/récupération normale, sans ajouter
   // une seconde fois les 365 jours.
+  // Un abonnement accepte un seul téléphone et un seul autoradio. Le même code
+  // ne peut pas remplacer silencieusement l'un de ces deux appareils.
+  const occupiedDevice = type === "autoradio" ? String(row.autoradio_device || "") : String(row.phone_device || "");
+  if (occupiedDevice && occupiedDevice !== deviceId) return json({ok:false,error:"APPAREIL_DEJA_UTILISE"},409);
   if (!row.lifetime && (!row.expires_at || Date.parse(row.expires_at) <= now)) return json({ok:false,error:"ABONNEMENT_EXPIRE"},403);
   const storedEmail = String(row.recovery_email_hash || "");
   const storedFirst = String(row.account_first_name || "");
@@ -621,6 +627,8 @@ async function confirmSubscriptionEmail(request,env){
   if(!row||(!row.lifetime&&(!row.expires_at||Date.parse(row.expires_at)<=now)))return json({ok:false,error:"ABONNEMENT_EXPIRE"},403);
   const owner=await activeEmailOwner(env,challenge.email_hash,row.id);if(owner)return json({ok:false,error:"EMAIL_DEJA_UTILISEE"},409);
   const column=challenge.device_type==="autoradio"?"autoradio_device":"phone_device";
+  const occupiedDevice=String(row[column]||"");
+  if(occupiedDevice&&occupiedDevice!==deviceId)return json({ok:false,error:"APPAREIL_DEJA_UTILISE"},409);
   await env.DB.batch([env.DB.prepare(`UPDATE subscriptions SET recovery_email_hash=?,recovery_email_mask=?,${column}=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(challenge.email_hash,emailMask(challenge.email),deviceId,row.id),env.DB.prepare("UPDATE subscription_email_challenges SET consumed=1 WHERE id=?").bind(challengeId)]);
   return json({ok:true,lifetime:!!row.lifetime,expiresAt:row.expires_at||null,deviceType:challenge.device_type,email:challenge.email});
 }
