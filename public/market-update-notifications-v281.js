@@ -4,7 +4,7 @@
   window.__marketUpdateNotificationsV281=true;
   var LAST_KEY='carplay_market_update_announcement_last_id';
   var checking=false,queue=[];
-  function notificationsEnabled(){return localStorage.getItem('carplay_notifications_enabled')==='1'}
+  function notificationsEnabled(){var autoradio=localStorage.getItem('carplay_device_type')==='autoradio'||window.__COUTEAU_AUTORADIO__===true;return autoradio?localStorage.getItem('carplay_notifications_enabled')!=='0':localStorage.getItem('carplay_notifications_enabled')==='1'}
   function lastId(){return Math.max(0,Number(localStorage.getItem(LAST_KEY)||0))}
   function remember(id){try{localStorage.setItem(LAST_KEY,String(Math.max(lastId(),Number(id)||0)))}catch(e){}}
   function removeBubble(){var old=document.getElementById('marketUpdateBubbleV281');if(old)old.remove()}
