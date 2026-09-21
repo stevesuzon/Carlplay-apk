@@ -1,7 +1,7 @@
 {
-  "versionCode": 382,
-  "versionName": "V382-Autoradio",
-  "webRevision": "381-subscription-recover-code",
+  "versionCode": 381,
+  "versionName": "V381-Autoradio",
+  "webRevision": "381-home-subscription-approved",
   "checkEveryHours": 1,
   "download": "/download-autoradio.apk"
 }
