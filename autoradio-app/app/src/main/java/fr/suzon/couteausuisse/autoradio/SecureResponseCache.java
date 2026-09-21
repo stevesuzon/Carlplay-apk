@@ -34,7 +34,7 @@ final class SecureResponseCache {
     private final File dir;
 
     SecureResponseCache(Context context) {
-        dir = new File(context.getCacheDir(), "secure_web");
+        dir = new File(context.getFilesDir(), "secure_web_cache");
         if (!dir.exists()) dir.mkdirs();
     }
 
