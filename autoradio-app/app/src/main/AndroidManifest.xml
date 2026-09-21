@@ -15,7 +15,7 @@
         android:usesCleartextTraffic="false"
         android:hardwareAccelerated="true"
         android:label="Couteau Suisse Autoradio"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@drawable/couteau_suisse_logo"
         android:theme="@style/AppTheme">
         <activity
             android:name=".MainActivity"
