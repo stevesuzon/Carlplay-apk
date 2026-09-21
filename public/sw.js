@@ -21,7 +21,7 @@ const MODULES={
  [INSTALL_CACHE]:["/installer.html","/visitor-register-v361.js","/app-access-gate-v240.js?v=309-confirmed-direct","/cache-cleanup-v20260910.js?v=283-modules"],
  [STATS_CACHE]:["/user-stats-v285.js?v=328-stations-verifiees"],
  [MUSHROOM_CACHE]:["/champignons.html","/champignons.js?v=300-concours-auto","/champignons.css?v=300-concours-auto"],
- [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=313-classement-notifs"]
+ [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=377-abonnement-fix"]
 };
 async function putFresh(cacheName,path){try{const req=new Request(path,{cache:"reload"}),res=await fetch(req);if(res&&res.ok)(await caches.open(cacheName)).put(req,res.clone())}catch(_){}}
 async function ensureBase(){const c=await caches.open(BASE_CACHE);await Promise.allSettled(BASE_CORE.map(async p=>{const req=new Request(p);if(await c.match(req))return;const res=await fetch(new Request(p,{cache:"reload"}));if(res&&res.ok)await c.put(req,res)}))}
