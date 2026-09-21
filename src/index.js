@@ -4017,7 +4017,7 @@ function applyFuelStationNames(stations, osmStations) {
     }
     // 180 m laisse une petite marge aux coordonnées officielles sans risquer
     // d'attribuer l'enseigne d'une autre station voisine.
-    if (best && bestM <= 180) {
+    if (best && bestM <= 260) {
       s.name = best.name || "";
       s.brand = best.brand || "";
       s.operator = best.operator || "";
@@ -4111,10 +4111,11 @@ async function ensureFuelStationVerificationTable(env) {
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS fuel_station_verifications (
     station_key TEXT PRIMARY KEY, payment TEXT NOT NULL DEFAULT '', boutique TEXT NOT NULL DEFAULT '',
     open24 TEXT NOT NULL DEFAULT '', gpl TEXT NOT NULL DEFAULT '', cigarettes TEXT NOT NULL DEFAULT '', opinion TEXT NOT NULL DEFAULT '', device_id TEXT NOT NULL DEFAULT '',
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    manual_hours TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`).run();
   try { await env.DB.prepare(`ALTER TABLE fuel_station_verifications ADD COLUMN cigarettes TEXT NOT NULL DEFAULT ''`).run(); } catch (_) {}
   try { await env.DB.prepare(`ALTER TABLE fuel_station_verifications ADD COLUMN opinion TEXT NOT NULL DEFAULT ''`).run(); } catch (_) {}
+  try { await env.DB.prepare(`ALTER TABLE fuel_station_verifications ADD COLUMN manual_hours TEXT NOT NULL DEFAULT ''`).run(); } catch (_) {}
   return true;
 }
 
@@ -4125,7 +4126,7 @@ function cleanFuelStationKey(value) {
 function normalizeStationChoice(kind, value) {
   value = String(value || '').trim();
   if (kind === 'opinion') {
-    const allowed = ['Arrangeant', 'Gentil', 'Pas la peine d’y aller'];
+    const allowed = ['Gentil', 'Ça dépend, c’est lequel ?', 'Pas la peine d’y aller'];
     return allowed.includes(value) ? value : '';
   }
   if (kind === 'payment') {
@@ -4142,10 +4143,10 @@ async function fuelStationVerificationBatch(request, env) {
     const body = await request.json().catch(()=>({}));
     const keys = [...new Set((Array.isArray(body.keys)?body.keys:[]).map(cleanFuelStationKey).filter(Boolean))].slice(0,100);
     if (!keys.length) return json({ok:true,states:{}});
-    const q = `SELECT station_key,payment,boutique,open24,gpl,cigarettes,opinion,updated_at FROM fuel_station_verifications WHERE station_key IN (${keys.map(()=>'?').join(',')})`;
+    const q = `SELECT station_key,payment,boutique,open24,gpl,cigarettes,opinion,manual_hours,updated_at FROM fuel_station_verifications WHERE station_key IN (${keys.map(()=>'?').join(',')})`;
     const rows = (await env.DB.prepare(q).bind(...keys).all()).results || [];
     const states = {};
-    for (const r of rows) states[r.station_key] = {verified:!!(r.opinion&&r.cigarettes),opinion:r.opinion||'',payment:r.payment||'',boutique:r.boutique||'',open24:r.open24||'',gpl:r.gpl||'',cigarettes:r.cigarettes||'',updatedAt:r.updated_at||''};
+    for (const r of rows) states[r.station_key] = {verified:!!r.cigarettes,opinion:r.opinion||'',manualHours:r.manual_hours||'',payment:r.payment||'',boutique:r.boutique||'',open24:r.open24||'',gpl:r.gpl||'',cigarettes:r.cigarettes||'',updatedAt:r.updated_at||''};
     return json({ok:true,states});
   } catch (e) {
     return json({ok:false,error:'STATION_VERIFICATION_BATCH',message:String(e&&e.message||e)},500);
@@ -4158,15 +4159,17 @@ async function submitFuelStationVerification(request, env) {
     const body = await request.json().catch(()=>({}));
     const stationKey = cleanFuelStationKey(body.stationKey);
     const deviceId = String(body.deviceId || '').trim().slice(0,180);
-    const opinion = normalizeStationChoice('opinion', body.opinion);
     const cigarettes = normalizeStationChoice('yesno', body.cigarettes);
     const gpl = normalizeStationChoice('yesno', body.gpl || 'Oui') || 'Oui';
-    if (!stationKey || !deviceId || !opinion || !cigarettes) return json({ok:false,error:'CHOIX_INCOMPLETS',message:'Choisissez Arrangeant, Gentil ou Pas la peine d’y aller, puis Oui/Non pour cigarettes.'},400);
-    await env.DB.prepare(`INSERT INTO fuel_station_verifications(station_key,payment,boutique,open24,gpl,cigarettes,opinion,device_id,updated_at)
-      VALUES(?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
-      ON CONFLICT(station_key) DO UPDATE SET gpl=excluded.gpl,cigarettes=excluded.cigarettes,opinion=excluded.opinion,device_id=excluded.device_id,updated_at=CURRENT_TIMESTAMP`)
-      .bind(stationKey,'','','',gpl,cigarettes,opinion,deviceId).run();
-    return json({ok:true,state:{verified:true,opinion,payment:'',boutique:'',open24:'',gpl,cigarettes,updatedAt:new Date().toISOString()}});
+    const opinion = gpl === 'Oui' ? normalizeStationChoice('opinion', body.opinion) : '';
+    const manualHours = String(body.manualHours || '').replace(/[\u0000-\u001f]/g,' ').trim().slice(0,120);
+    if (!stationKey || !deviceId || !cigarettes) return json({ok:false,error:'CHOIX_INCOMPLETS',message:'Choisissez Cigarettes OUI ou NON.'},400);
+    if (gpl === 'Oui' && !opinion) return json({ok:false,error:'AVIS_GPL_MANQUANT',message:'Choisissez l’avis GPL.'},400);
+    await env.DB.prepare(`INSERT INTO fuel_station_verifications(station_key,payment,boutique,open24,gpl,cigarettes,opinion,device_id,manual_hours,updated_at)
+      VALUES(?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+      ON CONFLICT(station_key) DO UPDATE SET gpl=excluded.gpl,cigarettes=excluded.cigarettes,opinion=CASE WHEN excluded.opinion<>'' THEN excluded.opinion ELSE fuel_station_verifications.opinion END,manual_hours=CASE WHEN excluded.manual_hours<>'' THEN excluded.manual_hours ELSE fuel_station_verifications.manual_hours END,device_id=excluded.device_id,updated_at=CURRENT_TIMESTAMP`)
+      .bind(stationKey,'','','',gpl,cigarettes,opinion,deviceId,manualHours).run();
+    return json({ok:true,state:{verified:true,opinion,manualHours,payment:'',boutique:'',open24:'',gpl,cigarettes,updatedAt:new Date().toISOString()}});
   } catch (e) {
     return json({ok:false,error:'STATION_VERIFICATION',message:String(e&&e.message||e)},500);
   }

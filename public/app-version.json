@@ -1,4 +1,4 @@
 {
-  "version": "V356",
-  "message": "V356 : catégorie stations — ajout du troisième choix de vérification « Ça dépend, c’est lequel ? » entre Gentil et Pas la peine d’y aller. Le résultat validé est affiché en vert / orange / rouge selon le choix. Marchés hebdomadaires inchangés."
+  "version": "V359",
+  "message": "V359 : stations — sur GPL, choix Gentil / Ça dépend, c’est lequel ? / Pas la peine d’y aller conservés. Sur toutes les stations, Cigarettes OUI/NON. Si les horaires officiels manquent, saisie manuelle obligatoire dans Vérifier (ex. 7h-20h ou 24/24), puis affichage sur la fiche. Marchés hebdomadaires inchangés."
 }
