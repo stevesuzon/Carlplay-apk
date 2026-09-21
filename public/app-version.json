@@ -1,4 +1,4 @@
 {
-  "version": "V350",
-  "message": "V350 : Marchés de Noël et autres catégories spéciales gardent le chargement rapide de V349. Stations : GPL affiché à la place de GPLc; vert uniquement pour les stations GPL sans boutique / sans gérant avec automate 24/24; rouge si 'Pas la peine d’y aller'. Marchés hebdomadaires inchangés."
+  "version": "V356",
+  "message": "V356 : catégorie stations — ajout du troisième choix de vérification « Ça dépend, c’est lequel ? » entre Gentil et Pas la peine d’y aller. Le résultat validé est affiché en vert / orange / rouge selon le choix. Marchés hebdomadaires inchangés."
 }

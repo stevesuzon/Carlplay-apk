@@ -3974,6 +3974,59 @@ function fuelStationAutomate24(fields, services) {
   return (services || []).some(x => /automate\s*cb\s*24\s*\/\s*24/i.test(String(x)));
 }
 
+async function fuelStationNamesFromOsm(lat, lon) {
+  const q = `[out:json][timeout:8];nwr(around:15500,${lat},${lon})["amenity"="fuel"];out center tags;`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 2600);
+  try {
+    const r = await fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
+        "User-Agent": "Couteau-Suisse/351 (+fuel-stations)"
+      },
+      body: "data=" + encodeURIComponent(q),
+      signal: controller.signal,
+      cf: { cacheTtl: 3600, cacheEverything: true }
+    });
+    if (!r.ok) return [];
+    const j = await r.json();
+    return (Array.isArray(j && j.elements) ? j.elements : []).map(e => {
+      const tags = e.tags || {};
+      const la = Number(e.lat ?? e.center?.lat), lo = Number(e.lon ?? e.center?.lon);
+      if (!Number.isFinite(la) || !Number.isFinite(lo)) return null;
+      const brand = String(tags.brand || "").trim();
+      const operator = String(tags.operator || "").trim();
+      const name = String(tags.name || brand || operator || "").trim();
+      return name ? { lat:la, lon:lo, name, brand, operator } : null;
+    }).filter(Boolean);
+  } catch (_) {
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function applyFuelStationNames(stations, osmStations) {
+  if (!Array.isArray(stations) || !Array.isArray(osmStations) || !osmStations.length) return stations;
+  for (const s of stations) {
+    let best = null, bestM = Infinity;
+    for (const o of osmStations) {
+      const d = haversineMeters(Number(s.lat), Number(s.lon), Number(o.lat), Number(o.lon));
+      if (d < bestM) { bestM = d; best = o; }
+    }
+    // 180 m laisse une petite marge aux coordonnées officielles sans risquer
+    // d'attribuer l'enseigne d'une autre station voisine.
+    if (best && bestM <= 180) {
+      s.name = best.name || "";
+      s.brand = best.brand || "";
+      s.operator = best.operator || "";
+      s.nameSource = "OpenStreetMap";
+    }
+  }
+  return stations;
+}
+
 async function fuelStationsNearby(request) {
   const u = new URL(request.url);
   const lat = Number(u.searchParams.get("lat")), lon = Number(u.searchParams.get("lon"));
@@ -4045,8 +4098,12 @@ async function fuelStationsNearby(request) {
       hoursText: f.horaires_jour || null
     });
   }
+  try {
+    const osmStations = await fuelStationNamesFromOsm(lat, lon);
+    applyFuelStationNames(stations, osmStations);
+  } catch (_) {}
   stations.sort((a,b) => a.price - b.price || a.distanceKm - b.distanceKm);
-  return json({ ok:true, radiusKm:15, fuel, source, stations, count:stations.length, dataNotice:"Prix et informations issus du flux officiel français, actualisé fréquemment par le producteur." });
+  return json({ ok:true, radiusKm:15, fuel, source, stations, count:stations.length, dataNotice:"Prix et informations issus du flux officiel français. Nom/enseigne complété depuis OpenStreetMap quand disponible." });
 }
 
 async function ensureFuelStationVerificationTable(env) {
