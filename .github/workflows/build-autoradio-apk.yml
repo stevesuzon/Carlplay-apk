@@ -1,0 +1,65 @@
+name: Build Autoradio APK
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'autoradio-app/**'
+      - '.github/workflows/build-autoradio-apk.yml'
+      - 'autoradio-build-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build APK
+        working-directory: autoradio-app
+        run: gradle --no-daemon assembleDebug
+
+      - name: Publish latest APK
+        run: |
+          cp autoradio-app/app/build/outputs/apk/debug/app-debug.apk LATEST-APK.apk
+          cp autoradio-app/app/build/outputs/apk/debug/app-debug.apk Couteau-Suisse-V367-Autoradio.apk
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Couteau-Suisse-V367-Autoradio
+          path: Couteau-Suisse-V367-Autoradio.apk
+
+      - name: Commit APK
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add LATEST-APK.apk Couteau-Suisse-V367-Autoradio.apk
+          if git diff --cached --quiet; then
+            echo "APK already current"
+          else
+            git commit -m "Construit l'APK autoradio V367"
+            git push
+          fi
