@@ -140,15 +140,28 @@ public class MainActivity extends Activity {
                 "window.__COUTEAU_AUTORADIO__=true;" +
                 "function tune(){" +
                 "try{document.documentElement.classList.add('autoradio-mode');" +
-                "if(!document.getElementById('autoradio-style-v367')){" +
-                "var st=document.createElement('style');st.id='autoradio-style-v367';" +
-                "st.textContent='@media (orientation:landscape){body{font-size:18px!important}.homeDesignGrid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))!important;gap:16px!important}.settings{max-width:1200px!important;margin-left:auto!important;margin-right:auto!important}.settings button,.settingHead,.settingBody button{min-height:60px!important;font-size:19px!important}.card,.directBtn,.small{min-height:110px!important}button,a,.card{touch-action:manipulation!important}}';" +
+                "if(!document.getElementById('autoradio-style-v368')){" +
+                "var st=document.createElement('style');st.id='autoradio-style-v368';" +
+                "st.textContent='@media (orientation:landscape){body{font-size:18px!important}.settings{max-width:1200px!important;margin-left:auto!important;margin-right:auto!important}.settings button,.settingHead,.settingBody button{min-height:60px!important;font-size:19px!important}button,a,.card{touch-action:manipulation!important}#autoradioHomeV368{width:min(1180px,96vw);margin:14px auto 28px;padding:8px 0 18px}.autoradioBrand{display:flex;align-items:center;justify-content:center;gap:14px;margin:0 0 16px;font:950 clamp(24px,3vw,38px)/1 Arial;color:#fff}.autoradioBrand img{width:68px;height:68px;border-radius:17px;object-fit:cover}.autoradioRows{display:grid;gap:16px}.autoradioRow2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.autoradioRow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}.autoradioTile{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:150px!important;border:0;border-radius:24px;padding:16px;color:#fff!important;text-decoration:none!important;text-align:center;font:950 clamp(19px,2.4vw,30px)/1.08 Arial!important;box-shadow:0 9px 26px #0007;cursor:pointer}.autoradioTile small{font:850 14px/1.1 Arial;opacity:.92}.autoradioMarkets{background:linear-gradient(160deg,#0b76d1,#134c9a)}.autoradioStations{background:linear-gradient(160deg,#c77d00,#7b4700)}.autoradioAddress{background:linear-gradient(160deg,#d46a16,#934006)}.autoradioReturn{background:linear-gradient(160deg,#16964f,#0c5d33)}.autoradioErase{background:linear-gradient(160deg,#c83b45,#7e2029)}.autoradioIcon{font-size:42px;line-height:1}body.homePage #homeDepartmentSearch,body.homePage .homeDesignGrid,body.homePage #fuelStationsQuickBtn,body.homePage #connectedUsersBadge,body.homePage #contactMailButton,body.homePage #housePhotoButton,body.homePage .mailHelpText{display:none!important}body.homePage .top{min-height:50px!important}body.homePage .gear{width:54px!important;height:54px!important;font-size:28px!important;display:flex!important;align-items:center!important;justify-content:center!important}}';" +
                 "(document.head||document.documentElement).appendChild(st);}" +
                 "['#addressCreateQuote','#simpleQuoteBtn','#genericQuoteModal','#simpleQuoteOverlay'].forEach(function(q){var e=document.querySelector(q);if(e)e.style.display='none';});" +
                 "document.querySelectorAll('button,a,.settingRow,.card,.directBtn').forEach(function(e){var t=(e.innerText||'').toUpperCase();if(t.indexOf('DEVIS')>=0||t.indexOf('FICHE D’ACHAT')>=0||t.indexOf(\"FICHE D'ACHAT\")>=0||t.indexOf('ENCHÈRE')>=0||t.indexOf('ENCHERE')>=0)e.style.display='none';});" +
-                "}catch(e){}}" +
+                "var p=(location.pathname||'/').replace(/\\/+$/,'')||'/';" +
+                "if(p==='/'||p==='/index.html'||p==='/index'){" +
+                "if(!document.getElementById('autoradioHomeV368')){" +
+                "var host=document.querySelector('.wrap')||document.body;var top=document.querySelector('.top');var box=document.createElement('section');box.id='autoradioHomeV368';" +
+                "box.innerHTML='<div class=\"autoradioBrand\"><img src=\"/couteau-suisse-192.png?v=283\" alt=\"Couteau Suisse\"><span>COUTEAU SUISSE</span></div><div class=\"autoradioRows\"><div class=\"autoradioRow2\"><button type=\"button\" class=\"autoradioTile autoradioMarkets\" id=\"autoradioMarketsBtn\"><span class=\"autoradioIcon\">🧺</span><span>MARCHÉS</span><small>France + Belgique</small></button><button type=\"button\" class=\"autoradioTile autoradioStations\" id=\"autoradioStationsBtn\"><span class=\"autoradioIcon\">⛽</span><span>STATIONS ESSENCE</span><small>À moins de 15 km</small></button></div><div class=\"autoradioRow3\"><button type=\"button\" class=\"autoradioTile autoradioAddress\" id=\"autoradioAddressBtn\"><span class=\"autoradioIcon\">📒</span><span>ADRESSES</span></button><button type=\"button\" class=\"autoradioTile autoradioReturn\" id=\"autoradioReturnBtn\"><span class=\"autoradioIcon\">📍</span><span>RETOURNER SUR LA PLACE</span></button><button type=\"button\" class=\"autoradioTile autoradioErase\" id=\"autoradioEraseBtn\"><span class=\"autoradioIcon\">🗑️</span><span>EFFACER L’EMPLACEMENT</span></button></div></div>';" +
+                "if(top&&top.parentNode)top.parentNode.insertBefore(box,top.nextSibling);else host.insertBefore(box,host.firstChild);" +
+                "box.querySelector('#autoradioMarketsBtn').onclick=function(){location.href='choix-marches-final.html';};" +
+                "box.querySelector('#autoradioStationsBtn').onclick=function(){location.href='stations-carburant.html';};" +
+                "box.querySelector('#autoradioAddressBtn').onclick=function(){if(typeof window.openSavedAddressBook==='function')window.openSavedAddressBook();else{var b=document.getElementById('homeAddressBookBtn');if(b)b.click();}};" +
+                "box.querySelector('#autoradioReturnBtn').onclick=function(){if(typeof window.returnPlace==='function')window.returnPlace();};" +
+                "box.querySelector('#autoradioEraseBtn').onclick=function(){if(typeof window.clearReturnPlace==='function')window.clearReturnPlace();};" +
+                "}" +
+                "}" +
+                "}catch(e){}};" +
                 "if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',tune,{once:true});else tune();" +
-                "try{new MutationObserver(tune).observe(document.documentElement,{childList:true,subtree:true});}catch(e){}" +
+                "try{new MutationObserver(function(){tune();}).observe(document.documentElement,{childList:true,subtree:true});}catch(e){}" +
                 "})();";
     }
 
