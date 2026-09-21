@@ -192,7 +192,7 @@
     if(code)code.placeholder="Entrez votre code d’abonnement";
     if(activate)activate.textContent="Activer / changer mon code";
     if(recover){
-      recover.textContent="✉  Me faire renvoyer mon code d’abonnement";
+      recover.textContent="✉  RÉCUPÉRER MON CODE D’ABONNEMENT";
       if(activate&&activate.parentNode===recover.parentNode){
         activate.insertAdjacentElement("afterend",recover);
       }
