@@ -118,8 +118,11 @@ async function boot(){
     var after=await verifiedStatus(x);if(after&&after.verified){var aid=persist(after.identity||x);markVerified(aid,after.verifiedAt||Date.now());persistSubscription(after.subscription,aid);stopVerificationWatch();removeGate();toast('✅ Adresse e-mail confirmée. Bienvenue dans Couteau Suisse !');setTimeout(function(){location.replace(finalSiteUrl())},180);return}
   }
   if(confirmation&&confirmation.error){showIdentity(x,confirmation.error);return}
-  // Un visiteur non encore inscrit voit d'abord l'aide d'installation.
-  if(!installed()&&!browserHandoff()){showInstall();return}
+  // V367 : même si la personne arrive directement depuis Google/Chrome ou avec le lien du site,
+  // le formulaire Nom + Prénom + E-mail reste obligatoire avant l'ouverture de Couteau Suisse.
+  // L'aide d'installation reste accessible depuis /installer.html, mais elle ne permet plus
+  // de contourner l'identification du compte.
+  if(!installed()&&!browserHandoff()){showIdentity(x,'🔐 Pour accéder à Couteau Suisse depuis Google ou un lien direct, renseignez d’abord votre nom, prénom et adresse e-mail.');return}
   if(complete(x)){
     showIdentity(x,onboardingIdentity()?'✉️ Confirmez votre adresse e-mail pour terminer votre inscription.':'✉️ Confirmez votre adresse e-mail pour continuer.');return
   }
