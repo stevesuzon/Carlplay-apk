@@ -810,26 +810,7 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
 #locationPermissionBtn:disabled{opacity:.72}
 #locationPermissionNote{font-size:14px;line-height:1.45}
 </style>
-<script src="/persistent-user-data-v283.js?v=283"></script>
-<!-- V332 : fichiers communs intégrés statiquement pour éviter un passage Worker sur chaque page -->
-    <link rel="stylesheet" href="/mobile-overrides.css?v=62">
-    <link rel="stylesheet" href="/subscription-locks.css?v=62">
-    <link rel="stylesheet" href="/home-work.css?v=62">
-    <script src="/weather-all-pages.js?v=68-notifications-globales" defer></script>
-    <script src="/notification-detail-v282.js?v=282" defer></script>
-    <script src="/home-work.js?v=62" defer></script>
-    <script src="/market-presence-global.js?v=176" defer></script>
-    <script src="/market-auto-update-v319.js?v=319" defer></script>
-    <script src="/market-attendance-v317.js?v=317" defer></script>
-    <script src="/market-navigation-confirm-v189.js?v=317" defer></script>
-    <script src="/referral-v232.js?v=273-parrainage-marche-compte" defer></script>
-    <script src="/app-access-gate-v240.js?v=309-confirmed-direct" defer></script>
-
-    <script src="/subscription-web.js?v=311-admin-demandes" defer></script>
-    <script src="/market-update-notifications-v281.js?v=282" defer></script>
-    <script src="/contest-v188.js?v=310-admin-participe" defer></script>
-    <script src="/sanction-guard-v161.js?v=242" defer></script>
-</head>
+<script src="/persistent-user-data-v283.js?v=283"></script></head>
 <body class="homePage">
 
 <div id="connectedUsersBadge" style="
@@ -849,13 +830,13 @@ backdrop-filter:blur(3px);
 pointer-events:none;
 opacity:.9;
 ">● <span id="connectedUsersCount">0</span> connecté(s)</div>
-<button id="fuelStationsQuickBtn" type="button" aria-label="Stations-service à moins de 15 kilomètres" onclick="location.href='stations-carburant.html'">⛽ STATIONS 15 KM</button>
+<button id="fuelStationsQuickBtn" type="button" aria-label="Stations-service à moins de 15 kilomètres" onclick="location.href='stations-carburant.html'"><span>⛽ STATIONS</span><span>15 KM</span></button>
 <style id="fuelStationsQuickStyle">
-#fuelStationsQuickBtn{position:fixed;top:8px;z-index:9999;height:30px;min-width:105px;padding:3px 10px;border-radius:11px;border:1px solid rgba(255,190,58,.82);background:rgba(65,45,12,.82);color:#ffe7a7;font:900 11px Arial,sans-serif;box-shadow:0 3px 10px #0005,0 0 0 1px rgba(255,190,58,.12) inset;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);cursor:pointer;white-space:nowrap;touch-action:manipulation}
-#fuelStationsQuickBtn:hover{border-color:#ffd36a;background:rgba(82,55,10,.9)}#fuelStationsQuickBtn:active{transform:scale(.96)}body.house-measure-open #fuelStationsQuickBtn{display:none!important}@media(max-width:390px){#fuelStationsQuickBtn{height:28px;min-width:92px;padding:2px 7px;font-size:9.5px}}
+#fuelStationsQuickBtn{position:fixed;top:8px;right:74px;left:auto;z-index:9999;width:92px;min-width:92px;height:40px;padding:3px 6px;border-radius:12px;border:1px solid rgba(255,190,58,.82);background:rgba(65,45,12,.82);color:#ffe7a7;font:900 10.5px/1.02 Arial,sans-serif;box-shadow:0 3px 10px #0005,0 0 0 1px rgba(255,190,58,.12) inset;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);cursor:pointer;white-space:normal;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-align:center}#fuelStationsQuickBtn span{display:block} 
+#fuelStationsQuickBtn:hover{border-color:#ffd36a;background:rgba(82,55,10,.9)}#fuelStationsQuickBtn:active{transform:scale(.96)}body.house-measure-open #fuelStationsQuickBtn{display:none!important}@media(max-width:390px){#fuelStationsQuickBtn{right:72px;width:86px;min-width:86px;height:38px;padding:2px 5px;font-size:9.5px}}
 </style>
 <script id="fuelStationsQuickPosition">
-(function(){function pos(){var b=document.getElementById('fuelStationsQuickBtn'),u=document.getElementById('totalUsersBadge'),c=document.getElementById('connectedUsersBadge');if(!b)return;var left=10;if(u){var ru=u.getBoundingClientRect();left=Math.ceil(ru.right+6)}else if(c){var rc=c.getBoundingClientRect();left=Math.ceil(rc.right+6)}b.style.left=left+'px'}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',pos);else pos();addEventListener('resize',pos);addEventListener('carplay-user-stats-positioned',pos);setTimeout(pos,250);setTimeout(pos,1000);if(window.ResizeObserver){var ro=new ResizeObserver(pos),c=document.getElementById('connectedUsersBadge'),u=document.getElementById('totalUsersBadge');if(c)ro.observe(c);if(u)ro.observe(u)}})();
+(function(){function pos(){var b=document.getElementById('fuelStationsQuickBtn'),g=document.querySelector('.gear');if(!b)return;var gap=8;if(g){var r=g.getBoundingClientRect();var right=Math.max(gap,Math.ceil(innerWidth-r.left+gap));b.style.right=right+'px';}else{b.style.right='74px';}}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',pos);else pos();addEventListener('resize',pos);setTimeout(pos,250);setTimeout(pos,1000);})();
 </script>
 <div class="wrap">
 <div class="top">

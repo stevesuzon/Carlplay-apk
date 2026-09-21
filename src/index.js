@@ -1210,7 +1210,7 @@ function parseJdmMarketPage(html,area,pageUrl){
 }
 function parseJdmVideGreniers(html,area,pageUrl){
   const out=[],hs=htmlHeadingBlocks(html),today=marketTodayIso();
-  for(const h of hs){if(h.level!==3)continue;const title=String(h.text||'').trim(),body=marketPlainText(h.after||''),combined=title+' '+body,n=normMarketText(combined);if(!title||!/vide[ -]?grenier|brocante|foire|bric ?a ?brac|bourse d.?echange|puces/.test(n))continue;
+  for(const h of hs){if(h.level!==3)continue;const title=String(h.text||'').trim(),body=marketPlainText(h.after||''),combined=title+' '+body,n=normMarketText(combined);if(!title||!/vide[ -]?grenier|brocante|foire|braderie|bric ?a ?brac|bourse d.?echange|puces/.test(n))continue;
     const range=jdmDateRange(body),pc=jdmPostalCity(body);if(!range.start)continue;if(range.end&&range.end<today)continue;
     const href=(h.raw.match(/href=["']([^"']+)["']/i)||[])[1]||'',sourceUrl=href?jdmDecodeUrl(href):String(pageUrl||'');
     out.push({country:'FR',area:jdmAreaForPostal(area,pc),kind:'brocante',name:title,city:pc.city,day:range.label,dateLabel:range.label,start:range.start,end:range.end||range.start,hours:jdmHours(body),address:[pc.postal,pc.city].filter(Boolean).join(' '),merchants:marketCapacityFromText(body),phone:marketPhoneFromText(body,'FR'),note:`${marketLabelFromKindText(combined)} — source Jours-de-Marché.fr. ${String(body||'').slice(0,380)}`,sourceUrl});
@@ -1247,6 +1247,84 @@ async function runJdmIncremental(env){
     catch(e){await env.DB.prepare('UPDATE market_jdm_refresh_state SET next_check_at=?,last_check_at=?,last_message=? WHERE area=?').bind(Date.now()+6*3600000,Date.now(),String(e&&e.message||e).slice(0,250),row.area).run()}
   }
   return results;
+}
+
+
+// V334 — Recherche automatique douce : une seule page source par heure.
+// Objectif : continuer à découvrir marchés, foires, brocantes et braderies sans charger l'application
+// ni relancer les gros traitements qui avaient provoqué des dépassements CPU Cloudflare.
+const MARKET_GENTLE_IMPORT_LIMIT = 18;
+async function upsertAutoMarketsLimited(env, events, limit=MARKET_GENTLE_IMPORT_LIMIT){
+  let count=0;
+  for(const e of (events||[]).slice(0,Math.max(1,limit))){if(await upsertAutoMarket(env,e))count++}
+  return count;
+}
+async function ensureGentleMarketCursor(env){
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_gentle_cursor(
+    id INTEGER PRIMARY KEY CHECK(id=1), phase INTEGER NOT NULL DEFAULT 0,
+    fr_market_idx INTEGER NOT NULL DEFAULT 0, fr_event_idx INTEGER NOT NULL DEFAULT 0,
+    be_event_idx INTEGER NOT NULL DEFAULT 0, last_run_at INTEGER NOT NULL DEFAULT 0,
+    last_message TEXT NOT NULL DEFAULT '')`).run();
+  await env.DB.prepare(`INSERT OR IGNORE INTO market_gentle_cursor(id,phase,fr_market_idx,fr_event_idx,be_event_idx,last_run_at,last_message)
+    VALUES(1,0,0,0,0,0,'')`).run();
+}
+async function gentleJdmDepartment(env,area){
+  const slug=JDM_FR_SLUGS[String(area||'').toUpperCase()];
+  if(!slug)return{count:0,message:'département JDM non pris en charge'};
+  const url=`https://www.jours-de-marche.fr/${area}-${slug}/`;
+  const html=await jdmFetch(url);
+  if(!html)return{count:0,message:'Jours-de-Marché indisponible'};
+  // Une seule page départementale : marchés classiques / périodiques et événements publiés dessus.
+  const events=parseJdmMarketPage(html,area,url).filter(e=>!e.end||e.end>=marketTodayIso());
+  const count=await upsertAutoMarketsLimited(env,events);
+  return{count,message:`Jours-de-Marché ${area}: ${count} fiche(s)`};
+}
+async function gentleBrocantePage(env,country,area){
+  let events=[],source='';
+  try{
+    if(country==='FR'){
+      source=`https://brocabrac.fr/${encodeURIComponent(area)}/`;
+      const r=await fetch(source,{headers:{'user-agent':'Mozilla/5.0 Couteau-Suisse/334 (+gentle-market-refresh)','accept-language':'fr-FR,fr;q=0.9'},cf:{cacheTtl:3600}});
+      if(r.ok)events=parseBrocabrac(await r.text(),area);
+    }else{
+      const slug=String(area||'').toLowerCase();
+      source=`https://www.brocantes.be/fr/agenda/province/${encodeURIComponent(slug)}/Brocantes`;
+      const r=await fetch(source,{headers:{'user-agent':'Mozilla/5.0 Couteau-Suisse/334 (+gentle-market-refresh)','accept-language':'fr-FR,fr;q=0.9'},cf:{cacheTtl:3600}});
+      if(r.ok)events=parseBrocantesBe(await r.text(),slug);
+    }
+  }catch(_){}
+  events=events.filter(e=>!e.end||e.end>=marketTodayIso());
+  const count=await upsertAutoMarketsLimited(env,events);
+  return{count,source,message:`${country} ${area}: ${count} foire(s)/brocante(s)/braderie(s)`};
+}
+async function runGentleMarketRefresh(env){
+  if(!env.DB)return null;
+  await ensureMarketTable(env);
+  await ensureGentleMarketCursor(env);
+  const state=await env.DB.prepare('SELECT phase,fr_market_idx,fr_event_idx,be_event_idx FROM market_gentle_cursor WHERE id=1').first()||{};
+  const phase=((Number(state.phase)||0)%3+3)%3;
+  let nextPhase=(phase+1)%3, message='', result=null;
+  let frMarket=Number(state.fr_market_idx)||0, frEvent=Number(state.fr_event_idx)||0, beEvent=Number(state.be_event_idx)||0;
+  if(phase===0){
+    const areas=Object.keys(JDM_FR_SLUGS);
+    const area=areas[frMarket%areas.length];
+    result=await gentleJdmDepartment(env,area);
+    frMarket=(frMarket+1)%areas.length;
+    message=result.message;
+  }else if(phase===1){
+    const area=MARKET_REFRESH_FR_AREAS[frEvent%MARKET_REFRESH_FR_AREAS.length];
+    result=await gentleBrocantePage(env,'FR',area);
+    frEvent=(frEvent+1)%MARKET_REFRESH_FR_AREAS.length;
+    message=result.message;
+  }else{
+    const area=MARKET_REFRESH_BE_AREAS[beEvent%MARKET_REFRESH_BE_AREAS.length];
+    result=await gentleBrocantePage(env,'BE',area);
+    beEvent=(beEvent+1)%MARKET_REFRESH_BE_AREAS.length;
+    message=result.message;
+  }
+  await env.DB.prepare(`UPDATE market_gentle_cursor SET phase=?,fr_market_idx=?,fr_event_idx=?,be_event_idx=?,last_run_at=?,last_message=? WHERE id=1`)
+    .bind(nextPhase,frMarket,frEvent,beEvent,Date.now(),String(message||'').slice(0,240)).run();
+  return{mode:'doux',phase,result,message};
 }
 
 async function ensureMarketRefreshTables(env){await ensureMarketTable(env);await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_refresh_state(country TEXT NOT NULL,area TEXT NOT NULL,kind TEXT NOT NULL,next_check_at INTEGER NOT NULL DEFAULT 0,last_check_at INTEGER NOT NULL DEFAULT 0,last_status TEXT NOT NULL DEFAULT '',last_found INTEGER NOT NULL DEFAULT 0,last_message TEXT NOT NULL DEFAULT '',PRIMARY KEY(country,area,kind))`).run();try{await env.DB.prepare('CREATE INDEX IF NOT EXISTS market_refresh_due ON market_refresh_state(next_check_at)').run()}catch(_){} }
@@ -1617,8 +1695,41 @@ async function batchMarketVerifications(request, env) {
   if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE" }, 503);
   await ensureMarketVerificationTables(env);
   const data = await body(request);
-  const keys = [...new Set((Array.isArray(data.keys) ? data.keys : []).map(cleanMarketKey).filter(Boolean))].slice(0, 200), states = {};
-  for (const key of keys) states[key] = await marketVerificationState(env, key, true);
+  const keys = [...new Set((Array.isArray(data.keys) ? data.keys : []).map(cleanMarketKey).filter(Boolean))].slice(0, 200);
+  const states = {};
+  for (const key of keys) states[key] = { marketKey:key, required:1, fieldsLocked:true, locationRequired:1, locationVotes:0, values:{}, leaders:{}, photo:null, location:null };
+  if (!keys.length) return json({ ok:true, required:MARKET_CONSENSUS_REQUIRED, states });
+
+  // V333 CPU : ancien code = jusqu'à 5 requêtes D1 PAR marché (plus de 1000 requêtes pour 200 cartes).
+  // On charge maintenant tous les états en 5 requêtes D1 au total.
+  const ph = keys.map(()=>'?').join(',');
+  const consensus = await env.DB.prepare(`SELECT market_key,field,value_display,confirmations,updated_at FROM market_verification_consensus WHERE market_key IN (${ph})`).bind(...keys).all();
+  for (const row of consensus.results || []) {
+    const st=states[String(row.market_key||'')]; if(!st) continue;
+    st.values[row.field]={value:row.value_display,confirmations:Number(row.confirmations||1),updatedAt:row.updated_at,locked:true};
+  }
+
+  const pending = await env.DB.prepare(`SELECT market_key,field,value_display,COUNT(DISTINCT device_id) AS confirmations FROM market_verification_votes WHERE market_key IN (${ph}) GROUP BY market_key,field,value_norm,value_display ORDER BY market_key,field,confirmations DESC`).bind(...keys).all();
+  for (const row of pending.results || []) {
+    const st=states[String(row.market_key||'')]; if(!st || st.values[row.field] || st.leaders[row.field]) continue;
+    st.leaders[row.field]={value:row.value_display,confirmations:Number(row.confirmations||0),required:1};
+  }
+
+  const photos = await env.DB.prepare(`SELECT market_key,distance_meters,quality_score,stall_count,replacement_count,captured_at,updated_at FROM market_photo_metadata WHERE market_key IN (${ph})`).bind(...keys).all();
+  for (const row of photos.results || []) {
+    const key=String(row.market_key||''),st=states[key]; if(!st) continue;
+    const replacementsUsed=Math.max(0,Number(row.replacement_count||0));
+    st.photo={url:`/api/market-photo?marketKey=${encodeURIComponent(key)}&v=${encodeURIComponent(row.updated_at)}`,distanceMeters:Math.round(Number(row.distance_meters)),qualityScore:Number(row.quality_score||0),stallCount:Number(row.stall_count||0),replacementsUsed,replacementsRemaining:Math.max(0,2-replacementsUsed),locked:replacementsUsed>=2,capturedAt:row.captured_at};
+  }
+
+  const locations = await env.DB.prepare(`SELECT market_key,latitude,longitude,address,confirmations,updated_at FROM market_location_consensus WHERE market_key IN (${ph})`).bind(...keys).all();
+  for (const row of locations.results || []) {
+    const st=states[String(row.market_key||'')]; if(!st) continue;
+    st.location={latitude:Number(row.latitude),longitude:Number(row.longitude),address:row.address||'',confirmations:Number(row.confirmations||1),required:1,locked:true,updatedAt:row.updated_at};
+  }
+
+  const voteCounts = await env.DB.prepare(`SELECT market_key,COUNT(*) AS n FROM market_location_votes WHERE market_key IN (${ph}) GROUP BY market_key`).bind(...keys).all();
+  for (const row of voteCounts.results || []) { const st=states[String(row.market_key||'')]; if(st) st.locationVotes=Number(row.n||0); }
   return json({ ok: true, required: MARKET_CONSENSUS_REQUIRED, states });
 }
 
@@ -1665,8 +1776,15 @@ async function marketAttendance(request,url,env) {
 }
 async function marketAttendanceBatch(request,env){
   if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
-  await ensureMarketAttendanceTable(env);const d=await body(request),keys=[...new Set((Array.isArray(d.keys)?d.keys:[]).map(cleanMarketKey).filter(Boolean))].slice(0,250),dateKey=marketDateKey(d.date),counts={};
-  for(const key of keys){const c=await env.DB.prepare("SELECT COUNT(*) AS n FROM market_attendance WHERE market_key=? AND date_key=?").bind(key,dateKey).first();counts[key]=Number(c&&c.n||0)}
+  await ensureMarketAttendanceTable(env);
+  const d=await body(request),keys=[...new Set((Array.isArray(d.keys)?d.keys:[]).map(cleanMarketKey).filter(Boolean))].slice(0,250),dateKey=marketDateKey(d.date),counts={};
+  for(const key of keys)counts[key]=0;
+  if(keys.length){
+    // V333 CPU : une seule requête GROUP BY au lieu d'une requête D1 par carte marché.
+    const ph=keys.map(()=>'?').join(',');
+    const rows=await env.DB.prepare(`SELECT market_key,COUNT(*) AS n FROM market_attendance WHERE date_key=? AND market_key IN (${ph}) GROUP BY market_key`).bind(dateKey,...keys).all();
+    for(const row of rows.results||[])if(Object.prototype.hasOwnProperty.call(counts,String(row.market_key||'')))counts[String(row.market_key||'')]=Number(row.n||0);
+  }
   return json({ok:true,date:dateKey,counts});
 }
 async function adminMarketAttendance(request,url,env){
@@ -3843,11 +3961,10 @@ async function submitFuelStationVerification(request, env) {
 
 export default {
   async scheduled(controller, env, ctx) {
-    // V332 : le forfait Workers Free limite aussi les Cron Triggers à 10 ms de CPU.
-    // Le scraping Jours-de-Marché/Brocabrac parse plusieurs grosses pages HTML et peut dépasser
-    // cette limite. Il reste disponible, mais n’est lancé que si MARKET_AUTO_REFRESH=1 est défini.
-    if (String(env.MARKET_AUTO_REFRESH || "0") !== "1") return;
-    ctx.waitUntil(runIncrementalMarketRefresh(env));
+    // V334 : recherche automatique douce activée par défaut. Une seule page source est traitée par heure.
+    // Mettre MARKET_AUTO_REFRESH=0 uniquement si l'administrateur veut arrêter complètement la recherche.
+    if (String(env.MARKET_AUTO_REFRESH || "1") === "0") return;
+    ctx.waitUntil(runGentleMarketRefresh(env));
   },
   async fetch(request, env) {
     const url = new URL(request.url);

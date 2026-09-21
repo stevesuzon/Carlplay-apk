@@ -22,6 +22,8 @@
     if(path!=='/'&&path!=='/index.html')return;
     var menu=document.getElementById('updateMenu'),row=menu&&menu.closest('.settingRow');if(row)row.remove();
     if(!navigator.onLine)return;
+    var previous=Date.parse(localStorage.getItem('markets_last_update')||'')||0;
+    if(previous && Date.now()-previous < 10*60*1000)return;
     var stamp=Date.now();
     fetch('/api/markets?automatic_update='+stamp,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('sync');return r.json()}).then(function(j){
       localStorage.setItem('server_markets',JSON.stringify(j.markets||[]));
@@ -53,9 +55,9 @@
   }
   function ping(){
     if(!navigator.onLine)return;
-    fetch('/api/presence',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId()}),cache:'no-store'}).then(loadCount).catch(function(){});
+    fetch('/api/presence',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId()}),cache:'no-store'}).then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j}})}).then(function(x){var el=document.getElementById('homeOnlineCount');if(el)el.textContent=(x.ok&&x.j&&x.j.ok)?Math.max(0,Number(x.j.count||0)):'—';}).catch(function(){});
   }
-  setTimeout(function(){ping();loadCount();},250);
+  setTimeout(function(){ping();},250);
   setInterval(function(){if(!document.hidden){ping();loadCount();}},120000);
   addEventListener('online',function(){ping();loadCount();});
 })();

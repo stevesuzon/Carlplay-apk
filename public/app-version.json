@@ -1,4 +1,4 @@
 {
-  "version": "332",
-  "message": "Optimisation Cloudflare : les pages, scripts, images et CSS statiques ne passent plus par le Worker. Le traitement automatique lourd des marchés est mis en sécurité sur le forfait gratuit pour éviter les dépassements CPU."
+  "version": "334",
+  "message": "V334 : recherche automatique douce des marchés, foires, brocantes et braderies, une seule page source par heure pour limiter le CPU Cloudflare. Bouton Stations 15 km plus haut, moins large et séparé du bouton Réglages."
 }

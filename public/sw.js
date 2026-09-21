@@ -1,5 +1,5 @@
-const VERSION = "V332";
-const BASE_CACHE = "couteau-suisse-module-base-v332-cpu-cloudflare";
+const VERSION = "V334";
+const BASE_CACHE = "couteau-suisse-module-base-v334-gentle-markets";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v310";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v313";
