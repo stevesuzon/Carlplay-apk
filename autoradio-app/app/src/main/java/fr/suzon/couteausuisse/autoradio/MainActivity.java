@@ -39,6 +39,7 @@ public class MainActivity extends Activity {
     private GeolocationPermissions.Callback pendingGeoCallback;
     private String pendingGeoOrigin;
     private String nativeDeviceId;
+    private SecureResponseCache secureCache;
 
     @Override
     @SuppressLint("SetJavaScriptEnabled")
@@ -46,6 +47,7 @@ public class MainActivity extends Activity {
         super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         nativeDeviceId = buildNativeDeviceId();
+        secureCache = new SecureResponseCache(this);
 
         web = new WebView(this);
         setContentView(web);
@@ -53,23 +55,25 @@ public class MainActivity extends Activity {
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
-        s.setDatabaseEnabled(true);
+        s.setDatabaseEnabled(false);
         s.setGeolocationEnabled(true);
-        s.setAllowContentAccess(true);
-        s.setAllowFileAccess(true);
-        s.setMediaPlaybackRequiresUserGesture(false);
+        s.setAllowContentAccess(false);
+        s.setAllowFileAccess(false);
+        s.setMediaPlaybackRequiresUserGesture(true);
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
-        s.setSupportZoom(true);
-        s.setBuiltInZoomControls(true);
+        s.setSupportZoom(false);
+        s.setBuiltInZoomControls(false);
         s.setDisplayZoomControls(false);
+        s.setSupportMultipleWindows(false);
+        s.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         }
         String ua = s.getUserAgentString();
         if (ua == null) ua = "";
         if (!ua.contains("CouteauSuisseAutoradio")) {
-            s.setUserAgentString(ua + " CouteauSuisseAutoradio/370");
+            s.setUserAgentString(ua + " CouteauSuisseAutoradio/371");
         }
 
         web.setWebViewClient(new AutoradioClient());
@@ -171,9 +175,83 @@ public class MainActivity extends Activity {
                 "}" +
                 "}catch(e){}" +
                 "}" +
-                "if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',tune,{once:true});else tune();" +
-                "try{new MutationObserver(function(){tune();}).observe(document.documentElement,{childList:true,subtree:true});}catch(e){}" +
+                "function autoradioUpdateCheck(force){" +
+                "try{var k='autoradio_update_check_v371',last=Number(localStorage.getItem(k)||0),now=Date.now();if(!force&&now-last<18000000)return;localStorage.setItem(k,String(now));fetch('/autoradio-version.json?_='+now,{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j)return;var old=localStorage.getItem('autoradio_web_revision_v371')||'';var rev=String(j.webRevision||j.versionCode||'');localStorage.setItem('autoradio_web_revision_v371',rev);if(force||(old&&old!==rev)){location.replace('/?autoradio_maj='+now)}}).catch(function(){})}catch(e){}" +
+                "}" +
+                "window.autoradioForceUpdate=function(){autoradioUpdateCheck(true)};" +
+                "if(typeof window.forceAppUpdate==='function')window.forceAppUpdate=window.autoradioForceUpdate;" +
+                "if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){tune();autoradioUpdateCheck(false)},{once:true});else{tune();autoradioUpdateCheck(false)}" +
                 "})();";
+    }
+
+    private boolean isFastLocalData(String url) {
+        try {
+            Uri u = Uri.parse(url);
+            if (!HOST.equalsIgnoreCase(u.getHost())) return false;
+            String p = u.getPath() == null ? "" : u.getPath();
+            return p.startsWith("/market-chunks/")
+                    || p.startsWith("/nearby-shards/")
+                    || p.startsWith("/special-data/")
+                    || p.equals("/traveller-markets-data-v166.js")
+                    || p.equals("/api/fuel-stations");
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private WebResourceResponse localDataResponse(String url) {
+        if (secureCache == null || !isFastLocalData(url)) return null;
+        final boolean fuel = url.contains("/api/fuel-stations");
+        final long freshMs = fuel ? 10L * 60L * 1000L : 5L * 60L * 60L * 1000L;
+        final long staleMs = fuel ? 6L * 60L * 60L * 1000L : 7L * 24L * 60L * 60L * 1000L;
+        try {
+            SecureResponseCache.Entry hot = secureCache.get(url, freshMs, 0);
+            if (hot != null) return entryResponse(hot);
+        } catch (Exception ignored) {
+        }
+
+        HttpURLConnection c = null;
+        try {
+            c = (HttpURLConnection) new URL(url).openConnection();
+            c.setConnectTimeout(4500);
+            c.setReadTimeout(7000);
+            c.setRequestProperty("User-Agent", web.getSettings().getUserAgentString());
+            c.setRequestProperty("Accept-Encoding", "identity");
+            c.setUseCaches(true);
+            int code = c.getResponseCode();
+            if (code >= 200 && code < 300) {
+                try (InputStream in = c.getInputStream(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                    byte[] data = out.toByteArray();
+                    String mime = c.getContentType();
+                    if (mime == null || mime.trim().isEmpty()) {
+                        mime = url.endsWith(".js") ? "application/javascript" : "application/json";
+                    }
+                    int semi = mime.indexOf(';');
+                    if (semi >= 0) mime = mime.substring(0, semi).trim();
+                    secureCache.put(url, data, mime);
+                    return new WebResourceResponse(mime, "UTF-8", new ByteArrayInputStream(data));
+                }
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (c != null) c.disconnect();
+        }
+
+        try {
+            SecureResponseCache.Entry stale = secureCache.get(url, staleMs, 0);
+            if (stale != null) return entryResponse(stale);
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    private WebResourceResponse entryResponse(SecureResponseCache.Entry entry) {
+        String mime = entry.mime == null || entry.mime.trim().isEmpty()
+                ? "application/octet-stream" : entry.mime;
+        return new WebResourceResponse(mime, "UTF-8", new ByteArrayInputStream(entry.data));
     }
 
     private WebResourceResponse patchedSubscriptionScript(String requestUrl) {
@@ -231,6 +309,10 @@ public class MainActivity extends Activity {
                 WebResourceResponse patched = patchedSubscriptionScript(u);
                 if (patched != null) return patched;
             }
+            if ("GET".equalsIgnoreCase(request.getMethod())) {
+                WebResourceResponse cached = localDataResponse(u);
+                if (cached != null) return cached;
+            }
             return super.shouldInterceptRequest(view, request);
         }
 
@@ -239,6 +321,10 @@ public class MainActivity extends Activity {
             if (url != null && url.contains("/subscription-web.js")) {
                 WebResourceResponse patched = patchedSubscriptionScript(url);
                 if (patched != null) return patched;
+            }
+            if (url != null) {
+                WebResourceResponse cached = localDataResponse(url);
+                if (cached != null) return cached;
             }
             return super.shouldInterceptRequest(view, url);
         }
