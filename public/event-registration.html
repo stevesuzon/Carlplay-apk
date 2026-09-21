@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
+<title>Inscription événement</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#07111d;color:#fff}.wrap{width:min(760px,94vw);margin:auto;padding:14px}.back{display:inline-block;padding:12px 16px;border-radius:14px;background:#f57c00;color:#fff;text-decoration:none;font-weight:950}.hero{margin:14px 0;padding:16px;border:3px solid #f39b19;border-radius:20px;background:#101a28}.hero h1{margin:0 0 7px;color:#ffd84a;font-size:25px}.hero p{margin:4px 0;color:#dbe8f4;font-weight:800;line-height:1.35}.box{margin:12px 0;padding:14px;border:2px solid #36506c;border-radius:18px;background:#101a28}.box h2{margin:0 0 10px;color:#62d8ff;font-size:20px}.requirements{border-color:#f39b19}.requirements h2{color:#ffd84a}.reqList{display:grid;gap:8px}.reqItem{display:flex;gap:9px;align-items:flex-start;padding:10px;border-radius:12px;background:#081727;border:1px solid #45617e;font-weight:900;line-height:1.35}.reqItem input{width:22px;height:22px;flex:0 0 auto}.reqNone{padding:11px;border-radius:12px;background:#102235;color:#dbe8f4;font-weight:850;line-height:1.4}.uploadBlock{display:none}.uploadBlock.show{display:block}.destination{margin:12px 0;padding:12px;border-radius:14px;border:2px solid #168a4e;background:#0b2a1d;color:#dfffea;font-weight:900;line-height:1.4}.destination strong{color:#8ff0b6}.contactName{color:#ffd84a;font-size:18px;font-weight:1000}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.label{display:block;margin:9px 0 5px;font-weight:950}.field,select,textarea,input[type=file]{width:100%;min-height:48px;border:2px solid #62d8ff;border-radius:12px;background:#081727;color:#fff;padding:9px 10px;font-size:16px}textarea{min-height:100px;resize:vertical}.checks{display:grid;grid-template-columns:1fr 1fr;gap:8px}.check{display:flex;gap:8px;align-items:flex-start;padding:9px;border:1px solid #45617e;border-radius:12px;background:#081727;font-weight:850}.check input{width:22px;height:22px;flex:0 0 auto}.hint{margin-top:7px;color:#aebed0;font-size:12px;line-height:1.35;font-weight:750}.warning{margin:10px 0;padding:10px;border-radius:12px;background:#3a2b0b;border:1px solid #ffd36c;color:#ffe2a0;font-size:12px;line-height:1.4;font-weight:850}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}.btn{min-height:56px;border:0;border-radius:14px;color:#fff;font-size:15px;font-weight:1000;padding:10px}.green{background:#168a4e}.blue{background:#087ee5}.orange{background:#f57c00}.gray{background:#4b5563}.status{margin-top:10px;padding:10px;border-radius:12px;background:#081727;display:none;font-weight:850;line-height:1.4}.status.show{display:block}.required{color:#ffcf4a}.private{color:#8ff0b6;font-weight:900}.event{font-size:17px;font-weight:950;color:#fff}@media(max-width:600px){.grid2,.checks,.actions{grid-template-columns:1fr}.hero h1{font-size:21px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<a class="back" href="javascript:history.back()">← RETOUR</a>
+<section class="hero">
+<h1>📝 INSCRIPTION À L’ÉVÉNEMENT</h1>
+<div class="event" id="eventTitle"></div>
+<p id="eventMeta"></p>
+<p id="organizerInfo"></p>
+</section>
+<section class="box">
+<h2>Vos coordonnées</h2>
+<div class="grid2"><div><label class="label">Nom</label><input class="field" id="lastName" autocomplete="family-name"></div><div><label class="label">Prénom</label><input class="field" id="firstName" autocomplete="given-name"></div></div>
+<label class="label">Adresse e-mail</label><input class="field" id="userEmail" type="email" autocomplete="email">
+<div class="grid2"><div><label class="label">Téléphone</label><input class="field" id="phone" type="tel" autocomplete="tel"></div><div><label class="label">Particulier / professionnel</label><select id="sellerType"><option>Particulier</option><option>Professionnel</option></select></div></div>
+<label class="label">Adresse</label><input class="field" id="address" autocomplete="street-address">
+<div class="grid2"><div><label class="label">Mètres d’emplacement souhaités</label><input class="field" id="meters" inputmode="decimal" placeholder="Ex. 6"></div><div><label class="label">Véhicule / remorque</label><input class="field" id="vehicle" placeholder="Ex. fourgon + remorque"></div></div>
+<label class="label">Objets / activité vendus</label><textarea id="items" placeholder="Ex. brocante, vêtements, jouets, antiquités…"></textarea>
+</section>
+<section class="box requirements">
+<h2>📎 Pièces demandées pour cet événement</h2>
+<div id="requirementsSummary" class="reqList"></div>
+<div id="requirementsNote" class="hint"></div>
+</section>
+<section class="box" id="uploadsBox" style="display:none">
+<h2>Ajouter uniquement les pièces demandées</h2>
+<div id="uploadId" class="uploadBlock">
+<label class="label">Pièce d’identité — recto</label><input id="idFront" type="file" accept="image/*,.pdf" capture="environment">
+<label class="label">Pièce d’identité — verso</label><input id="idBack" type="file" accept="image/*,.pdf" capture="environment">
+</div>
+<div id="uploadHonor" class="uploadBlock"><label class="label">Attestation sur l’honneur</label><input id="fileHonor" type="file" accept="image/*,.pdf"></div>
+<div id="uploadSiret" class="uploadBlock"><label class="label">SIRET / Kbis</label><input id="fileSiret" type="file" accept="image/*,.pdf"></div>
+<div id="uploadInsurance" class="uploadBlock"><label class="label">Assurance responsabilité civile / professionnelle</label><input id="fileInsurance" type="file" accept="image/*,.pdf"></div>
+<div id="uploadCard" class="uploadBlock"><label class="label">Carte de commerçant ambulant</label><input id="fileCard" type="file" accept="image/*,.pdf"></div>
+<div id="uploadProof" class="uploadBlock"><label class="label">Justificatif de domicile</label><input id="fileProof" type="file" accept="image/*,.pdf"></div>
+<div id="uploadPhotos" class="uploadBlock"><label class="label">Photos du stand / des produits</label><input id="photosFiles" type="file" accept="image/*,.pdf" multiple></div>
+<div id="uploadOther" class="uploadBlock"><label class="label">Autre document demandé par l’organisateur</label><input id="otherFiles" type="file" accept="image/*,.pdf" multiple></div>
+<div class="hint">Seules les pièces indiquées ci-dessus apparaissent ici. Si l’organisateur ne demande pas de photo d’identité, les boutons recto-verso ne sont pas affichés.</div>
+</section>
+<section class="box">
+<h2>Message prérempli</h2>
+<textarea id="message"></textarea>
+<div class="warning">Les pièces affichées proviennent des consignes trouvées pour cet événement. Si une consigne n’est pas suffisamment précise, l’application l’indique au lieu d’inventer une pièce à fournir.</div>
+</section>
+<div class="destination" id="destinationBox"><div class="contactName" id="destinationEvent"></div><div id="destinationText"></div></div>
+<div class="actions">
+<button class="btn green" id="shareBtn" type="button">📎 ENVOYER AVEC LES PIÈCES DEMANDÉES</button>
+<button class="btn blue" id="mailBtn" type="button">✉️ PRÉPARER L’E-MAIL POUR CET ÉVÉNEMENT</button>
+</div>
+<div class="status" id="status"></div>
+<p class="private">🔒 Les pièces d’identité et documents ne sont pas stockés par cette page.</p>
+</main>
+<script>
+(function(){
+'use strict';
+const p=new URLSearchParams(location.search);
+const target=p.get('email')||'';
+const eventName=p.get('event')||'Événement';
+const city=p.get('city')||'';
+const date=p.get('date')||'Date à confirmer';
+const info=p.get('info')||'';
+const kind=p.get('kind')||'événement';
+const q=id=>document.getElementById(id);
+function getIdentity(){let a={};try{a=JSON.parse(localStorage.getItem('carplay_app_identity_v240')||'null')||{}}catch(_){}let s={};try{s=JSON.parse(localStorage.getItem('carplay_shared_subscription')||'null')||{}}catch(_){}return{firstName:a.firstName||a.first_name||s.firstName||s.first_name||'',lastName:a.lastName||a.last_name||s.lastName||s.last_name||'',email:a.email||s.email||localStorage.getItem('carplay_recovery_email')||''}}
+function escText(v){return String(v||'').trim()}
+function normalize(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()}
+const requirementDefs=[
+  {id:'id',label:'Pièce d’identité — recto + verso',rx:/piece d identite|carte d identite|identite|\bcni\b|passeport|recto|verso/,upload:'uploadId'},
+  {id:'honor',label:'Attestation sur l’honneur',rx:/attestation[^.;]{0,35}honneur|declaration[^.;]{0,35}honneur/,upload:'uploadHonor'},
+  {id:'siret',label:'SIRET / Kbis',rx:/\bsiret\b|\bkbis\b|extrait k/,upload:'uploadSiret'},
+  {id:'insurance',label:'Attestation d’assurance',rx:/assurance|responsabilite civile|\brc pro\b/,upload:'uploadInsurance'},
+  {id:'card',label:'Carte de commerçant ambulant',rx:/carte[^.;]{0,30}(commercant|ambulant)|commercant ambulant/,upload:'uploadCard'},
+  {id:'proof',label:'Justificatif de domicile',rx:/justificatif[^.;]{0,25}domicile|preuve[^.;]{0,25}domicile/,upload:'uploadProof'},
+  {id:'photos',label:'Photos du stand / des produits',rx:/photo[^.;]{0,35}(stand|produit|article|marchandise)|photos? (du|des) stand|photos? (du|des) produits?/,upload:'uploadPhotos'}
+];
+let detected=[];
+function detectRequirements(){
+  const t=normalize(info);
+  detected=requirementDefs.filter(r=>r.rx.test(t));
+  // N'ajoute jamais de pièce par défaut : on affiche uniquement ce que les consignes de cet événement indiquent.
+  return detected;
+}
+function renderRequirements(){
+  const list=q('requirementsSummary'),note=q('requirementsNote'),box=q('uploadsBox');
+  const reqs=detectRequirements();
+  if(!reqs.length){
+    list.innerHTML='<div class="reqNone">Aucune pièce jointe précise n’a été trouvée dans les consignes récupérées pour cet événement. Le formulaire ne demande donc aucune photo ou document par défaut.</div>';
+    note.textContent=info?'Consigne trouvée : '+info:'Les pièces demandées n’ont pas été publiées dans les informations disponibles.';
+    box.style.display='none';
+    return;
+  }
+  list.innerHTML=reqs.map((r,i)=>'<label class="reqItem"><input type="checkbox" id="req_'+r.id+'"><span><b>'+r.label+'</b><br><small>À préparer pour cette inscription</small></span></label>').join('');
+  note.textContent='Voici uniquement les pièces repérées dans les consignes de cette foire / brocante / braderie.';
+  box.style.display='block';
+  reqs.forEach(r=>{const el=q(r.upload);if(el)el.classList.add('show')});
+  reqs.forEach(r=>{const cb=q('req_'+r.id);if(cb)cb.addEventListener('change',refreshMessage)});
+}
+function selectedDocs(){return detected.map(r=>r.label)}
+function buildMessage(){
+  const who=[escText(q('firstName').value),escText(q('lastName').value)].filter(Boolean).join(' ');
+  const lines=['Bonjour,','','Je souhaite m’inscrire à '+eventName+(city?' à '+city:'')+'.','Date : '+date+'.'];
+  if(who)lines.push('Nom : '+who+'.');
+  if(q('phone').value.trim())lines.push('Téléphone : '+q('phone').value.trim()+'.');
+  if(q('userEmail').value.trim())lines.push('E-mail : '+q('userEmail').value.trim()+'.');
+  if(q('address').value.trim())lines.push('Adresse : '+q('address').value.trim()+'.');
+  lines.push('Statut : '+q('sellerType').value+'.');
+  if(q('meters').value.trim())lines.push('Emplacement souhaité : '+q('meters').value.trim()+' m.');
+  if(q('vehicle').value.trim())lines.push('Véhicule / remorque : '+q('vehicle').value.trim()+'.');
+  if(q('items').value.trim())lines.push('Objets / activité : '+q('items').value.trim()+'.');
+  const docs=selectedDocs();if(docs.length)lines.push('Pièces demandées jointes / à joindre : '+docs.join(', ')+'.');
+  if(info)lines.push('','Consignes de l’organisateur : '+info);
+  lines.push('','Merci de me confirmer mon inscription et de m’indiquer s’il manque un élément.','','Cordialement,',who);
+  return lines.join('\n');
+}
+function refreshMessage(){q('message').value=buildMessage()}
+function filesFrom(id){const e=q(id);return e&&e.files?Array.from(e.files):[]}
+function allFiles(){let files=[];['idFront','idBack','fileHonor','fileSiret','fileInsurance','fileCard','fileProof','photosFiles','otherFiles'].forEach(id=>{files=files.concat(filesFrom(id))});return files}
+function status(text){q('status').textContent=text;q('status').classList.add('show')}
+const ident=getIdentity();q('firstName').value=ident.firstName;q('lastName').value=ident.lastName;q('userEmail').value=ident.email;q('phone').value=localStorage.getItem('event_reg_phone')||'';q('address').value=localStorage.getItem('event_reg_address')||'';
+q('eventTitle').textContent=eventName;q('eventMeta').textContent=(city?city+' — ':'')+date;q('organizerInfo').textContent=info?'Consignes trouvées : '+info:'Consignes précises non publiées.';
+q('destinationEvent').textContent='Envoi pour : '+eventName+(city?' — '+city:'');
+q('destinationText').innerHTML=target?'Destinataire : <strong>'+target.replace(/[&<>]/g,'')+'</strong>':'Adresse e-mail de l’organisateur à vérifier avant tout envoi.';
+renderRequirements();refreshMessage();
+['firstName','lastName','userEmail','phone','address','sellerType','meters','vehicle','items'].forEach(id=>q(id).addEventListener('input',refreshMessage));
+q('mailBtn').onclick=function(){
+  if(!target){status('Aucune adresse e-mail fiable n’est enregistrée pour cet événement. Aucun message n’a été adressé.');return;}
+  localStorage.setItem('event_reg_phone',q('phone').value.trim());localStorage.setItem('event_reg_address',q('address').value.trim());
+  const subject='Inscription '+eventName;const body=q('message').value;location.href='mailto:'+encodeURIComponent(target)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  const files=allFiles();if(files.length)status('Le mail est adressé à '+target+'. Ajoutez les pièces demandées si votre application Mail ne les joint pas automatiquement, puis appuyez sur Envoyer.');
+};
+q('shareBtn').onclick=async function(){
+  localStorage.setItem('event_reg_phone',q('phone').value.trim());localStorage.setItem('event_reg_address',q('address').value.trim());
+  const files=allFiles();
+  if(!files.length){q('mailBtn').click();return;}
+  const data={title:'Inscription '+eventName,text:q('message').value};data.files=files;
+  try{if(navigator.share&&(!navigator.canShare||navigator.canShare({files:files}))){await navigator.share(data);status('Les pièces demandées sont prêtes au partage. Choisissez Mail et vérifiez que le destinataire est bien '+(target||'celui de l’événement')+'.')}else{status('Votre téléphone ne permet pas de joindre automatiquement ces fichiers. Utilisez le bouton e-mail puis ajoutez seulement les pièces affichées sur cette page.')}}catch(e){if(e&&e.name!=='AbortError')status('Partage impossible. Utilisez le bouton e-mail prérempli.')}
+};
+})();
+</script>
+</body>
+</html>

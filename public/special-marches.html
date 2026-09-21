@@ -63,9 +63,10 @@
       .marketActions .verify {
         background: #087ee5;
       }
-      .marketActions .call {
+      .marketActions .call,.marketActions .register {
         display:flex;align-items:center;justify-content:center;width:100%;min-height:46px;margin:0;padding:8px;border:0;border-radius:12px;background:#168a4e;color:#fff;text-decoration:none;text-align:center;font-size:12px;font-weight:950;
       }
+      .marketActions .register{grid-column:1/-1;background:#168a4e}
       .hero {
         margin: 16px 0;
         padding: 18px;
@@ -518,7 +519,16 @@
           var text=String((r&&r[6])||"")+" "+String((r&&r[13])||"");
           var m=text.match(/(?:\+33|\+32|0)[\s.\-]*(?:\d[\s.\-]*){8,10}/);return m?cleanPhone(m[0]):"";
         }
-        function goLabel(r){var x=norm([r&&r[1],r&&r[2],r&&r[6]].join(" "));if(/vide[ -]?grenier/.test(x))return"ALLER AU VIDE-GRENIER";if(/foire/.test(x))return"ALLER À LA FOIRE";if(/brocante|puces|braderie|rederie|réderie|bric/.test(x))return"ALLER À LA BROCANTE";if(isNoel(r))return"ALLER AU MARCHÉ DE NOËL";return"ALLER AU MARCHÉ";}
+        function sourceUrls(r){var v=r&&r[9];return Array.isArray(v)?v.filter(function(x){return /^https?:\/\//i.test(String(x||''))}):(/^https?:\/\//i.test(String(v||''))?[String(v)]:[]);}
+        function registrationAction(r){
+          var reg=String((r&&r[13])||'').trim(),phone=specialPhone(r),all=[reg,r&&r[6],r&&r[8]].filter(Boolean).join(' '),m=all.match(/(?:mailto:)?([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i);
+          if(m){var email=m[1],href='event-registration.html?email='+encodeURIComponent(email)+'&event='+encodeURIComponent(String((r&&r[2])||'événement'))+'&city='+encodeURIComponent(String((r&&r[3])||''))+'&date='+encodeURIComponent(String((r&&r[4])||'à confirmer'))+'&info='+encodeURIComponent([reg,(r&&r[6])||''].filter(Boolean).join(' — '))+'&kind='+encodeURIComponent('brocante-foire-braderie');return{href:href,label:'PRÉPARER MON INSCRIPTION',kind:'internal'};}
+          var direct=(reg.match(/https?:\/\/[^\s<>'"]+/i)||[])[0];if(direct)return{href:direct,label:/form|inscri|register|reservation|reserve/i.test(reg)?'REMPLIR LA FICHE D’INSCRIPTION':'VOIR L’INSCRIPTION',kind:'web'};
+          if(phone)return{href:'tel:'+phone,label:'APPELER POUR S’INSCRIRE',kind:'phone'};
+          var urls=sourceUrls(r);if(urls.length&&/inscri|exposant|emplacement|formulaire|r[eé]serv|particip|contacter|organisateur/i.test(reg))return{href:urls[0],label:'VOIR COMMENT S’INSCRIRE',kind:'web'};
+          return null;
+        }
+        function goLabel(r){var x=norm([r&&r[1],r&&r[2],r&&r[6]].join(" "));if(/vide[ -]?grenier/.test(x))return"ALLER AU VIDE-GRENIER";if(/braderie/.test(x))return"ALLER À LA BRADERIE";if(/foire/.test(x))return"ALLER À LA FOIRE";if(/brocante|puces|rederie|réderie|bric/.test(x))return"ALLER À LA BROCANTE";if(isNoel(r))return"ALLER AU MARCHÉ DE NOËL";return"ALLER AU MARCHÉ";}
         function eventVisual(r){var x=norm([r&&r[1],r&&r[2],r&&r[6]].join(" "));if(/foire/.test(x))return{cls:"foire",label:"🎪 FOIRE"};if(/vide[ -]?grenier/.test(x))return{cls:"vide",label:"🧺 VIDE-GRENIER"};if(/braderie/.test(x))return{cls:"braderie",label:"🛍️ BRADERIE"};return{cls:"brocante",label:"🧳 BROCANTE"};}
         function capacityLabel(){if(type==="noel")return"🎄 Nombre de chalets : ";if(type==="brocante")return"👥 Nombre d’emplacements / exposants : ";if(type==="saisonnier")return"👥 Nombre d’emplacements / commerçants : ";return"👥 Nombre de places / commerçants : ";}
         function eventEndIso(r){var s=String((r&&r[4])||"")+" "+String((r&&r[6])||"");var months={janvier:1,fevrier:2,"février":2,mars:3,avril:4,mai:5,juin:6,juillet:7,aout:8,"août":8,septembre:9,octobre:10,novembre:11,decembre:12,"décembre":12,januari:1,februari:2,maart:3,april:4,mei:5,juni:6,juli:7,augustus:8,oktober:10,december:12},all=[].slice.call(s.matchAll(/(\d{1,2})\s+(janvier|f[eé]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[eé]cembre|januari|februari|maart|april|mei|juni|juli|augustus|oktober|december)\s+(20\d{2})/gi));if(all.length){var m=all[all.length-1],mo=months[String(m[2]).toLowerCase()];return m[3]+"-"+String(mo).padStart(2,"0")+"-"+String(Number(m[1])).padStart(2,"0")}var n=[].slice.call(s.matchAll(/(\d{1,2})[-\/.](\d{1,2})[-\/.](20\d{2})/g));if(n.length){var q=n[n.length-1];return q[3]+"-"+String(Number(q[2])).padStart(2,"0")+"-"+String(Number(q[1])).padStart(2,"0")}return"";}
@@ -599,6 +609,7 @@
               var fav = isFav(r);
               var verifyUrl = marketVerifyUrl(r);
               var phone = specialPhone(r);
+              var regAction = registrationAction(r);
               var goText = goLabel(r);
               var ev = type === "brocante" ? eventVisual(r) : null;
               return (
@@ -634,6 +645,7 @@
                   ),
                 ) +
                 '</div><div class="meta">Humeur du placier : À vérifier</div><div class="meta">Responsable : À vérifier</div>' +
+                (phone?'<div class="meta" style="color:#9ff0b7;font-weight:950">📞 '+esc(phone)+'</div>':'') +
                 (r[6]
                   ? '<div class="meta">ℹ️ ' +
                     esc(

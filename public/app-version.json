@@ -1,4 +1,4 @@
 {
-  "version": "335",
-  "message": "V335 : Marchés à moins de 80 km calculés uniquement depuis la position « Retourner sur la place ». Chargement par petites zones géographiques pour éviter le blocage de l’application."
+  "version": "V339",
+  "message": "V339 : chaque formulaire d’inscription affiche en haut uniquement les pièces réellement demandées pour l’événement. Les zones de photo/document n’apparaissent que si elles sont nécessaires. En bas, le formulaire indique clairement la foire/brocante concernée et l’adresse e-mail destinataire."
 }
