@@ -363,7 +363,7 @@ body.house-measure-open #weatherBubble,body.house-measure-open .gear,body.house-
 .roofPhotoWarning{margin:10px 0;padding:12px;border:2px solid #ff9d21;border-radius:12px;background:#2a1d0c;color:#fff;font-size:13px;line-height:1.4}
 .roofPhotoDetectBox .houseActionBtn{width:100%;min-height:50px;margin:8px 0}
 </style><style id="homeButtonsNeverOverlap">
-/* Correctif mobile : aucun chevauchement entre MAIL / MESURER et le bouton 80 km */
+/* Correctif mobile : aucun chevauchement entre MAIL / MESURER et le bouton 150 km */
 #homeDepartmentSearch{margin:12px 0 12px!important;clear:both!important;position:relative!important;z-index:1!important}
 .homeTopActions{margin-bottom:0!important;position:relative!important;z-index:2!important}
 @media(max-width:720px){
@@ -848,10 +848,10 @@ opacity:.9;
   <div class="gear" onclick="toggleSettings()">⚙</div>
 </div>
 </div>
-<section id="homeDepartmentSearch" aria-label="Marchés autour de 80 kilomètres">
-  <button id="nearby80Button" type="button" aria-label="Afficher les marchés autour de 80 kilomètres">
+<section id="homeDepartmentSearch" aria-label="Marchés autour de 150 kilomètres">
+  <button id="nearby80Button" type="button" aria-label="Afficher les marchés autour de 150 kilomètres">
     <span class="pencil" aria-hidden="true">✏️</span>
-    <span class="nearText">MARCHÉS À MOINS DE 80 KM</span>
+    <span class="nearText">MARCHÉS À MOINS DE 150 KM</span>
   </button>
 </section><div class="grid homeDesignGrid">
   <div class="card blue" onclick="location.href='choix-marches-final.html'">
@@ -1553,7 +1553,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
   btn.addEventListener('click',function(){
     var lat=localStorage.getItem('return_lat'),lon=localStorage.getItem('return_lon');
     if(!lat||!lon){alert('Enregistre d’abord ta position avec « Retourner sur la place ».');return;}
-    location.href='nearby-markets.html?v=335';
+    location.href='nearby-markets.html?radius=150&v=335';
   });
 })();
 </script>
