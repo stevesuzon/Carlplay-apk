@@ -543,10 +543,9 @@ async function activate(request, env) {
     if (candidates) {
       const account = candidates;
       const occupiedDevice = type === "autoradio" ? String(account.autoradio_device || "") : String(account.phone_device || "");
-      if (occupiedDevice && occupiedDevice !== deviceId) {
-        const canReplace=await verifiedIdentityCanReplaceSubscriptionDevice(env,deviceId,account,email,firstName,lastName);
-        if(!canReplace)return json({ok:false,error:"APPAREIL_DEJA_UTILISE"},409);
-      }
+      // V380 : le code + le même e-mail + les mêmes nom/prénom permettent de déplacer
+      // le slot vers le nouveau téléphone/autoradio. L'ancien appareil perd alors l'accès.
+      // La vérification d'identité ci-dessous reste obligatoire avant le remplacement.
       const storedEmail = String(account.recovery_email_hash || "");
       const storedFirst = String(account.account_first_name || "");
       const storedLast = String(account.account_last_name || "");
@@ -595,10 +594,8 @@ async function activate(request, env) {
   // Un abonnement accepte un seul téléphone et un seul autoradio. Le même code
   // ne peut pas remplacer silencieusement l'un de ces deux appareils.
   const occupiedDevice = type === "autoradio" ? String(row.autoradio_device || "") : String(row.phone_device || "");
-  if (occupiedDevice && occupiedDevice !== deviceId) {
-    const canReplace=await verifiedIdentityCanReplaceSubscriptionDevice(env,deviceId,row,email,firstName,lastName);
-    if(!canReplace)return json({ok:false,error:"APPAREIL_DEJA_UTILISE"},409);
-  }
+  // V380 : si ce code appartient bien au même compte, le nouvel appareil remplace
+  // automatiquement l'ancien appareil du même type après contrôle e-mail + nom + prénom.
   if (!row.lifetime && (!row.expires_at || Date.parse(row.expires_at) <= now)) return json({ok:false,error:"ABONNEMENT_EXPIRE"},403);
   const storedEmail = String(row.recovery_email_hash || "");
   const storedFirst = String(row.account_first_name || "");
