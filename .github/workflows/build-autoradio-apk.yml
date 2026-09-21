@@ -54,23 +54,23 @@ jobs:
       - name: Publish latest APK
         run: |
           cp autoradio-app/app/build/outputs/apk/debug/app-debug.apk LATEST-APK.apk
-          cp autoradio-app/app/build/outputs/apk/debug/app-debug.apk Couteau-Suisse-V371-Autoradio.apk
+          cp autoradio-app/app/build/outputs/apk/debug/app-debug.apk Couteau-Suisse-V378-Autoradio.apk
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Couteau-Suisse-V371-Autoradio
-          path: Couteau-Suisse-V371-Autoradio.apk
+          name: Couteau-Suisse-V378-Autoradio
+          path: Couteau-Suisse-V378-Autoradio.apk
 
       - name: Commit APK
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add LATEST-APK.apk Couteau-Suisse-V371-Autoradio.apk
+          git add LATEST-APK.apk Couteau-Suisse-V378-Autoradio.apk
           if git diff --cached --quiet; then
             echo "APK already current"
           else
-            git commit -m "Construit l'APK autoradio V371"
+            git commit -m "Construit l'APK autoradio V378"
             git pull --rebase origin main
             git push
           fi
