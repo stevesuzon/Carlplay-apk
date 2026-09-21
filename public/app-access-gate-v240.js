@@ -91,6 +91,15 @@ function showIdentity(seed,initialMessage){
     }catch(e){m.classList.remove('ok');m.textContent=errorText(e);if(e&&e.error==='EMAIL_TROP_RAPIDE')startCooldown();else{b.textContent='CONFIRMER MON ADRESSE E-MAIL';cooldownUntil=0;ready()}}
   }
 }
+function showVerifiedBrowserEntry(seed){
+  seed=normalize(seed||{});
+  var d=shell('<h1>ACCÈS COUTEAU SUISSE</h1><div class="note gold">Nom, prénom et adresse e-mail</div><label>NOM *<input id="gateLastVerified" autocomplete="family-name" maxlength="80" readonly></label><label>PRÉNOM *<input id="gateFirstVerified" autocomplete="given-name" maxlength="80" readonly></label><label>ADRESSE E-MAIL *<input id="gateEmailVerified" type="email" readonly></label><button id="gateEnterVerified" class="blue">ENTRER DANS COUTEAU SUISSE</button><div class="note" style="margin-top:14px;border:2px solid #ffd43b;background:#2d2600;color:#fff">📻 <b>INSTALLER SUR L’AUTORADIO</b><br><br><b>1.</b> Sur l’autoradio, ouvrez <b>Google / Chrome</b> et écrivez :<br><b style="display:block;margin:7px 0;font-size:17px;color:#ffd43b;overflow-wrap:anywhere">carplay-telephone.appli-suzon.workers.dev</b><b>2.</b> Appuyez sur <b>TÉLÉCHARGER POUR AUTORADIO</b> ci-dessous.<br><br><b>3.</b> Une fois téléchargé, ouvrez <b>Chrome → Téléchargements</b> ou <b>Fichiers → Téléchargements</b>.<br><br><b>4.</b> Appuyez sur <b>Couteau-Suisse-Autoradio.apk</b>, puis sur <b>Installer</b>.<br><br>⚠️ Si Android le demande, autorisez <b>Installer des applications inconnues</b> pour Chrome ou Fichiers, puis revenez sur l’APK.</div><a class="gbtn yellow" href="/download-autoradio.apk" download="Couteau-Suisse-Autoradio.apk">📥 TÉLÉCHARGER POUR AUTORADIO</a><div class="small" style="margin-top:7px">Le téléchargement de l’APK autoradio reste disponible directement depuis cette page.</div>');
+  d.querySelector('#gateLastVerified').value=seed.lastName||'';
+  d.querySelector('#gateFirstVerified').value=seed.firstName||'';
+  d.querySelector('#gateEmailVerified').value=seed.email||'';
+  d.querySelector('#gateEnterVerified').onclick=function(){try{sessionStorage.setItem(HANDOFF,'1')}catch(_){};location.replace(finalSiteUrl())};
+  return d
+}
 function cleanConfirmationUrl(){try{var u=new URL(location.href);u.searchParams.delete('email_confirmed');u.searchParams.delete('email_handoff');history.replaceState(null,'',u.pathname+(u.search?u.search:'')+(u.hash||''))}catch(_){}}
 async function handleEmailConfirmation(){
   var u;try{u=new URL(location.href)}catch(_){return null}var state=u.searchParams.get('email_confirmed');if(!state)return null;
@@ -104,9 +113,21 @@ async function handleEmailConfirmation(){
 function clearIncompleteLegacyIdentity(){try{var a=normalize(readJson(KEY)),p=normalize(readJson(PROFILE)),s=normalize(readJson(SUB));if(!complete(a))localStorage.removeItem(KEY);if(!validEmail(p.email)){var rp=readJson(PROFILE)||{};delete rp.email;localStorage.setItem(PROFILE,JSON.stringify(rp))}if(!validEmail(s.email)){var rs=readJson(SUB)||{};delete rs.email;localStorage.setItem(SUB,JSON.stringify(rs))}var re=email(localStorage.getItem('carplay_recovery_email')||'');if(re&&!validEmail(re))localStorage.removeItem('carplay_recovery_email')}catch(_){} }
 async function boot(){
   clearIncompleteLegacyIdentity();var confirmation=await handleEmailConfirmation();if(confirmation&&confirmation.ok)return;var x=candidate();
-  // V309 : dès qu'un compte est déjà confirmé, ancien OU nouveau, on ouvre directement le site.
-  // Le formulaire ne doit servir qu'une seule fois : avant la première confirmation e-mail.
-  // On vérifie donc l'identité AVANT d'afficher l'aide d'installation ou le formulaire.
+  // V372 : un accès direct depuis Google/Chrome affiche toujours le formulaire d'accès.
+  // Si le compte est déjà confirmé, on affiche les coordonnées préremplies + le bouton
+  // d'entrée + les instructions de téléchargement de l'autoradio, sans renvoyer d'e-mail.
+  if(!installed()&&!browserHandoff()){
+    if(complete(x)){
+      var bst=await verifiedStatus(x);
+      if(bst&&bst.verified){
+        var bid=persist(bst.identity||x);markVerified(bid,bst.verifiedAt||Date.now());persistSubscription(bst.subscription,bid);
+        showVerifiedBrowserEntry(bid);return
+      }
+      if(bst&&bst.networkError&&markerMatches(x)){showVerifiedBrowserEntry(persist(x));return}
+    }
+    showIdentity(x,'🔐 Pour accéder à Couteau Suisse depuis Google ou Chrome, renseignez d’abord votre nom, prénom et adresse e-mail.');return
+  }
+  // Dans l’application installée, un compte déjà confirmé ouvre directement l’application.
   if(complete(x)){
     var st=await verifiedStatus(x);
     if(st&&st.verified){var id=persist(st.identity||x);markVerified(id,st.verifiedAt||Date.now());persistSubscription(st.subscription,id);stopVerificationWatch();removeGate();cleanConfirmationUrl();return}
@@ -122,7 +143,6 @@ async function boot(){
   // le formulaire Nom + Prénom + E-mail reste obligatoire avant l'ouverture de Couteau Suisse.
   // L'aide d'installation reste accessible depuis /installer.html, mais elle ne permet plus
   // de contourner l'identification du compte.
-  if(!installed()&&!browserHandoff()){showIdentity(x,'🔐 Pour accéder à Couteau Suisse depuis Google ou un lien direct, renseignez d’abord votre nom, prénom et adresse e-mail.');return}
   if(complete(x)){
     showIdentity(x,onboardingIdentity()?'✉️ Confirmez votre adresse e-mail pour terminer votre inscription.':'✉️ Confirmez votre adresse e-mail pour continuer.');return
   }
