@@ -43,12 +43,12 @@
 <div id="photoModal" class="photo-modal" role="dialog" aria-modal="true" aria-label="Photo agrandie du marché">
   <div class="photo-box"><button id="photoClose" class="photo-close" type="button" aria-label="Fermer">×</button><img id="photoLarge" alt=""></div>
 </div>
-<!-- V335 : données 80 km chargées par petits fichiers selon « Retourner sur la place ». -->
+<!-- V369 : données 150 km chargées par petits fichiers selon « Retourner sur la place ». -->
 <script>
 (() => {
   'use strict';
-  const requestedRadius=Number(new URLSearchParams(location.search).get('radius')||80);
-  const LIMIT_KM = requestedRadius===150?150:80;
+  const requestedRadius=Number(new URLSearchParams(location.search).get('radius')||150);
+  const LIMIT_KM = requestedRadius===80?80:150;
   const DAYS = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
   let viewDate = new Date();
   let showTomorrow = viewDate.getHours() >= 15;
