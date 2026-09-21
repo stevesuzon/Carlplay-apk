@@ -1,7 +1,7 @@
 {
-  "versionCode": 371,
-  "versionName": "V371-Autoradio",
-  "webRevision": "371-light-1",
+  "versionCode": 378,
+  "versionName": "V378-Autoradio",
+  "webRevision": "378-autoradio-home-150",
   "checkEveryHours": 5,
   "download": "/download-autoradio.apk"
 }
