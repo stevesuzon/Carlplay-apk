@@ -1,0 +1,22 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'fr.suzon.couteausuisse.autoradio'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'fr.suzon.couteausuisse.autoradio'
+        minSdk 21
+        targetSdk 35
+        versionCode 367
+        versionName 'V367-Autoradio'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
