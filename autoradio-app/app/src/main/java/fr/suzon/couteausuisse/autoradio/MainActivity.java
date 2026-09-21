@@ -177,7 +177,7 @@ public class MainActivity extends Activity {
                 "}catch(e){}" +
                 "}" +
                 "function autoradioUpdateCheck(force){" +
-                "try{var k='autoradio_update_check_v371',last=Number(localStorage.getItem(k)||0),now=Date.now();if(!force&&now-last<18000000)return;localStorage.setItem(k,String(now));fetch('/autoradio-version.json?_='+now,{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j)return;var old=localStorage.getItem('autoradio_web_revision_v371')||'';var rev=String(j.webRevision||j.versionCode||'');localStorage.setItem('autoradio_web_revision_v371',rev);if(force||(old&&old!==rev)){location.replace('/?autoradio_maj='+now)}}).catch(function(){})}catch(e){}" +
+                "try{var k='autoradio_update_check_v371',last=Number(localStorage.getItem(k)||0),now=Date.now();if(!force&&now-last<18000000)return;localStorage.setItem(k,String(now));fetch('/autoradio-version.json?_='+now,{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j)return;var old=localStorage.getItem('autoradio_web_revision_v371')||'';var rev=String(j.webRevision||j.versionCode||'');localStorage.setItem('autoradio_web_revision_v371',rev);if(force||(old&&old!==rev)){try{localStorage.setItem('autoradio_update_notice_v376','La mise à jour de Couteau Suisse Autoradio a été appliquée.')}catch(_){}location.replace('/?autoradio_maj='+now)}}).catch(function(){})}catch(e){}" +
                 "}" +
                 "window.autoradioForceUpdate=function(){autoradioUpdateCheck(true)};" +
                 "if(typeof window.forceAppUpdate==='function')window.forceAppUpdate=window.autoradioForceUpdate;" +
