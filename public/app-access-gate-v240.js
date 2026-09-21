@@ -113,36 +113,38 @@ async function handleEmailConfirmation(){
 function clearIncompleteLegacyIdentity(){try{var a=normalize(readJson(KEY)),p=normalize(readJson(PROFILE)),s=normalize(readJson(SUB));if(!complete(a))localStorage.removeItem(KEY);if(!validEmail(p.email)){var rp=readJson(PROFILE)||{};delete rp.email;localStorage.setItem(PROFILE,JSON.stringify(rp))}if(!validEmail(s.email)){var rs=readJson(SUB)||{};delete rs.email;localStorage.setItem(SUB,JSON.stringify(rs))}var re=email(localStorage.getItem('carplay_recovery_email')||'');if(re&&!validEmail(re))localStorage.removeItem('carplay_recovery_email')}catch(_){} }
 async function boot(){
   clearIncompleteLegacyIdentity();var confirmation=await handleEmailConfirmation();if(confirmation&&confirmation.ok)return;var x=candidate();
-  // V372 : un accès direct depuis Google/Chrome affiche toujours le formulaire d'accès.
-  // Si le compte est déjà confirmé, on affiche les coordonnées préremplies + le bouton
-  // d'entrée + les instructions de téléchargement de l'autoradio, sans renvoyer d'e-mail.
-  if(!installed()&&!browserHandoff()){
-    if(complete(x)){
-      var bst=await verifiedStatus(x);
-      if(bst&&bst.verified){
-        var bid=persist(bst.identity||x);markVerified(bid,bst.verifiedAt||Date.now());persistSubscription(bst.subscription,bid);
-        showVerifiedBrowserEntry(bid);return
-      }
-      if(bst&&bst.networkError&&markerMatches(x)){showVerifiedBrowserEntry(persist(x));return}
-    }
-    showIdentity(x,'🔐 Pour accéder à Couteau Suisse depuis Google ou Chrome, renseignez d’abord votre nom, prénom et adresse e-mail.');return
-  }
-  // Dans l’application installée, un compte déjà confirmé ouvre directement l’application.
+
+  // V373 : l'accès dépend de CET appareil / CE navigateur.
+  // Un compte déjà confirmé sur cet appareil entre directement.
+  // Un autre appareil (ex. nouvel autoradio) sans identité locale affiche le formulaire.
   if(complete(x)){
     var st=await verifiedStatus(x);
-    if(st&&st.verified){var id=persist(st.identity||x);markVerified(id,st.verifiedAt||Date.now());persistSubscription(st.subscription,id);stopVerificationWatch();removeGate();cleanConfirmationUrl();return}
+    if(st&&st.verified){
+      var id=persist(st.identity||x);markVerified(id,st.verifiedAt||Date.now());persistSubscription(st.subscription,id);
+      stopVerificationWatch();removeGate();cleanConfirmationUrl();return
+    }
     if(st&&st.networkError&&markerMatches(x)){persist(x);removeGate();return}
   }
+
   // Si le lien e-mail a bien validé le compte côté serveur mais que le retour Safari/PWA
   // a perdu le handoff, une dernière vérification évite de renvoyer le formulaire en boucle.
   if(confirmation&&confirmation.error&&complete(x)){
-    var after=await verifiedStatus(x);if(after&&after.verified){var aid=persist(after.identity||x);markVerified(aid,after.verifiedAt||Date.now());persistSubscription(after.subscription,aid);stopVerificationWatch();removeGate();toast('✅ Adresse e-mail confirmée. Bienvenue dans Couteau Suisse !');setTimeout(function(){location.replace(finalSiteUrl())},180);return}
+    var after=await verifiedStatus(x);
+    if(after&&after.verified){
+      var aid=persist(after.identity||x);markVerified(aid,after.verifiedAt||Date.now());persistSubscription(after.subscription,aid);
+      stopVerificationWatch();removeGate();toast('✅ Adresse e-mail confirmée. Bienvenue dans Couteau Suisse !');
+      setTimeout(function(){location.replace(finalSiteUrl())},180);return
+    }
   }
+
   if(confirmation&&confirmation.error){showIdentity(x,confirmation.error);return}
-  // V367 : même si la personne arrive directement depuis Google/Chrome ou avec le lien du site,
-  // le formulaire Nom + Prénom + E-mail reste obligatoire avant l'ouverture de Couteau Suisse.
-  // L'aide d'installation reste accessible depuis /installer.html, mais elle ne permet plus
-  // de contourner l'identification du compte.
+
+  // Nouveau téléphone / nouvel autoradio / nouveau navigateur :
+  // le formulaire s'affiche avant toute entrée et contient aussi le téléchargement autoradio.
+  if(!installed()&&!browserHandoff()){
+    showIdentity(x,'🔐 Cet appareil n’est pas encore relié à votre compte. Renseignez votre nom, prénom et adresse e-mail pour continuer.');return
+  }
+
   if(complete(x)){
     showIdentity(x,onboardingIdentity()?'✉️ Confirmez votre adresse e-mail pour terminer votre inscription.':'✉️ Confirmez votre adresse e-mail pour continuer.');return
   }
