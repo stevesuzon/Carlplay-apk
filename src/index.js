@@ -489,6 +489,22 @@ function subscriptionIdentityKey(value){
   return String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
 }
 
+async function verifiedIdentityCanReplaceSubscriptionDevice(env,deviceId,row,email,firstName,lastName){
+  try{
+    if(!validDevice(deviceId)||!row||!validEmail(email))return false;
+    await ensureAppIdentityTables(env);
+    const ai=await env.DB.prepare("SELECT email,first_name,last_name,email_verified_at FROM app_identities WHERE device_id=? AND lower(email)=? AND email_verified_at>0 ORDER BY updated_at DESC LIMIT 1")
+      .bind(deviceId,normalizeEmail(email)).first();
+    if(!ai)return false;
+    const aiFirst=String(ai.first_name||"").trim(),aiLast=String(ai.last_name||"").trim();
+    const rowFirst=String(row.account_first_name||firstName||"").trim(),rowLast=String(row.account_last_name||lastName||"").trim();
+    if(rowFirst&&rowLast&&(subscriptionIdentityKey(rowFirst)!==subscriptionIdentityKey(aiFirst)||subscriptionIdentityKey(rowLast)!==subscriptionIdentityKey(aiLast)))return false;
+    const stored=normalizeEmail(row.recovery_email_mask||"");
+    if(validEmail(stored)&&!stored.includes("***")&&stored!==normalizeEmail(email))return false;
+    return true;
+  }catch(_){return false}
+}
+
 async function activate(request, env) {
   await ensureSubscriptionEmailColumns(env);
   const data = await body(request);
@@ -527,7 +543,10 @@ async function activate(request, env) {
     if (candidates) {
       const account = candidates;
       const occupiedDevice = type === "autoradio" ? String(account.autoradio_device || "") : String(account.phone_device || "");
-      if (occupiedDevice && occupiedDevice !== deviceId) return json({ok:false,error:"APPAREIL_DEJA_UTILISE"},409);
+      if (occupiedDevice && occupiedDevice !== deviceId) {
+        const canReplace=await verifiedIdentityCanReplaceSubscriptionDevice(env,deviceId,account,email,firstName,lastName);
+        if(!canReplace)return json({ok:false,error:"APPAREIL_DEJA_UTILISE"},409);
+      }
       const storedEmail = String(account.recovery_email_hash || "");
       const storedFirst = String(account.account_first_name || "");
       const storedLast = String(account.account_last_name || "");
@@ -576,7 +595,10 @@ async function activate(request, env) {
   // Un abonnement accepte un seul téléphone et un seul autoradio. Le même code
   // ne peut pas remplacer silencieusement l'un de ces deux appareils.
   const occupiedDevice = type === "autoradio" ? String(row.autoradio_device || "") : String(row.phone_device || "");
-  if (occupiedDevice && occupiedDevice !== deviceId) return json({ok:false,error:"APPAREIL_DEJA_UTILISE"},409);
+  if (occupiedDevice && occupiedDevice !== deviceId) {
+    const canReplace=await verifiedIdentityCanReplaceSubscriptionDevice(env,deviceId,row,email,firstName,lastName);
+    if(!canReplace)return json({ok:false,error:"APPAREIL_DEJA_UTILISE"},409);
+  }
   if (!row.lifetime && (!row.expires_at || Date.parse(row.expires_at) <= now)) return json({ok:false,error:"ABONNEMENT_EXPIRE"},403);
   const storedEmail = String(row.recovery_email_hash || "");
   const storedFirst = String(row.account_first_name || "");
