@@ -1,4 +1,4 @@
 {
-  "version": "334",
-  "message": "V334 : recherche automatique douce des marchés, foires, brocantes et braderies, une seule page source par heure pour limiter le CPU Cloudflare. Bouton Stations 15 km plus haut, moins large et séparé du bouton Réglages."
+  "version": "335",
+  "message": "V335 : Marchés à moins de 80 km calculés uniquement depuis la position « Retourner sur la place ». Chargement par petites zones géographiques pour éviter le blocage de l’application."
 }

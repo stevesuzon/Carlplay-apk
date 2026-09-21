@@ -39,39 +39,7 @@
 <div id="photoModal" class="photo-modal" role="dialog" aria-modal="true" aria-label="Photo agrandie du marché">
   <div class="photo-box"><button id="photoClose" class="photo-close" type="button" aria-label="Fermer">×</button><img id="photoLarge" alt=""></div>
 </div>
-<script src="market-data-fr.js?v=20260905-unified"></script>
-<script src="markets-44-complete.js?v=20260902-complet"></script>
-<script src="markets-france-national.js?v=20260902-national"></script>
-<script src="markets-missing-v97.js?v=20260902"></script>
-<script src="markets-missing-v100.js?v=20260902"></script>
-<script src="markets-missing-v101.js?v=20260902"></script>
-<script src="markets-missing-v102.js?v=20260902"></script>
-<script src="markets-missing-v103.js?v=20260902"></script>
-<script src="markets-missing-v104.js?v=20260902"></script>
-<script src="markets-france-update-v139.js?v=139"></script>
-<script src="markets-france-osm-v139.js?v=139"></script>
-<script src="markets-35-corrections-v142.js?v=142"></script>
-<script src="markets-35-missing-v143.js?v=143"></script>
-<script>window.NEAR_FR = Array.isArray(window.data) ? window.data.slice() : []; window.SPECIAL_FR = window.NEAR_FR.slice();</script>
-<script src="market-data-be.js?v=20260905-80fix-indexes"></script>
-<script>window.NEAR_BE = Array.isArray(window.data) ? window.data.slice() : []; window.SPECIAL_BE = window.NEAR_BE.slice();</script>
-<script src="brocante-crosscheck-v316.js?v=316"></script>
-<script>
-(function(){
-  function n(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()}
-  function merge(base,extra){var seen=new Set((base||[]).map(function(r){return n([r[0],r[1],r[2],r[3],r[4],r[8]||''].join('|'))}));(extra||[]).forEach(function(r){var k=n([r[0],r[1],r[2],r[3],r[4],r[8]||''].join('|'));if(!seen.has(k)){seen.add(k);base.push(r)}});return base}
-  window.SPECIAL_FR=merge(window.SPECIAL_FR||[],window.CROSS_BROCANTE_FR||[]);
-  window.SPECIAL_BE=merge(window.SPECIAL_BE||[],window.CROSS_BROCANTE_BE||[]);
-  try{
-    var live=JSON.parse(localStorage.getItem('server_markets')||'[]');
-    if(Array.isArray(live)) live.forEach(function(m){
-      var row=[m.area||'',m.kind||'marche',m.name||'Marché',m.city||'',m.date_label||m.day||'',m.hours||'',m.note||m.kind||'',m.merchants||'',m.address||m.city||'',m.source_url?[m.source_url]:[],m.latitude==null?null:m.latitude,m.longitude==null?null:m.longitude,m.draw||'',m.registration||'','',''];
-      if(String(m.country||'FR').toUpperCase()==='BE') window.SPECIAL_BE=merge(window.SPECIAL_BE,[row]); else window.SPECIAL_FR=merge(window.SPECIAL_FR,[row]);
-    });
-  }catch(_){ }
-})();
-</script>
-<script src="market-weekly-filter.js?v=20260905-80fix"></script>
+<!-- V335 : données 80 km chargées par petits fichiers selon « Retourner sur la place ». -->
 <script>
 (() => {
   'use strict';
@@ -114,6 +82,52 @@
   const isFavorite = (country,row) => { try { return localStorage.getItem(favoriteKey(country,row))==='1'; } catch(e){ return false; } };
   const esc = v => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const distanceKm = (a,b,c,d) => { const R=6371,p=Math.PI/180,da=(c-a)*p,db=(d-b)*p,x=Math.sin(da/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(db/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
+
+  // V335 — La page 80 km utilise EXCLUSIVEMENT le point enregistré par « Retourner sur la place ».
+  // Elle ne charge plus les ~8 Mo de bases France/Belgique au démarrage : seulement les zones géographiques utiles.
+  window.NEAR_FR=[]; window.NEAR_BE=[]; window.SPECIAL_FR=[]; window.SPECIAL_BE=[];
+  function nearestPointToBox(lat,lon,b){
+    return {lat:Math.max(Number(b.minLat),Math.min(lat,Number(b.maxLat))),lon:Math.max(Number(b.minLon),Math.min(lon,Number(b.maxLon)))};
+  }
+  function mergeRows(target,rows){
+    const seen=new Set((target||[]).map(r=>[r?.[0],r?.[1],r?.[2],r?.[3],r?.[4],r?.[8]||''].join('|').toLowerCase()));
+    for(const r of (rows||[])){const k=[r?.[0],r?.[1],r?.[2],r?.[3],r?.[4],r?.[8]||''].join('|').toLowerCase();if(!seen.has(k)){seen.add(k);target.push(r)}}
+  }
+  function addServerMarketsFromCache(lat,lon){
+    try{
+      const live=JSON.parse(localStorage.getItem('server_markets')||'[]');
+      if(!Array.isArray(live))return;
+      for(const m of live){
+        const la=Number(m.latitude),lo=Number(m.longitude);if(!Number.isFinite(la)||!Number.isFinite(lo)||distanceKm(lat,lon,la,lo)>LIMIT_KM+15)continue;
+        const row=[m.area||'',m.kind||'marche',m.name||'Marché',m.city||'',m.date_label||m.day||'',m.hours||'',m.note||m.kind||'',m.merchants||'',m.address||m.city||'',m.source_url?[m.source_url]:[],la,lo,m.draw||'',m.registration||'','',''];
+        const country=String(m.country||'FR').toUpperCase()==='BE'?'be':'fr';
+        const blob=norm([row[1],row[2],row[4],row[6],row[8]].join(' '));
+        const regular=String(row[1]||'').toLowerCase()==='marche'&&!/producteur|producteurs|producent|producenten|paysan|paysans|boerenmarkt|vente directe/.test(blob)&&!/mensuel|trimestriel|bimensuel|une semaine sur deux|toutes les 2 semaines|saisonnier|marche d ete/.test(blob);
+        if(regular)mergeRows(country==='be'?window.NEAR_BE:window.NEAR_FR,[row]);
+        mergeRows(country==='be'?window.SPECIAL_BE:window.SPECIAL_FR,[row]);
+      }
+    }catch(_){ }
+  }
+  async function loadNearbyShards(lat,lon){
+    window.NEAR_FR=[];window.NEAR_BE=[];window.SPECIAL_FR=[];window.SPECIAL_BE=[];
+    const indexResponse=await fetch('/nearby-shards/index.json?v=335',{cache:'force-cache'});
+    if(!indexResponse.ok)throw new Error('INDEX_80KM');
+    const index=await indexResponse.json();
+    const candidates=(index.areas||[]).filter(a=>{
+      const p=nearestPointToBox(lat,lon,a);return distanceKm(lat,lon,p.lat,p.lon)<=LIMIT_KM+15;
+    });
+    status.textContent='Position « Retourner sur la place » trouvée — chargement de '+candidates.length+' zone'+(candidates.length>1?'s':'')+' proche'+(candidates.length>1?'s':'')+'…';
+    const chunks=await Promise.all(candidates.map(async a=>{
+      try{const r=await fetch('/nearby-shards/'+a.file+'?v=335',{cache:'force-cache'});return r.ok?await r.json():null}catch(_){return null}
+    }));
+    for(let i=0;i<chunks.length;i++){
+      const a=candidates[i],j=chunks[i];if(!j)continue;
+      const weekly=a.country==='be'?window.NEAR_BE:window.NEAR_FR;
+      const special=a.country==='be'?window.SPECIAL_BE:window.SPECIAL_FR;
+      mergeRows(weekly,j.weekly||[]);mergeRows(special,j.special||[]);
+    }
+    addServerMarketsFromCache(lat,lon);
+  }
   const isToday = row => {
     const value=norm(row?.[4]);
     if(!value || value.includes('non publie') || value.includes('a verifier')) return false;
@@ -359,18 +373,14 @@
 
   async function start(){
     heading.textContent='📍 À MOINS DE 80 KM — MARCHÉS + ÉVÉNEMENTS';
-    status.textContent=(showTomorrow?'Demain : ':'Aujourd’hui : ')+selectedDay+' — marchés du jour + événements des 7 prochains jours…';
+    status.textContent='Calcul depuis « Retourner sur la place » — '+(showTomorrow?'demain : ':'aujourd’hui : ')+selectedDay+'…';
     try{
-      let lat=userLat, lon=userLon;
+      const lat=userLat, lon=userLon;
       if(!Number.isFinite(lat)||!Number.isFinite(lon)){
-        const live=await currentPosition();
-        lat=live&&Number.isFinite(live.lat)?live.lat:NaN;
-        lon=live&&Number.isFinite(live.lon)?live.lon:NaN;
-      }
-      if(!Number.isFinite(lat)||!Number.isFinite(lon)){
-        status.textContent='Position introuvable. Enregistre d’abord « Retourner sur la place » ou autorise le GPS.';
+        status.textContent='Aucune position « Retourner sur la place » enregistrée. Enregistre d’abord ta place depuis l’accueil.';
         return;
       }
+      await loadNearbyShards(lat,lon);
       await loadDisabledKeys();
       const todayRows=rowsForToday();
       const nearby=keepWithin80(todayRows,lat,lon);

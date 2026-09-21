@@ -1553,7 +1553,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
   btn.addEventListener('click',function(){
     var lat=localStorage.getItem('return_lat'),lon=localStorage.getItem('return_lon');
     if(!lat||!lon){alert('Enregistre d’abord ta position avec « Retourner sur la place ».');return;}
-    location.href='nearby-markets.html';
+    location.href='nearby-markets.html?v=335';
   });
 })();
 </script>
