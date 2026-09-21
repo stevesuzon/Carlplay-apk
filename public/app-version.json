@@ -1,4 +1,4 @@
 {
-  "version": "331",
-  "message": "Stations GPL : seule la mention GPL change de couleur. GPL 24/24 ou avis Gentil = vert, Arrangeant = neutre, Pas la peine d’y aller = rouge. Étoile = favori. Vérification GPL avec Arrangeant / Gentil / Pas la peine d’y aller et Cigarettes Oui/Non."
+  "version": "332",
+  "message": "Optimisation Cloudflare : les pages, scripts, images et CSS statiques ne passent plus par le Worker. Le traitement automatique lourd des marchés est mis en sécurité sur le forfait gratuit pour éviter les dépassements CPU."
 }

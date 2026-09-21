@@ -3842,7 +3842,13 @@ async function submitFuelStationVerification(request, env) {
 }
 
 export default {
-  async scheduled(controller, env, ctx) { ctx.waitUntil(runIncrementalMarketRefresh(env)); },
+  async scheduled(controller, env, ctx) {
+    // V332 : le forfait Workers Free limite aussi les Cron Triggers à 10 ms de CPU.
+    // Le scraping Jours-de-Marché/Brocabrac parse plusieurs grosses pages HTML et peut dépasser
+    // cette limite. Il reste disponible, mais n’est lancé que si MARKET_AUTO_REFRESH=1 est défini.
+    if (String(env.MARKET_AUTO_REFRESH || "0") !== "1") return;
+    ctx.waitUntil(runIncrementalMarketRefresh(env));
+  },
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
