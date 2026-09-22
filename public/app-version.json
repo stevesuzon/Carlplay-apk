@@ -1,4 +1,4 @@
 {
-  "version": "V394",
-  "message": "V394 : correction de l’appui long sur iPhone. Les fiches marchés, brocantes, Noël, voyageurs et stations utilisent maintenant un vrai gestionnaire tactile de 1,20 seconde."
+  "version": "V395",
+  "message": "V395 : correction iPhone de la lecture des fiches. Maintenez 1,20 seconde puis relâchez : la lecture démarre directement au relâchement, ce qui évite le blocage de Safari."
 }
