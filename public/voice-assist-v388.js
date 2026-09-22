@@ -3,6 +3,13 @@
   var KEY='carplay_voice_enabled_v387';
   var PRESS_MS=1200;
   var active=null,timer=0,startX=0,startY=0,fired=false;
+  function installNoSelectV389(){
+    if(document.getElementById('carplayVoiceNoSelectV389'))return;
+    var st=document.createElement('style');
+    st.id='carplayVoiceNoSelectV389';
+    st.textContent='.carplayVoiceEnabled [data-voice-card],.carplayVoiceEnabled [data-voice-card] *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}.carplayVoiceEnabled [data-voice-card]{touch-action:pan-y}';
+    (document.head||document.documentElement).appendChild(st);
+  }
   function enabled(){try{return localStorage.getItem(KEY)==='1'}catch(_){return false}}
   function setEnabled(on){try{localStorage.setItem(KEY,on?'1':'0')}catch(_){}syncSetting();try{window.dispatchEvent(new CustomEvent('carplay-voice-change',{detail:{enabled:!!on}}))}catch(_){}}
   function clean(s){return String(s||'').replace(/\s+/g,' ').trim()}
@@ -95,12 +102,16 @@
   function end(){clearTimeout(timer);timer=0;active=null;setTimeout(function(){fired=false},80)}
   function syncSetting(){
     var t=document.getElementById('voiceAssistToggle'),s=document.getElementById('voiceAssistStatus'),on=enabled();
+    document.documentElement.classList.toggle('carplayVoiceEnabled',on);
     if(t)t.checked=on;
     if(s)s.textContent=on?'🔊 Voix activée — appui long 1,20 seconde au milieu d’une fiche.':'🔇 Voix désactivée.';
   }
   function initSetting(){
     syncSetting();var t=document.getElementById('voiceAssistToggle');if(t&&!t.dataset.voiceWired){t.dataset.voiceWired='1';t.addEventListener('change',function(){setEnabled(t.checked);if(t.checked)speak('Lecture vocale activée.')})}
   }
+  installNoSelectV389();
+  document.addEventListener('selectstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card]'))e.preventDefault()},true);
+  document.addEventListener('dragstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card]'))e.preventDefault()},true);
   document.addEventListener('pointerdown',begin,true);document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',cancel,true);
   document.addEventListener('contextmenu',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card]')&&!e.target.closest('a,button,input,select,textarea,label'))e.preventDefault()},true);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSetting);else initSetting();
