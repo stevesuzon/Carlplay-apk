@@ -1,4 +1,4 @@
 {
-  "version": "V389",
-  "message": "V389 : correction iPhone de l’appui long vocal. Quand la voix est activée, l’appui de 1,20 seconde sur une fiche ne sélectionne plus le texte et n’affiche plus Copier / Chercher / Traduire."
+  "version": "V390",
+  "message": "V390 : appui long 1,20 seconde sur les fiches et sur tous les boutons. Les boutons donnent une explication courte, par exemple Marchés : marchés, foires, Noël et brocantes. Correction iPhone conservée : pas de menu Copier / Chercher / Traduire pendant l’appui vocal."
 }
