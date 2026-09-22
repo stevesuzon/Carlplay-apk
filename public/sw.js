@@ -1,4 +1,4 @@
-const VERSION = "V363";
+const VERSION = "V364";
 const BASE_CACHE = "couteau-suisse-module-base-v335-nearby-return-place";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v310";
@@ -19,7 +19,7 @@ const MODULES={
  [ICON_CACHE]:["/manifest.webmanifest?v=283-icons","/couteau-suisse-v283-152.png?v=283","/couteau-suisse-v283-167.png?v=283","/couteau-suisse-v283-180.png?v=283","/couteau-suisse-v283-192.png?v=283","/couteau-suisse-v283-512.png?v=283","/couteau-suisse-v283-1024.png?v=283","/couteau-suisse-v283-maskable-192.png?v=283","/couteau-suisse-v283-maskable-512.png?v=283"],
  [CONTEST_CACHE]:["/contest-v188.js?v=310-admin-participe"],
  [ADMIN_CACHE]:["/admin.html","/contest-admin-v188.js?v=302-d1"],
- [DATA_CACHE]:["/persistent-user-data-v283.js?v=283"],
+ [DATA_CACHE]:["/persistent-user-data-v283.js?v=364-persist"],
  [INSTALL_CACHE]:["/installer.html","/visitor-register-v361.js","/app-access-gate-v240.js?v=309-confirmed-direct","/cache-cleanup-v20260910.js?v=283-modules"],
  [STATS_CACHE]:["/user-stats-v285.js?v=328-stations-verifiees"],
  [MUSHROOM_CACHE]:["/champignons.html","/champignons.js?v=300-concours-auto","/champignons.css?v=300-concours-auto"],
