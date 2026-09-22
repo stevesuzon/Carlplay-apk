@@ -1300,23 +1300,68 @@ Si Android le demande, autorise l’installation d’applications provenant de c
   </div>
 </div>
 <script>window.updateNetworkStatus=function(){let ok=false;try{ok=window.AndroidStatus?AndroidStatus.hasInternet():navigator.onLine}catch(e){ok=navigator.onLine}network.textContent=ok?'Internet disponible':'Réseau indisponible'};addEventListener('online',updateNetworkStatus);addEventListener('offline',updateNetworkStatus);setInterval(updateNetworkStatus,4000);updateNetworkStatus();function toggleSettings(){settings.classList.toggle('open');const open=settings.classList.contains('open');document.body.classList.toggle('settings-open',open);if(open&&window.CarPlayLocation)window.CarPlayLocation.refresh()}function toggleSection(id,btn){const b=document.getElementById(id),open=b.classList.contains('open');document.querySelectorAll('.settingBody').forEach(x=>x.classList.remove('open'));document.querySelectorAll('.settingHead span:last-child').forEach(x=>x.textContent='⌄');if(!open){b.classList.add('open');btn.querySelector('span:last-child').textContent='⌃'}}function saveGps(v){localStorage.setItem('gps_pref',v);refreshPrefs()}function refreshPrefs(){const g=localStorage.getItem('gps_pref')||'';gpsStatus.textContent=g?'GPS choisi : '+g:'Aucun GPS choisi';gpsWaze.classList.toggle('selected',g==='Waze');gpsGoogle.classList.toggle('selected',g==='Google Maps')}async function _returnPlaceAddress(lat,lon){try{const r=await fetch('/api/place-address?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{cache:'no-store'}),j=await r.json();if(r.ok&&j&&j.address)return String(j.address)}catch(e){}return 'Emplacement enregistré'}async function returnPlace(){let a=localStorage.getItem('return_lat'),o=localStorage.getItem('return_lon');if(!a||!o){if(!navigator.geolocation)return alert('GPS indisponible');navigator.geolocation.getCurrentPosition(async p=>{const lat=p.coords.latitude,lon=p.coords.longitude,address=await _returnPlaceAddress(lat,lon);if(!confirm('Êtes-vous sûr de vouloir enregistrer cet emplacement comme votre place ?\n\n'+address))return;localStorage.setItem('return_lat',lat);localStorage.setItem('return_lon',lon);localStorage.setItem('return_address',address);showStatuses();window.dispatchEvent(new CustomEvent('carplay-return-place-saved',{detail:{lat:lat,lon:lon,address:address}}));alert('✅ Emplacement enregistré\n\n'+address)},e=>{var m=window.CarPlayLocation?window.CarPlayLocation.showHelp(e):'Activez la localisation.';alert(m)},{enableHighAccuracy:true,timeout:15000,maximumAge:0});return}let address=localStorage.getItem('return_address')||'';if(!address||address==='Emplacement enregistré'){address=await _returnPlaceAddress(a,o);localStorage.setItem('return_address',address)}if(!confirm('Êtes-vous sûr de vouloir retourner sur la place ?\n\n'+address))return;const q=a+','+o,pref=localStorage.getItem('gps_pref')||'Google Maps';location.href=pref==='Waze'?'https://waze.com/ul?ll='+encodeURIComponent(q)+'&navigate=yes':'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(q)+'&travelmode=driving&dir_action=navigate'}function clearReturnPlace(){localStorage.removeItem('return_lat');localStorage.removeItem('return_lon');localStorage.removeItem('return_address');showStatuses();alert('Emplacement de retour effacé.')}function showStatuses(){const a=localStorage.getItem('return_address')||'';returnStatus.textContent=localStorage.getItem('return_lat')?(a?'Place enregistrée : '+a:'Place enregistrée.') : ''}async function shareApp(){let u=(location.origin&&location.origin!=='null')?location.origin+'/installer.html':'https://carplay-telephone.appli-suzon.workers.dev/installer.html';try{if(window.CarPlayReferralShareLink)u=await window.CarPlayReferralShareLink()}catch(e){}const data={title:'Couteau Suisse',text:'Je te parraine sur Couteau Suisse. Ajoute l’application à ton écran d’accueil, ouvre-la depuis l’icône puis renseigne nom, prénom et e-mail. Tu recevras un e-mail pour activer tes 96 points. Moi, je gagne 320 points.',url:u};try{if(navigator.share){navigator.share(data).catch(function(e){if(e&&e.name==='AbortError')return;copyShareLink(u)});return}}catch(e){}copyShareLink(u)}function copyShareLink(u){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(function(){alert('Lien de l’application copié. Tu peux maintenant l’envoyer à ton ami.')}).catch(function(){prompt('Copie ce lien et envoie-le à ton ami :',u)});return}}catch(e){}prompt('Copie ce lien et envoie-le à ton ami :',u)}async function forceAppUpdate(){
-  if(window.__manualUpdateV301Running)return;
-  window.__manualUpdateV301Running=true;
-  var overlay=document.getElementById('manualUpdateV301');
+  if(window.__manualUpdateV368Running)return;
+  window.__manualUpdateV368Running=true;
+  var overlay=document.getElementById('manualUpdateV368');
   if(!overlay){
+    var st=document.getElementById('manualUpdateStyleV368');
+    if(!st){
+      st=document.createElement('style');
+      st.id='manualUpdateStyleV368';
+      st.textContent=
+        '#manualUpdateV368{position:fixed;inset:0;z-index:2147483647;background:#050a11;display:flex;align-items:center;justify-content:center;padding:18px;font-family:Arial,sans-serif;color:#fff}'+
+        '#manualUpdateV368 .muPanel{width:min(92vw,430px);display:flex;flex-direction:column;align-items:center;text-align:center;padding:20px}'+
+        '#manualUpdateV368 .muLogoBox{position:relative;width:min(48vw,220px);height:min(48vw,220px);display:flex;align-items:center;justify-content:center}'+
+        '#manualUpdateV368 .muLogo{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 9px 14px #0009)}'+
+        '#manualUpdateV368 .muSerpette{position:absolute;right:-3%;bottom:1%;width:48%;height:48%;overflow:visible;filter:drop-shadow(0 5px 5px #0008)}'+
+        '#manualUpdateV368 .muBlade{transform-box:fill-box;transform-origin:14% 86%;animation:muBladeOpenV368 1.05s ease-in-out infinite alternate}'+
+        '@keyframes muBladeOpenV368{0%{transform:rotate(17deg)}100%{transform:rotate(-48deg)}}'+
+        '#manualUpdateV368 .muTitle{margin-top:4px;font:950 clamp(27px,7vw,38px)/1 Arial,sans-serif;letter-spacing:.4px}'+
+        '#manualUpdateV368 .muLoading{margin-top:9px;color:#f4c35e;font:900 clamp(17px,4.4vw,21px)/1.1 Arial,sans-serif}'+
+        '#manualUpdateV368 .muStage{margin-top:10px;min-height:42px;display:flex;align-items:center;justify-content:center;font:850 16px/1.25 Arial,sans-serif;color:#fff}'+
+        '#manualUpdateV368 .muTrack{width:100%;height:17px;background:#263349;border-radius:999px;overflow:hidden;margin:13px 0 7px;border:1px solid rgba(255,255,255,.12)}'+
+        '#manualUpdateV368 .muBar{height:100%;width:0%;background:linear-gradient(90deg,#2f80ed,#35d06f);transition:width .28s ease}'+
+        '#manualUpdateV368 .muPct{font:950 30px/1 Arial,sans-serif}'+
+        '#manualUpdateV368 .muDetail{margin-top:9px;color:#c8d4e8;font:700 13px/1.4 Arial,sans-serif;min-height:36px}'+
+        '#manualUpdateV368 .muClose{display:none;margin-top:15px;width:100%;border:0;border-radius:14px;padding:13px;font-weight:900;font-size:16px;background:#35d06f;color:#06140b}'+
+        '@media(prefers-reduced-motion:reduce){#manualUpdateV368 .muBlade{animation-duration:1.8s}}';
+      document.head.appendChild(st);
+    }
     overlay=document.createElement('div');
-    overlay.id='manualUpdateV301';
+    overlay.id='manualUpdateV368';
     overlay.setAttribute('role','dialog');
     overlay.setAttribute('aria-modal','true');
-    overlay.style.cssText='position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:18px;font-family:Arial,sans-serif';
-    overlay.innerHTML='<div style="width:min(92vw,430px);background:#101827;border:1px solid rgba(255,255,255,.14);border-radius:24px;padding:22px;box-shadow:0 22px 70px rgba(0,0,0,.55);color:#fff;text-align:center"><div style="font-size:26px;font-weight:900;margin-bottom:8px">🔄 MISE À JOUR</div><div id="manualUpdateStageV301" style="font-size:17px;font-weight:800;min-height:46px;display:flex;align-items:center;justify-content:center">Préparation…</div><div style="height:20px;background:#263349;border-radius:999px;overflow:hidden;margin:14px 0 8px;border:1px solid rgba(255,255,255,.12)"><div id="manualUpdateBarV301" style="height:100%;width:0%;background:linear-gradient(90deg,#2f80ed,#35d06f);transition:width .28s ease"></div></div><div id="manualUpdatePctV301" style="font-size:30px;font-weight:900">0 %</div><div id="manualUpdateDetailV301" style="margin-top:9px;color:#c8d4e8;font-size:14px;line-height:1.4;min-height:40px">Aucune adresse, devis, photo ou donnée personnelle ne sera effacée.</div><button id="manualUpdateCloseV301" type="button" style="display:none;margin-top:16px;width:100%;border:0;border-radius:14px;padding:13px;font-weight:900;font-size:16px;background:#35d06f;color:#06140b">FERMER</button></div>';
+    overlay.innerHTML='<div class="muPanel">'+
+      '<div class="muLogoBox">'+
+        '<img class="muLogo" src="/couteau-suisse-192.png?v=368-update" alt="Couteau Suisse">'+
+        '<svg class="muSerpette" viewBox="0 0 120 120" aria-hidden="true">'+
+          '<rect x="18" y="82" width="63" height="24" rx="11" fill="#218c55" stroke="#0d5834" stroke-width="4"/>'+
+          '<text x="49" y="99" text-anchor="middle" font-family="Arial" font-size="13" font-weight="900" fill="#fff">SS</text>'+
+          '<g class="muBlade">'+
+            '<path d="M29 88 C34 59 58 21 105 15 C90 39 67 67 29 88 Z" fill="#eef2f5" stroke="#56636d" stroke-width="3"/>'+
+            '<path d="M38 78 C50 56 70 33 94 25" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>'+
+          '</g>'+
+          '<circle cx="29" cy="88" r="7" fill="#f1f3f5" stroke="#2e3942" stroke-width="3"/>'+
+          '<circle cx="29" cy="88" r="2.5" fill="#2e3942"/>'+
+        '</svg>'+
+      '</div>'+
+      '<div class="muTitle">COUTEAU SUISSE</div>'+
+      '<div id="manualUpdateLoadingV368" class="muLoading">Chargement…</div>'+
+      '<div id="manualUpdateStageV368" class="muStage">Préparation de la mise à jour…</div>'+
+      '<div class="muTrack"><div id="manualUpdateBarV368" class="muBar"></div></div>'+
+      '<div id="manualUpdatePctV368" class="muPct">0 %</div>'+
+      '<div id="manualUpdateDetailV368" class="muDetail">Vos données enregistrées restent conservées.</div>'+
+      '<button id="manualUpdateCloseV368" class="muClose" type="button">FERMER</button>'+
+    '</div>';
     document.body.appendChild(overlay);
   }else overlay.style.display='flex';
-  var stage=document.getElementById('manualUpdateStageV301'),bar=document.getElementById('manualUpdateBarV301'),pct=document.getElementById('manualUpdatePctV301'),detail=document.getElementById('manualUpdateDetailV301'),close=document.getElementById('manualUpdateCloseV301');
+  var stage=document.getElementById('manualUpdateStageV368'),bar=document.getElementById('manualUpdateBarV368'),pct=document.getElementById('manualUpdatePctV368'),detail=document.getElementById('manualUpdateDetailV368'),close=document.getElementById('manualUpdateCloseV368'),loading=document.getElementById('manualUpdateLoadingV368');
+  close.style.display='none';
   function setProgress(n,label,sub){n=Math.max(0,Math.min(100,Math.round(n)));bar.style.width=n+'%';pct.textContent=n+' %';if(label)stage.textContent=label;if(sub!==undefined)detail.textContent=sub}
   function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
-  async function check(url){var r=await fetch(url+(url.indexOf('?')>=0?'&':'?')+'_maj='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);return r}
+  async function check(url){var x=await fetch(url+(url.indexOf('?')>=0?'&':'?')+'_maj='+Date.now(),{cache:'no-store'});if(!x.ok)throw new Error('HTTP '+x.status);return x}
   try{
+    if(window.CouteauUserDataSafety&&typeof window.CouteauUserDataSafety.save==='function'){try{await window.CouteauUserDataSafety.save()}catch(_){}}
     if(!navigator.onLine)throw new Error('Pas de connexion Internet.');
     setProgress(3,'Connexion au serveur…','Recherche de la dernière version disponible.');
     var versionInfo=null;
@@ -1324,38 +1369,41 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     await sleep(120);
     setProgress(10,'Vérification de l’application…','Contrôle de la page d’accueil et des réglages.');
     await check('/index.html');
-    setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications de gains.');
-    await check('/contest-v188.js?v=310-admin-participe');
-    setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique, brocantes, Noël et marchés voyageurs.');
+    setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications.');
+    await check('/contest-v188.js?v=366-admin-fresh');
+    setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique et événements.');
     await Promise.allSettled([check('/marches-final.html'),check('/belgique-marches-final.html'),check('/special-marches.html?v=321'),check('/traveller-markets.html?v=320'),check('/verification-v9.html?v=320'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
     setProgress(48,'Vérification des champignons…','Contrôle des fiches Champignons et des coins enregistrés.');
     await Promise.allSettled([check('/champignons.html'),check('/champignons.js?v=300-concours-auto')]);
-    setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes à consulter.');
+    setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
     await Promise.allSettled([check('/notification-settings.js?v=282-onboarding-notification-detail'),check('/market-update-notifications-v281.js?v=282')]);
     setProgress(72,'Vérification du compte…','Contrôle de l’abonnement, de l’identité et des réglages.');
-    await Promise.allSettled([check('/subscription-web.js?v=313-classement-notifs'),check('/license-ui.js?v=194')]);
-    setProgress(82,'Recherche d’une nouvelle version…','Le service de mise à jour vérifie uniquement les modules nécessaires.');
+    await Promise.allSettled([check('/subscription-web.js?v=377-abonnement-fix'),check('/persistent-user-data-v283.js?v=364-persist')]);
+    setProgress(82,'Recherche de la nouvelle version…','Seuls les fichiers de l’application sont actualisés.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=330-gpl-favori-verif',{updateViaCache:'none'})]}catch(_){regs=[]}}
-      for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){ }
+      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=368-update-loader',{updateViaCache:'none'})]}catch(_){regs=[]}}
+      for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){}
       var reg=regs[0];
       if(reg&&reg.waiting){
-        setProgress(90,'Installation de la nouvelle version…','Activation des fichiers mis à jour.');
+        setProgress(90,'Installation…','Activation des nouveaux fichiers.');
         reg.waiting.postMessage({type:'SKIP_WAITING'});
         await Promise.race([new Promise(function(resolve){navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true})}),sleep(1800)]);
       }
     }
-    setProgress(96,'Finalisation…','Mise à jour des fichiers concernés sans effacer vos données.');
-    await sleep(180);
+    setProgress(96,'Finalisation…','Vos adresses, papiers, photos, positions et autres données restent conservés.');
+    await sleep(220);
     var ver=versionInfo&&versionInfo.version?String(versionInfo.version):'';
-    setProgress(100,'✅ MISE À JOUR TERMINÉE',ver?'Version '+ver+' vérifiée et prête.':'L’application est à jour.');
-    close.style.display='block';
-    close.onclick=function(){overlay.style.display='none';window.__manualUpdateV301Running=false;var u=new URL(location.href);u.searchParams.set('maj',Date.now());location.replace(u.toString())};
-    setTimeout(function(){if(overlay&&overlay.style.display!=='none')close.focus()},250);
+    if(loading)loading.textContent='Mise à jour terminée';
+    setProgress(100,'✅ PRÊT',ver?'Version '+ver+' installée.':'L’application est à jour.');
+    await sleep(650);
+    window.__manualUpdateV368Running=false;
+    var u=new URL(location.href);u.searchParams.set('maj',Date.now());location.replace(u.toString());
   }catch(e){
+    if(loading)loading.textContent='Mise à jour interrompue';
     setProgress(0,'⚠️ MISE À JOUR IMPOSSIBLE',e&&e.message?e.message:'Vérifiez votre connexion Internet puis réessayez.');
-    close.style.display='block';close.textContent='FERMER';close.onclick=function(){overlay.style.display='none';window.__manualUpdateV301Running=false};
+    close.style.display='block';
+    close.onclick=function(){overlay.style.display='none';window.__manualUpdateV368Running=false};
   }
 }function _addressBackupArray(key){try{var v=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(v)?v:[]}catch(e){return []}}
 function _addressBackupIdentity(x){if(!x||typeof x!=='object')return '';var pick=['id','type','documentFolder','firstName','lastName','name','phone','address','street','postalCode','postcode','city','department','province','country','createdAt','date'];return pick.map(function(k){var v=x[k];return v==null?'':String(v).trim().toLowerCase()}).join('|')}
