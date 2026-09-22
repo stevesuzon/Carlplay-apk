@@ -2,7 +2,7 @@
   'use strict';
   var KEY='carplay_voice_enabled_v387';
   var PRESS_MS=1200;
-  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null;
+  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false;
   function installNoSelectV389(){
     if(document.getElementById('carplayVoiceNoSelectV389'))return;
     var st=document.createElement('style');
@@ -148,16 +148,33 @@
     var target=eligibleTarget(e);
     if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
-    active=target;fired=false;startX=t.clientX;startY=t.clientY;clearTimeout(timer);
-    timer=setTimeout(function(){if(active)fireLongPress(active)},PRESS_MS);
+    active=target;fired=false;touchReadyV395=false;touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);
+    timer=setTimeout(function(){
+      if(active){
+        touchReadyV395=true;
+        toast('🔊 Relâchez pour écouter');
+      }
+    },PRESS_MS);
   }
   function touchMoveV394(e){
     if(!active)return;
-    var t=e.touches&&e.touches[0];if(!t){cancel();return}
+    var t=e.touches&&e.touches[0];if(!t){cancel();touchReadyV395=false;touchStartedAtV395=0;return}
     var dx=Math.abs(t.clientX-startX),dy=Math.abs(t.clientY-startY);
-    if(dx>28||dy>28)cancel();
+    if(dx>28||dy>28){cancel();touchReadyV395=false;touchStartedAtV395=0;}
   }
-  function touchEndV394(){clearTimeout(timer);timer=0;active=null;setTimeout(function(){fired=false},80)}
+  function touchEndV394(e){
+    var target=active;
+    var held=touchStartedAtV395?Date.now()-touchStartedAtV395:0;
+    clearTimeout(timer);timer=0;active=null;
+    if(target&&(touchReadyV395||held>=PRESS_MS)){
+      fired=true;
+      suppressClickTarget=target;
+      suppressClickUntil=Date.now()+1000;
+      speak(buildSpeech(target));
+    }
+    touchReadyV395=false;touchStartedAtV395=0;
+    setTimeout(function(){fired=false},80);
+  }
   function syncSetting(){
     var t=document.getElementById('voiceAssistToggle'),s=document.getElementById('voiceAssistStatus'),on=enabled();
     document.documentElement.classList.toggle('carplayVoiceEnabled',on);
