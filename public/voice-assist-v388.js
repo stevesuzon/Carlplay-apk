@@ -2,12 +2,12 @@
   'use strict';
   var KEY='carplay_voice_enabled_v387';
   var PRESS_MS=1200;
-  var active=null,timer=0,startX=0,startY=0,fired=false;
+  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0;
   function installNoSelectV389(){
     if(document.getElementById('carplayVoiceNoSelectV389'))return;
     var st=document.createElement('style');
     st.id='carplayVoiceNoSelectV389';
-    st.textContent='.carplayVoiceEnabled [data-voice-card],.carplayVoiceEnabled [data-voice-card] *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}.carplayVoiceEnabled [data-voice-card]{touch-action:pan-y}';
+    st.textContent='.carplayVoiceEnabled [data-voice-card],.carplayVoiceEnabled [data-voice-card] *,.carplayVoiceEnabled button,.carplayVoiceEnabled a,.carplayVoiceEnabled [onclick],.carplayVoiceEnabled [role="button"]{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}.carplayVoiceEnabled [data-voice-card]{touch-action:pan-y}';
     (document.head||document.documentElement).appendChild(st);
   }
   function enabled(){try{return localStorage.getItem(KEY)==='1'}catch(_){return false}}
@@ -66,7 +66,34 @@
     if(verified)parts.push('fiche vérifiée');
     return parts.join('. ')+'.';
   }
+  function buttonSpeech(el){
+    if(!el)return '';
+    var own=clean(el.getAttribute&&el.getAttribute('data-voice-help')||'');
+    if(own)return own;
+    var id=el.id||'';
+    var byId={
+      fuelStationsQuickBtn:'Stations : essence, gazole et GPL à moins de quinze kilomètres.',
+      contactMailButton:'Mail : envoyer un message.',
+      housePhotoButton:'Mesurer une maison : estimer les surfaces de la maison.',
+      nearby80Button:'Marchés à moins de cent cinquante kilomètres.',
+      homeAddressBookBtn:"Adresses : ouvrir le carnet d'adresses.",
+      locationPermissionBtn:'Localisation : activer la position GPS.'
+    };
+    if(byId[id])return byId[id];
+    if(el.classList&&el.classList.contains('gear'))return 'Réglages : ouvrir les réglages.';
+    if(el.matches&&el.matches('.card.blue'))return 'Marchés : marchés, foires, Noël et brocantes.';
+    if(el.matches&&el.matches('.directBtn.place'))return 'Mes papiers : ouvrir vos papiers.';
+    if(el.matches&&el.matches('.directBtn.docs'))return 'Démarches professionnelles : carte commerçant, assurance et K bis.';
+    if(el.matches&&el.matches('.returnPlaceTrafic'))return "Retourner sur la place : ouvrir l'emplacement enregistré.";
+    if(el.matches&&el.matches('.eraseTile'))return "Effacer emplacement : supprimer l'emplacement enregistré.";
+    var label=clean((el.getAttribute&&el.getAttribute('aria-label'))||(el.getAttribute&&el.getAttribute('title'))||el.innerText||el.textContent||'');
+    if(!label)return 'Bouton.';
+    if(label.length>120)label=label.slice(0,120);
+    return label+'.';
+  }
   function buildSpeech(card){
+    if(!card)return '';
+    if(!card.dataset.voiceCard)return buttonSpeech(card);
     if(card.dataset.voiceText)return clean(card.dataset.voiceText);
     var kind=card.dataset.voiceCard||'market';
     if(kind==='market')return buildMarket(card);
@@ -88,15 +115,16 @@
     }catch(_){toast('🔇 La voix ne fonctionne pas sur cet appareil.');return false}
   }
   function eligibleTarget(e){
-    if(!enabled())return null;
-    var card=e.target&&e.target.closest?e.target.closest('[data-voice-card]'):null;if(!card)return null;
-    if(e.target.closest('a,button,input,select,textarea,label'))return null;
-    return card;
+    if(!enabled()||!e.target||!e.target.closest)return null;
+    var clickable=e.target.closest('button,a,[onclick],[role="button"]');
+    if(clickable&&!clickable.matches('input,select,textarea,label'))return clickable;
+    var card=e.target.closest('[data-voice-card]');
+    return card||null;
   }
   function cancel(){clearTimeout(timer);timer=0;active=null;fired=false}
   function begin(e){
     var card=eligibleTarget(e);if(!card)return;active=card;fired=false;startX=Number(e.clientX||0);startY=Number(e.clientY||0);clearTimeout(timer);
-    timer=setTimeout(function(){if(!active)return;fired=true;try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}speak(buildSpeech(active));},PRESS_MS);
+    timer=setTimeout(function(){if(!active)return;fired=true;suppressClickTarget=active;suppressClickUntil=Date.now()+900;try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}speak(buildSpeech(active));},PRESS_MS);
   }
   function move(e){if(!active)return;var dx=Math.abs(Number(e.clientX||0)-startX),dy=Math.abs(Number(e.clientY||0)-startY);if(dx>14||dy>14)cancel()}
   function end(){clearTimeout(timer);timer=0;active=null;setTimeout(function(){fired=false},80)}
@@ -104,16 +132,21 @@
     var t=document.getElementById('voiceAssistToggle'),s=document.getElementById('voiceAssistStatus'),on=enabled();
     document.documentElement.classList.toggle('carplayVoiceEnabled',on);
     if(t)t.checked=on;
-    if(s)s.textContent=on?'🔊 Voix activée — appui long 1,20 seconde au milieu d’une fiche.':'🔇 Voix désactivée.';
+    if(s)s.textContent=on?'🔊 Voix activée — appui long 1,20 seconde sur une fiche ou un bouton.':'🔇 Voix désactivée.';
   }
   function initSetting(){
     syncSetting();var t=document.getElementById('voiceAssistToggle');if(t&&!t.dataset.voiceWired){t.dataset.voiceWired='1';t.addEventListener('change',function(){setEnabled(t.checked);if(t.checked)speak('Lecture vocale activée.')})}
   }
   installNoSelectV389();
-  document.addEventListener('selectstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card]'))e.preventDefault()},true);
-  document.addEventListener('dragstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card]'))e.preventDefault()},true);
+  document.addEventListener('selectstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,[onclick],[role="button"]'))e.preventDefault()},true);
+  document.addEventListener('dragstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,[onclick],[role="button"]'))e.preventDefault()},true);
+  document.addEventListener('click',function(e){
+    if(suppressClickUntil&&Date.now()<suppressClickUntil&&suppressClickTarget&&(e.target===suppressClickTarget||suppressClickTarget.contains(e.target))){
+      e.preventDefault();e.stopImmediatePropagation();suppressClickTarget=null;suppressClickUntil=0;
+    }
+  },true);
   document.addEventListener('pointerdown',begin,true);document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',cancel,true);
-  document.addEventListener('contextmenu',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card]')&&!e.target.closest('a,button,input,select,textarea,label'))e.preventDefault()},true);
+  document.addEventListener('contextmenu',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,[onclick],[role="button"]'))e.preventDefault()},true);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSetting);else initSetting();
   window.addEventListener('storage',syncSetting);
   window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS};
