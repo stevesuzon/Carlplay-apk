@@ -1,4 +1,4 @@
 {
-  "version": "V392",
-  "message": "V392 : correction du réglage Lecture vocale. Le module vocal est maintenant réellement chargé sur l’accueil et le bouton Activer / Désactiver la voix garde son état."
+  "version": "V393",
+  "message": "V393 : activation vocale iPhone corrigée. Cocher Activer la voix enregistre immédiatement l’état, affiche Voix activée et prononce Lecture vocale activée. Un bouton Tester la voix permet de vérifier le son."
 }
