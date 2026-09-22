@@ -50,7 +50,7 @@ public class MainActivity extends Activity {
     private static final String HOST = "carplay-telephone.appli-suzon.workers.dev";
     private static final int REQ_LOCATION = 51;
     private static final int REQ_CAMERA = 52;
-    private static final int AUTORADIO_UI_VERSION = 385;
+    private static final int AUTORADIO_UI_VERSION = 386;
     private static final String UI_PREFS = "autoradio_ui_state";
     private static final String UI_CLEAN_KEY = "clean_ui_version";
 
@@ -109,7 +109,7 @@ public class MainActivity extends Activity {
         String ua = s.getUserAgentString();
         if (ua == null) ua = "";
         if (!ua.contains("CouteauSuisseAutoradio")) {
-            s.setUserAgentString(ua + " CouteauSuisseAutoradio/385");
+            s.setUserAgentString(ua + " CouteauSuisseAutoradio/386");
         }
 
         SharedPreferences uiPrefs = getSharedPreferences(UI_PREFS, MODE_PRIVATE);
@@ -135,7 +135,7 @@ public class MainActivity extends Activity {
             }, REQ_LOCATION);
         }
 
-        web.loadUrl(HOME + "?autoradio_ui=385&fresh=" + System.currentTimeMillis());
+        web.loadUrl(HOME + "?autoradio_ui=386&fresh=" + System.currentTimeMillis());
     }
 
     @Override
@@ -195,9 +195,9 @@ public class MainActivity extends Activity {
                 "window.__COUTEAU_AUTORADIO__=true;" +
                 "function loadOnce(id,src){try{if(document.getElementById(id))return;var s=document.createElement('script');s.id=id;s.src=src;s.defer=true;(document.head||document.documentElement).appendChild(s)}catch(_){}}" +
                 "function cleanPhoneOnly(){try{document.documentElement.classList.add('autoradio-mode');['#directArticle','#directArticleModal','#homeArticleBtn','#housePhotoButton','#simpleHouseOverlay','#addressCreateQuote','#simpleQuoteBtn','#genericQuoteModal','#simpleQuoteOverlay','#contactMailButton'].forEach(function(q){var e=document.querySelector(q);if(e)e.remove()});document.querySelectorAll('.articleTile').forEach(function(e){e.remove()});document.querySelectorAll('button,a,.settingRow,.card,.directBtn').forEach(function(e){var t=(e.innerText||'').toUpperCase();if(t.indexOf('MESURER UNE MAISON')>=0||t.indexOf('DEVIS')>=0||t.indexOf('FICHE D’ACHAT')>=0||t.indexOf(\"FICHE D'ACHAT\")>=0||t.indexOf('ENCHÈRE')>=0||t.indexOf('ENCHERE')>=0||t.indexOf('ARTICLE DE TRAVAIL')>=0||t.indexOf('CONCOURS')>=0)e.remove()});document.querySelectorAll('a.verify,.verify[href*=verification-v9],a[href*=verification-v9.html]').forEach(function(e){e.remove()})}catch(_){}}" +
-                "function showUpdateInfo(text,color){try{var old=document.getElementById('autoradioUpdateV385');if(old)old.remove();var d=document.createElement('div');d.id='autoradioUpdateV385';d.style.cssText='position:fixed;z-index:2147483647;inset:0;background:#000d;display:flex;align-items:center;justify-content:center;padding:20px;font-family:Arial';d.innerHTML='<div style=\"width:min(560px,94vw);background:#0b1725;border:4px solid '+(color||'#35d06f')+';border-radius:25px;padding:24px;color:#fff;text-align:center;font:900 21px/1.4 Arial\">'+text+'<br><button id=\"autoradioUpdateCloseV384\" style=\"width:100%;min-height:58px;margin-top:18px;border:0;border-radius:14px;background:#35d06f;color:#07140b;font:950 19px Arial\">FERMER</button></div>';document.body.appendChild(d);d.querySelector('#autoradioUpdateCloseV385').onclick=function(){d.remove()}}catch(_){}}" +
-                "function autoradioUpdateCheck(force){try{var k='autoradio_update_check_v385',last=Number(localStorage.getItem(k)||0),now=Date.now();if(!force&&now-last<3600000)return;localStorage.setItem(k,String(now));fetch('/autoradio-version.json?_='+now,{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j)return;var server=Number(j.versionCode||0),rev=String(j.webRevision||j.versionCode||''),old=localStorage.getItem('autoradio_web_revision_v385')||'';localStorage.setItem('autoradio_web_revision_v385',rev);if(server>385){showUpdateInfo('🔄 UNE NOUVELLE VERSION AUTORADIO EST DISPONIBLE.','#ffd43b');setTimeout(function(){location.href='/download-autoradio.apk?maj='+now},700);return}if(force){showUpdateInfo('✅ COUTEAU SUISSE AUTORADIO EST À JOUR.');location.replace('/?autoradio_maj='+now);return}if(old&&old!==rev)location.replace('/?autoradio_maj='+now)}).catch(function(){if(force)showUpdateInfo('⚠️ Impossible de vérifier la mise à jour. Vérifiez la connexion Internet.','#ff5964')})}catch(_){}}" +
-                "loadOnce('autoradio-home-native-v385','/autoradio-home-v385.js?v=385-clean-home');" +
+                "function showUpdateInfo(text,color){try{var old=document.getElementById('autoradioUpdateV386');if(old)old.remove();var d=document.createElement('div');d.id='autoradioUpdateV386';d.style.cssText='position:fixed;z-index:2147483647;inset:0;background:#000d;display:flex;align-items:center;justify-content:center;padding:20px;font-family:Arial';d.innerHTML='<div style=\"width:min(560px,94vw);background:#0b1725;border:4px solid '+(color||'#35d06f')+';border-radius:25px;padding:24px;color:#fff;text-align:center;font:900 21px/1.4 Arial\">'+text+'<br><button id=\"autoradioUpdateCloseV384\" style=\"width:100%;min-height:58px;margin-top:18px;border:0;border-radius:14px;background:#35d06f;color:#07140b;font:950 19px Arial\">FERMER</button></div>';document.body.appendChild(d);d.querySelector('#autoradioUpdateCloseV385').onclick=function(){d.remove()}}catch(_){}}" +
+                "function autoradioUpdateCheck(force){try{var k='autoradio_update_check_v386',last=Number(localStorage.getItem(k)||0),now=Date.now();if(!force&&now-last<3600000)return;localStorage.setItem(k,String(now));fetch('/autoradio-version.json?_='+now,{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j)return;var server=Number(j.versionCode||0),rev=String(j.webRevision||j.versionCode||''),old=localStorage.getItem('autoradio_web_revision_v386')||'';localStorage.setItem('autoradio_web_revision_v386',rev);if(server>386){showUpdateInfo('🔄 UNE NOUVELLE VERSION AUTORADIO EST DISPONIBLE.','#ffd43b');setTimeout(function(){location.href='/download-autoradio.apk?maj='+now},700);return}if(force){showUpdateInfo('✅ COUTEAU SUISSE AUTORADIO EST À JOUR.');location.replace('/?autoradio_maj='+now);return}if(old&&old!==rev)location.replace('/?autoradio_maj='+now)}).catch(function(){if(force)showUpdateInfo('⚠️ Impossible de vérifier la mise à jour. Vérifiez la connexion Internet.','#ff5964')})}catch(_){}}" +
+                "loadOnce('autoradio-home-native-v386','/autoradio-home-v386.js?v=386-responsive-images');" +
                 "loadOnce('autoradio-subscription-native-v381','/autoradio-subscription-v381.js?v=381');" +
                 "cleanPhoneOnly();" +
                 "window.autoradioForceUpdate=function(){autoradioUpdateCheck(true)};" +
