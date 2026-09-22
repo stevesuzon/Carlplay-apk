@@ -2,7 +2,7 @@
   'use strict';
   var KEY='carplay_voice_enabled_v387';
   var PRESS_MS=1200;
-  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0;
+  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null;
   function installNoSelectV389(){
     if(document.getElementById('carplayVoiceNoSelectV389'))return;
     var st=document.createElement('style');
@@ -104,12 +104,18 @@
     if(!el){el=document.createElement('div');el.id=id;el.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147483600;max-width:88vw;padding:11px 15px;border-radius:14px;background:#07111df2;border:2px solid #f39b19;color:#fff;font:900 14px Arial,sans-serif;text-align:center;box-shadow:0 8px 24px #0009;pointer-events:none';document.body.appendChild(el)}
     el.textContent=msg;el.style.display='block';clearTimeout(el._hide);el._hide=setTimeout(function(){el.style.display='none'},2200);
   }
+  function loadPreferredVoice(){
+    try{
+      var vv=window.speechSynthesis&&window.speechSynthesis.getVoices?window.speechSynthesis.getVoices():[];
+      preferredVoice=vv.find(function(v){return /^fr(?:-|_)/i.test(v.lang||'')})||vv.find(function(v){return /français|french/i.test(v.name||'')})||null;
+    }catch(_){preferredVoice=null}
+  }
   function speak(text){
     text=clean(text);if(!text||!enabled())return false;
     if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){toast('🔇 Lecture vocale indisponible sur cet appareil.');return false}
     try{
       window.speechSynthesis.cancel();window.speechSynthesis.resume();
-      var u=new SpeechSynthesisUtterance(text);u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;
+      var u=new SpeechSynthesisUtterance(text);u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;if(!preferredVoice)loadPreferredVoice();if(preferredVoice)u.voice=preferredVoice;
       u.onerror=function(){toast('🔇 La voix ne fonctionne pas sur cet appareil. Vous pouvez la désactiver dans Réglages.')};
       window.speechSynthesis.speak(u);toast('🔊 '+text);return true;
     }catch(_){toast('🔇 La voix ne fonctionne pas sur cet appareil.');return false}
@@ -135,7 +141,17 @@
     if(s)s.textContent=on?'🔊 Voix activée — appui long 1,20 seconde sur une fiche ou un bouton.':'🔇 Voix désactivée.';
   }
   function initSetting(){
-    syncSetting();var t=document.getElementById('voiceAssistToggle');if(t&&!t.dataset.voiceWired){t.dataset.voiceWired='1';t.addEventListener('change',function(){setEnabled(t.checked);if(t.checked)speak('Lecture vocale activée.')})}
+    loadPreferredVoice();
+    syncSetting();
+    var t=document.getElementById('voiceAssistToggle');
+    if(t&&!t.dataset.voiceWired){
+      if(window.voiceSettingsDirect){
+        t.dataset.voiceWired='direct';
+      }else{
+        t.dataset.voiceWired='1';
+        t.addEventListener('change',function(){setEnabled(t.checked);if(t.checked)speak('Lecture vocale activée.')});
+      }
+    }
   }
   installNoSelectV389();
   document.addEventListener('selectstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,[onclick],[role="button"]'))e.preventDefault()},true);
@@ -148,6 +164,6 @@
   document.addEventListener('pointerdown',begin,true);document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',cancel,true);
   document.addEventListener('contextmenu',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,[onclick],[role="button"]'))e.preventDefault()},true);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSetting);else initSetting();
-  window.addEventListener('storage',syncSetting);
+  window.addEventListener('storage',syncSetting);if(window.speechSynthesis)window.speechSynthesis.addEventListener&&window.speechSynthesis.addEventListener('voiceschanged',loadPreferredVoice);
   window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS};
 })();
