@@ -1,7 +1,7 @@
-const VERSION = "V364";
+const VERSION = "V365";
 const BASE_CACHE = "couteau-suisse-module-base-v335-nearby-return-place";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
-const CONTEST_CACHE = "couteau-suisse-module-contest-v310";
+const CONTEST_CACHE = "couteau-suisse-module-contest-v365-admin-access";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v362";
 const DATA_CACHE = "couteau-suisse-module-data-v283";
 const INSTALL_CACHE = "couteau-suisse-module-install-v361";
@@ -17,7 +17,7 @@ async function saveNotificationPreference(enabled){const cache=await caches.open
 const BASE_CORE=["/index.html","/stations-carburant.html?v=330","/mobile-overrides.css?v=64","/weather-all-pages.js?v=68-notifications-globales","/notification-settings.js?v=282-onboarding-notification-detail","/market-update-notifications-v281.js?v=282","/home-work.css?v=64","/home-work.js?v=302-d1","/markets-final.css?v=126-favori-fluide","/choix-marches-final.html?v=324","/special-marches.html?v=324","/nearby-markets.html?v=335","/traveller-markets.html?v=320","/verification-v9.html?v=320","/market-consensus.js?v=320-verification-speciale","/special-market-server-v157.js?v=320-verification-speciale","/brocante-crosscheck-v316.js?v=316","/market-auto-update-v319.js?v=320","/market-attendance-v317.js?v=320","/market-navigation-confirm-v189.js?v=320"];
 const MODULES={
  [ICON_CACHE]:["/manifest.webmanifest?v=283-icons","/couteau-suisse-v283-152.png?v=283","/couteau-suisse-v283-167.png?v=283","/couteau-suisse-v283-180.png?v=283","/couteau-suisse-v283-192.png?v=283","/couteau-suisse-v283-512.png?v=283","/couteau-suisse-v283-1024.png?v=283","/couteau-suisse-v283-maskable-192.png?v=283","/couteau-suisse-v283-maskable-512.png?v=283"],
- [CONTEST_CACHE]:["/contest-v188.js?v=310-admin-participe"],
+ [CONTEST_CACHE]:["/contest-v188.js?v=365-admin-access"],
  [ADMIN_CACHE]:["/admin.html","/contest-admin-v188.js?v=302-d1"],
  [DATA_CACHE]:["/persistent-user-data-v283.js?v=364-persist"],
  [INSTALL_CACHE]:["/installer.html","/visitor-register-v361.js","/app-access-gate-v240.js?v=309-confirmed-direct","/cache-cleanup-v20260910.js?v=283-modules"],
