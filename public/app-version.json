@@ -1,4 +1,4 @@
 {
-  "version": "V390",
-  "message": "V390 : appui long 1,20 seconde sur les fiches et sur tous les boutons. Les boutons donnent une explication courte, par exemple Marchés : marchés, foires, Noël et brocantes. Correction iPhone conservée : pas de menu Copier / Chercher / Traduire pendant l’appui vocal."
+  "version": "V391",
+  "message": "V391 : correction iPhone renforcée. Les fiches et boutons vocaux sont non sélectionnables dès l’ouverture de la page, afin d’empêcher Copier / Chercher / Traduire pendant l’appui long de 1,20 seconde."
 }
