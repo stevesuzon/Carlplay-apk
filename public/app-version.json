@@ -1,4 +1,4 @@
 {
-  "version": "V391",
-  "message": "V391 : correction iPhone renforcée. Les fiches et boutons vocaux sont non sélectionnables dès l’ouverture de la page, afin d’empêcher Copier / Chercher / Traduire pendant l’appui long de 1,20 seconde."
+  "version": "V392",
+  "message": "V392 : correction du réglage Lecture vocale. Le module vocal est maintenant réellement chargé sur l’accueil et le bouton Activer / Désactiver la voix garde son état."
 }
