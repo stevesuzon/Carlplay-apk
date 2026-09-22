@@ -1,4 +1,4 @@
 {
-  "version": "V388",
-  "message": "V388 : lecture vocale étendue à toutes les fiches de marchés, brocantes, braderies, foires, marchés de Noël, saisonniers, trimestriels et marchés de voyageurs. Appui long 1,20 s : nom, jour, distance, horaires, nombre de commerçants / emplacements / chalets et heure à laquelle il faut être sur place. Les informations vérifiées restent prioritaires."
+  "version": "V389",
+  "message": "V389 : correction iPhone de l’appui long vocal. Quand la voix est activée, l’appui de 1,20 seconde sur une fiche ne sélectionne plus le texte et n’affiche plus Copier / Chercher / Traduire."
 }
