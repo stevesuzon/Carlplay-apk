@@ -3425,6 +3425,7 @@ async function contestMaintenanceClaimV301(env,key,intervalMs){
 async function adminContest(request,env){
   if(!(await adminAuthorized(request,env)))return json({ok:false,error:"SECRET_INCORRECT"},401);
   await ensureContestTables(env);
+  await ensureMarketVerificationTables(env);
   const url=new URL(request.url),summary=url.searchParams.get('summary')==='1',mode=url.searchParams.get('mode')||'',cfg=await finalizeContestIfNeeded(env);
   if(summary){
     const c=await env.DB.prepare("SELECT COUNT(*) AS n FROM contest_participants WHERE COALESCE(contest_excluded,0)=0").first();
@@ -3453,7 +3454,25 @@ async function adminContest(request,env){
   const repriced=await contestRepriceHistoricalFuelV297(env),autoCredit=await contestAutoCreditPendingV300(env);
   let recovered={reviews:0,mushrooms:0,reports:0,communes:0,alerts:0,total:0},audit={market:0,mushroom:0,points:0};
   if(await contestMaintenanceClaimV301(env,'admin-recovery-audit-v301',10*60*1000)){recovered=await expireAdminPendingRequests(env);audit=await contestAuditApprovedMissingCredits(env)}
-  const reviews=(await env.DB.prepare("SELECT r.*,p.first_name,p.last_name,p.alert_count,COALESCE(s.recovery_email_mask,'') AS email FROM contest_market_reviews r JOIN contest_participants p ON p.subscription_id=r.subscription_id LEFT JOIN subscriptions s ON s.id=p.subscription_id WHERE r.status='pending' ORDER BY r.created_at DESC").all()).results||[];for(let i=0;i<reviews.length;i++){reviews[i]=await contestRefreshPendingReviewFuel(env,reviews[i]);try{reviews[i].breakdown=JSON.parse(reviews[i].breakdown_json||'[]')}catch(_){reviews[i].breakdown=[]}}
+  const reviews=(await env.DB.prepare("SELECT r.*,p.first_name,p.last_name,p.alert_count,COALESCE(s.recovery_email_mask,'') AS email FROM contest_market_reviews r JOIN contest_participants p ON p.subscription_id=r.subscription_id LEFT JOIN subscriptions s ON s.id=p.subscription_id WHERE r.status='pending' ORDER BY r.created_at DESC").all()).results||[];
+  for(let i=0;i<reviews.length;i++){
+    reviews[i]=await contestRefreshPendingReviewFuel(env,reviews[i]);
+    try{reviews[i].breakdown=JSON.parse(reviews[i].breakdown_json||'[]')}catch(_){reviews[i].breakdown=[]}
+    try{
+      const votes=(await env.DB.prepare("SELECT field,value_norm,value_display,updated_at FROM market_verification_votes WHERE market_key=? AND device_id=? ORDER BY field").bind(reviews[i].market_key,reviews[i].device_id).all()).results||[];
+      reviews[i].submitted_fields={};
+      for(const v of votes)reviews[i].submitted_fields[String(v.field||'')]={value:String(v.value_display||v.value_norm||''),norm:String(v.value_norm||''),updatedAt:String(v.updated_at||'')};
+    }catch(_){reviews[i].submitted_fields={}}
+    try{
+      const loc=await env.DB.prepare("SELECT latitude,longitude,accuracy,address,created_at,updated_at FROM market_location_votes WHERE market_key=? AND device_id=? LIMIT 1").bind(reviews[i].market_key,reviews[i].device_id).first();
+      reviews[i].gps_submission=loc?{latitude:Number(loc.latitude),longitude:Number(loc.longitude),accuracy:Number(loc.accuracy||0),address:String(loc.address||''),createdAt:String(loc.created_at||''),updatedAt:String(loc.updated_at||'')}:null;
+    }catch(_){reviews[i].gps_submission=null}
+    try{
+      const pm=await env.DB.prepare("SELECT user_latitude,user_longitude,market_latitude,market_longitude,distance_meters,quality_score,stall_count,ai_reason,captured_at,updated_at,device_id FROM market_photo_metadata WHERE market_key=? LIMIT 1").bind(reviews[i].market_key).first();
+      reviews[i].photo_meta=pm?{userLatitude:Number(pm.user_latitude),userLongitude:Number(pm.user_longitude),marketLatitude:Number(pm.market_latitude),marketLongitude:Number(pm.market_longitude),distanceMeters:Number(pm.distance_meters||0),qualityScore:Number(pm.quality_score||0),stallCount:Number(pm.stall_count||0),aiReason:String(pm.ai_reason||''),capturedAt:String(pm.captured_at||''),updatedAt:String(pm.updated_at||''),sameDevice:String(pm.device_id||'')===String(reviews[i].device_id||'')}:null;
+    }catch(_){reviews[i].photo_meta=null}
+    reviews[i].photo_url="/api/market-photo?marketKey="+encodeURIComponent(String(reviews[i].market_key||''));
+  }
   const mushrooms=(await env.DB.prepare("SELECT r.*,p.first_name,p.last_name,COALESCE(sub.recovery_email_mask,'') AS email,s.wood_name,s.department,s.species,s.note,s.is_private,s.created_at AS spot_created_at FROM contest_mushroom_reviews r JOIN contest_participants p ON p.subscription_id=r.subscription_id LEFT JOIN subscriptions sub ON sub.id=p.subscription_id LEFT JOIN mushroom_spots s ON s.id=r.spot_id WHERE r.status='pending' ORDER BY r.created_at DESC").all()).results||[];for(const r of mushrooms){try{r.photo_url=await mushroomSignedPhotoUrl(env,r.spot_id,r.spot_created_at||r.created_at)}catch(_){r.photo_url=''}try{r.breakdown=JSON.parse(r.breakdown_json||'[]')}catch(_){r.breakdown=[]}}
   const reports=(await env.DB.prepare("SELECT r.*,p.first_name,p.last_name,p.home_commune,p.home_area,COALESCE(s.recovery_email_mask,'') AS email FROM contest_reports r JOIN contest_participants p ON p.subscription_id=r.subscription_id LEFT JOIN subscriptions s ON s.id=p.subscription_id WHERE r.status='pending' ORDER BY r.created_at DESC").all()).results||[];for(const r of reports){r.suggested_multiplier=r.kind==='idee'?contestIdeaMultiplier(r.description):null}
   const communes=(await env.DB.prepare("SELECT c.*,p.first_name,p.last_name,p.home_commune,p.home_area,COALESCE(s.recovery_email_mask,'') AS email FROM contest_commune_requests c JOIN contest_participants p ON p.subscription_id=c.subscription_id LEFT JOIN subscriptions s ON s.id=p.subscription_id WHERE c.status='pending' ORDER BY c.created_at DESC").all()).results||[];
