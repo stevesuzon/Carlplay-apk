@@ -2,13 +2,15 @@
 <resources>
     <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
-        <item name="android:windowBackground">#050A11</item>
-        <item name="android:windowNoTitle">true</item>
-        <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowActionModeOverlay">true</item>
         <item name="android:colorAccent">#2F80ED</item>
         <item name="android:navigationBarColor">#08111D</item>
         <item name="android:statusBarColor">#08111D</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowBackground">#050A11</item>
+        <item name="android:windowSplashScreenBackground">#050A11</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/couteau_suisse_logo</item>
+        <item name="android:windowSplashScreenAnimationDuration">0</item>
     </style>
 </resources>

@@ -2,22 +2,38 @@ package fr.suzon.couteausuisse.autoradio;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.drawable.GradientDrawable;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.webkit.GeolocationPermissions;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
+import android.webkit.WebViewClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -34,7 +50,14 @@ public class MainActivity extends Activity {
     private static final int REQ_LOCATION = 51;
     private static final int REQ_CAMERA = 52;
 
+    private static final int LOADER_BG = Color.rgb(5, 10, 17);
+
+    private FrameLayout root;
+    private FrameLayout loadingOverlay;
     private WebView web;
+    private boolean firstPageLoaded = false;
+    private int loadingGeneration = 0;
+    private final Handler uiHandler = new Handler(Looper.getMainLooper());
     private PermissionRequest pendingCameraRequest;
     private GeolocationPermissions.Callback pendingGeoCallback;
     private String pendingGeoOrigin;
@@ -49,8 +72,17 @@ public class MainActivity extends Activity {
         nativeDeviceId = buildNativeDeviceId();
         secureCache = new SecureResponseCache(this);
 
+        root = new FrameLayout(this);
+        root.setBackgroundColor(LOADER_BG);
+
         web = new WebView(this);
-        setContentView(web);
+        web.setBackgroundColor(LOADER_BG);
+        root.addView(web, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+        setContentView(root);
+        showLoadingScreen(true);
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -73,7 +105,7 @@ public class MainActivity extends Activity {
         String ua = s.getUserAgentString();
         if (ua == null) ua = "";
         if (!ua.contains("CouteauSuisseAutoradio")) {
-            s.setUserAgentString(ua + " CouteauSuisseAutoradio/383");
+            s.setUserAgentString(ua + " CouteauSuisseAutoradio/384");
         }
 
         web.setWebViewClient(new AutoradioClient());
@@ -151,15 +183,234 @@ public class MainActivity extends Activity {
                 "window.__COUTEAU_AUTORADIO__=true;" +
                 "function loadOnce(id,src){try{if(document.getElementById(id))return;var s=document.createElement('script');s.id=id;s.src=src;s.defer=true;(document.head||document.documentElement).appendChild(s)}catch(_){}}" +
                 "function cleanPhoneOnly(){try{document.documentElement.classList.add('autoradio-mode');['#directArticle','#directArticleModal','#homeArticleBtn','#housePhotoButton','#simpleHouseOverlay','#addressCreateQuote','#simpleQuoteBtn','#genericQuoteModal','#simpleQuoteOverlay','#contactMailButton'].forEach(function(q){var e=document.querySelector(q);if(e)e.remove()});document.querySelectorAll('.articleTile').forEach(function(e){e.remove()});document.querySelectorAll('button,a,.settingRow,.card,.directBtn').forEach(function(e){var t=(e.innerText||'').toUpperCase();if(t.indexOf('MESURER UNE MAISON')>=0||t.indexOf('DEVIS')>=0||t.indexOf('FICHE D’ACHAT')>=0||t.indexOf(\"FICHE D'ACHAT\")>=0||t.indexOf('ENCHÈRE')>=0||t.indexOf('ENCHERE')>=0||t.indexOf('ARTICLE DE TRAVAIL')>=0||t.indexOf('CONCOURS')>=0)e.remove()});document.querySelectorAll('a.verify,.verify[href*=verification-v9],a[href*=verification-v9.html]').forEach(function(e){e.remove()})}catch(_){}}" +
-                "function showUpdateInfo(text,color){try{var old=document.getElementById('autoradioUpdateV383');if(old)old.remove();var d=document.createElement('div');d.id='autoradioUpdateV383';d.style.cssText='position:fixed;z-index:2147483647;inset:0;background:#000d;display:flex;align-items:center;justify-content:center;padding:20px;font-family:Arial';d.innerHTML='<div style=\"width:min(560px,94vw);background:#0b1725;border:4px solid '+(color||'#35d06f')+';border-radius:25px;padding:24px;color:#fff;text-align:center;font:900 21px/1.4 Arial\">'+text+'<br><button id=\"autoradioUpdateCloseV383\" style=\"width:100%;min-height:58px;margin-top:18px;border:0;border-radius:14px;background:#35d06f;color:#07140b;font:950 19px Arial\">FERMER</button></div>';document.body.appendChild(d);d.querySelector('#autoradioUpdateCloseV383').onclick=function(){d.remove()}}catch(_){}}" +
-                "function autoradioUpdateCheck(force){try{var k='autoradio_update_check_v383',last=Number(localStorage.getItem(k)||0),now=Date.now();if(!force&&now-last<3600000)return;localStorage.setItem(k,String(now));fetch('/autoradio-version.json?_='+now,{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j)return;var server=Number(j.versionCode||0),rev=String(j.webRevision||j.versionCode||''),old=localStorage.getItem('autoradio_web_revision_v383')||'';localStorage.setItem('autoradio_web_revision_v383',rev);if(server>383){showUpdateInfo('🔄 UNE NOUVELLE VERSION AUTORADIO EST DISPONIBLE.','#ffd43b');setTimeout(function(){location.href='/download-autoradio.apk?maj='+now},700);return}if(force){showUpdateInfo('✅ COUTEAU SUISSE AUTORADIO EST À JOUR.');location.replace('/?autoradio_maj='+now);return}if(old&&old!==rev)location.replace('/?autoradio_maj='+now)}).catch(function(){if(force)showUpdateInfo('⚠️ Impossible de vérifier la mise à jour. Vérifiez la connexion Internet.','#ff5964')})}catch(_){}}" +
-                "loadOnce('autoradio-home-native-v383','/autoradio-home-v383.js?v=383');" +
+                "function showUpdateInfo(text,color){try{var old=document.getElementById('autoradioUpdateV384');if(old)old.remove();var d=document.createElement('div');d.id='autoradioUpdateV383';d.style.cssText='position:fixed;z-index:2147483647;inset:0;background:#000d;display:flex;align-items:center;justify-content:center;padding:20px;font-family:Arial';d.innerHTML='<div style=\"width:min(560px,94vw);background:#0b1725;border:4px solid '+(color||'#35d06f')+';border-radius:25px;padding:24px;color:#fff;text-align:center;font:900 21px/1.4 Arial\">'+text+'<br><button id=\"autoradioUpdateCloseV384\" style=\"width:100%;min-height:58px;margin-top:18px;border:0;border-radius:14px;background:#35d06f;color:#07140b;font:950 19px Arial\">FERMER</button></div>';document.body.appendChild(d);d.querySelector('#autoradioUpdateCloseV383').onclick=function(){d.remove()}}catch(_){}}" +
+                "function autoradioUpdateCheck(force){try{var k='autoradio_update_check_v384',last=Number(localStorage.getItem(k)||0),now=Date.now();if(!force&&now-last<3600000)return;localStorage.setItem(k,String(now));fetch('/autoradio-version.json?_='+now,{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j)return;var server=Number(j.versionCode||0),rev=String(j.webRevision||j.versionCode||''),old=localStorage.getItem('autoradio_web_revision_v384')||'';localStorage.setItem('autoradio_web_revision_v383',rev);if(server>384){showUpdateInfo('🔄 UNE NOUVELLE VERSION AUTORADIO EST DISPONIBLE.','#ffd43b');setTimeout(function(){location.href='/download-autoradio.apk?maj='+now},700);return}if(force){showUpdateInfo('✅ COUTEAU SUISSE AUTORADIO EST À JOUR.');location.replace('/?autoradio_maj='+now);return}if(old&&old!==rev)location.replace('/?autoradio_maj='+now)}).catch(function(){if(force)showUpdateInfo('⚠️ Impossible de vérifier la mise à jour. Vérifiez la connexion Internet.','#ff5964')})}catch(_){}}" +
+                "loadOnce('autoradio-home-native-v384','/autoradio-home-v383.js?v=383-fullbuttons-2');" +
                 "loadOnce('autoradio-subscription-native-v381','/autoradio-subscription-v381.js?v=381');" +
                 "cleanPhoneOnly();" +
                 "window.autoradioForceUpdate=function(){autoradioUpdateCheck(true)};" +
                 "window.forceAppUpdate=window.autoradioForceUpdate;" +
                 "autoradioUpdateCheck(false);" +
                 "})();";
+    }
+
+
+    private int dp(int value) {
+        float d = getResources().getDisplayMetrics().density;
+        return Math.max(1, Math.round(value * d));
+    }
+
+    private GradientDrawable roundedPanel(int color, int strokeColor, int strokeWidthDp, int radiusDp) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(color);
+        g.setCornerRadius(dp(radiusDp));
+        if (strokeWidthDp > 0) g.setStroke(dp(strokeWidthDp), strokeColor);
+        return g;
+    }
+
+    private FrameLayout buildLoadingScreen(boolean large) {
+        FrameLayout overlay = new FrameLayout(this);
+        overlay.setClickable(true);
+        overlay.setFocusable(true);
+        overlay.setBackgroundColor(large ? LOADER_BG : Color.argb(185, 0, 0, 0));
+
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setGravity(Gravity.CENTER);
+        int pad = dp(large ? 22 : 14);
+        panel.setPadding(pad, pad, pad, pad);
+        if (!large) {
+            panel.setBackground(roundedPanel(
+                    Color.rgb(8, 18, 31),
+                    Color.rgb(245, 164, 36),
+                    2,
+                    20
+            ));
+        }
+
+        FrameLayout logoBox = new FrameLayout(this);
+        int logoSize = dp(large ? 210 : 82);
+        LinearLayout.LayoutParams logoBoxLp = new LinearLayout.LayoutParams(logoSize, logoSize);
+        logoBoxLp.bottomMargin = dp(large ? 12 : 7);
+        panel.addView(logoBox, logoBoxLp);
+
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.couteau_suisse_logo);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        logoBox.addView(logo, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+
+        // La serpette est animée séparément : le logo reste stable, seule la lame s'ouvre et se ferme.
+        SerpetteView serpette = new SerpetteView(this);
+        int serpetteSize = dp(large ? 104 : 48);
+        FrameLayout.LayoutParams serpetteLp = new FrameLayout.LayoutParams(serpetteSize, serpetteSize);
+        serpetteLp.gravity = Gravity.END | Gravity.BOTTOM;
+        serpetteLp.rightMargin = dp(large ? -2 : -1);
+        serpetteLp.bottomMargin = dp(large ? 2 : 1);
+        logoBox.addView(serpette, serpetteLp);
+
+        TextView title = new TextView(this);
+        title.setText("COUTEAU SUISSE");
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(large ? 30f : 18f);
+        title.setGravity(Gravity.CENTER);
+        title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        panel.addView(title, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        TextView loading = new TextView(this);
+        loading.setText("Chargement…");
+        loading.setTextColor(Color.rgb(245, 196, 93));
+        loading.setTextSize(large ? 18f : 14f);
+        loading.setGravity(Gravity.CENTER);
+        loading.setPadding(0, dp(large ? 9 : 5), 0, 0);
+        panel.addView(loading, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        FrameLayout.LayoutParams panelLp;
+        if (large) {
+            panelLp = new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+        } else {
+            panelLp = new FrameLayout.LayoutParams(dp(250), ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+        panelLp.gravity = Gravity.CENTER;
+        overlay.addView(panel, panelLp);
+        return overlay;
+    }
+
+    private void showLoadingScreen(boolean large) {
+        loadingGeneration++;
+        if (root == null) return;
+        if (loadingOverlay != null) {
+            root.removeView(loadingOverlay);
+            loadingOverlay = null;
+        }
+        loadingOverlay = buildLoadingScreen(large);
+        root.addView(loadingOverlay, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+        loadingOverlay.bringToFront();
+    }
+
+    private void hideLoadingScreen(int generation) {
+        uiHandler.postDelayed(() -> {
+            if (generation != loadingGeneration) return;
+            if (loadingOverlay != null && root != null) {
+                root.removeView(loadingOverlay);
+                loadingOverlay = null;
+            }
+            firstPageLoaded = true;
+        }, 280);
+    }
+
+    private static class SerpetteView extends View {
+        private final Paint handlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint bladePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint bladeEdgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private ValueAnimator animator;
+        private float openAngle = -10f;
+
+        SerpetteView(android.content.Context context) {
+            super(context);
+            setBackgroundColor(Color.TRANSPARENT);
+            handlePaint.setColor(Color.rgb(34, 142, 85));
+            handlePaint.setStyle(Paint.Style.FILL);
+            bladePaint.setColor(Color.rgb(235, 240, 244));
+            bladePaint.setStyle(Paint.Style.FILL);
+            bladeEdgePaint.setColor(Color.rgb(80, 96, 108));
+            bladeEdgePaint.setStyle(Paint.Style.STROKE);
+            bladeEdgePaint.setStrokeWidth(2f);
+            textPaint.setColor(Color.WHITE);
+            textPaint.setTextAlign(Paint.Align.CENTER);
+            textPaint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        }
+
+        @Override
+        protected void onAttachedToWindow() {
+            super.onAttachedToWindow();
+            if (animator != null) animator.cancel();
+            animator = ValueAnimator.ofFloat(-10f, -67f);
+            animator.setDuration(850);
+            animator.setRepeatMode(ValueAnimator.REVERSE);
+            animator.setRepeatCount(ValueAnimator.INFINITE);
+            animator.setInterpolator(new AccelerateDecelerateInterpolator());
+            animator.addUpdateListener(a -> {
+                openAngle = (Float) a.getAnimatedValue();
+                invalidate();
+            });
+            animator.start();
+        }
+
+        @Override
+        protected void onDetachedFromWindow() {
+            if (animator != null) animator.cancel();
+            animator = null;
+            super.onDetachedFromWindow();
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            float w = getWidth();
+            float h = getHeight();
+            if (w <= 0 || h <= 0) return;
+
+            float pivotX = w * 0.28f;
+            float pivotY = h * 0.76f;
+
+            canvas.drawRoundRect(
+                    w * 0.16f, h * 0.68f,
+                    w * 0.66f, h * 0.90f,
+                    h * 0.08f, h * 0.08f,
+                    handlePaint
+            );
+
+            textPaint.setTextSize(h * 0.10f);
+            canvas.drawText("SS", w * 0.41f, h * 0.825f, textPaint);
+
+            canvas.save();
+            canvas.rotate(openAngle, pivotX, pivotY);
+            Path blade = new Path();
+            blade.moveTo(pivotX, pivotY);
+            blade.cubicTo(
+                    w * 0.32f, h * 0.51f,
+                    w * 0.56f, h * 0.16f,
+                    w * 0.88f, h * 0.14f
+            );
+            blade.cubicTo(
+                    w * 0.73f, h * 0.34f,
+                    w * 0.50f, h * 0.59f,
+                    pivotX, pivotY
+            );
+            blade.close();
+            canvas.drawPath(blade, bladePaint);
+            canvas.drawPath(blade, bladeEdgePaint);
+            canvas.drawCircle(pivotX, pivotY, h * 0.055f, ColorPaint.WHITE);
+            canvas.drawCircle(pivotX, pivotY, h * 0.025f, ColorPaint.DARK);
+            canvas.restore();
+        }
+
+        private static class ColorPaint {
+            static final Paint WHITE = make(Color.WHITE);
+            static final Paint DARK = make(Color.rgb(35, 44, 53));
+            static Paint make(int color) {
+                Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+                p.setColor(color);
+                p.setStyle(Paint.Style.FILL);
+                return p;
+            }
+        }
     }
 
     private boolean isFastLocalData(String url) {
@@ -265,6 +516,12 @@ public class MainActivity extends Activity {
 
     private class AutoradioClient extends WebViewClient {
         @Override
+        public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+            super.onPageStarted(view, url, favicon);
+            showLoadingScreen(!firstPageLoaded);
+        }
+
+        @Override
         public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
             Uri uri = request.getUrl();
             if (isBlockedMarketVerification(uri)) {
@@ -318,6 +575,7 @@ public class MainActivity extends Activity {
         @Override
         public void onPageFinished(WebView view, String url) {
             view.evaluateJavascript(autoradioUiScript(), null);
+            hideLoadingScreen(loadingGeneration);
         }
     }
 
