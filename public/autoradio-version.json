@@ -1,7 +1,7 @@
 {
-  "versionCode": 384,
-  "versionName": "V384-Autoradio",
-  "webRevision": "384-loader-logo-serpette-all-pages-20260922",
+  "versionCode": 385,
+  "versionName": "V385-Autoradio",
+  "webRevision": "385-clean-old-home-cache-state-20260922",
   "checkEveryHours": 1,
   "download": "/download-autoradio.apk"
 }

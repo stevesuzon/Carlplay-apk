@@ -8,7 +8,7 @@ const INSTALL_CACHE = "couteau-suisse-module-install-v361";
 const STATS_CACHE = "couteau-suisse-module-stats-v362";
 const MUSHROOM_CACHE = "couteau-suisse-module-mushroom-v300";
 const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v313";
-const AUTORADIO_CACHE = "couteau-suisse-module-autoradio-v383-fullbuttons-2";
+const AUTORADIO_CACHE = "couteau-suisse-module-autoradio-v385-clean-home";
 const PHONE_UI_CACHE = "couteau-suisse-module-phone-ui-v384-loader";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
@@ -24,7 +24,7 @@ const MODULES={
  [STATS_CACHE]:["/user-stats-v285.js?v=328-stations-verifiees"],
  [MUSHROOM_CACHE]:["/champignons.html","/champignons.js?v=300-concours-auto","/champignons.css?v=300-concours-auto"],
  [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=377-abonnement-fix"],
- [AUTORADIO_CACHE]:["/autoradio-home-v383.js?v=383-fullbuttons-2","/autoradio-subscription-v381.js?v=381","/autoradio-version.json?v=383-fullbuttons-2"],
+ [AUTORADIO_CACHE]:["/autoradio-home-v385.js?v=385-clean-home","/autoradio-subscription-v381.js?v=381","/autoradio-version.json?v=385-clean-home"],
  [PHONE_UI_CACHE]:["/phone-loading-v384.js?v=384-loader"]
 };
 async function putFresh(cacheName,path){try{const req=new Request(path,{cache:"reload"}),res=await fetch(req);if(res&&res.ok)(await caches.open(cacheName)).put(req,res.clone())}catch(_){}}

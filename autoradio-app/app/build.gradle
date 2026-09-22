@@ -10,8 +10,8 @@ android {
         applicationId 'fr.suzon.couteausuisse.autoradio'
         minSdk 21
         targetSdk 35
-        versionCode 384
-        versionName 'V384-Autoradio'
+        versionCode 385
+        versionName 'V385-Autoradio'
     }
 
     buildTypes {
