@@ -1,1 +1,1 @@
-Build autoradio V381 - accueil validé + abonnement lisible - 2026-09-21
+Build autoradio V383 - icônes réelles + suppression flash ancien accueil - 2026-09-22
