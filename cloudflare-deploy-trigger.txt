@@ -1,4 +1,3 @@
-Cloudflare deploy trigger: 2026-09-22T21:56:00Z
-Run: 35789179619
-Commit: 2314b932902ca214622d3144641dd3b7f76cfabf
-V388 lecture vocale
+Cloudflare deploy trigger: 2026-09-22T21:57:07Z
+Run: 35789612629
+Commit: 4b3a54d8b17e6fd24adbdcd803c960bcfef5e4e8
