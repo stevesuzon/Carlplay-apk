@@ -48,9 +48,10 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
+          printf 'Cloudflare deploy trigger: %s\nRun: %s\nCommit: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${{ github.run_id }}" "${{ github.sha }}" > cloudflare-deploy-trigger.txt
+          git add -f CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip cloudflare-deploy-trigger.txt
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m "Met à jour le ZIP prêt à télécharger [skip ci]"
+          git commit -m "Met à jour le ZIP et déclenche Cloudflare [skip ci]"
           git push
