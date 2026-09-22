@@ -1,5 +1,5 @@
-const VERSION = "V367";
-const BASE_CACHE = "couteau-suisse-module-base-v335-nearby-return-place";
+const VERSION = "V368";
+const BASE_CACHE = "couteau-suisse-module-base-v368-update-loader";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v366-admin-fresh";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v367-market-full-review";
