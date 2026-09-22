@@ -1,4 +1,4 @@
 {
-  "version": "V365",
-  "message": "V365 : concours téléphone — le compte administrateur accède au concours, gagne ses points et apparaît au classement avec la mention non gagnant."
+  "version": "V366",
+  "message": "V366 : concours téléphone — l'administrateur est reconnu par sa session, sans ancien cache, avec accès normal aux points et classement non gagnant."
 }
