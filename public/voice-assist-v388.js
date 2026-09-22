@@ -128,12 +128,36 @@
     return card||null;
   }
   function cancel(){clearTimeout(timer);timer=0;active=null;fired=false}
-  function begin(e){
-    var card=eligibleTarget(e);if(!card)return;active=card;fired=false;startX=Number(e.clientX||0);startY=Number(e.clientY||0);clearTimeout(timer);
-    timer=setTimeout(function(){if(!active)return;fired=true;suppressClickTarget=active;suppressClickUntil=Date.now()+900;try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}speak(buildSpeech(active));},PRESS_MS);
+  function fireLongPress(target){
+    if(!target)return;
+    fired=true;
+    suppressClickTarget=target;
+    suppressClickUntil=Date.now()+1000;
+    try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
+    speak(buildSpeech(target));
   }
-  function move(e){if(!active)return;var dx=Math.abs(Number(e.clientX||0)-startX),dy=Math.abs(Number(e.clientY||0)-startY);if(dx>14||dy>14)cancel()}
+  function begin(e){
+    if(e&&e.pointerType==='touch')return;
+    var card=eligibleTarget(e);if(!card)return;active=card;fired=false;startX=Number(e.clientX||0);startY=Number(e.clientY||0);clearTimeout(timer);
+    timer=setTimeout(function(){if(active)fireLongPress(active)},PRESS_MS);
+  }
+  function move(e){if(!active)return;var dx=Math.abs(Number(e.clientX||0)-startX),dy=Math.abs(Number(e.clientY||0)-startY);if(dx>18||dy>18)cancel()}
   function end(){clearTimeout(timer);timer=0;active=null;setTimeout(function(){fired=false},80)}
+  function touchBeginV394(e){
+    if(!enabled()||!e.target||!e.target.closest)return;
+    var target=eligibleTarget(e);
+    if(!target)return;
+    var t=e.touches&&e.touches[0];if(!t)return;
+    active=target;fired=false;startX=t.clientX;startY=t.clientY;clearTimeout(timer);
+    timer=setTimeout(function(){if(active)fireLongPress(active)},PRESS_MS);
+  }
+  function touchMoveV394(e){
+    if(!active)return;
+    var t=e.touches&&e.touches[0];if(!t){cancel();return}
+    var dx=Math.abs(t.clientX-startX),dy=Math.abs(t.clientY-startY);
+    if(dx>28||dy>28)cancel();
+  }
+  function touchEndV394(){clearTimeout(timer);timer=0;active=null;setTimeout(function(){fired=false},80)}
   function syncSetting(){
     var t=document.getElementById('voiceAssistToggle'),s=document.getElementById('voiceAssistStatus'),on=enabled();
     document.documentElement.classList.toggle('carplayVoiceEnabled',on);
@@ -161,6 +185,10 @@
       e.preventDefault();e.stopImmediatePropagation();suppressClickTarget=null;suppressClickUntil=0;
     }
   },true);
+  document.addEventListener('touchstart',touchBeginV394,{capture:true,passive:true});
+  document.addEventListener('touchmove',touchMoveV394,{capture:true,passive:true});
+  document.addEventListener('touchend',touchEndV394,{capture:true,passive:true});
+  document.addEventListener('touchcancel',cancel,{capture:true,passive:true});
   document.addEventListener('pointerdown',begin,true);document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',cancel,true);
   document.addEventListener('contextmenu',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,[onclick],[role="button"]'))e.preventDefault()},true);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSetting);else initSetting();
