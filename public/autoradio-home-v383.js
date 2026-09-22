@@ -188,6 +188,47 @@
       #autoradioAddressFooterV383{text-align:center!important;color:#fff!important}
       #settings{z-index:2147483646!important}
       #autoradioDisplaySettingV383 .settingBody button.active{outline:4px solid #5ee684!important}
+
+      /* V383 full-button autoradio artwork — 2026-09-22 */
+      .radioTileV383{
+        position:relative!important;overflow:hidden!important;
+        justify-content:flex-start!important;padding:6px 48px 6px 8px!important;gap:2px!important
+      }
+      .radioChevronV383{
+        position:absolute!important;right:14px!important;top:50%!important;transform:translateY(-50%)!important;
+        z-index:4!important;color:#fff!important;font:950 clamp(34px,4.5vw,62px)/1 Arial!important;
+        text-shadow:0 3px 7px #0006!important;pointer-events:none!important
+      }
+      .radioRow2V383 .radioTileIconV383{
+        flex:0 0 43%!important;width:auto!important;height:118%!important;margin-left:-4%!important;margin-right:1%!important;
+        filter:drop-shadow(0 6px 7px #0008)!important
+      }
+      .radioRow2V383 .radioTileIconV383 svg{width:100%!important;height:100%!important}
+      .radioRow2V383 .radioTileTextV383{flex:1 1 auto!important;position:relative!important;z-index:3!important}
+      .radioNearV383{
+        justify-content:flex-start!important;text-align:left!important;padding-left:4px!important
+      }
+      .radioNearV383 .radioTileIconV383{
+        flex:0 0 36%!important;width:auto!important;height:136%!important;margin-left:-3%!important;margin-right:-1%!important;
+        filter:drop-shadow(0 7px 8px #0008)!important
+      }
+      .radioNearV383 .radioTileTextV383{align-items:flex-start!important;position:relative!important;z-index:3!important}
+      .radioNearV383 .radioTileTitleV383{white-space:nowrap!important}
+      .radioBottomV383{gap:12px!important;padding:0 1%!important}
+      .radioBottomV383 .radioTileV383{
+        flex-direction:row!important;text-align:left!important;justify-content:flex-start!important;
+        gap:0!important;padding:4px 38px 4px 4px!important
+      }
+      .radioBottomV383 .radioTileIconV383{
+        flex:0 0 52%!important;width:auto!important;height:122%!important;margin-left:-9%!important;margin-right:0!important;
+        filter:drop-shadow(0 6px 7px #0008)!important
+      }
+      .radioBottomV383 .radioTileTextV383{
+        flex:1 1 auto!important;min-width:0!important;align-items:flex-start!important;position:relative!important;z-index:3!important
+      }
+      .radioBottomV383 .radioTileTitleV383{
+        font-size:clamp(14px,1.65vw,22px)!important;line-height:1.02!important;text-align:left!important
+      }
       @media(max-height:520px){
         #${HOME_ID}{grid-template-rows:46px 82px 96px minmax(96px,1fr) 28px!important;gap:7px!important}
         .radioBrandV383 img{width:40px!important;height:40px!important}
@@ -223,14 +264,14 @@
         '<div class="radioTopRightV383"><span id="autoradioNetV383" class="autoradioNetV383"></span><button id="radioSettingsV383" class="radioSettingsV383" type="button">⚙ Réglages</button></div>'+
       '</div>'+
       '<div class="radioRow2V383">'+
-        '<button id="radioStationsV383" class="radioTileV383 radioStationsV383" type="button"><span class="radioTileIconV383">'+iconSvg("fuel")+'</span><span class="radioTileTextV383"><span class="radioTileTitleV383">Stations essence</span><span class="radioTileSubV383">À moins de 15 km</span></span></button>'+
-        '<button id="radioMarketsV383" class="radioTileV383 radioMarketsV383" type="button"><span class="radioTileIconV383">'+iconSvg("market")+'</span><span class="radioTileTextV383"><span class="radioTileTitleV383">Marchés</span><span class="radioTileSubV383">Tous les marchés près de chez vous</span></span></button>'+
+        '<button id="radioStationsV383" class="radioTileV383 radioStationsV383" type="button"><span class="radioTileIconV383">'+iconSvg("fuel")+'</span><span class="radioTileTextV383"><span class="radioTileTitleV383">Stations essence</span><span class="radioTileSubV383">À moins de 15 km</span></span><span class="radioChevronV383">›</span></button>'+
+        '<button id="radioMarketsV383" class="radioTileV383 radioMarketsV383" type="button"><span class="radioTileIconV383">'+iconSvg("market")+'</span><span class="radioTileTextV383"><span class="radioTileTitleV383">Marchés</span><span class="radioTileSubV383">Tous les marchés près de chez vous</span></span><span class="radioChevronV383">›</span></button>'+
       '</div>'+
-      '<button id="radioNearV383" class="radioTileV383 radioNearV383" type="button"><span class="radioTileIconV383">'+iconSvg("map")+'</span><span class="radioTileTextV383"><span class="radioTileTitleV383">Marchés à -150 km</span><span class="radioTileSubV383">Foire, brocante, marché, marché de voyageurs, marché de Noël</span></span></button>'+
+      '<button id="radioNearV383" class="radioTileV383 radioNearV383" type="button"><span class="radioTileIconV383">'+iconSvg("map")+'</span><span class="radioTileTextV383"><span class="radioTileTitleV383">Marchés à -150 km</span><span class="radioTileSubV383">Foire, brocante, marché, marché de voyageurs, marché de Noël</span></span><span class="radioChevronV383">›</span></button>'+
       '<div class="radioBottomV383">'+
-        '<button id="radioReturnV383" class="radioTileV383 radioReturnV383" type="button"><span class="radioTileIconV383">'+iconSvg("return")+'</span><span class="radioTileTextV383"><span class="radioTileTitleV383">Retourner sur la place</span></span></button>'+
-        '<button id="radioAddressV383" class="radioTileV383 radioAddressV383" type="button"><span class="radioTileIconV383">'+iconSvg("address")+'</span><span class="radioTileTextV383"><span class="radioTileTitleV383">Carnet d’adresses</span></span></button>'+
-        '<button id="radioEraseV383" class="radioTileV383 radioEraseV383" type="button"><span class="radioTileIconV383">'+iconSvg("trash")+'</span><span class="radioTileTextV383"><span class="radioTileTitleV383">Effacer l’emplacement</span></span></button>'+
+        '<button id="radioReturnV383" class="radioTileV383 radioReturnV383" type="button"><span class="radioTileIconV383">'+iconSvg("return")+'</span><span class="radioTileTextV383"><span class="radioTileTitleV383">Retourner sur la place</span></span><span class="radioChevronV383">›</span></button>'+
+        '<button id="radioAddressV383" class="radioTileV383 radioAddressV383" type="button"><span class="radioTileIconV383">'+iconSvg("address")+'</span><span class="radioTileTextV383"><span class="radioTileTitleV383">Carnet d’adresses</span></span><span class="radioChevronV383">›</span></button>'+
+        '<button id="radioEraseV383" class="radioTileV383 radioEraseV383" type="button"><span class="radioTileIconV383">'+iconSvg("trash")+'</span><span class="radioTileTextV383"><span class="radioTileTitleV383">Effacer l’emplacement</span></span><span class="radioChevronV383">›</span></button>'+
       '</div>'+
       '<div class="radioFooterV383"><span>🚐 Couteau Suisse — Version Autoradio</span><span id="autoradioInternetFooterV383" class="radioStateV383"></span><span id="autoradioAddressFooterV383">📍 Aucun emplacement enregistré</span><span id="autoradioGpsFooterV383" class="radioStateV383"></span></div>';
 
