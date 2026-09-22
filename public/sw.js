@@ -1,5 +1,5 @@
-const VERSION = "V388-LECTURE-VOCALE";
-const BASE_CACHE = "couteau-suisse-module-base-v368-update-loader";
+const VERSION = "V389-VOICE-IOS";
+const BASE_CACHE = "couteau-suisse-module-base-v389-voice-ios";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v366-admin-fresh";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v367-market-full-review";
