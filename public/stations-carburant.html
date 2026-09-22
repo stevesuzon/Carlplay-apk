@@ -219,6 +219,43 @@
     return official;
   }
 
+  function manualNextOpening(text){
+    text=String(text||'').trim();if(!text||/24\s*\/\s*24/.test(text))return'';
+    var m=text.match(/(\d{1,2})(?:[:h.](\d{1,2}))?\s*(?:-|–|—|à|au)\s*(\d{1,2})(?:[:h.](\d{1,2}))?/i);if(!m)return'';
+    var open=Number(m[1])*60+Number(m[2]||0),close=Number(m[3])*60+Number(m[4]||0),now=new Date(),n=now.getHours()*60+now.getMinutes();
+    var raw=String(m[1])+'.'+String(m[2]||'00').padStart(2,'0');
+    if(close<open){if(n>close&&n<open)return'ouvre à '+formatHourFr(raw)+' aujourd’hui';return''}
+    if(n<open)return'ouvre à '+formatHourFr(raw)+' aujourd’hui';
+    if(n>close)return'ouvre à '+formatHourFr(raw)+' demain';
+    return'';
+  }
+  function stationVoiceText(s,v,st,services,shop,verified,name,fuel,nextOpen){
+    var parts=[String(name||'Station'),displayFuel(fuel)],dk=dist(s.distanceKm),pn=Number(s.price);
+    if(Number.isFinite(pn))parts.push('prix '+pn.toFixed(3).replace('.',',')+' euro le litre');
+    if(dk)parts.push('à '+dk);
+    if(fuel==='GPLc')parts.push(shop?'station avec boutique':'station sans boutique');
+    if(st.cls==='open'){
+      if(/24\s*\/\s*24/.test(String(st.text||''))||(fuel==='GPLc'&&s.automate24&&!shop))parts.push('ouverte 24 heures sur 24');
+      else parts.push('ouverte actuellement'+(st.detail?' ; '+String(st.detail).replace(/Horaires vérifiés\s*:\s*/i,'horaires '):''));
+    }else if(st.cls==='closed'){
+      var n=st.manual?manualNextOpening(v&&v.manualHours):nextOpen;
+      parts.push('station fermée'+(n?' ; '+n:''));
+    }else parts.push('horaire inconnu');
+    if(verified){
+      if(fuel==='GPLc'){
+        if(v&&v.opinion==='Gentil')parts.push('GPL vérifié ; c’est bon, vous pouvez y aller');
+        else if(v&&v.opinion==='Pas la peine d’y aller')parts.push('GPL vérifié ; ce n’est pas la peine d’y aller');
+        else if(v&&v.opinion)parts.push('GPL vérifié ; '+v.opinion);
+        else parts.push('GPL vérifié');
+      }else{
+        parts.push('fiche vérifiée');
+        if(v&&v.cigarettes==='Oui')parts.push('cigarettes disponibles');
+        if(v&&v.cigarettes==='Non')parts.push('pas de cigarettes');
+      }
+    }else parts.push('fiche à vérifier');
+    return parts.join('. ')+'.';
+  }
+
   function navUrl(s){var dest=s.lat+','+s.lon,pref='Google Maps';try{pref=localStorage.getItem('gps_pref')||pref}catch(_){}if(pref==='Waze')return 'https://www.waze.com/ul?ll='+encodeURIComponent(dest)+'&navigate=yes';if(pref==='Plans Apple')return 'https://maps.apple.com/?daddr='+encodeURIComponent(dest)+'&dirflg=d';return 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(dest)+'&travelmode=driving&dir_action=navigate'}
   function displayFuel(f){return f==='GPLc'?'GPL':f}
   function gplTone(s,v,shop){
@@ -251,7 +288,9 @@
       var dotClass=verified?'ok':'';
       var dotTitle=verified?'Fiche station vérifiée':'Fiche station à vérifier';
       var cigTxt=verified&&v.cigarettes==='Oui'?'🚬 Cigarettes : OUI':verified&&v.cigarettes==='Non'?'🚭 Cigarettes : NON':'🚬 Cigarettes : à vérifier';
-      return '<article class="card"><div class="cardTools"><span class="verifyDot '+dotClass+'" title="'+esc(dotTitle)+'" aria-label="'+esc(dotTitle)+'"></span><button class="favStar '+(fav?'active':'')+'" type="button" data-fav="'+i+'" aria-label="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'" title="Favori">'+(fav?'★':'☆')+'</button></div><div class="officialStation">✓ STATION — DONNÉES OFFICIELLES</div>'+verifyPanel+'<div class="cardTop"><div class="rank">'+(i+1)+'</div><div class="main"><div class="name">'+esc(name)+'</div>'+(s.nameSource?'<div style="font-size:10px;color:#8ea2b7;margin-top:2px">Enseigne identifiée</div>':'')+'<div class="addr">'+esc((s.address||'')+(s.cp?' · '+s.cp:'')+(s.city?' '+s.city:''))+'</div></div><div class="price"><b>'+money(s.price)+'</b><span>/ litre</span></div></div><div class="badges"><span class="badge '+st.cls+'">'+esc(st.text)+'</span><span class="badge distance">📍 '+esc(dist(s.distanceKm))+'</span><span class="badge pay">💳 '+esc(pay)+'</span>'+(shop?'<span class="badge shop">🏪 Boutique</span>':(official24?'<span class="badge shop">⛽ GPL SANS BOUTIQUE 24/24</span>':''))+'</div><div class="meta"><strong>'+esc(displayFuel(fuel))+'</strong>'+esc(availability)+'<br>🕒 '+esc(st.detail||'Horaires non précisés')+'<br>🔄 Prix mis à jour : '+esc(updTxt)+(s.roadType?'<br>🛣️ '+esc(s.roadType):'')+'</div><div class="openingMain '+(st.cls==='closed'?'closedNow':'openNow')+'">'+(st.cls==='closed'?'🔴 FERMÉ'+(nextOpen?' · '+esc(nextOpen):''):'🟢 '+esc(st.text))+'</div><div class="cigLine">'+esc(cigTxt)+'</div><div class="actions"><a class="go" target="_blank" rel="noopener" href="'+esc(navUrl(s))+'">ALLER À LA STATION</a><button class="details" type="button" data-i="'+i+'">SERVICES</button></div></article>';
+      var voiceNext=(st.cls==='closed')?(st.manual?manualNextOpening(v&&v.manualHours):nextOpen):'';
+      var voiceText=stationVoiceText(s,v,st,services,shop,verified,name,fuel,voiceNext);
+      return '<article class="card" data-voice-card="station" data-voice-text="'+esc(voiceText)+'"><div class="cardTools"><span class="verifyDot '+dotClass+'" title="'+esc(dotTitle)+'" aria-label="'+esc(dotTitle)+'"></span><button class="favStar '+(fav?'active':'')+'" type="button" data-fav="'+i+'" aria-label="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'" title="Favori">'+(fav?'★':'☆')+'</button></div><div class="officialStation">✓ STATION — DONNÉES OFFICIELLES</div>'+verifyPanel+'<div class="cardTop"><div class="rank">'+(i+1)+'</div><div class="main"><div class="name">'+esc(name)+'</div>'+(s.nameSource?'<div style="font-size:10px;color:#8ea2b7;margin-top:2px">Enseigne identifiée</div>':'')+'<div class="addr">'+esc((s.address||'')+(s.cp?' · '+s.cp:'')+(s.city?' '+s.city:''))+'</div></div><div class="price"><b>'+money(s.price)+'</b><span>/ litre</span></div></div><div class="badges"><span class="badge '+st.cls+'">'+esc(st.text)+'</span><span class="badge distance">📍 '+esc(dist(s.distanceKm))+'</span><span class="badge pay">💳 '+esc(pay)+'</span>'+(shop?'<span class="badge shop">🏪 Boutique</span>':(official24?'<span class="badge shop">⛽ GPL SANS BOUTIQUE 24/24</span>':''))+'</div><div class="meta"><strong>'+esc(displayFuel(fuel))+'</strong>'+esc(availability)+'<br>🕒 '+esc(st.detail||'Horaires non précisés')+'<br>🔄 Prix mis à jour : '+esc(updTxt)+(s.roadType?'<br>🛣️ '+esc(s.roadType):'')+'</div><div class="openingMain '+(st.cls==='closed'?'closedNow':'openNow')+'">'+(st.cls==='closed'?'🔴 FERMÉ'+(nextOpen?' · '+esc(nextOpen):''):'🟢 '+esc(st.text))+'</div><div class="cigLine">'+esc(cigTxt)+'</div><div class="actions"><a class="go" target="_blank" rel="noopener" href="'+esc(navUrl(s))+'">ALLER À LA STATION</a><button class="details" type="button" data-i="'+i+'">SERVICES</button></div></article>';
     }).join('');
     list.querySelectorAll('.details').forEach(function(btn){btn.onclick=function(){var s=currentItems[Number(btn.dataset.i)],sv=Array.isArray(s.services)?s.services:[];alert((sv.length?'Services :\n• '+sv.join('\n• '):'Services non renseignés')+'\n\nEspèces : information non garantie par la source officielle.');}});
     list.querySelectorAll('[data-verify]').forEach(function(btn){btn.onclick=function(){openVerify(Number(btn.dataset.verify))}});
@@ -305,5 +344,6 @@
   fuelEl.addEventListener('change',function(){if(lastPos)loadAt(lastPos.lat,lastPos.lon);else locate(false)});document.getElementById('refresh').addEventListener('click',function(){locate(true)});document.addEventListener('visibilitychange',function(){if(!document.hidden&&Date.now()-lastLoadAt>120000)locate(true)});setInterval(function(){if(!document.hidden)locate(true)},300000);locate(false);
 })();
 </script>
+<script src="voice-assist-v388.js?v=388"></script>
 </body>
 </html>

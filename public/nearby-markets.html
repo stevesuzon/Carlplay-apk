@@ -395,7 +395,8 @@
       const phone=item.special?specialPhone(r):'';
       const regAction=item.special?registrationAction(r,item.country):null;
       const specialTop=item.special?(visual?'<div class="specialBadge '+visual.cls+'">'+esc(visual.label)+'</div>':'')+'<div class="meta specialDate">📅 '+esc(dateLabel)+'</div>'+(timing?'<div class="meta specialTimer">'+esc(timing)+'</div>':'')+(phone?'<div class="meta specialPhone">📞 '+esc(phone)+'</div>':''):'<div class="meta" style="font-weight:900;font-size:18px;margin-bottom:8px">'+esc(name)+'</div>';
-      return '<article class="card" data-count-kind="'+esc(countKind)+'" data-market-key="'+esc(marketKey)+'"><span class="marketVerificationDot '+(dotGreen?'green':'orange')+'" title="'+(dotGreen?'Fiche vérifiée':'Fiche à vérifier')+'" aria-label="'+(dotGreen?'Fiche vérifiée':'Fiche à vérifier')+'"></span>'+
+      const voiceDay=!item.special?(showTomorrow?'Demain':'Aujourd’hui'):(/AUJOURD|EN COURS/i.test(timing)?'Aujourd’hui':/DEMAIN/i.test(timing)?'Demain':dateLabel);
+      return '<article class="card" data-voice-card="market" data-voice-name="'+esc(name)+'" data-voice-day="'+esc(voiceDay)+'" data-voice-distance="'+esc(item.d.toFixed(1)+' km')+'" data-voice-count="'+esc(count)+'" data-voice-count-label="'+esc(countLabel)+'" data-count-kind="'+esc(countKind)+'" data-market-key="'+esc(marketKey)+'"><span class="marketVerificationDot '+(dotGreen?'green':'orange')+'" title="'+(dotGreen?'Fiche vérifiée':'Fiche à vérifier')+'" aria-label="'+(dotGreen?'Fiche vérifiée':'Fiche à vérifier')+'"></span>'+
         '<button type="button" class="marketFavoriteStar '+(fav?'active':'')+'" data-favorite-key="'+esc(favoriteKey(item.country,r))+'" aria-label="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'" title="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'">'+(fav?'★':'☆')+'</button>'+
         '<div class="name">'+esc(place)+'<span class="distance">'+item.d.toFixed(1)+' km</span></div>'+ specialTop + photo +
         (!item.special?'':'<div class="meta" style="font-weight:900;font-size:18px;margin-bottom:6px">'+esc(name)+'</div>')+
@@ -464,5 +465,6 @@
   },30000);
 })();
 </script>
-<script src="new-feature-bubbles.js?v=20260905"></script></body>
+<script src="new-feature-bubbles.js?v=20260905"></script><script src="voice-assist-v388.js?v=388"></script>
+</body>
 </html>

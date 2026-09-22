@@ -621,7 +621,7 @@
               var goText = goLabel(r);
               var ev = type === "brocante" ? eventVisual(r) : null;
               return (
-                '<article class="item card ' + (ev ? "eventBig" : "") + '" data-market-key="' +
+                '<article class="item card ' + (ev ? "eventBig" : "") + '" data-voice-card="market" data-voice-name="'+esc(r[2]||'Marché')+'" data-voice-day="'+esc(r[4]||'Date à vérifier')+'" data-voice-distance="'+esc(specialDistanceText(r)||'')+'" data-voice-count="'+esc(String(places).replace(/ officiellement/gi, ''))+'" data-voice-count-label="'+esc(type==="noel"?"chalets":type==="brocante"?"emplacements / exposants":"commerçants")+'" data-market-key="' +
                 esc(marketIdentity(r)) +
                 '"><button class="favStar ' +
                 (fav ? "active" : "") +
@@ -678,5 +678,6 @@
     </script>
     <script src="market-consensus.js?v=320-verification-speciale"></script>
     <script src="new-feature-bubbles.js?v=20260905"></script>
-  </body>
+  <script src="voice-assist-v388.js?v=388"></script>
+</body>
 </html>

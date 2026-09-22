@@ -609,6 +609,10 @@
     if (km < 1) return Math.round(km * 1000) + " m";
     return (km < 10 ? km.toFixed(1) : Math.round(km)) + " km";
   }
+  function voiceDayLabel(day){
+    var names=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'],today=names[new Date().getDay()];
+    return normSearch(day)===normSearch(today)?"Aujourd’hui":String(day||'');
+  }
   function renderMarkets() {
     var rs = marketRows(),
       html = "",
@@ -662,7 +666,7 @@
             encodeURIComponent(currentDay),
         );
       html +=
-        '<article class="card">' + verificationDot(r, s) + '<button type="button" class="marketFavoriteStar ' +
+        '<article class="card" data-voice-card="market" data-voice-name="'+esc(name)+'" data-voice-day="'+esc(voiceDayLabel(currentDay))+'" data-voice-distance="'+esc(marketDistanceText(r)||'')+'" data-voice-count="'+esc(count)+'" data-voice-count-label="commerçants">' + verificationDot(r, s) + '<button type="button" class="marketFavoriteStar ' +
         (fav ? "active" : "") +
         '" aria-label="' +
         (fav ? "Retirer des favoris" : "Ajouter aux favoris") +
