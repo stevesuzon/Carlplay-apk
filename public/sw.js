@@ -1,5 +1,5 @@
-const VERSION = "V389-VOICE-IOS";
-const BASE_CACHE = "couteau-suisse-module-base-v389-voice-ios";
+const VERSION = "V390-VOICE-BUTTONS";
+const BASE_CACHE = "couteau-suisse-module-base-v390-voice-buttons";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v366-admin-fresh";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v367-market-full-review";
