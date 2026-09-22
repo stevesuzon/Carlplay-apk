@@ -1,4 +1,4 @@
 {
-  "version": "V393",
-  "message": "V393 : activation vocale iPhone corrigée. Cocher Activer la voix enregistre immédiatement l’état, affiche Voix activée et prononce Lecture vocale activée. Un bouton Tester la voix permet de vérifier le son."
+  "version": "V394",
+  "message": "V394 : correction de l’appui long sur iPhone. Les fiches marchés, brocantes, Noël, voyageurs et stations utilisent maintenant un vrai gestionnaire tactile de 1,20 seconde."
 }
