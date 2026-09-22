@@ -2323,9 +2323,6 @@ async function ensureContestTables(env){
 async function contestSubscription(env,data){
   await ensureSubscriptionEmailColumns(env);const deviceId=String(data.deviceId||""),code=normalizeCode(data.subscriptionCode||data.code||""),identityEmail=normalizeEmail(data.email);let row=null;
   if(validDevice(deviceId)){row=validEmail(identityEmail)?await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) ORDER BY CASE WHEN lower(COALESCE(recovery_email_mask,''))=? THEN 0 ELSE 1 END,lifetime DESC,COALESCE(expires_at,'') DESC LIMIT 1").bind(deviceId,deviceId,identityEmail).first():await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND (phone_device=? OR autoradio_device=?) ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC LIMIT 1").bind(deviceId,deviceId).first()}
-  // V365 : après une mise à jour/réinstallation ou un changement de téléphone,
-  // l'e-mail validé retrouve le même abonnement et donc le même concours/les mêmes points.
-  if(!row&&validEmail(identityEmail)){row=await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND lower(COALESCE(recovery_email_mask,''))=? ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC,id DESC LIMIT 1").bind(identityEmail).first()}
   if(!row&&validCode(code)){const h=await hashCode(code,env.CODE_PEPPER);row=await env.DB.prepare("SELECT * FROM subscriptions WHERE code_hash=? AND active=1 LIMIT 1").bind(h).first()}
   if(!row)return null;if(!row.lifetime&&(!row.expires_at||Date.parse(row.expires_at)<=Date.now()))return null;return row;
 }
