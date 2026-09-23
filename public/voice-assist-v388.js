@@ -2,7 +2,7 @@
   'use strict';
   var KEY='carplay_voice_enabled_v387';
   var PRESS_MS=1200;
-  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchUtteranceV399=null,queuedTouchTextV399='';
+  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='';
   function installNoSelectV389(){
     if(document.getElementById('carplayVoiceNoSelectV389'))return;
     var st=document.createElement('style');
@@ -207,45 +207,60 @@
   }
   function move(e){if(!active)return;var dx=Math.abs(Number(e.clientX||0)-startX),dy=Math.abs(Number(e.clientY||0)-startY);if(dx>18||dy>18)cancel()}
   function end(){clearTimeout(timer);timer=0;active=null;setTimeout(function(){fired=false},80)}
-  function prepareTouchSpeechV399(target){
-    if(!target||!enabled()||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
-    var text=clean(buildSpeech(target));if(!text)return;
+  function showTapFallbackV400(text){
+    text=clean(text);if(!text)return;
+    var old=document.getElementById('voiceTapFallbackV400');if(old)old.remove();
+    var b=document.createElement('button');
+    b.id='voiceTapFallbackV400';b.type='button';
+    b.textContent='🔊 TOUCHER POUR ÉCOUTER';
+    b.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147483647;width:min(92vw,430px);min-height:62px;padding:12px 16px;border:3px solid #f39b19;border-radius:18px;background:#0b668d;color:#fff;font:950 19px Arial,sans-serif;box-shadow:0 10px 30px #000b';
+    b.addEventListener('click',function(e){
+      e.preventDefault();e.stopPropagation();
+      speakImmediateV400(text);
+      b.remove();
+    },true);
+    document.body.appendChild(b);
+    setTimeout(function(){if(b&&b.parentNode)b.remove()},8000);
+  }
+  function speakImmediateV400(text){
+    text=clean(text);if(!text||!enabled())return false;
+    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){showTapFallbackV400(text);return false}
     try{
       window.speechSynthesis.cancel();
+      window.speechSynthesis.resume();
       loadPreferredVoice();
-      queuedTouchTextV399=text;
-      queuedTouchUtteranceV399=new SpeechSynthesisUtterance(text);
-      queuedTouchUtteranceV399.lang='fr-FR';
-      queuedTouchUtteranceV399.rate=.92;
-      queuedTouchUtteranceV399.pitch=1;
-      queuedTouchUtteranceV399.volume=1;
-      if(preferredVoice)queuedTouchUtteranceV399.voice=preferredVoice;
-      queuedTouchUtteranceV399.onstart=function(){toast('🔊 '+text)};
-      queuedTouchUtteranceV399.onend=function(){queuedTouchUtteranceV399=null;queuedTouchTextV399='';};
-      queuedTouchUtteranceV399.onerror=function(){toast('🔇 Aucun son. Réessayez une fois.');queuedTouchUtteranceV399=null;queuedTouchTextV399='';};
-      window.speechSynthesis.pause();
-      window.speechSynthesis.speak(queuedTouchUtteranceV399);
-    }catch(_){queuedTouchUtteranceV399=null;queuedTouchTextV399='';}
+      var u=new SpeechSynthesisUtterance(text);
+      currentUtteranceV396=u;
+      u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;
+      if(preferredVoice)u.voice=preferredVoice;
+      var started=false;
+      u.onstart=function(){started=true;toast('🔊 '+text)};
+      u.onend=function(){currentUtteranceV396=null};
+      u.onerror=function(){currentUtteranceV396=null;showTapFallbackV400(text)};
+      window.speechSynthesis.speak(u);
+      setTimeout(function(){
+        if(!started&&currentUtteranceV396===u){showTapFallbackV400(text)}
+      },900);
+      return true;
+    }catch(_){showTapFallbackV400(text);return false}
   }
-  function cancelTouchSpeechV399(){
-    try{window.speechSynthesis.cancel()}catch(_){}
-    queuedTouchUtteranceV399=null;queuedTouchTextV399='';
+  function prepareTouchSpeechV400(target){
+    queuedTouchTextV400=target?clean(buildSpeech(target)):'';
   }
-  function resumeTouchSpeechV399(target){
-    try{
-      if(queuedTouchUtteranceV399&&queuedTouchTextV399){
-        window.speechSynthesis.resume();
-        return true;
-      }
-    }catch(_){}
-    return speak(buildSpeech(target));
+  function cancelTouchSpeechV400(){
+    queuedTouchTextV400='';
+  }
+  function resumeTouchSpeechV400(target){
+    var text=queuedTouchTextV400||clean(buildSpeech(target));
+    queuedTouchTextV400='';
+    return speakImmediateV400(text);
   }
   function touchBeginV394(e){
     if(!enabled()||!e.target||!e.target.closest)return;
     var target=eligibleTarget(e);
     if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
-    active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV399(target);
+    active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV400(target);
     timer=setTimeout(function(){
       if(active){
         touchReadyV395=true;
@@ -258,9 +273,9 @@
     if(touchReadyV395)return;
     if(!active)return;
     var t=e.touches&&e.touches[0];
-    if(!t){cancel();cancelTouchSpeechV399();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;return}
+    if(!t){cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;return}
     var dx=Math.abs(t.clientX-startX),dy=Math.abs(t.clientY-startY);
-    if(dx>28||dy>28){cancel();cancelTouchSpeechV399();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;}
+    if(dx>28||dy>28){cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;}
   }
   function blockLongPressReleaseV397(e){
     try{if(e&&e.cancelable)e.preventDefault()}catch(_){}
@@ -278,9 +293,9 @@
       suppressClickUntil=Date.now()+2500;
       suppressAllClicksUntilV398=Date.now()+2500;
       blockLongPressReleaseV397(e);
-      resumeTouchSpeechV399(target);
+      resumeTouchSpeechV400(target);
     }
-    if(!isLong)cancelTouchSpeechV399();
+    if(!isLong)cancelTouchSpeechV400();
     touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;
     setTimeout(function(){fired=false},160);
   }
@@ -333,7 +348,7 @@
   document.addEventListener('touchstart',touchBeginV394,{capture:true,passive:true});
   document.addEventListener('touchmove',touchMoveV394,{capture:true,passive:true});
   document.addEventListener('touchend',touchEndV394,{capture:true,passive:false});
-  document.addEventListener('touchcancel',function(){cancel();cancelTouchSpeechV399();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;},{capture:true,passive:true});
+  document.addEventListener('touchcancel',function(){cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;},{capture:true,passive:true});
   document.addEventListener('pointerdown',begin,true);document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',cancel,true);
   document.addEventListener('contextmenu',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSetting);else initSetting();
