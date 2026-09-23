@@ -1,4 +1,4 @@
 {
-  "version": "V409",
-  "message": "V409 : nouvelle page de choix des départements/provinces avec un nouveau nom de fichier pour éliminer l’ancienne page restée en cache sur iPhone. Les boutons OUVRIR et Voir tous ont disparu ; appui normal sur un département ouvre directement ses marchés, appui long lit son numéro et son nom."
+  "version": "V410",
+  "message": "V410 : suppression définitive du bouton « TOUCHER POUR ÉCOUTER ». Dès que Lecture vocale est activée dans Réglages, l’appui long lance directement la voix. Aucun bouton supplémentaire n’apparaît."
 }
