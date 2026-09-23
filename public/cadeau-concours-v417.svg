@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1600" viewBox="0 0 900 1600">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07152f"/><stop offset=".45" stop-color="#3b0d7c"/><stop offset="1" stop-color="#b10b68"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff8b3"/><stop offset=".3" stop-color="#ffd636"/><stop offset=".65" stop-color="#ff9d00"/><stop offset="1" stop-color="#a73d00"/></linearGradient>
+  <linearGradient id="pink" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ff4bd8"/><stop offset="1" stop-color="#8c20ff"/></linearGradient>
+  <radialGradient id="burst"><stop stop-color="#fff"/><stop offset=".2" stop-color="#58e5ff"/><stop offset=".55" stop-color="#3c4cff" stop-opacity=".8"/><stop offset="1" stop-color="#33106f" stop-opacity="0"/></radialGradient>
+  <filter id="glow"><feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="soft"><feGaussianBlur stdDeviation="28"/></filter>
+</defs>
+<rect width="900" height="1600" fill="#020714"/>
+<rect x="26" y="34" width="848" height="1532" rx="54" fill="url(#bg)" stroke="#ffd454" stroke-width="7" filter="url(#glow)"/>
+<ellipse cx="450" cy="935" rx="390" ry="390" fill="url(#burst)" opacity=".85"/>
+<!-- fireworks -->
+<g stroke-linecap="round" filter="url(#glow)">
+  <g transform="translate(170 205)" stroke="#4fd7ff" stroke-width="7">
+    <path d="M0 0L-110 -95M0 0L-70 -130M0 0L0 -145M0 0L78 -126M0 0L118 -75M0 0L125 5M0 0L92 82M0 0L22 126M0 0L-54 118M0 0L-113 63"/>
+  </g>
+  <g transform="translate(720 230)" stroke="#ff52df" stroke-width="7">
+    <path d="M0 0L-105 -88M0 0L-58 -131M0 0L5 -145M0 0L74 -124M0 0L121 -64M0 0L128 18M0 0L85 89M0 0L18 132M0 0L-63 112M0 0L-120 47"/>
+  </g>
+  <g transform="translate(110 420)" stroke="#ffb52b" stroke-width="6">
+    <path d="M0 0L-72 -70M0 0L-42 -103M0 0L10 -115M0 0L67 -95M0 0L103 -47M0 0L108 25M0 0L61 87M0 0L-20 105M0 0L-84 61"/>
+  </g>
+  <g transform="translate(800 455)" stroke="#a948ff" stroke-width="6">
+    <path d="M0 0L-74 -68M0 0L-36 -106M0 0L18 -114M0 0L72 -88M0 0L108 -38M0 0L101 35M0 0L57 91M0 0L-21 108M0 0L-87 59"/>
+  </g>
+</g>
+<!-- confetti -->
+<g fill="#ffd72f">
+  <rect x="90" y="120" width="18" height="44" rx="4" transform="rotate(-28 90 120)"/><rect x="790" y="110" width="18" height="44" rx="4" transform="rotate(24 790 110)"/>
+  <rect x="74" y="690" width="18" height="44" rx="4" transform="rotate(34 74 690)"/><rect x="810" y="720" width="18" height="44" rx="4" transform="rotate(-31 810 720)"/>
+</g>
+<g fill="#2ad7ff"><rect x="235" y="96" width="17" height="38" transform="rotate(42 235 96)"/><rect x="650" y="100" width="17" height="38" transform="rotate(-38 650 100)"/><rect x="140" y="1180" width="17" height="38" transform="rotate(31 140 1180)"/></g>
+<g fill="#ff3fbc"><rect x="315" y="180" width="17" height="38" transform="rotate(-23 315 180)"/><rect x="572" y="160" width="17" height="38" transform="rotate(18 572 160)"/><rect x="740" y="1200" width="17" height="38" transform="rotate(-37 740 1200)"/></g>
+<!-- gifts top -->
+<g transform="translate(235 150)">
+  <rect x="70" y="105" width="360" height="220" rx="22" fill="#fff0ef" stroke="#ffbf21" stroke-width="7"/>
+  <rect x="235" y="105" width="42" height="220" fill="url(#gold)"/>
+  <rect x="70" y="164" width="360" height="42" fill="url(#gold)"/>
+  <path d="M255 105 C180 58 154 9 204 6 C244 5 255 62 255 105Z" fill="url(#gold)" stroke="#ffad00" stroke-width="5"/>
+  <path d="M255 105 C330 58 356 9 306 6 C266 5 255 62 255 105Z" fill="url(#gold)" stroke="#ffad00" stroke-width="5"/>
+  <circle cx="255" cy="105" r="28" fill="#ffc528" stroke="#ff9300" stroke-width="5"/>
+  <g fill="#ffc928"><path d="M124 132l10 20 23 3-17 16 4 23-20-11-21 11 4-23-17-16 23-3z"/><path d="M368 228l10 20 23 3-17 16 4 23-20-11-21 11 4-23-17-16 23-3z"/></g>
+</g>
+<!-- title ribbon -->
+<path d="M90 510 Q450 435 810 510 L770 700 Q450 770 130 700Z" fill="#8a0da2" stroke="#ffca2e" stroke-width="8" filter="url(#glow)"/>
+<text x="450" y="600" text-anchor="middle" font-family="Arial Black,Arial" font-size="96" font-weight="900" fill="url(#gold)" stroke="#5d1b00" stroke-width="8" paint-order="stroke">CADEAU</text>
+<text x="450" y="687" text-anchor="middle" font-family="Arial Black,Arial" font-size="82" font-weight="900" fill="#ff8cf1" stroke="#4a075f" stroke-width="10" paint-order="stroke">CONCOURS !</text>
+<!-- center dynamic zone -->
+<rect x="92" y="760" width="716" height="460" rx="44" fill="#061a4a" fill-opacity=".43" stroke="#ffdd65" stroke-width="4"/>
+<ellipse cx="450" cy="1030" rx="310" ry="190" fill="#1c45d8" opacity=".28" filter="url(#soft)"/>
+<!-- lower gifts -->
+<g transform="translate(65 1265)">
+ <rect width="170" height="185" rx="20" fill="#fff2ef" stroke="#ffbd22" stroke-width="5"/><rect x="72" width="28" height="185" fill="url(#gold)"/><rect y="66" width="170" height="28" fill="url(#gold)"/>
+ <path d="M85 3C35-28 20-62 58-64C84-65 85-22 85 3Z" fill="url(#gold)"/><path d="M85 3C136-28 151-62 113-64C87-65 85-22 85 3Z" fill="url(#gold)"/>
+</g>
+<g transform="translate(665 1265)">
+ <rect width="170" height="185" rx="20" fill="#1a8aff" stroke="#ffbd22" stroke-width="5"/><rect x="72" width="28" height="185" fill="url(#gold)"/><rect y="66" width="170" height="28" fill="url(#gold)"/>
+ <path d="M85 3C35-28 20-62 58-64C84-65 85-22 85 3Z" fill="url(#gold)"/><path d="M85 3C136-28 151-62 113-64C87-65 85-22 85 3Z" fill="url(#gold)"/>
+</g>
+<!-- bottom instruction plaque -->
+<rect x="120" y="1460" width="660" height="72" rx="34" fill="#5c0d4d" stroke="#ff8ee5" stroke-width="3"/>
+<text x="450" y="1507" text-anchor="middle" font-family="Arial" font-size="27" font-weight="700" fill="white">Appuyez pour fermer avant 10 secondes</text>
+<!-- sparkles -->
+<g fill="#fff" filter="url(#glow)">
+<circle cx="450" cy="370" r="8"/><circle cx="190" cy="820" r="7"/><circle cx="718" cy="855" r="8"/><circle cx="262" cy="1160" r="6"/><circle cx="640" cy="1165" r="7"/>
+</g>
+</svg>
