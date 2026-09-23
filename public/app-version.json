@@ -1,4 +1,4 @@
 {
-  "version": "V397",
-  "message": "V397 : correction de l'appui long vocal. Après 1,20 seconde, relâcher lit la fiche ou le bouton sans ouvrir la page. L'appui court continue d'ouvrir normalement. Correctif appliqué aux marchés, départements, brocantes, Noël, voyageurs et stations."
+  "version": "V398",
+  "message": "V398 : dès que Relâchez pour écouter apparaît, l'appui long est verrouillé en mode voix. Le relâchement ne doit plus ouvrir la page, même si le doigt bouge légèrement."
 }
