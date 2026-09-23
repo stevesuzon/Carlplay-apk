@@ -203,23 +203,13 @@
   function move(e){if(!active)return;var dx=Math.abs(Number(e.clientX||0)-startX),dy=Math.abs(Number(e.clientY||0)-startY);if(dx>18||dy>18)cancel()}
   function end(){clearTimeout(timer);timer=0;active=null;setTimeout(function(){fired=false},80)}
   function showTapFallbackV400(text){
-    text=clean(text);if(!text)return;
-    var old=document.getElementById('voiceTapFallbackV400');if(old)old.remove();
-    var b=document.createElement('button');
-    b.id='voiceTapFallbackV400';b.type='button';
-    b.textContent='🔊 TOUCHER POUR ÉCOUTER';
-    b.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147483647;width:min(92vw,430px);min-height:62px;padding:12px 16px;border:3px solid #f39b19;border-radius:18px;background:#0b668d;color:#fff;font:950 19px Arial,sans-serif;box-shadow:0 10px 30px #000b';
-    b.addEventListener('click',function(e){
-      e.preventDefault();e.stopPropagation();
-      speakImmediateV400(text);
-      b.remove();
-    },true);
-    document.body.appendChild(b);
-    setTimeout(function(){if(b&&b.parentNode)b.remove()},8000);
+    var old=document.getElementById('voiceTapFallbackV400');
+    if(old)old.remove();
+    return false;
   }
   function speakImmediateV400(text){
     text=clean(text);if(!text||!enabled())return false;
-    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){showTapFallbackV400(text);return false}
+    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){toast('🔇 Lecture vocale indisponible.');return false}
     try{
       window.speechSynthesis.cancel();
       window.speechSynthesis.resume();
@@ -231,13 +221,10 @@
       var started=false;
       u.onstart=function(){started=true;toast('🔊 '+text)};
       u.onend=function(){currentUtteranceV396=null};
-      u.onerror=function(){currentUtteranceV396=null;showTapFallbackV400(text)};
+      u.onerror=function(){currentUtteranceV396=null;toast('🔇 La lecture vocale n’a pas démarré. Réessayez l’appui long.');};
       window.speechSynthesis.speak(u);
-      setTimeout(function(){
-        if(!started&&currentUtteranceV396===u){showTapFallbackV400(text)}
-      },900);
       return true;
-    }catch(_){showTapFallbackV400(text);return false}
+    }catch(_){toast('🔇 La lecture vocale n’a pas démarré. Réessayez l’appui long.');return false}
   }
   function prepareTouchSpeechV400(target){
     queuedTouchTextV400=target?clean(buildSpeech(target)):'';
@@ -295,6 +282,7 @@
     setTimeout(function(){fired=false},160);
   }
   function syncSetting(){
+    var oldFallback=document.getElementById('voiceTapFallbackV400');if(oldFallback)oldFallback.remove();
     var t=document.getElementById('voiceAssistToggle'),s=document.getElementById('voiceAssistStatus'),on=enabled();
     document.documentElement.classList.toggle('carplayVoiceEnabled',on);
     if(t)t.checked=on;
