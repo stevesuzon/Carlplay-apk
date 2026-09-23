@@ -26,14 +26,28 @@ async function sha256Text(value) {
 async function adminAuthorized(request, env) {
   const auth = request.headers.get("authorization") || "";
   const supplied = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  if (!supplied || !env.DB) return false;
-  await ensureAdminAuthTables(env);
-  const tokenHash = await sha256Text(supplied);
-  const now = Date.now();
-  const row = await env.DB.prepare("SELECT token_hash,expires_at FROM admin_sessions WHERE token_hash=? AND expires_at>? LIMIT 1").bind(tokenHash, now).first();
-  if (!row) return false;
-  try { await env.DB.prepare("UPDATE admin_sessions SET last_seen_at=? WHERE token_hash=?").bind(now, tokenHash).run(); } catch(_) {}
-  return true;
+  if (!supplied) return false;
+
+  // V414 : compatibilité complète entre les deux systèmes admin.
+  // 1) Session temporaire obtenue par confirmation e-mail.
+  if (env.DB) {
+    try {
+      await ensureAdminAuthTables(env);
+      const tokenHash = await sha256Text(supplied);
+      const now = Date.now();
+      const row = await env.DB.prepare("SELECT token_hash,expires_at FROM admin_sessions WHERE token_hash=? AND expires_at>? LIMIT 1").bind(tokenHash, now).first();
+      if (row) {
+        try { await env.DB.prepare("UPDATE admin_sessions SET last_seen_at=? WHERE token_hash=?").bind(now, tokenHash).run(); } catch(_) {}
+        return true;
+      }
+    } catch(_) {}
+  }
+
+  // 2) Ancien panneau de génération de codes : secret administrateur historique.
+  // On le conserve uniquement pour Steve afin que les anciens écrans encore en cache
+  // continuent de fonctionner pendant la migration vers la connexion par e-mail.
+  if (env.ADMIN_SECRET && supplied === String(env.ADMIN_SECRET).trim()) return true;
+  return (await sha256Text(supplied)) === ADMIN_FALLBACK_SHA256;
 }
 
 async function body(request) {
