@@ -1,4 +1,4 @@
 {
   "version": "V414",
-  "message": "V414 : corrige l’ancien panneau administrateur qui affichait « secret administrateur incorrect » en acceptant la session e-mail et l’ancien secret valide. Le parrainage affiche maintenant le vrai barème : partage administrateur = 0 point pour l’administrateur et 250 points pour le nouvel utilisateur. Les bonus kilomètres et cadeaux concours de V413 restent actifs."
+  "message": "V414 : un code d’abonnement neuf se rattache à l’adresse e-mail validée lors de sa première activation. Un ancien compte resté sur le même téléphone ne bloque plus le nouveau code. Les abonnements sont cumulables : un nouveau code de 365 jours ajoute 365 jours aux jours déjà restants au lieu de les remplacer."
 }
