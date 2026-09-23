@@ -1,4 +1,4 @@
 {
-  "version": "V406",
-  "message": "V406 : les renseignements, GPS et photos des fiches marché restent enregistrés sur le même serveur après chaque mise à jour. Une fois un champ enregistré, les utilisateurs ne peuvent plus le modifier ni demander sa modification ; ils voient seulement la fiche. Seul l’administrateur peut remodifier depuis Administration > REGARDER LES FICHES."
+  "version": "V407",
+  "message": "V407 : correction de l'inscription des nouveaux utilisateurs. L'adresse e-mail n'est plus considérée comme validée uniquement sur le téléphone : elle est vérifiée côté serveur. Si elle n'est pas encore confirmée, un e-mail de confirmation est envoyé. Les erreurs réelles du compte sont affichées au lieu du faux message « internet indisponible »."
 }
