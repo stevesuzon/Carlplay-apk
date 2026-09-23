@@ -1,4 +1,4 @@
 {
-  "version": "V421",
-  "message": "V421 : corrige l’affichage du cadeau directement sur l’écran d’accueil. Le style plein écran est maintenant chargé avant l’apparition de l’image. Le cadeau reste affiché jusqu’au clic sur RÉCUPÉRER MES POINTS ; les points ne sont ajoutés qu’à ce moment-là."
+  "version": "V422",
+  "message": "V422 : l’écran d’accueil vérifie maintenant directement s’il existe un cadeau concours en attente, sans dépendre de la page Concours ni des notifications. La bulle est forcée en plein écran avec son propre style. Elle reste affichée jusqu’au clic sur RÉCUPÉRER MES POINTS, puis seulement les points sont ajoutés."
 }
