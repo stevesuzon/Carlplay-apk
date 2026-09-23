@@ -1,4 +1,4 @@
 {
-  "version": "V417",
-  "message": "V417 : la grande image Cadeau Concours est maintenant intégrée au site. Quand un participant reçoit son cadeau, elle s’affiche en plein écran avec feux d’artifice, confettis, son nom et le nombre réel de points gagnés. Elle reste 10 secondes et peut être fermée en appuyant dessus. L’affichage fonctionne même si les notifications sont désactivées."
+  "version": "V418",
+  "message": "V418 : corrige l’affichage de l’image Cadeau Concours. Le cadeau n’est maintenant marqué comme vu qu’après chargement réel de l’image. Si l’image ne charge pas, elle sera reproposée à la prochaine ouverture. Nom et points réels restent affichés pendant 10 secondes."
 }
