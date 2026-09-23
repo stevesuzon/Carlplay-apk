@@ -112,15 +112,13 @@
   }
   function buttonSpeech(el){
     if(!el)return '';
-    var own=clean(el.getAttribute&&el.getAttribute('data-voice-help')||'');
-    if(own)return own;
     if(el.tagName==='SELECT'){
       var opt=el.options&&el.selectedIndex>=0?el.options[el.selectedIndex]:null;
       var txt=clean(opt&&opt.textContent||el.getAttribute('aria-label')||'Menu');
       return txt.replace(/\s*[—–-]\s*/g,', ').replace(/\bKM\b/gi,'kilomètres')+'.';
     }
     var txt=clean(el.innerText||el.textContent||'');
-    if(!txt&&el.getAttribute)txt=clean(el.getAttribute('aria-label')||el.getAttribute('title')||'');
+    if(!txt&&el.getAttribute)txt=clean(el.getAttribute('aria-label')||el.getAttribute('title')||el.getAttribute('data-voice-help')||'');
     if(!txt&&el.querySelector){
       var img=el.querySelector('img[alt]');
       if(img)txt=clean(img.getAttribute('alt')||'');
