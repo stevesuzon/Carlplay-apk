@@ -161,13 +161,32 @@
     if (e && e.error === "ABONNEMENT_EXPIRE") return "ABONNEMENT EXPIRÉ — ENTREZ UN NOUVEAU CODE POUR LE RENOUVELER";
     if (e && e.error === "ABONNEMENT_DEJA_A_VIE") return "VOTRE COMPTE POSSÈDE DÉJÀ UN ABONNEMENT À VIE";
     if (e && e.error === "APPAREIL_DEJA_UTILISE") return "CE COMPTE A DÉJÀ UN APPAREIL DE CE TYPE. SI C’EST VOTRE NOUVEAU TÉLÉPHONE OU AUTORADIO, CONFIRMEZ D’ABORD VOTRE E-MAIL SUR CET APPAREIL PUIS RÉESSAYEZ.";
-    return "CODE INCORRECT OU INTERNET INDISPONIBLE";
+    if (e && e.error === "IDENTITE_INCOMPLETE") return "VÉRIFIEZ LE NOM, LE PRÉNOM ET L’ADRESSE E-MAIL.";
+    if (e && e.error === "EMAIL_TROP_RAPIDE") return "UN E-MAIL DE CONFIRMATION VIENT DÉJÀ D’ÊTRE ENVOYÉ. REGARDEZ VOTRE BOÎTE MAIL.";
+    if (e && e.error === "EMAIL_CONFIRMATION_ENVOYEE") return "✅ E-MAIL DE CONFIRMATION ENVOYÉ. OUVREZ LE LIEN REÇU, PUIS REVENEZ DANS L’APPLICATION.";
+    if (e && e.error === "DB_NON_CONFIGUREE") return "LE SERVEUR DE COMPTE EST MOMENTANÉMENT INDISPONIBLE. RÉESSAYEZ.";
+    if (e && e.error) return "ERREUR DU COMPTE : "+String(e.error).replace(/_/g," ");
+    return navigator.onLine===false?"PAS DE CONNEXION INTERNET.":"LE SERVEUR N’A PAS RÉPONDU. RÉESSAYEZ.";
   }
   function confirmEmail(email, done, failed) {
     email=String(email||"").trim().toLowerCase();
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){failed({error:"EMAIL_OBLIGATOIRE"});return;}
     rememberEmail(email);
     done({ok:true,email:email,emailProof:"adresse-confirmee"});
+  }
+  function ensureServerIdentityV407(email,firstName,lastName,done,failed){
+    email=String(email||"").trim().toLowerCase();
+    firstName=String(firstName||"").trim().replace(/\s+/g," ");
+    lastName=String(lastName||"").trim().replace(/\s+/g," ");
+    var payload={email:email,firstName:firstName,lastName:lastName,deviceId:id(),platform:detectedType()};
+    fetch("/api/app-identity/status",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email:email,deviceId:id()})})
+      .then(function(r){return r.json().then(function(j){if(!r.ok)throw j;return j;});})
+      .then(function(st){
+        if(st&&st.verified){done(st);return;}
+        return fetch("/api/app-identity/start",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)})
+          .then(function(r){return r.json().then(function(j){if(!r.ok)throw j;return j;});})
+          .then(function(j){failed({error:"EMAIL_CONFIRMATION_ENVOYEE",emailMask:j&&j.emailMask||email});});
+      }).catch(failed);
   }
   function updateActiveSubscriptionEmail(email, firstName, lastName, done, failed) {
     email=String(email||"").trim().toLowerCase();
@@ -176,7 +195,7 @@
     if(firstName.length<2||lastName.length<2){failed({error:"NOM_PRENOM_OBLIGATOIRES"});return;}
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){failed({error:"EMAIL_OBLIGATOIRE"});return;}
     var real=null;try{real=JSON.parse(localStorage.getItem(KEY)||"null")}catch(_){}
-    if(!real||real.globalFree||!valid(real)){real=real||{};fetch("/api/contest/trial-identity",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email:email,firstName:firstName,lastName:lastName,deviceId:id()})}).then(function(r){return r.json().then(function(j){if(!r.ok)throw j;return j;});}).then(function(j){real.globalFree=true;real.expiresAt=j.expiresAt||real.expiresAt;real.email=j.email||email;real.firstName=j.firstName||firstName;real.lastName=j.lastName||lastName;localStorage.setItem(KEY,JSON.stringify(real));rememberEmail(real.email);done(j);}).catch(failed);return;}
+    if(!real||real.globalFree||!valid(real)){real=real||{};ensureServerIdentityV407(email,firstName,lastName,function(){fetch("/api/contest/trial-identity",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email:email,firstName:firstName,lastName:lastName,deviceId:id()})}).then(function(r){return r.json().then(function(j){if(!r.ok)throw j;return j;});}).then(function(j){real.globalFree=true;real.expiresAt=j.expiresAt||real.expiresAt;real.email=j.email||email;real.firstName=j.firstName||firstName;real.lastName=j.lastName||lastName;localStorage.setItem(KEY,JSON.stringify(real));rememberEmail(real.email);done(j);}).catch(failed);},failed);return;}
     fetch("/api/subscription-email",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email:email,firstName:firstName,lastName:lastName,deviceId:id(),code:real&&real.code||""})})
       .then(function(r){return r.json().then(function(j){if(!r.ok)throw j;return j;});})
       .then(function(j){if(j&&j.switchRequired){done(j);return;}real.email=j.email||email;real.firstName=j.firstName||firstName;real.lastName=j.lastName||lastName;localStorage.setItem(KEY,JSON.stringify(real));rememberEmail(real.email);done(j);})
@@ -485,7 +504,7 @@
     panel.querySelector(".settingHead").onclick = function () { panel.querySelector(".settingBody").classList.toggle("open"); };
     var settingsCodeInput = panel.querySelector(".sub-setting-code");
     settingsCodeInput.addEventListener("input", function(){ settingsCodeInput.value = cleanCode(settingsCodeInput.value); });
-    panel.querySelector('.sub-setting-confirm-email').onclick=function(){var msg=panel.querySelector('.sub-settings-message'),email=String(emailField.value||'').trim().toLowerCase(),firstName=String(firstNameField.value||'').trim().replace(/\s+/g,' '),lastName=String(lastNameField.value||'').trim().replace(/\s+/g,' '),recoverButton=panel.querySelector('.sub-setting-recover-code');if(firstName.length<2||lastName.length<2){msg.textContent='Écrivez votre nom et votre prénom.';return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){msg.textContent='Écrivez une adresse e-mail complète.';return;}emailProof='adresse-saisie';rememberEmail(email);showConfirmed(email);settingsCodeInput.disabled=false;panel.querySelector('.sub-setting-activate').disabled=false;msg.textContent='Recherche de votre abonnement et envoi de votre code…';sendRecoveryCode(email,firstName,lastName,recoverButton,function(j){emailProof='adresse-confirmee';var info=j&&j.lifetime?'abonnement à vie':((j&&typeof j.remainingDays==='number')?j.remainingDays+' jour'+(j.remainingDays>1?'s':'')+' restant'+(j.remainingDays>1?'s':''):'abonnement retrouvé');msg.textContent='✅ Votre code d’abonnement a été renvoyé à '+email+'. Compte retrouvé : '+info+'. Entrez le code reçu ci-dessous : le même abonnement sera remis sur ce téléphone.';settingsCodeInput.focus();},function(e){if(e&&e.error==='EMAIL_INTROUVABLE'){msg.textContent='Cette adresse n’a pas encore de code d’abonnement enregistré. Si vous avez un nouveau code, entrez-le ci-dessous pour lier ce compte.';settingsCodeInput.focus();return;}msg.textContent=messageFor(e);});};
+    panel.querySelector('.sub-setting-confirm-email').onclick=function(){var msg=panel.querySelector('.sub-settings-message'),email=String(emailField.value||'').trim().toLowerCase(),firstName=String(firstNameField.value||'').trim().replace(/\s+/g,' '),lastName=String(lastNameField.value||'').trim().replace(/\s+/g,' ');if(firstName.length<2||lastName.length<2){msg.textContent='Écrivez votre nom et votre prénom.';return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){msg.textContent='Écrivez une adresse e-mail complète.';return;}rememberEmail(email);msg.textContent='Vérification de votre adresse e-mail…';ensureServerIdentityV407(email,firstName,lastName,function(){emailProof='adresse-confirmee';showConfirmed(email);settingsCodeInput.disabled=false;panel.querySelector('.sub-setting-activate').disabled=false;msg.textContent='✅ Adresse e-mail confirmée sur le serveur. Vous pouvez continuer.';},function(e){emailProof='';msg.textContent=messageFor(e);});};
     panel.querySelector('.sub-setting-change-email').onclick=function(){emailProof='';if(firstNameField)firstNameField.disabled=false;if(lastNameField)lastNameField.disabled=false;emailField.style.display='block';panel.querySelector('.sub-setting-email-label').style.display='block';emailField.focus();panel.querySelector('.sub-setting-confirm-email').style.display='block';panel.querySelector('.sub-setting-confirmed').style.display='none';panel.querySelector('.sub-setting-warning').style.display='none';this.style.display='none';settingsCodeInput.disabled=false;panel.querySelector('.sub-setting-activate').disabled=false;};
     panel.querySelector('.sub-setting-recover-code').onclick=function(){var email=String(emailField.value||'').trim(),firstName=String(firstNameField.value||'').trim().replace(/\s+/g,' '),lastName=String(lastNameField.value||'').trim().replace(/\s+/g,' '),msg=panel.querySelector('.sub-settings-message'),button=this;msg.textContent='Recherche de votre abonnement…';sendRecoveryCode(email,firstName,lastName,button,function(j){emailProof='adresse-confirmee';rememberEmail(email);showConfirmed(email);settingsCodeInput.disabled=false;panel.querySelector('.sub-setting-activate').disabled=false;var info=j&&j.lifetime?'abonnement à vie':((j&&typeof j.remainingDays==='number')?j.remainingDays+' jour'+(j.remainingDays>1?'s':'')+' restant'+(j.remainingDays>1?'s':''):'abonnement retrouvé');msg.textContent='✅ Code renvoyé à '+email+' — '+info+'. Entrez ce code ci-dessous pour remettre exactement cet abonnement sur ce téléphone.';},function(e){msg.textContent=messageFor(e)});};
     panel.querySelector(".sub-setting-activate").onclick = function () {
