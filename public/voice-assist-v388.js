@@ -2,7 +2,7 @@
   'use strict';
   var KEY='carplay_voice_enabled_v387';
   var PRESS_MS=1200;
-  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null;
+  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0;
   function installNoSelectV389(){
     if(document.getElementById('carplayVoiceNoSelectV389'))return;
     var st=document.createElement('style');
@@ -212,19 +212,22 @@
     var target=eligibleTarget(e);
     if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
-    active=target;fired=false;touchReadyV395=false;touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);primeVoiceV396();
+    active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);primeVoiceV396();
     timer=setTimeout(function(){
       if(active){
         touchReadyV395=true;
+        suppressAllClicksUntilV398=Date.now()+4000;
         toast('🔊 Relâchez pour écouter');
       }
     },PRESS_MS);
   }
   function touchMoveV394(e){
+    if(touchReadyV395)return;
     if(!active)return;
-    var t=e.touches&&e.touches[0];if(!t){cancel();touchReadyV395=false;touchStartedAtV395=0;return}
+    var t=e.touches&&e.touches[0];
+    if(!t){cancel();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;return}
     var dx=Math.abs(t.clientX-startX),dy=Math.abs(t.clientY-startY);
-    if(dx>28||dy>28){cancel();touchReadyV395=false;touchStartedAtV395=0;}
+    if(dx>28||dy>28){cancel();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;}
   }
   function blockLongPressReleaseV397(e){
     try{if(e&&e.cancelable)e.preventDefault()}catch(_){}
@@ -232,19 +235,20 @@
     try{if(e&&e.stopImmediatePropagation)e.stopImmediatePropagation()}catch(_){}
   }
   function touchEndV394(e){
-    var target=active;
+    var target=active||touchTargetV398;
     var held=touchStartedAtV395?Date.now()-touchStartedAtV395:0;
     var isLong=!!(target&&(touchReadyV395||held>=PRESS_MS));
     clearTimeout(timer);timer=0;active=null;
     if(isLong){
       fired=true;
       suppressClickTarget=target;
-      suppressClickUntil=Date.now()+1800;
+      suppressClickUntil=Date.now()+2500;
+      suppressAllClicksUntilV398=Date.now()+2500;
       blockLongPressReleaseV397(e);
       speak(buildSpeech(target));
     }
-    touchReadyV395=false;touchStartedAtV395=0;
-    setTimeout(function(){fired=false},120);
+    touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;
+    setTimeout(function(){fired=false},160);
   }
   function syncSetting(){
     var t=document.getElementById('voiceAssistToggle'),s=document.getElementById('voiceAssistStatus'),on=enabled();
@@ -280,6 +284,10 @@
     if(txt)speak(txt.replace(/\s*[—–-]\s*/g,', '));
   },true);
   document.addEventListener('click',function(e){
+    if(suppressAllClicksUntilV398&&Date.now()<suppressAllClicksUntilV398){
+      e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+      return;
+    }
     if(suppressClickUntil&&Date.now()<suppressClickUntil&&suppressClickTarget){
       var hit=(e.target===suppressClickTarget)||(suppressClickTarget.contains&&suppressClickTarget.contains(e.target))||(e.target&&e.target.contains&&e.target.contains(suppressClickTarget));
       if(hit){
