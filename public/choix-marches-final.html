@@ -80,4 +80,61 @@
 })();
 </script>
 <script src="/voice-assist-v388.js?v=400"></script>
+
+<style id="customDepartmentPickerV405">
+.voiceSelectNativeHidden{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+.voiceSelectLauncher{width:100%;min-height:58px;border:1px solid #6b7f95;border-radius:14px;background:#152536;color:#fff;font:900 19px/1.2 Arial,sans-serif;text-align:left;padding:12px 16px}
+.voiceSelectOverlayV405{position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.9);padding:18px;overflow:auto;-webkit-overflow-scrolling:touch}
+.voiceSelectPanelV405{max-width:640px;margin:0 auto;background:#101b2a;border:2px solid #f39b19;border-radius:20px;padding:14px}
+.voiceSelectTitleV405{color:#fff;font:950 24px/1.2 Arial,sans-serif;text-align:center;margin:4px 8px 14px}
+.voiceSelectOptionV405{display:block;width:100%;min-height:56px;margin:8px 0;padding:11px 14px;border:1px solid #61758c;border-radius:13px;background:#172536;color:#fff;text-align:left;font:900 18px/1.2 Arial,sans-serif}
+.voiceSelectOptionV405.selected{background:#0b668d}
+.voiceSelectBackV405{display:block;width:100%;min-height:54px;margin-bottom:12px;border:0;border-radius:13px;background:#253b55;color:#fff;font:950 18px Arial,sans-serif}
+</style>
+<script id="customDepartmentPickerV405">
+(function(){
+  function makePicker(select,title){
+    if(!select||select.dataset.customV405==='1')return;
+    select.dataset.customV405='1';
+    select.classList.add('voiceSelectNativeHidden');
+    var launch=document.createElement('button');
+    launch.type='button';
+    launch.className='voiceSelectLauncher';
+    launch.textContent=(select.options[select.selectedIndex]&&select.options[select.selectedIndex].textContent)||title;
+    select.parentNode.insertBefore(launch,select);
+    function open(){
+      var old=document.getElementById('voiceSelectOverlayV405');if(old)old.remove();
+      var overlay=document.createElement('div');overlay.id='voiceSelectOverlayV405';overlay.className='voiceSelectOverlayV405';
+      var panel=document.createElement('div');panel.className='voiceSelectPanelV405';
+      var h=document.createElement('div');h.className='voiceSelectTitleV405';h.textContent=title;
+      var back=document.createElement('button');back.type='button';back.className='voiceSelectBackV405';back.textContent='← RETOUR';
+      back.addEventListener('click',function(){overlay.remove()});
+      panel.appendChild(h);panel.appendChild(back);
+      Array.prototype.forEach.call(select.options,function(opt,idx){
+        if(opt.disabled)return;
+        var b=document.createElement('button');
+        b.type='button';b.className='voiceSelectOptionV405'+(idx===select.selectedIndex?' selected':'');
+        b.textContent=opt.textContent||opt.label||opt.value;
+        b.addEventListener('click',function(){
+          select.selectedIndex=idx;
+          launch.textContent=b.textContent;
+          try{select.dispatchEvent(new Event('input',{bubbles:true}))}catch(_){}
+          try{select.dispatchEvent(new Event('change',{bubbles:true}))}catch(_){}
+          overlay.remove();
+        });
+        panel.appendChild(b);
+      });
+      overlay.appendChild(panel);
+      overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});
+      document.body.appendChild(overlay);
+    }
+    launch.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();open();});
+  }
+  function init(){
+    makePicker(document.getElementById('frInput'),'Choisir un département français');
+    makePicker(document.getElementById('beProvince'),'Choisir une province belge');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
 </body></html>
