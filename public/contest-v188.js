@@ -38,6 +38,9 @@ function style(){if(document.getElementById('contestStyleV188'))return;var e=doc
 .contestGiftV417 .giftPointsDynamic{font-weight:1000;font-size:clamp(64px,18vw,112px);line-height:.9;letter-spacing:-4px;color:#ffd32d;text-shadow:0 6px 0 #9c3a00,0 0 14px #fff5a8,0 0 30px #ff2cd0}
 .contestGiftV417 .giftSubDynamic{margin-top:10px;font-weight:1000;font-size:clamp(16px,4vw,24px);color:#fff3a8}
 .contestGiftV417 .giftTapHint{position:absolute;left:12%;right:12%;bottom:3.7%;text-align:center;color:#fff;font-weight:900;font-size:clamp(12px,3vw,17px);pointer-events:none}
+.contestGiftV417 .giftClaimButton{position:absolute;left:13%;right:13%;bottom:4.2%;z-index:6;min-height:62px;border:3px solid #eaffb7;border-radius:20px;background:linear-gradient(180deg,#3df07a,#078b42);color:#fff;font:1000 clamp(17px,4.5vw,25px)/1 Arial,sans-serif;box-shadow:0 6px 0 #07552b,0 0 22px #3df07aaa;padding:12px 10px}
+.contestGiftV417 .giftClaimButton:disabled{opacity:.72}
+.contestGiftV417 .giftClaimStatus{position:absolute;left:12%;right:12%;bottom:11.2%;z-index:6;text-align:center;color:#fff;font-weight:950;font-size:clamp(12px,3.2vw,17px);text-shadow:0 2px 5px #000;min-height:22px}
 .contestGiftV417 .giftSpark{position:absolute;top:-32px;width:11px;height:24px;border-radius:3px;animation:giftFallV417 linear forwards;box-shadow:0 0 8px currentColor}
 @keyframes giftPopV417{from{transform:scale(.55);opacity:0}to{transform:scale(1);opacity:1}}
 @keyframes giftFallV417{to{transform:translateY(115vh) rotate(760deg)}}
@@ -80,33 +83,35 @@ function popupShell(title,html){var old=document.querySelector('.contest-msg-pop
 function showContestWelcome(){var html='<div style="text-align:center;font-size:22px;font-weight:1000;color:#63e89b;margin-bottom:12px">🎉 Bravo, vous participez au concours !</div><div class="msg"><b>Règles en bref</b><br>• Une seule validation par personne pour le même marché ou événement.<br>• La photo et le GPS doivent être pris sur place.<br>• Les fausses informations et les doublons sont refusés.</div><div class="msg"><b>Points en bref</b><br>• Chaque fiche enregistrée rapporte immédiatement les points affichés.<br>• Les kilomètres du trajet aller ajoutent aussi des points.<br>• Bonus marché : <b style="color:#2aff85">×3 dès 10,01 km</b>, <b style="color:#ff9c1a">×7 dès 15,01 km</b>, <b style="color:#ff3bd4">×10 dès 50 km</b>.<br>• Si plusieurs multiplicateurs sont disponibles, seul le plus élevé est appliqué.<br>• L’administrateur contrôle ensuite la fiche : OUI conserve les points, NON les retire.<br>• Bug ou problème confirmé : <b>+153 points</b> (validation administrateur obligatoire).<br>• Parrainage : <b>+320 points pour le parrain, +96 pour le filleul</b> après validation du bouton reçu par e-mail.<br>• Idée acceptée : bonus automatique <b>×2, ×5 ou ×10 pendant 3 jours</b>.<br>• Seuls les nouveaux points gagnés pendant un bonus sont multipliés.</div>';popupShell('🏆 Bienvenue au concours',html)}
 function contestNoticeKey(id){return 'contest_notice_seen_v277_'+String(id||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,120)}
 
-function showRandomGiftPopupV418(points,source,participant){
-  points=Math.max(0,Math.round(Number(points)||0));if(!points)return;
-  var key='contest_random_gift_seen_v418_'+String(source||'gift');
-  try{if(localStorage.getItem(key)==='1')return}catch(_){}
+function showPendingGiftPopupV420(gift,participant){
+  if(!gift||!gift.id)return;
+  var points=Math.max(0,Math.round(Number(gift.points)||0));if(!points)return;
+  var existing=document.querySelector('.contestGiftV417[data-gift-id="'+String(gift.id).replace(/"/g,'')+'"]');if(existing)return;
   var old=document.querySelector('.contestGiftV417');if(old)old.remove();
   var first=String(participant&&participant.first_name||'').trim();
   var last=String(participant&&participant.last_name||'').trim();
   var who=(first+' '+last).trim()||'Bravo';
-  var d=document.createElement('div');d.className='contestGiftV417';d.setAttribute('role','dialog');d.setAttribute('aria-label','Cadeau concours '+points+' points');
-  d.innerHTML='<div class="giftImageWrap"><img class="giftImage" src="/cadeau-concours-v417.svg?v=418" alt="Cadeau concours avec feux d’artifice et confettis"><div class="giftDynamic"><div class="giftName">'+esc(who)+', bravo !</div><div class="giftLine">Vous avez reçu un cadeau de</div><div class="giftPointsDynamic">'+points+' pts</div><div class="giftSubDynamic">✨ Points offerts ✨</div></div><div class="giftTapHint">Appuyez pour l’enlever avant 10 secondes</div></div>';
+  var d=document.createElement('div');d.className='contestGiftV417';d.dataset.giftId=String(gift.id);d.setAttribute('role','dialog');d.setAttribute('aria-label','Cadeau concours '+points+' points');
+  d.innerHTML='<div class="giftImageWrap"><img class="giftImage" src="/cadeau-concours-v417.svg?v=420" alt="Cadeau concours avec feux d’artifice et confettis"><div class="giftDynamic"><div class="giftName">'+esc(who)+', bravo !</div><div class="giftLine">Vous avez reçu un cadeau de</div><div class="giftPointsDynamic">'+points+' pts</div><div class="giftSubDynamic">✨ Cadeau en attente ✨</div></div><div class="giftClaimStatus"></div><button type="button" class="giftClaimButton">🎁 RÉCUPÉRER MES '+points+' POINTS</button></div>';
   for(var i=0;i<72;i++){var x=document.createElement('i');x.className='giftSpark';x.style.left=(Math.random()*100)+'%';x.style.animationDuration=(2.2+Math.random()*4.5)+'s';x.style.animationDelay=(-Math.random()*2.5)+'s';x.style.background=['#ffd328','#ff2cc3','#8b5cff','#31d7ff','#fff','#ff6b35'][i%6];x.style.color=x.style.background;d.appendChild(x)}
-  var img=d.querySelector('.giftImage'),timer=null,started=false;
-  function beginDisplay(){
-    if(started)return;started=true;
-    try{localStorage.setItem(key,'1')}catch(_){}
-    timer=setTimeout(function(){if(d&&d.parentNode)d.remove()},10000);
-  }
-  if(img){
-    img.addEventListener('load',beginDisplay,{once:true});
-    img.addEventListener('error',function(){if(d&&d.parentNode)d.remove()},{once:true});
-  }
-  d.addEventListener('click',function(){if(timer)clearTimeout(timer);if(d&&d.parentNode)d.remove()},{once:true});
+  var btn=d.querySelector('.giftClaimButton'),status=d.querySelector('.giftClaimStatus');
+  btn.onclick=async function(ev){
+    ev.preventDefault();ev.stopPropagation();btn.disabled=true;btn.textContent='RÉCUPÉRATION EN COURS…';status.textContent='Ajout de vos points au classement…';
+    try{
+      var r=await api('/api/contest/gift/claim',{method:'POST',body:{giftId:String(gift.id)}});
+      status.textContent='✅ '+points+' points ajoutés !';
+      btn.textContent='✅ POINTS RÉCUPÉRÉS';
+      try{var fresh=await loadState(true);state=fresh;saveCachedState(fresh);applyFastScore({participant:fresh.participant,ranking:fresh.ranking})}catch(_){}
+      setTimeout(function(){if(d&&d.parentNode)d.remove()},900);
+    }catch(e){
+      btn.disabled=false;btn.textContent='🎁 RÉCUPÉRER MES '+points+' POINTS';
+      status.textContent='⚠️ Impossible de récupérer les points. Réessayez.';
+    }
+  };
   document.body.appendChild(d);
-  if(img&&img.complete&&img.naturalWidth>0)beginDisplay();
 }
 async function showAutomaticContestWelcome(j){var p=j&&j.participant;if(!p||Number(p.auto_enrolled)!==1)return;var key=contestNoticeKey('welcome-'+p.subscription_id);if(localStorage.getItem(key)==='1')return;localStorage.setItem(key,'1');var name=[p.first_name,p.last_name].filter(Boolean).join(' '),message='Bravo '+name+', vous participez maintenant au concours Couteau Suisse !';popupShell('🏆 BRAVO, VOUS PARTICIPEZ AU CONCOURS','<div style="text-align:center;font-size:21px;font-weight:950;color:#63e89b">'+esc(message)+'</div><p style="text-align:center">Votre compte existant a été récupéré automatiquement. Vous apparaissez maintenant dans le classement et vos nouveaux points seront comptabilisés.</p>');try{if(window.CarPlayNotifications)await window.CarPlayNotifications.notify('🏆 Bravo, vous participez au concours',{body:message,icon:'/couteau-suisse-192.png',badge:'/couteau-suisse-192.png',tag:'contest-auto-enrolled',renotify:true,data:{url:'/index.html'}})}catch(_){}}
-async function notifyNewContestItems(j){if(!j)return;if(j.randomGift&&j.randomGift.awarded)showRandomGiftPopupV418(j.randomGift.points,j.randomGift.source,j.participant);if(!window.CarPlayNotifications)return;var items=[];(j.messages||[]).forEach(function(m){items.push({id:'message-'+m.id,title:'🔔 Nouveau message Couteau Suisse',body:String(m.message||'').slice(0,220)})});(j.questions||[]).forEach(function(q){items.push({id:'question-'+q.id,title:'⚠️ Réponse demandée',body:String(q.message||'Une nouvelle demande du concours vous attend.').slice(0,220)})});for(var i=0;i<items.length;i++){var item=items[i],key=contestNoticeKey(item.id);if(localStorage.getItem(key)==='1')continue;try{var shown=await window.CarPlayNotifications.notify(item.title,{body:item.body,icon:'/couteau-suisse-192.png',badge:'/couteau-suisse-192.png',tag:item.id,renotify:true,data:{url:'/index.html'}});if(shown)localStorage.setItem(key,'1')}catch(_){}}}
+async function notifyNewContestItems(j){if(!j)return;if(j.randomGift&&j.randomGift.pending)showPendingGiftPopupV420(j.randomGift,j.participant);if(!window.CarPlayNotifications)return;var items=[];(j.messages||[]).forEach(function(m){items.push({id:'message-'+m.id,title:'🔔 Nouveau message Couteau Suisse',body:String(m.message||'').slice(0,220)})});(j.questions||[]).forEach(function(q){items.push({id:'question-'+q.id,title:'⚠️ Réponse demandée',body:String(q.message||'Une nouvelle demande du concours vous attend.').slice(0,220)})});for(var i=0;i<items.length;i++){var item=items[i],key=contestNoticeKey(item.id);if(localStorage.getItem(key)==='1')continue;try{var shown=await window.CarPlayNotifications.notify(item.title,{body:item.body,icon:'/couteau-suisse-192.png',badge:'/couteau-suisse-192.png',tag:item.id,renotify:true,data:{url:'/index.html'}});if(shown)localStorage.setItem(key,'1')}catch(_){}}}
 function showBonusPanel(j){var b=j.bonusState||{},a=b.active,s=j.scoreSummary||{},html;if(a){html='<div style="text-align:center;font-size:28px;color:#ffd24a;font-weight:1000">🎁 BONUS ×'+Number(a.multiplier)+' ACTIF</div><div style="text-align:center;margin-top:10px">Temps restant : <b>'+esc(timeLeft(Number(a.end_at)-Date.now()))+'</b></div><div style="text-align:center;margin-top:8px">Points gagnés en plus grâce aux bonus : <b>+'+fmt(s.bonusExtraPoints||0)+' pts</b></div>'}else{html='<div style="text-align:center"><b>Bonus fiches :</b> ×2 à 5 fiches, ×3 à 15 fiches, ×5 à 40 fiches.</div>'}html+='<div style="margin-top:16px;text-align:center;font-weight:1000">🚗 BONUS KILOMÈTRES</div>'+renderDistanceBonusBar()+'<div class="small" style="text-align:center">Le plus gros multiplicateur disponible est retenu. Exemple : bonus fiches ×5 + distance ×7 = <b>×7</b>, jamais ×35.</div>';popupShell('🎁 Mes bonus',html)}
 function showPointsPanel(j){var s=j.scoreSummary||{};var html='<div class="compactScoreLine"><span>Fiches renseignées</span><strong>'+fmt(s.marketInfoPoints||0)+' pts</strong></div><div class="compactScoreLine"><span>Déplacements</span><strong>'+fmt(s.distancePoints||0)+' pts</strong></div><div class="compactScoreLine"><span>Bugs / problèmes</span><strong>'+fmt(s.bugPoints||0)+' pts</strong></div><div class="compactScoreLine"><span>Parrainage</span><strong>'+fmt(s.referralPoints||0)+' pts</strong></div><div class="compactScoreLine"><span>🎁 Cadeaux concours</span><strong>'+fmt(s.giftPoints||0)+' pts</strong></div><div class="compactScoreLine"><span>Bonus gagnés en plus</span><strong>+'+fmt(s.bonusExtraPoints||0)+' pts</strong></div><div class="compactScoreLine"><span>Idées acceptées</span><strong>'+Number(s.ideaCount||0)+'</strong></div>'+(Number(s.otherPoints||0)>0?'<div class="compactScoreLine"><span>Autres points conservés</span><strong>'+fmt(s.otherPoints||0)+' pts</strong></div>':'')+'<div class="compactScoreLine" style="font-size:20px"><b>TOTAL</b><strong>'+fmt(s.total||0)+' pts</strong></div>';popupShell('📊 Mes points',html)}
 function shortDate(ts){if(!Number(ts))return '';try{return new Date(Number(ts)).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(_){return ''}}
