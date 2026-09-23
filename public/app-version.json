@@ -1,4 +1,4 @@
 {
-  "version": "V425",
-  "message": "V425 : ajoute le déploiement direct GitHub vers Cloudflare. Cette version conserve les corrections de la voix après réouverture, du bouton Adresse et du cadeau concours à récupérer manuellement."
+  "version": "V426",
+  "message": "V426 : restaure sur téléphone les modules récents après le redéploiement Cloudflare : concours, points, abonnement actuel, compte et fonctions associées. L’ancien écran d’abonnement à 8 chiffres a été retiré du téléphone."
 }
