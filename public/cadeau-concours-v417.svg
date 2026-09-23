@@ -60,7 +60,7 @@
 </g>
 <!-- bottom instruction plaque -->
 <rect x="120" y="1460" width="660" height="72" rx="34" fill="#5c0d4d" stroke="#ff8ee5" stroke-width="3"/>
-<text x="450" y="1507" text-anchor="middle" font-family="Arial" font-size="27" font-weight="700" fill="white">Appuyez pour fermer avant 10 secondes</text>
+<text x="450" y="1507" text-anchor="middle" font-family="Arial" font-size="27" font-weight="700" fill="white">RÉCUPÉREZ VOS POINTS POUR LES AJOUTER</text>
 <!-- sparkles -->
 <g fill="#fff" filter="url(#glow)">
 <circle cx="450" cy="370" r="8"/><circle cx="190" cy="820" r="7"/><circle cx="718" cy="855" r="8"/><circle cx="262" cy="1160" r="6"/><circle cx="640" cy="1165" r="7"/>
