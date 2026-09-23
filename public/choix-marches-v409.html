@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
+<title>Rechercher un marché</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:linear-gradient(135deg,#152f42,#6d4b28);color:#fff}.wrap{width:min(980px,94vw);margin:auto;padding:24px}.back{display:inline-block;padding:13px 18px;border-radius:15px;background:linear-gradient(135deg,#ff9a19,#ff5b00);color:#fff;text-decoration:none;font-weight:900;box-shadow:0 6px 18px #0005}.hero{margin:18px 0 16px;padding:20px 24px;border-radius:24px;background:#101724dd;border:1px solid #ffffff22}.hero h1{margin:0 0 6px;font-size:36px}.hero p{margin:0;color:#ddd;font-size:17px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.searchCard{border-radius:28px;padding:24px;background:#101724e8;border:3px solid #f39b19;box-shadow:0 8px 24px #0007}.searchCard h2{margin:0 0 8px;font-size:30px;color:#ffd84a}.searchCard p{margin:0 0 16px;color:#e4e4e4;font-weight:750;line-height:1.35}.line{display:grid;grid-template-columns:1fr auto;gap:10px}.line input,.line select{min-width:0;height:58px;border:3px solid #fff;border-radius:15px;background:#07111d;color:#fff;padding:0 16px;font-size:21px;font-weight:900}.line button{border:0;border-radius:15px;padding:0 18px;background:linear-gradient(135deg,#ff9a19,#ff5b00);color:#fff;font-size:16px;font-weight:950;cursor:pointer}.hint{min-height:22px;margin-top:9px;color:#ffd84a;font-weight:850}.examples{margin-top:12px;font-size:14px;color:#ccc}.allLink{display:block;margin-top:15px;padding:13px;border-radius:14px;background:#153b67;color:#fff;text-align:center;text-decoration:none;font-weight:950}.beCard{border-color:#ffd11a}.frCard{border-color:#4aa8ff}@media(max-width:720px){.wrap{padding:10px}.grid{grid-template-columns:1fr 1fr;gap:8px}.searchCard{padding:10px;border-radius:18px}.searchCard h2{font-size:16px}.searchCard p{font-size:12px;margin-bottom:8px}.line{grid-template-columns:1fr;gap:6px}.line button{min-height:42px;font-size:12px}.line input,.line select{height:44px;font-size:13px;padding:0 8px}.examples{font-size:10px}.allLink{font-size:11px;padding:9px}}
+.specialTitle{margin:26px 0 12px;text-align:center;font-size:25px;color:#ffd84a}.specialGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.specialBtn{position:relative;z-index:5;display:flex;align-items:center;justify-content:center;min-height:88px;padding:15px;border-radius:20px;text-decoration:none;color:#fff;font-size:20px;font-weight:950;text-align:center;box-shadow:0 7px 20px #0006;border:2px solid #ffffff66;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}.specialBtn:active{transform:scale(.985)}.christmas{background:linear-gradient(135deg,#b91c1c,#166534)}.brocante{background:linear-gradient(135deg,#a45b16,#4a2a12)}.seasonal{background:linear-gradient(135deg,#0f766e,#0b4f6c)}.periodic{background:linear-gradient(135deg,#6d28d9,#4338ca)}.traveller{background:linear-gradient(135deg,#111827,#374151);border-color:#9ca3af;opacity:.97;cursor:pointer}.loadingOverlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0008;z-index:9999}.loadingOverlay.show{display:flex}.loadingBox{padding:18px 22px;border-radius:18px;background:#101724;border:2px solid #f39b19;color:#fff;font-weight:900;text-align:center}@media(max-width:720px){.specialGrid{grid-template-columns:1fr 1fr;gap:8px}.specialBtn{min-height:62px;font-size:13px;padding:9px;border-radius:15px}.specialTitle{font-size:20px;margin-top:16px}}</style>
+</head>
+<body>
+<main class="wrap">
+<a class="back" href="index.html">← RETOUR</a>
+
+<section class="grid">
+  <div class="searchCard frCard">
+    <h2>🇫🇷 RECHERCHE FRANCE</h2>
+    <p>Choisis ton département dans le menu.</p>
+    <div class="line"><select id="frInput" aria-label="Choisir un département français"><option value="">CHOISIR UN DÉPARTEMENT</option><option value="01">01 — Ain</option><option value="02">02 — Aisne</option><option value="03">03 — Allier</option><option value="04">04 — Alpes-de-Haute-Provence</option><option value="05">05 — Hautes-Alpes</option><option value="06">06 — Alpes-Maritimes</option><option value="07">07 — Ardèche</option><option value="08">08 — Ardennes</option><option value="09">09 — Ariège</option><option value="10">10 — Aube</option><option value="11">11 — Aude</option><option value="12">12 — Aveyron</option><option value="13">13 — Bouches-du-Rhône</option><option value="14">14 — Calvados</option><option value="15">15 — Cantal</option><option value="16">16 — Charente</option><option value="17">17 — Charente-Maritime</option><option value="18">18 — Cher</option><option value="19">19 — Corrèze</option><option value="2A">2A — Corse-du-Sud</option><option value="2B">2B — Haute-Corse</option><option value="21">21 — Côte-d’Or</option><option value="22">22 — Côtes-d’Armor</option><option value="23">23 — Creuse</option><option value="24">24 — Dordogne</option><option value="25">25 — Doubs</option><option value="26">26 — Drôme</option><option value="27">27 — Eure</option><option value="28">28 — Eure-et-Loir</option><option value="29">29 — Finistère</option><option value="30">30 — Gard</option><option value="31">31 — Haute-Garonne</option><option value="32">32 — Gers</option><option value="33">33 — Gironde</option><option value="34">34 — Hérault</option><option value="35">35 — Ille-et-Vilaine</option><option value="36">36 — Indre</option><option value="37">37 — Indre-et-Loire</option><option value="38">38 — Isère</option><option value="39">39 — Jura</option><option value="40">40 — Landes</option><option value="41">41 — Loir-et-Cher</option><option value="42">42 — Loire</option><option value="43">43 — Haute-Loire</option><option value="44">44 — Loire-Atlantique</option><option value="45">45 — Loiret</option><option value="46">46 — Lot</option><option value="47">47 — Lot-et-Garonne</option><option value="48">48 — Lozère</option><option value="49">49 — Maine-et-Loire</option><option value="50">50 — Manche</option><option value="51">51 — Marne</option><option value="52">52 — Haute-Marne</option><option value="53">53 — Mayenne</option><option value="54">54 — Meurthe-et-Moselle</option><option value="55">55 — Meuse</option><option value="56">56 — Morbihan</option><option value="57">57 — Moselle</option><option value="58">58 — Nièvre</option><option value="59">59 — Nord</option><option value="60">60 — Oise</option><option value="61">61 — Orne</option><option value="62">62 — Pas-de-Calais</option><option value="63">63 — Puy-de-Dôme</option><option value="64">64 — Pyrénées-Atlantiques</option><option value="65">65 — Hautes-Pyrénées</option><option value="66">66 — Pyrénées-Orientales</option><option value="67">67 — Bas-Rhin</option><option value="68">68 — Haut-Rhin</option><option value="69">69 — Rhône</option><option value="70">70 — Haute-Saône</option><option value="71">71 — Saône-et-Loire</option><option value="72">72 — Sarthe</option><option value="73">73 — Savoie</option><option value="74">74 — Haute-Savoie</option><option value="75">75 — Paris</option><option value="76">76 — Seine-Maritime</option><option value="77">77 — Seine-et-Marne</option><option value="78">78 — Yvelines</option><option value="79">79 — Deux-Sèvres</option><option value="80">80 — Somme</option><option value="81">81 — Tarn</option><option value="82">82 — Tarn-et-Garonne</option><option value="83">83 — Var</option><option value="84">84 — Vaucluse</option><option value="85">85 — Vendée</option><option value="86">86 — Vienne</option><option value="87">87 — Haute-Vienne</option><option value="88">88 — Vosges</option><option value="89">89 — Yonne</option><option value="90">90 — Territoire de Belfort</option><option value="91">91 — Essonne</option><option value="92">92 — Hauts-de-Seine</option><option value="93">93 — Seine-Saint-Denis</option><option value="94">94 — Val-de-Marne</option><option value="95">95 — Val-d’Oise</option><option value="971">971 — Guadeloupe</option><option value="972">972 — Martinique</option><option value="973">973 — Guyane</option><option value="974">974 — La Réunion</option><option value="976">976 — Mayotte</option></select></div>
+    <div id="frMsg" class="hint"></div>
+    <div class="examples">Exemple : 91 — Essonne</div>
+  </div>
+  <div class="searchCard beCard">
+    <h2>🇧🇪 RECHERCHE BELGIQUE</h2>
+    <p>Choisis simplement la province dans le menu.</p>
+    <div class="line"><select id="beProvince" aria-label="Choisir une province belge">
+      <option value="">CHOISIR UNE PROVINCE</option>
+      <option value="bruxelles">Bruxelles-Capitale</option>
+      <option value="anvers">Anvers</option>
+      <option value="brabant-flamand">Brabant flamand</option>
+      <option value="brabant-wallon">Brabant wallon</option>
+      <option value="flandre-occidentale">Flandre-Occidentale</option>
+      <option value="flandre-orientale">Flandre-Orientale</option>
+      <option value="hainaut">Hainaut</option>
+      <option value="liege">Liège</option>
+      <option value="limbourg">Limbourg</option>
+      <option value="luxembourg">Luxembourg</option>
+      <option value="namur">Namur</option>
+    </select></div>
+    <div id="beMsg" class="hint"></div>
+    <div class="examples">Noms simplifiés en français pour être plus faciles à reconnaître.</div>
+  </div>
+</section>
+<h2 class="specialTitle">CATÉGORIES SPÉCIALES</h2>
+<section class="specialGrid" aria-label="Catégories spéciales de marchés">
+  <a class="specialBtn christmas" data-target="special-marches.html?country=fr&type=noel" href="special-marches.html?country=fr&type=noel">🎄 MARCHÉS DE NOËL FRANCE</a>
+  <a class="specialBtn christmas" data-target="special-marches.html?country=be&type=noel" href="special-marches.html?country=be&type=noel">🎄 MARCHÉS DE NOËL BELGIQUE</a>
+  <a class="specialBtn traveller" data-target="traveller-markets.html?country=fr" href="traveller-markets.html?country=fr">🚐 MARCHÉS DE VOYAGEURS FRANCE<br>(BÊTA — À VÉRIFIER)</a>
+  <a class="specialBtn traveller" data-target="traveller-markets.html?country=be" href="traveller-markets.html?country=be">🚐 MARCHÉS DE VOYAGEURS BELGIQUE<br>(BÊTA — À VÉRIFIER)</a>
+  <a class="specialBtn brocante" data-target="special-marches.html?country=fr&type=brocante" href="special-marches.html?country=fr&type=brocante">🧳 BROCANTE / VIDE-GRENIER / FOIRE FRANCE</a>
+  <a class="specialBtn brocante" data-target="special-marches.html?country=be&type=brocante" href="special-marches.html?country=be&type=brocante">🧳 BROCANTE / VIDE-GRENIER / FOIRE BELGIQUE</a>
+  <a class="specialBtn seasonal" data-target="special-marches.html?country=fr&type=saisonnier" href="special-marches.html?country=fr&type=saisonnier">☀️ MARCHÉS SAISONNIERS FRANCE</a>
+  <a class="specialBtn seasonal" data-target="special-marches.html?country=be&type=saisonnier" href="special-marches.html?country=be&type=saisonnier">☀️ MARCHÉS SAISONNIERS BELGIQUE</a>
+  <a class="specialBtn periodic" data-target="special-marches.html?country=fr&type=periodique" href="special-marches.html?country=fr&type=periodique">📅 MARCHÉS PÉRIODIQUES FRANCE</a>
+  <a class="specialBtn periodic" data-target="special-marches.html?country=be&type=periodique" href="special-marches.html?country=be&type=periodique">📅 MARCHÉS PÉRIODIQUES BELGIQUE</a>
+</section>
+
+<div id="specialLoading" class="loadingOverlay" aria-hidden="true"><div class="loadingBox">Ouverture…<br>Chargement de la catégorie.</div></div></main>
+<script src="market-data-be.js?v=20260905-dedup-fr"></script>
+<script>
+(function(){
+ function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,"'").replace(/[^a-z0-9]+/g,' ').trim()}
+ function today(){return ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][new Date().getDay()]}
+ var fr=document.getElementById('frInput'),fm=document.getElementById('frMsg');
+ function openFrValue(c){c=String(c||'').trim().toUpperCase().replace(/\s/g,'');if(!c)return;location.href='marches-final.html?area='+encodeURIComponent(c)+'&day='+today()}
+ if(fr)fr.onchange=function(){if(fm)fm.textContent=''};
+ var bp=document.getElementById('beProvince'),bm=document.getElementById('beMsg');
+ function openBeValue(key){key=String(key||'').trim();if(!key)return;location.href='belgique-marches-final.html?area='+encodeURIComponent(key)+'&day='+today()}
+ if(bp)bp.onchange=function(){if(bm)bm.textContent=''};
+ var overlay=document.getElementById('specialLoading');
+ function openSpecial(url){ if(!url) return; try{ overlay.classList.add('show'); }catch(e){} setTimeout(function(){ location.assign(url); }, 40); }
+ document.querySelectorAll('.specialBtn').forEach(function(btn){
+   function handle(ev){ ev.preventDefault(); ev.stopPropagation(); openSpecial(btn.getAttribute('data-target')||btn.getAttribute('href')); return false; }
+   btn.addEventListener('click',handle);
+   btn.addEventListener('touchend',handle,{passive:false});
+   btn.addEventListener('keydown',function(ev){ if(ev.key==='Enter'||ev.key===' '){ handle(ev); } });
+ });
+})();
+</script>
+<script src="/voice-assist-v388.js?v=409"></script>
+
+<style id="customDepartmentPickerV405">
+.voiceSelectNativeHidden{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+.voiceSelectLauncher{width:100%;min-height:58px;border:1px solid #6b7f95;border-radius:14px;background:#152536;color:#fff;font:900 19px/1.2 Arial,sans-serif;text-align:left;padding:12px 16px}
+.voiceSelectOverlayV405{position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.9);padding:18px;overflow:auto;-webkit-overflow-scrolling:touch}
+.voiceSelectPanelV405{max-width:640px;margin:0 auto;background:#101b2a;border:2px solid #f39b19;border-radius:20px;padding:14px}
+.voiceSelectTitleV405{color:#fff;font:950 24px/1.2 Arial,sans-serif;text-align:center;margin:4px 8px 14px}
+.voiceSelectOptionV405{display:block;width:100%;min-height:56px;margin:8px 0;padding:11px 14px;border:1px solid #61758c;border-radius:13px;background:#172536;color:#fff;text-align:left;font:900 18px/1.2 Arial,sans-serif}
+.voiceSelectOptionV405.selected{background:#0b668d}
+.voiceSelectBackV405{display:block;width:100%;min-height:54px;margin-bottom:12px;border:0;border-radius:13px;background:#253b55;color:#fff;font:950 18px Arial,sans-serif}
+</style>
+<script id="customDepartmentPickerV408">
+(function(){
+  function todayV408(){return ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][new Date().getDay()]}
+  function destination(select,value){
+    if(select.id==='frInput')return 'marches-final.html?area='+encodeURIComponent(String(value||'').toUpperCase())+'&day='+todayV408();
+    return 'belgique-marches-final.html?area='+encodeURIComponent(String(value||''))+'&day='+todayV408();
+  }
+  function makePicker(select,title){
+    if(!select||select.dataset.customV408==='1')return;
+    select.dataset.customV408='1';
+    select.classList.add('voiceSelectNativeHidden');
+    var launch=document.createElement('button');
+    launch.type='button';
+    launch.className='voiceSelectLauncher';
+    launch.textContent=select.id==='frInput'?'CHOISIR UN DÉPARTEMENT':'CHOISIR UNE PROVINCE';
+    select.parentNode.insertBefore(launch,select);
+    function open(){
+      var old=document.getElementById('voiceSelectOverlayV405');if(old)old.remove();
+      var overlay=document.createElement('div');overlay.id='voiceSelectOverlayV405';overlay.className='voiceSelectOverlayV405';
+      var panel=document.createElement('div');panel.className='voiceSelectPanelV405';
+      var h=document.createElement('div');h.className='voiceSelectTitleV405';h.textContent=title;
+      var back=document.createElement('button');back.type='button';back.className='voiceSelectBackV405';back.textContent='← RETOUR';
+      back.addEventListener('click',function(){overlay.remove()});
+      panel.appendChild(h);panel.appendChild(back);
+      Array.prototype.forEach.call(select.options,function(opt,idx){
+        if(opt.disabled||!String(opt.value||'').trim())return;
+        var b=document.createElement('button');
+        b.type='button';
+        b.className='voiceSelectOptionV405';
+        b.textContent=opt.textContent||opt.label||opt.value;
+        b.setAttribute('data-department-value',opt.value);
+        b.addEventListener('click',function(){
+          select.selectedIndex=idx;
+          launch.textContent=b.textContent;
+          location.href=destination(select,opt.value);
+        });
+        panel.appendChild(b);
+      });
+      overlay.appendChild(panel);
+      overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});
+      document.body.appendChild(overlay);
+    }
+    launch.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();open();});
+  }
+  function init(){
+    makePicker(document.getElementById('frInput'),'Choisir un département français');
+    makePicker(document.getElementById('beProvince'),'Choisir une province belge');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
+</body></html>

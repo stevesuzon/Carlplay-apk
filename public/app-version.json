@@ -1,4 +1,4 @@
 {
-  "version": "V408",
-  "message": "V408 : choix des départements et provinces simplifié. Appui long sur un département/province pour entendre son numéro et son nom ; appui normal pour ouvrir directement ses marchés. Les boutons OUVRIR et Voir tous les départements/provinces ont été supprimés."
+  "version": "V409",
+  "message": "V409 : nouvelle page de choix des départements/provinces avec un nouveau nom de fichier pour éliminer l’ancienne page restée en cache sur iPhone. Les boutons OUVRIR et Voir tous ont disparu ; appui normal sur un département ouvre directement ses marchés, appui long lit son numéro et son nom."
 }
