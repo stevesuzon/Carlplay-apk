@@ -1,4 +1,4 @@
 {
-  "version": "V399",
-  "message": "V399 : correction renforcée de la voix sur iPhone. La phrase de la fiche ou du bouton est préparée dès le contact du doigt, puis reprise au relâchement après 1,20 seconde. L'appui long reste verrouillé en mode voix et ne doit plus ouvrir la page. Les boutons Retour/Ouvrir et les choix de département/province restent accessibles vocalement."
+  "version": "V400",
+  "message": "V400 : la lecture vocale des fiches et boutons est lancée directement au relâchement, sans pause/reprise. Si iPhone bloque encore la synthèse, un bouton TOUCHER POUR ÉCOUTER apparaît immédiatement comme secours."
 }
