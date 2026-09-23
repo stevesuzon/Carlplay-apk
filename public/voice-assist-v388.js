@@ -2,7 +2,7 @@
   'use strict';
   var KEY='carplay_voice_enabled_v387';
   var PRESS_MS=1200;
-  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='';
+  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='',voiceAwakeV423=false;
   function installNoSelectV389(){
     if(document.getElementById('carplayVoiceNoSelectV389'))return;
     var st=document.createElement('style');
@@ -15,6 +15,7 @@
     try{return /(?:^|;\s*)carplay_voice_enabled=1(?:;|$)/.test(document.cookie||'')}catch(_){return false}
   }
   function setEnabled(on){
+    voiceAwakeV423=false;
     try{localStorage.setItem(KEY,on?'1':'0')}catch(_){}
     try{document.cookie='carplay_voice_enabled='+(on?'1':'0')+'; path=/; max-age=31536000; SameSite=Lax'}catch(_){}
     syncSetting();
@@ -165,6 +166,29 @@
       window.speechSynthesis.speak(primeUtteranceV396);
     }catch(_){}
   }
+  function wakeSpeechV423(){
+    if(!enabled()||voiceAwakeV423||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
+    try{
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.resume();
+      loadPreferredVoice();
+      var u=new SpeechSynthesisUtterance('\u00a0');
+      primeUtteranceV396=u;
+      u.lang='fr-FR';u.volume=0.01;u.rate=10;
+      if(preferredVoice)u.voice=preferredVoice;
+      u.onend=function(){primeUtteranceV396=null};
+      u.onerror=function(){primeUtteranceV396=null};
+      window.speechSynthesis.speak(u);
+      voiceAwakeV423=true;
+    }catch(_){}
+  }
+  function resetSpeechV423(){
+    voiceAwakeV423=false;
+    preferredVoice=null;
+    try{if(window.speechSynthesis){window.speechSynthesis.cancel();window.speechSynthesis.resume()}}catch(_){}
+    loadPreferredVoice();
+    syncSetting();
+  }
   function speak(text){
     text=clean(text);if(!text||!enabled())return false;
     if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){toast('🔇 Lecture vocale indisponible sur cet appareil.');return false}
@@ -181,7 +205,7 @@
   }
   function eligibleTarget(e){
     if(!enabled()||!e.target||!e.target.closest)return null;
-    var clickable=e.target.closest('button,a,select,[onclick],[role="button"]');
+    var clickable=e.target.closest('button,a,select,[onclick],[role="button"],[data-voice-help],#homeAddressBookBtn,.addressBookTile');
     if(clickable&&!clickable.matches('input,textarea,label'))return clickable;
     var card=e.target.closest('[data-voice-card]');
     return card||null;
@@ -197,6 +221,7 @@
   }
   function begin(e){
     if(e&&e.pointerType==='touch')return;
+    wakeSpeechV423();
     var card=eligibleTarget(e);if(!card)return;active=card;fired=false;startX=Number(e.clientX||0);startY=Number(e.clientY||0);clearTimeout(timer);
     timer=setTimeout(function(){if(active)fireLongPress(active)},PRESS_MS);
   }
@@ -239,6 +264,7 @@
   }
   function touchBeginV394(e){
     if(!enabled()||!e.target||!e.target.closest)return;
+    wakeSpeechV423();
     var target=eligibleTarget(e);
     if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
@@ -336,5 +362,8 @@
   document.addEventListener('contextmenu',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSetting);else initSetting();
   window.addEventListener('storage',syncSetting);if(window.speechSynthesis)window.speechSynthesis.addEventListener&&window.speechSynthesis.addEventListener('voiceschanged',loadPreferredVoice);
+  window.addEventListener('pageshow',function(){resetSpeechV423()});
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)resetSpeechV423()});
+  window.addEventListener('focus',function(){if(enabled())resetSpeechV423()});
   window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS};
 })();
