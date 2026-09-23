@@ -1,4 +1,4 @@
 {
-  "version": "V404",
-  "message": "V404 : correction de la première connexion payante des nouveaux utilisateurs. Un compte en essai peut maintenant être transformé correctement en abonnement payant avec son nouveau code, sans être rejeté à cause de l’empreinte e-mail spéciale de l’essai."
+  "version": "V405",
+  "message": "V405 : le menu natif iPhone des départements/provinces est remplacé par une liste interne à l’application. Appui court pour choisir, appui long pour écouter le nom du département ou de la province."
 }
