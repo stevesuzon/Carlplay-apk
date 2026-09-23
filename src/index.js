@@ -547,9 +547,18 @@ async function activate(request, env) {
       // le slot vers le nouveau téléphone/autoradio. L'ancien appareil perd alors l'accès.
       // La vérification d'identité ci-dessous reste obligatoire avant le remplacement.
       const storedEmail = String(account.recovery_email_hash || "");
+      const storedVisibleEmail = normalizeEmail(account.recovery_email_mask || "");
       const storedFirst = String(account.account_first_name || "");
       const storedLast = String(account.account_last_name || "");
-      if (storedEmail && storedEmail !== emailHash) return json({ok:false,error:"EMAIL_NE_CORRESPOND_PAS"},403);
+      // V404 : un nouvel utilisateur possède souvent d'abord une ligne d'essai.
+      // Cette ligne utilise une empreinte spéciale "contest-trial-email:*" et non
+      // le SHA-256 normal de l'e-mail. Si l'e-mail lisible correspond, on autorise
+      // le passage essai -> abonnement payant et on remplace ensuite l'empreinte
+      // spéciale par l'empreinte normale dans l'UPDATE ci-dessous.
+      const isTrialAccount = storedEmail.startsWith("contest-trial-email:");
+      if (storedEmail && storedEmail !== emailHash && !(isTrialAccount && storedVisibleEmail === email)) {
+        return json({ok:false,error:"EMAIL_NE_CORRESPOND_PAS"},403);
+      }
       if (storedFirst && storedLast && (subscriptionIdentityKey(storedFirst)!==subscriptionIdentityKey(firstName) || subscriptionIdentityKey(storedLast)!==subscriptionIdentityKey(lastName))) {
         return json({ok:false,error:"IDENTITE_NE_CORRESPOND_PAS"},403);
       }
