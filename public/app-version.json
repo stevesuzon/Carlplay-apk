@@ -1,4 +1,4 @@
 {
-  "version": "V405",
-  "message": "V405 : le menu natif iPhone des départements/provinces est remplacé par une liste interne à l’application. Appui court pour choisir, appui long pour écouter le nom du département ou de la province."
+  "version": "V406",
+  "message": "V406 : les informations ajoutées aux fiches marché sont verrouillées après enregistrement pour les utilisateurs. Les cases déjà remplies disparaissent et les demandes de remodification sont retirées. Seul l’administrateur dispose maintenant de « REGARDER LES FICHES » dans Administration pour consulter et corriger les fiches enregistrées. Les mises à jour automatiques des marchés restent actives."
 }
