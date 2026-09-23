@@ -1,4 +1,4 @@
 {
-  "version": "V407",
-  "message": "V407 : correction de l'inscription des nouveaux utilisateurs. L'adresse e-mail n'est plus considérée comme validée uniquement sur le téléphone : elle est vérifiée côté serveur. Si elle n'est pas encore confirmée, un e-mail de confirmation est envoyé. Les erreurs réelles du compte sont affichées au lieu du faux message « internet indisponible »."
+  "version": "V408",
+  "message": "V408 : choix des départements et provinces simplifié. Appui long sur un département/province pour entendre son numéro et son nom ; appui normal pour ouvrir directement ses marchés. Les boutons OUVRIR et Voir tous les départements/provinces ont été supprimés."
 }
