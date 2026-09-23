@@ -3179,7 +3179,8 @@ async function referralCreate(request,env){
   const p=await env.DB.prepare("SELECT banned FROM contest_participants WHERE subscription_id=? LIMIT 1").bind(sub.id).first();if(p&&Number(p.banned))return json({ok:false,error:"PARRAINAGE_SUSPENDU"},403);
   const token=referralToken(),hash=await sha256Text("referral:"+token),id=contestId(),now=Date.now(),expires=now+REFERRAL_INVITE_MS;
   await env.DB.prepare("INSERT INTO contest_referral_invites(id,sponsor_subscription_id,token_hash,created_at,expires_at) VALUES(?,?,?,?,?)").bind(id,sub.id,hash,now,expires).run();
-  return json({ok:true,url:new URL(request.url).origin+"/installer.html?ref="+encodeURIComponent(token),expiresAt:expires});
+  const rewardProfile=await referralRewardProfile(env,sub.id);
+  return json({ok:true,url:new URL(request.url).origin+"/installer.html?ref="+encodeURIComponent(token),expiresAt:expires,sponsorPoints:rewardProfile.sponsorPoints,friendPoints:rewardProfile.friendPoints,adminSponsor:rewardProfile.adminSponsor});
 }
 async function ensureReferralTrialSubscription(env,deviceId,email,first,last){
   const cfg=await ensureContestTables(env),now=Date.now(),freeUntil=Number(cfg.end_at)+CONTEST_APP_FREE_EXTRA_MS,emailHash=await sha256Text(email),trialHash=await sha256Text("contest-trial:"+deviceId),trialEmailHash=await sha256Text("contest-trial-email:"+deviceId+":"+email);
@@ -3245,7 +3246,7 @@ async function referralStart(request,env){
     invite.claimed_subscription_id=null;invite.claimed_at=null;
   }
   if(invite.claimed_subscription_id&&Number(invite.claimed_subscription_id)!==Number(sub.id))return json({ok:false,error:"LIEN_PARRAINAGE_DEJA_UTILISE"},409);
-  let row=byDevice&&String(byDevice.invite_id)===String(invite.id)?byDevice:null;if(row&&row.status==="verified")return json({ok:true,alreadyVerified:true,referralId:row.id,emailMask:emailMask(email)});if(row&&Number(row.sms_sent_at||0)>now-60000)return json({ok:false,error:"EMAIL_TROP_RAPIDE",referralId:row.id,emailMask:emailMask(email)},429);
+  let row=byDevice&&String(byDevice.invite_id)===String(invite.id)?byDevice:null;if(row&&row.status==="verified"){const rewardProfile=await referralRewardProfile(env,invite.sponsor_subscription_id);return json({ok:true,alreadyVerified:true,referralId:row.id,emailMask:emailMask(email),sponsorPoints:rewardProfile.sponsorPoints,friendPoints:rewardProfile.friendPoints,adminSponsor:rewardProfile.adminSponsor});}if(row&&Number(row.sms_sent_at||0)>now-60000)return json({ok:false,error:"EMAIL_TROP_RAPIDE",referralId:row.id,emailMask:emailMask(email)},429);
   const day=parisDay(),usage=await env.DB.prepare("SELECT sent_count FROM brevo_daily_usage WHERE day=?").bind(day).first();if(Number(usage&&usage.sent_count||0)>=200)return json({ok:false,error:"QUOTA_EMAIL_JOURNALIER"},429);
   const id=row?row.id:contestId(),magic=referralToken(),ch=await referralMagicHash(id,magic,env),ih=await sha256Text(`refip:${env.CODE_PEPPER||"ref"}:${request.headers.get("CF-Connecting-IP")||""}`),placeholderPhoneHash=row&&row.phone_hash?String(row.phone_hash):await sha256Text("referral-no-phone:"+deviceId),mask=emailMask(email),expires=now+REFERRAL_EMAIL_MS;
   if(row)await env.DB.prepare("UPDATE contest_referrals SET referee_subscription_id=?,email_hash=?,phone_hash=?,ip_hash=?,phone_mask=?,status='email_link_pending',sms_code_hash=?,sms_expires_at=?,sms_attempts=0,sms_sent_at=?,updated_at=? WHERE id=?").bind(sub.id,eh,placeholderPhoneHash,ih,mask,ch,expires,now,now,id).run();else await env.DB.prepare("INSERT INTO contest_referrals(id,invite_id,sponsor_subscription_id,referee_subscription_id,referee_device_id,email_hash,phone_hash,ip_hash,phone_mask,status,sms_code_hash,sms_expires_at,sms_attempts,sms_sent_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,'email_link_pending',?,?,0,?,?,?)").bind(id,invite.id,invite.sponsor_subscription_id,sub.id,deviceId,eh,placeholderPhoneHash,ih,mask,ch,expires,now,now,now).run();
@@ -3254,7 +3255,7 @@ async function referralStart(request,env){
   const rewardProfile=await referralRewardProfile(env,invite.sponsor_subscription_id);
   if(!(await sendReferralEmail(env,email,confirmUrl,first,rewardProfile.friendPoints)))return json({ok:false,error:"EMAIL_ENVOI_INDISPONIBLE",referralId:id,emailMask:mask},503);
   await env.DB.prepare("INSERT INTO brevo_daily_usage(day,sent_count) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET sent_count=sent_count+1").bind(day).run();
-  return json({ok:true,referralId:id,emailMask:mask,emailExpiresAt:expires,email,firstName:first,lastName:last,magicLinkSent:true,expiresAt:new Date(Number(cfg.end_at)+CONTEST_APP_FREE_EXTRA_MS).toISOString()});
+  return json({ok:true,referralId:id,emailMask:mask,emailExpiresAt:expires,email,firstName:first,lastName:last,magicLinkSent:true,expiresAt:new Date(Number(cfg.end_at)+CONTEST_APP_FREE_EXTRA_MS).toISOString(),sponsorPoints:rewardProfile.sponsorPoints,friendPoints:rewardProfile.friendPoints,adminSponsor:rewardProfile.adminSponsor});
 }
 async function applyReferralRewards(env,row){
   const profile=await referralRewardProfile(env,row.sponsor_subscription_id);
