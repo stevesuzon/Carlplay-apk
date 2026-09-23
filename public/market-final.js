@@ -710,7 +710,7 @@
         ');return false">ALLER AU MARCHÉ</button><a class="verify" href="' +
         url +
         '">' +
-        (saved(r) ? "MODIFIER" : "VÉRIFIER") +
+        (saved(r) ? "VOIR LA FICHE" : "VÉRIFIER") +
         "</a></div></article>";
     }
     el("cards").innerHTML =
