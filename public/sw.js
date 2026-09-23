@@ -1,5 +1,5 @@
-const VERSION = "V424-DEPLOY-LATEST";
-const BASE_CACHE = "couteau-suisse-module-base-v424-deploy-latest";
+const VERSION = "V425-CLOUDFLARE-DIRECT";
+const BASE_CACHE = "couteau-suisse-module-base-v425-cloudflare-direct";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v366-admin-fresh";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v367-market-full-review";
