@@ -3110,7 +3110,12 @@ async function contestAddScoreWithActiveBonus(env,subscriptionId,sourceType,sour
   return {added,multiplier,awardedPoints};
 }
 
-const REFERRAL_SPONSOR_POINTS=320,REFERRAL_FRIEND_POINTS=96,REFERRAL_INVITE_MS=30*86400000,REFERRAL_EMAIL_MS=24*60*60000;
+const REFERRAL_SPONSOR_POINTS=320,REFERRAL_FRIEND_POINTS=96,ADMIN_REFERRAL_FRIEND_POINTS=250,REFERRAL_INVITE_MS=30*86400000,REFERRAL_EMAIL_MS=24*60*60000;
+async function referralRewardProfile(env,sponsorSubscriptionId){
+  const sponsor=await env.DB.prepare("SELECT recovery_email_mask FROM subscriptions WHERE id=? LIMIT 1").bind(sponsorSubscriptionId).first();
+  const adminSponsor=normalizeEmail(sponsor&&sponsor.recovery_email_mask||"")===ONLY_ADMIN_EMAIL;
+  return {adminSponsor,sponsorPoints:adminSponsor?0:REFERRAL_SPONSOR_POINTS,friendPoints:adminSponsor?ADMIN_REFERRAL_FRIEND_POINTS:REFERRAL_FRIEND_POINTS};
+}
 function referralToken(){const b=new Uint8Array(24);crypto.getRandomValues(b);let x="";for(const n of b)x+=String.fromCharCode(n);return btoa(x).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")}
 async function referralMagicHash(id,token,env){return sha256Text("referral-magic:"+id+":"+token+":"+(env.CODE_PEPPER||"carplay-referral"))}
 async function brevoSendHtml(env,to,subject,text,html){
@@ -3120,11 +3125,11 @@ async function brevoSendHtml(env,to,subject,text,html){
     return r.ok;
   }catch(_){return false}
 }
-async function sendReferralEmail(env,email,confirmUrl,firstName){
-  const safeFirst=String(firstName||"").replace(/[<>&"']/g,"");
-  const subject="🎁 Bravo ! Vos 96 points Couteau Suisse vous attendent";
-  const text=`Bravo${safeFirst?" "+safeFirst:""} ! Vous venez d’installer Couteau Suisse grâce à un parrainage. Vous bénéficiez de 96 points. Appuyez sur ce lien pour en profiter : ${confirmUrl}`;
-  const html=`<div style="margin:0;background:#07182d;padding:24px;font-family:Arial,sans-serif;color:#fff"><div style="max-width:620px;margin:auto;background:linear-gradient(180deg,#0d2f5a,#06172d);border:3px solid #f7c94b;border-radius:24px;padding:28px;text-align:center;box-shadow:0 12px 36px rgba(0,0,0,.35)"><div style="font-size:48px">🎁</div><h1 style="margin:8px 0;color:#ffd85a;font-size:31px">BRAVO${safeFirst?" "+safeFirst.toUpperCase():""} !</h1><p style="font-size:19px;line-height:1.5;margin:12px 0">Vous venez d’installer <b>Couteau Suisse</b> grâce à un parrainage.</p><div style="margin:22px auto;padding:18px;border-radius:18px;background:#0b7a42;font-size:22px;font-weight:900">VOUS GAGNEZ +96 POINTS</div><p style="font-size:17px;line-height:1.5">Appuyez sur le bouton pour valider votre adresse e-mail et profiter de vos points.</p><a href="${confirmUrl}" style="display:inline-block;margin:14px 0 4px;padding:17px 28px;background:#ffd43b;color:#07182d;text-decoration:none;border-radius:14px;font-size:19px;font-weight:900">ACTIVER MES 96 POINTS</a><p style="font-size:13px;color:#b8c7d9;margin-top:18px">Lien personnel valable 24 heures et utilisable une seule fois.</p></div></div>`;
+async function sendReferralEmail(env,email,confirmUrl,firstName,friendPoints=REFERRAL_FRIEND_POINTS){
+  const safeFirst=String(firstName||"").replace(/[<>&"']/g,""),pts=Number(friendPoints||0);
+  const subject=`🎁 Bravo ! Vos ${pts} points Couteau Suisse vous attendent`;
+  const text=`Bravo${safeFirst?" "+safeFirst:""} ! Vous venez d’installer Couteau Suisse grâce à un parrainage. Vous bénéficiez de ${pts} points. Appuyez sur ce lien pour en profiter : ${confirmUrl}`;
+  const html=`<div style="margin:0;background:#07182d;padding:24px;font-family:Arial,sans-serif;color:#fff"><div style="max-width:620px;margin:auto;background:linear-gradient(180deg,#0d2f5a,#06172d);border:3px solid #f7c94b;border-radius:24px;padding:28px;text-align:center;box-shadow:0 12px 36px rgba(0,0,0,.35)"><div style="font-size:48px">🎁</div><h1 style="margin:8px 0;color:#ffd85a;font-size:31px">BRAVO${safeFirst?" "+safeFirst.toUpperCase():""} !</h1><p style="font-size:19px;line-height:1.5;margin:12px 0">Vous venez d’installer <b>Couteau Suisse</b> grâce à un parrainage.</p><div style="margin:22px auto;padding:18px;border-radius:18px;background:#0b7a42;font-size:22px;font-weight:900">VOUS GAGNEZ +${pts} POINTS</div><p style="font-size:17px;line-height:1.5">Appuyez sur le bouton pour valider votre adresse e-mail et profiter de vos points.</p><a href="${confirmUrl}" style="display:inline-block;margin:14px 0 4px;padding:17px 28px;background:#ffd43b;color:#07182d;text-decoration:none;border-radius:14px;font-size:19px;font-weight:900">ACTIVER MES ${pts} POINTS</a><p style="font-size:13px;color:#b8c7d9;margin-top:18px">Lien personnel valable 24 heures et utilisable une seule fois.</p></div></div>`;
   return brevoSendHtml(env,email,subject,text,html);
 }
 async function sendReferralSponsorEmail(env,email,friendName,rewarded){
@@ -3212,15 +3217,40 @@ async function referralStart(request,env){
   if(row)await env.DB.prepare("UPDATE contest_referrals SET referee_subscription_id=?,email_hash=?,phone_hash=?,ip_hash=?,phone_mask=?,status='email_link_pending',sms_code_hash=?,sms_expires_at=?,sms_attempts=0,sms_sent_at=?,updated_at=? WHERE id=?").bind(sub.id,eh,placeholderPhoneHash,ih,mask,ch,expires,now,now,id).run();else await env.DB.prepare("INSERT INTO contest_referrals(id,invite_id,sponsor_subscription_id,referee_subscription_id,referee_device_id,email_hash,phone_hash,ip_hash,phone_mask,status,sms_code_hash,sms_expires_at,sms_attempts,sms_sent_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,'email_link_pending',?,?,0,?,?,?)").bind(id,invite.id,invite.sponsor_subscription_id,sub.id,deviceId,eh,placeholderPhoneHash,ih,mask,ch,expires,now,now,now).run();
   await env.DB.prepare("UPDATE contest_referral_invites SET claimed_subscription_id=?,claimed_at=? WHERE id=? AND claimed_subscription_id IS NULL").bind(sub.id,now,invite.id).run();
   const confirmUrl=new URL(request.url).origin+"/api/referral/confirm?id="+encodeURIComponent(id)+"&token="+encodeURIComponent(magic);
-  if(!(await sendReferralEmail(env,email,confirmUrl,first)))return json({ok:false,error:"EMAIL_ENVOI_INDISPONIBLE",referralId:id,emailMask:mask},503);
+  const rewardProfile=await referralRewardProfile(env,invite.sponsor_subscription_id);
+  if(!(await sendReferralEmail(env,email,confirmUrl,first,rewardProfile.friendPoints)))return json({ok:false,error:"EMAIL_ENVOI_INDISPONIBLE",referralId:id,emailMask:mask},503);
   await env.DB.prepare("INSERT INTO brevo_daily_usage(day,sent_count) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET sent_count=sent_count+1").bind(day).run();
   return json({ok:true,referralId:id,emailMask:mask,emailExpiresAt:expires,email,firstName:first,lastName:last,magicLinkSent:true,expiresAt:new Date(Number(cfg.end_at)+CONTEST_APP_FREE_EXTRA_MS).toISOString()});
 }
 async function applyReferralRewards(env,row){
+  const profile=await referralRewardProfile(env,row.sponsor_subscription_id);
   let sponsorRewarded=Number(row.sponsor_rewarded||0)===1,refereeRewarded=Number(row.referee_rewarded||0)===1;
-  if(!sponsorRewarded&&await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE subscription_id=? AND banned=0 AND COALESCE(contest_excluded,0)=0 LIMIT 1").bind(row.sponsor_subscription_id).first()){const gain=await contestAddScoreWithActiveBonus(env,row.sponsor_subscription_id,"referral-sponsor",row.id,"Parrainage validé",REFERRAL_SPONSOR_POINTS);await env.DB.prepare("UPDATE contest_referrals SET sponsor_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();sponsorRewarded=true;await contestPushMessage(env,row.sponsor_subscription_id,`🎁 Parrainage validé : +${contestNumberText(gain.awardedPoints)} points${gain.multiplier>1?` (bonus ×${gain.multiplier})`:''}.`,"referral")}
-  if(!refereeRewarded&&await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE subscription_id=? AND banned=0 AND COALESCE(contest_excluded,0)=0 LIMIT 1").bind(row.referee_subscription_id).first()){const gain=await contestAddScoreWithActiveBonus(env,row.referee_subscription_id,"referral-friend",row.id,"Bienvenue par parrainage",REFERRAL_FRIEND_POINTS);await env.DB.prepare("UPDATE contest_referrals SET referee_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();refereeRewarded=true;await contestPushMessage(env,row.referee_subscription_id,`🎁 Bienvenue ! Parrainage validé : +${contestNumberText(gain.awardedPoints)} points${gain.multiplier>1?` (bonus ×${gain.multiplier})`:''}.`,"referral")}
-  return {sponsorRewarded,refereeRewarded};
+
+  if(!sponsorRewarded){
+    if(profile.adminSponsor){
+      await env.DB.prepare("UPDATE contest_referrals SET sponsor_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();
+      sponsorRewarded=true;
+    }else if(await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE subscription_id=? AND banned=0 AND COALESCE(contest_excluded,0)=0 LIMIT 1").bind(row.sponsor_subscription_id).first()){
+      const gain=await contestAddScoreWithActiveBonus(env,row.sponsor_subscription_id,"referral-sponsor",row.id,"Parrainage validé",profile.sponsorPoints);
+      await env.DB.prepare("UPDATE contest_referrals SET sponsor_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();
+      sponsorRewarded=true;
+      await contestPushMessage(env,row.sponsor_subscription_id,`🎁 Parrainage validé : +${contestNumberText(gain.awardedPoints)} points${gain.multiplier>1?` (bonus ×${gain.multiplier})`:''}.`,"referral");
+    }
+  }
+
+  if(!refereeRewarded&&await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE subscription_id=? AND banned=0 AND COALESCE(contest_excluded,0)=0 LIMIT 1").bind(row.referee_subscription_id).first()){
+    let gain;
+    if(profile.adminSponsor){
+      const added=await contestAddScoreEvent(env,row.referee_subscription_id,"referral-friend",row.id,"Bienvenue par partage administrateur",profile.friendPoints,1,profile.friendPoints);
+      gain={added,multiplier:1,awardedPoints:profile.friendPoints};
+    }else{
+      gain=await contestAddScoreWithActiveBonus(env,row.referee_subscription_id,"referral-friend",row.id,"Bienvenue par parrainage",profile.friendPoints);
+    }
+    await env.DB.prepare("UPDATE contest_referrals SET referee_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();
+    refereeRewarded=true;
+    await contestPushMessage(env,row.referee_subscription_id,`🎁 Bienvenue ! Parrainage validé : +${contestNumberText(gain.awardedPoints)} points${gain.multiplier>1?` (bonus ×${gain.multiplier})`:''}.`,"referral");
+  }
+  return {sponsorRewarded,refereeRewarded,sponsorPoints:profile.sponsorPoints,friendPoints:profile.friendPoints,adminSponsor:profile.adminSponsor};
 }
 async function applyPendingReferralRewards(env,subscriptionId){const rows=(await env.DB.prepare("SELECT * FROM contest_referrals WHERE status='verified' AND ((sponsor_subscription_id=? AND sponsor_rewarded=0) OR (referee_subscription_id=? AND referee_rewarded=0)) LIMIT 20").bind(subscriptionId,subscriptionId).all()).results||[];for(const r of rows)await applyReferralRewards(env,r)}
 async function referralConfirm(request,env){
@@ -3230,7 +3260,7 @@ async function referralConfirm(request,env){
   if(!id||!token)return go("invalid");
   const row=await env.DB.prepare("SELECT * FROM contest_referrals WHERE id=? LIMIT 1").bind(id).first();
   if(!row)return go("invalid");
-  if(row.status==="verified"){const rewards=await applyReferralRewards(env,row);return go("ok","friendPoints=96&sponsorPoints=320&friendRewarded="+(rewards.refereeRewarded?"1":"0")+"&sponsorRewarded="+(rewards.sponsorRewarded?"1":"0"));}
+  if(row.status==="verified"){const rewards=await applyReferralRewards(env,row);return go("ok","friendPoints="+encodeURIComponent(rewards.friendPoints)+"&sponsorPoints="+encodeURIComponent(rewards.sponsorPoints)+"&friendRewarded="+(rewards.refereeRewarded?"1":"0")+"&sponsorRewarded="+(rewards.sponsorRewarded?"1":"0"));}
   if(row.status!=="email_link_pending")return go("invalid");
   if(Number(row.sms_expires_at||0)<Date.now())return go("expired");
   const expected=String(row.sms_code_hash||""),actual=await referralMagicHash(id,token,env);if(!expected||actual!==expected)return go("invalid");
@@ -3242,15 +3272,15 @@ async function referralConfirm(request,env){
     const friend=await env.DB.prepare("SELECT account_first_name,account_last_name FROM subscriptions WHERE id=? LIMIT 1").bind(fresh.referee_subscription_id).first();
     const sponsorEmail=normalizeEmail(sponsor&&sponsor.recovery_email_mask||"");
     const friendName=[String(friend&&friend.account_first_name||"").trim(),String(friend&&friend.account_last_name||"").trim()].filter(Boolean).join(" ")||"Votre ami";
-    if(validEmail(sponsorEmail)){const sent=await sendReferralSponsorEmail(env,sponsorEmail,friendName,rewards.sponsorRewarded);if(sent){const day=parisDay();await env.DB.prepare("INSERT INTO brevo_daily_usage(day,sent_count) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET sent_count=sent_count+1").bind(day).run();}}
+    if(rewards.sponsorPoints>0&&validEmail(sponsorEmail)){const sent=await sendReferralSponsorEmail(env,sponsorEmail,friendName,rewards.sponsorRewarded);if(sent){const day=parisDay();await env.DB.prepare("INSERT INTO brevo_daily_usage(day,sent_count) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET sent_count=sent_count+1").bind(day).run();}}
   }catch(_){}
-  return go("ok","friendPoints=96&sponsorPoints=320&friendRewarded="+(rewards.refereeRewarded?"1":"0")+"&sponsorRewarded="+(rewards.sponsorRewarded?"1":"0"));
+  return go("ok","friendPoints="+encodeURIComponent(rewards.friendPoints)+"&sponsorPoints="+encodeURIComponent(rewards.sponsorPoints)+"&friendRewarded="+(rewards.refereeRewarded?"1":"0")+"&sponsorRewarded="+(rewards.sponsorRewarded?"1":"0"));
 }
 async function referralVerify(request,env){
   await ensureContestTables(env);const d=await body(request),deviceId=String(d.deviceId||"").trim(),id=String(d.referralId||"").trim(),code=String(d.code||"").replace(/\D/g,"").slice(0,6);if(!validDevice(deviceId)||!id||code.length!==6)return json({ok:false,error:"CODE_EMAIL_INVALIDE"},400);
-  const row=await env.DB.prepare("SELECT * FROM contest_referrals WHERE id=? AND referee_device_id=? LIMIT 1").bind(id,deviceId).first();if(!row)return json({ok:false,error:"PARRAINAGE_INTROUVABLE"},404);if(row.status==="verified"){const r=await applyReferralRewards(env,row);return json({ok:true,alreadyVerified:true,...r,sponsorPoints:320,friendPoints:96})}if(Number(row.sms_expires_at||0)<Date.now())return json({ok:false,error:"CODE_EMAIL_EXPIRE"},410);if(Number(row.sms_attempts||0)>=5)return json({ok:false,error:"CODE_EMAIL_TROP_ESSAIS"},429);
+  const row=await env.DB.prepare("SELECT * FROM contest_referrals WHERE id=? AND referee_device_id=? LIMIT 1").bind(id,deviceId).first();if(!row)return json({ok:false,error:"PARRAINAGE_INTROUVABLE"},404);if(row.status==="verified"){const r=await applyReferralRewards(env,row);return json({ok:true,alreadyVerified:true,...r,sponsorPoints:r.sponsorPoints,friendPoints:r.friendPoints})}if(Number(row.sms_expires_at||0)<Date.now())return json({ok:false,error:"CODE_EMAIL_EXPIRE"},410);if(Number(row.sms_attempts||0)>=5)return json({ok:false,error:"CODE_EMAIL_TROP_ESSAIS"},429);
   const h=await emailCodeHash("referral:"+id,code,env);if(h!==String(row.sms_code_hash||"")){await env.DB.prepare("UPDATE contest_referrals SET sms_attempts=sms_attempts+1,updated_at=? WHERE id=?").bind(Date.now(),id).run();return json({ok:false,error:"CODE_EMAIL_INCORRECT"},400)}
-  await env.DB.prepare("UPDATE contest_referrals SET status='verified',verified_at=?,sms_code_hash='',updated_at=? WHERE id=?").bind(Date.now(),Date.now(),id).run();const fresh=await env.DB.prepare("SELECT * FROM contest_referrals WHERE id=?").bind(id).first(),r=await applyReferralRewards(env,fresh);return json({ok:true,...r,sponsorPoints:320,friendPoints:96});
+  await env.DB.prepare("UPDATE contest_referrals SET status='verified',verified_at=?,sms_code_hash='',updated_at=? WHERE id=?").bind(Date.now(),Date.now(),id).run();const fresh=await env.DB.prepare("SELECT * FROM contest_referrals WHERE id=?").bind(id).first(),r=await applyReferralRewards(env,fresh);return json({ok:true,...r,sponsorPoints:r.sponsorPoints,friendPoints:r.friendPoints});
 }
 async function contestScoreSummary(env,subscriptionId){
   const events=(await env.DB.prepare("SELECT source_type,base_points,multiplier,awarded_points FROM contest_score_events WHERE subscription_id=?").bind(subscriptionId).all()).results||[];
