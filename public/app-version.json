@@ -1,4 +1,4 @@
 {
-  "version": "V420",
-  "message": "V420 : les points cadeaux ne sont plus ajoutés automatiquement. Les anciens points cadeaux déjà crédités sont retirés du total et replacés en cadeau en attente. L’image reste affichée jusqu’à ce que le participant appuie sur RÉCUPÉRER MES POINTS. À ce clic seulement, les points sont ajoutés au classement et l’image disparaît. Si la personne ferme l’application sans récupérer, le cadeau réapparaît à la prochaine ouverture."
+  "version": "V421",
+  "message": "V421 : corrige l’affichage du cadeau directement sur l’écran d’accueil. Le style plein écran est maintenant chargé avant l’apparition de l’image. Le cadeau reste affiché jusqu’au clic sur RÉCUPÉRER MES POINTS ; les points ne sont ajoutés qu’à ce moment-là."
 }
