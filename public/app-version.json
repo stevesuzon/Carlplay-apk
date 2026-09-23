@@ -1,4 +1,4 @@
 {
-  "version": "V400",
-  "message": "V400 : la lecture vocale des fiches et boutons est lancée directement au relâchement, sans pause/reprise. Si iPhone bloque encore la synthèse, un bouton TOUCHER POUR ÉCOUTER apparaît immédiatement comme secours."
+  "version": "V401",
+  "message": "V401 : les boutons lisent uniquement leur texte visible. Exemple : STATIONS 15 KM est lu « Stations, 15 kilomètres », sans ajouter essence, gazole ou GPL. Les fiches continuent de lire leurs informations détaillées."
 }
