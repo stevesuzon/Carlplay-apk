@@ -3156,6 +3156,12 @@ async function contestEnsureRandomGiftV415(env,subscriptionId){
   return {awarded:!!added,points:added?points:0,source:CONTEST_RANDOM_GIFT_SOURCE_V415};
 }
 
+async function contestBackfillRandomGiftsV415(env){
+  const rows=(await env.DB.prepare("SELECT p.subscription_id FROM contest_participants p LEFT JOIN contest_score_events e ON e.subscription_id=p.subscription_id AND e.source_type='random-gift' AND e.source_id=? WHERE p.banned=0 AND COALESCE(p.contest_excluded,0)=0 AND e.id IS NULL LIMIT 500").bind(CONTEST_RANDOM_GIFT_SOURCE_V415).all()).results||[];
+  for(const r of rows)await contestEnsureRandomGiftV415(env,r.subscription_id);
+  return rows.length;
+}
+
 async function contestAddScoreEvent(env,subscriptionId,sourceType,sourceId,description,basePoints,multiplier,awardedPoints){
   // Garde-fou central : seuls les comptes bannis ou explicitement exclus sont bloqués.
   // V310 : le compte administrateur n'est plus exclu et gagne donc ses points normalement.
@@ -3379,7 +3385,7 @@ async function finalizeContestIfNeeded(env){
 }
 
 async function contestStatus(request,env){
-  await ensureContestTables(env);await contestRepriceHistoricalFuelV297(env);await contestAutoCreditPendingV300(env);
+  await ensureContestTables(env);await contestRepriceHistoricalFuelV297(env);await contestAutoCreditPendingV300(env);await contestBackfillRandomGiftsV415(env);
   const data=await body(request),includeRanking=data.includeRanking===true,cfg=await finalizeContestIfNeeded(env),now=Date.now(),ended=now>=Number(cfg.end_at),resultsUntil=Number(cfg.results_until||((cfg.finalized_at||0)+CONTEST_RESULTS_MS)),resultsVisible=!!cfg.finalized_at&&ended&&now<resultsUntil,closed=ended&&!resultsVisible;
   let sub=await contestSubscription(env,data),profile=null,participant=null,messages=[],questions=[],scoreSummary=null,bonusState=null,bonusProgress=null,onboarding=null,randomGift=null;
   const adminSession=await adminAuthorized(request,env);
