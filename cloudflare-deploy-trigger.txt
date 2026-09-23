@@ -1,3 +1,4 @@
-Cloudflare deploy trigger: V423
-Commit: e2e547df25b4baf6f01afeef957c11ef312df9fc
-Reason: corrige la voix apres reouverture et fait parler le bouton Adresse
+Cloudflare deploy trigger: V423-REDEPLOY
+Reason: redeploiement manuel demande utilisateur
+Previous version: V423 voice reopen address
+Timestamp: 2026-09-23T21:41:42.025Z
