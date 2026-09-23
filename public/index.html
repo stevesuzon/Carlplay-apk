@@ -1381,7 +1381,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications.');
     await check('/contest-v188.js?v=366-admin-fresh');
     setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique et événements.');
-    await Promise.allSettled([check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=388-voix'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=403'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=320'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
+    await Promise.allSettled([check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=388-voix'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=405'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=320'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
     setProgress(48,'Vérification des champignons…','Contrôle des fiches Champignons et des coins enregistrés.');
     await Promise.allSettled([check('/champignons.html'),check('/champignons.js?v=300-concours-auto')]);
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
@@ -2797,7 +2797,7 @@ window.addEventListener('load',function(){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
-<script src="/voice-assist-v388.js?v=403"></script>
+<script src="/voice-assist-v388.js?v=405"></script>
 </body>
 </html>
 
