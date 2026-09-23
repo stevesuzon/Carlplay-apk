@@ -74,6 +74,42 @@
     if(verified)parts.push('fiche vérifiée');
     return parts.join('. ')+'.';
   }
+  function openVoiceSelectV396(sel){
+    if(!sel||!sel.options)return;
+    var old=document.getElementById('voiceSelectOverlayV396');if(old)old.remove();
+    var overlay=document.createElement('div');
+    overlay.id='voiceSelectOverlayV396';
+    overlay.style.cssText='position:fixed;inset:0;z-index:2147483645;background:rgba(0,0,0,.88);padding:18px;overflow:auto;-webkit-overflow-scrolling:touch';
+    var panel=document.createElement('div');
+    panel.style.cssText='max-width:620px;margin:0 auto;background:#101b2a;border:2px solid #f39b19;border-radius:20px;padding:14px;color:#fff';
+    var title=document.createElement('div');
+    title.style.cssText='font:950 22px/1.2 Arial,sans-serif;text-align:center;margin:4px 48px 14px';
+    title.textContent=sel.getAttribute('aria-label')||'Choisir';
+    var back=document.createElement('button');
+    back.type='button';back.textContent='← RETOUR';
+    back.setAttribute('data-voice-help','Retour : fermer la liste.');
+    back.style.cssText='width:100%;min-height:50px;margin-bottom:12px;border:0;border-radius:13px;background:#253b55;color:#fff;font:950 17px Arial,sans-serif';
+    back.addEventListener('click',function(){overlay.remove()});
+    panel.appendChild(title);panel.appendChild(back);
+    Array.prototype.forEach.call(sel.options,function(opt,idx){
+      if(opt.disabled)return;
+      var b=document.createElement('button');
+      b.type='button';
+      b.textContent=clean(opt.textContent||opt.label||opt.value||'');
+      b.setAttribute('data-voice-help',b.textContent.replace(/\s*[—–-]\s*/g,', ')+'.');
+      b.style.cssText='display:block;width:100%;min-height:54px;margin:7px 0;padding:10px 12px;border:1px solid #61758c;border-radius:12px;background:'+(idx===sel.selectedIndex?'#0b668d':'#172536')+';color:#fff;text-align:left;font:900 17px Arial,sans-serif';
+      b.addEventListener('click',function(){
+        sel.selectedIndex=idx;
+        try{sel.dispatchEvent(new Event('input',{bubbles:true}))}catch(_){}
+        try{sel.dispatchEvent(new Event('change',{bubbles:true}))}catch(_){}
+        overlay.remove();
+      });
+      panel.appendChild(b);
+    });
+    overlay.appendChild(panel);
+    overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});
+    document.body.appendChild(overlay);
+  }
   function buttonSpeech(el){
     if(!el)return '';
     var own=clean(el.getAttribute&&el.getAttribute('data-voice-help')||'');
@@ -225,6 +261,11 @@
   installNoSelectV389();
   document.addEventListener('selectstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
   document.addEventListener('dragstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
+  document.addEventListener('click',function(e){
+    if(!enabled()||!e.target||e.target.tagName!=='SELECT')return;
+    e.preventDefault();e.stopImmediatePropagation();
+    openVoiceSelectV396(e.target);
+  },true);
   document.addEventListener('change',function voiceSelectChangeV396(e){
     if(!enabled()||!e.target||e.target.tagName!=='SELECT')return;
     var opt=e.target.options&&e.target.selectedIndex>=0?e.target.options[e.target.selectedIndex]:null;
