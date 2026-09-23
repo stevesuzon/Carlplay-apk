@@ -1,4 +1,4 @@
 {
-  "version": "V411",
-  "message": "V411 : après validation du nom, du prénom et de l’adresse e-mail, l’utilisateur est directement connecté et inscrit. Les étapes Pays, Département, Commune, bouton COMMUNES et Confirmer mon inscription ont été supprimées."
+  "version": "V412",
+  "message": "V412 : partage administrateur spécial. Quand l’administrateur partage l’application, il ne gagne aucun point et la personne qui s’inscrit avec son lien reçoit 250 points fixes. Les autres utilisateurs gardent leur barème de parrainage habituel."
 }
