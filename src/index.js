@@ -3179,7 +3179,11 @@ async function contestEnsurePendingGiftV419(env,subscriptionId){
 }
 async function contestClaimGiftV419(request,env){
   await ensureContestTables(env);await contestMigrateOldRandomGiftsV419(env);
-  const data=await body(request),sub=await contestSubscription(env,data);
+  const data=await body(request);let sub=await contestSubscription(env,data);
+  if(await adminAuthorized(request,env)){
+    const adminSub=await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND lower(COALESCE(recovery_email_mask,''))=? ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC,id DESC LIMIT 1").bind(ONLY_ADMIN_EMAIL).first();
+    if(adminSub)sub=adminSub;
+  }
   if(!sub)return json({ok:false,error:"ABONNEMENT_REQUIS"},403);
   const giftId=String(data.giftId||"").trim();
   if(!giftId)return json({ok:false,error:"CADEAU_INVALIDE"},400);
@@ -3198,8 +3202,34 @@ async function contestClaimGiftV419(request,env){
   const participant=await env.DB.prepare("SELECT points FROM contest_participants WHERE subscription_id=? LIMIT 1").bind(sub.id).first();
   return json({ok:true,claimed:true,points,total:Number(participant&&participant.points||0)});
 }
+async function contestNormalizePendingGiftsV420(env){
+  await ensureContestPendingGiftTableV419(env);
+  const migrationKey="v420-normalize-pending-gifts";
+  const done=await env.DB.prepare("SELECT key FROM contest_migrations WHERE key=? LIMIT 1").bind(migrationKey).first();
+  if(done)return;
+  const rows=(await env.DB.prepare("SELECT id,subscription_id,source_key,status,created_at FROM contest_pending_gifts ORDER BY subscription_id,created_at").all()).results||[];
+  const bySub=new Map();
+  for(const row of rows){const sid=Number(row.subscription_id);if(!bySub.has(sid))bySub.set(sid,[]);bySub.get(sid).push(row)}
+  for(const [sid,list] of bySub){
+    const canonical=list.find(x=>String(x.source_key||"")===CONTEST_RANDOM_GIFT_SOURCE_V419);
+    if(!canonical&&list.length){
+      const chosen=list.find(x=>String(x.status||"")==="pending")||list[0];
+      await env.DB.prepare("UPDATE contest_pending_gifts SET source_key=? WHERE id=?").bind(CONTEST_RANDOM_GIFT_SOURCE_V419,chosen.id).run();
+    }
+  }
+  // Demande spécifique : Johnny/Jonny garde un cadeau de 423 points, mais ces points ne sont pas crédités avant récupération.
+  try{
+    await env.DB.prepare(`UPDATE contest_pending_gifts SET points=423
+      WHERE status='pending' AND subscription_id IN (
+        SELECT subscription_id FROM contest_participants
+        WHERE lower(trim(first_name)) IN ('johnny','jonny')
+          AND (lower(trim(last_name)) LIKE 'boom%' OR lower(trim(last_name)) LIKE 'bom%')
+      )`).run();
+  }catch(_){}
+  await env.DB.prepare("INSERT OR IGNORE INTO contest_migrations(key,applied_at) VALUES(?,?)").bind(migrationKey,Date.now()).run();
+}
 async function contestBackfillPendingGiftsV419(env){
-  await contestMigrateOldRandomGiftsV419(env);
+  await contestMigrateOldRandomGiftsV419(env);await contestNormalizePendingGiftsV420(env);
   const rows=(await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE banned=0 AND COALESCE(contest_excluded,0)=0 ORDER BY joined_at LIMIT 500").all()).results||[];
   for(const row of rows)await contestEnsurePendingGiftV419(env,row.subscription_id);
   return rows.length;
