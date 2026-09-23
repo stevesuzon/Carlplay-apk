@@ -810,7 +810,7 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
 #locationPermissionBtn:disabled{opacity:.72}
 #locationPermissionNote{font-size:14px;line-height:1.45}
 </style>
-<script src="/persistent-user-data-v283.js?v=283"></script><style id="voiceNoCopyV391">
+<script src="/persistent-user-data-v283.js?v=416-admin-session"></script><style id="voiceNoCopyV391">
 [data-voice-card],[data-voice-card] *,button,button *,a,a *,[onclick],[onclick] *{
   -webkit-user-select:none!important;
   user-select:none!important;
@@ -1387,7 +1387,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
     await Promise.allSettled([check('/notification-settings.js?v=282-onboarding-notification-detail'),check('/market-update-notifications-v281.js?v=282')]);
     setProgress(72,'Vérification du compte…','Contrôle de l’abonnement, de l’identité et des réglages.');
-    await Promise.allSettled([check('/subscription-web.js?v=414-cumul'),check('/persistent-user-data-v283.js?v=364-persist')]);
+    await Promise.allSettled([check('/subscription-web.js?v=414-cumul'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
     setProgress(82,'Recherche de la nouvelle version…','Seuls les fichiers de l’application sont actualisés.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
