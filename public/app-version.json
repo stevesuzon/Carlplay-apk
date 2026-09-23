@@ -1,4 +1,4 @@
 {
-  "version": "V396",
-  "message": "V396 : lecture vocale renforcée sur iPhone et étendue à toutes les pages. L’état de la voix est mémorisé en double, les fiches réveillent la synthèse dès le contact, les boutons Retour/Ouvrir/etc. sont lus par appui long, et les menus département/province utilisent une liste vocale interne où un appui long lit par exemple 35, Ille-et-Vilaine."
+  "version": "V397",
+  "message": "V397 : correction de l'appui long vocal. Après 1,20 seconde, relâcher lit la fiche ou le bouton sans ouvrir la page. L'appui court continue d'ouvrir normalement. Correctif appliqué aux marchés, départements, brocantes, Noël, voyageurs et stations."
 }
