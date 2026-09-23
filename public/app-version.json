@@ -1,4 +1,4 @@
 {
-  "version": "V403",
-  "message": "V403 : les fiches classiques commencent maintenant toujours par « Le marché de [ville] ». Exemple : Le marché de Palaiseau. Place des Causeuses. Nombre de commerçants : à vérifier. Horaire : 8 heures à 12 heures."
+  "version": "V404",
+  "message": "V404 : correction de la première connexion payante des nouveaux utilisateurs. Un compte en essai peut maintenant être transformé correctement en abonnement payant avec son nouveau code, sans être rejeté à cause de l’empreinte e-mail spéciale de l’essai."
 }
