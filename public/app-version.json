@@ -1,4 +1,4 @@
 {
-  "version": "V423",
-  "message": "V423 : corrige la lecture vocale après fermeture/réouverture de l’application. La voix reste activée et se réveille automatiquement au premier toucher, sans devoir la désactiver puis la réactiver. Le bouton Adresse de l’accueil est maintenant reconnu et lu par la voix."
+  "version": "V424",
+  "message": "V424 : corrige le déploiement pour que l’application récupère toujours la toute dernière version. Cette version contient aussi les corrections V423 de la voix après réouverture et du bouton Adresse."
 }
