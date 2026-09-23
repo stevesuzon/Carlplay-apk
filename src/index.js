@@ -3202,6 +3202,19 @@ async function contestClaimGiftV419(request,env){
   const participant=await env.DB.prepare("SELECT points FROM contest_participants WHERE subscription_id=? LIMIT 1").bind(sub.id).first();
   return json({ok:true,claimed:true,points,total:Number(participant&&participant.points||0)});
 }
+async function contestPendingGiftV422(request,env){
+  await ensureContestTables(env);await contestMigrateOldRandomGiftsV419(env);await contestNormalizePendingGiftsV420(env);
+  const data=await body(request);let sub=await contestSubscription(env,data);
+  if(await adminAuthorized(request,env)){
+    const adminSub=await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND lower(COALESCE(recovery_email_mask,''))=? ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC,id DESC LIMIT 1").bind(ONLY_ADMIN_EMAIL).first();
+    if(adminSub)sub=adminSub;
+  }
+  if(!sub)return json({ok:true,participant:null,gift:null});
+  const participant=await env.DB.prepare("SELECT subscription_id,first_name,last_name,banned,contest_excluded FROM contest_participants WHERE subscription_id=? LIMIT 1").bind(sub.id).first();
+  if(!participant||Number(participant.banned)||Number(participant.contest_excluded||0))return json({ok:true,participant:null,gift:null});
+  const gift=await contestEnsurePendingGiftV419(env,sub.id);
+  return json({ok:true,participant:{subscription_id:Number(participant.subscription_id),first_name:String(participant.first_name||''),last_name:String(participant.last_name||'')},gift});
+}
 async function contestNormalizePendingGiftsV420(env){
   await ensureContestPendingGiftTableV419(env);
   const migrationKey="v420-normalize-pending-gifts";
@@ -4594,6 +4607,7 @@ export default {
     if (url.pathname === "/api/contest/status" && request.method === "POST") return contestStatus(request, env);
     if (url.pathname === "/api/contest/score" && request.method === "POST") return contestScoreStatus(request, env);
     if (url.pathname === "/api/contest/gift/claim" && request.method === "POST") return contestClaimGiftV419(request, env);
+    if (url.pathname === "/api/contest/gift/pending" && request.method === "POST") return contestPendingGiftV422(request, env);
     if (url.pathname === "/api/contest/communes" && request.method === "GET") return contestCommunes(url);
     if (url.pathname === "/api/contest/register" && request.method === "POST") return contestRegister(request, env);
     if (url.pathname === "/api/contest/home-place" && request.method === "POST") return contestHomePlace(request, env);
