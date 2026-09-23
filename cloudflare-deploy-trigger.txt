@@ -1,3 +1,3 @@
-Cloudflare deploy trigger: 2026-09-23T21:32:08Z
-Run: 35923010038
-Commit: 08bd6d4dfc916104702cfa2e95899824f2289829
+Cloudflare deploy trigger: V422
+Commit: 72fa992009ac40ec4aa0adc8c4c98903515e6252
+Reason: verification directe cadeau en attente depuis l ecran d accueil
