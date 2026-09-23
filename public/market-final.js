@@ -666,7 +666,7 @@
             encodeURIComponent(currentDay),
         );
       html +=
-        '<article class="card" data-voice-card="market" data-voice-name="'+esc(name)+'" data-voice-day="'+esc(voiceDayLabel(currentDay))+'" data-voice-distance="'+esc(marketDistanceText(r)||'')+'" data-voice-count="'+esc(count)+'" data-voice-count-label="commerçants">' + verificationDot(r, s) + '<button type="button" class="marketFavoriteStar ' +
+        '<article class="card" data-voice-card="market" data-voice-city="'+esc(place)+'" data-voice-name="'+esc(name)+'" data-voice-day="'+esc(voiceDayLabel(currentDay))+'" data-voice-distance="'+esc(marketDistanceText(r)||'')+'" data-voice-count="'+esc(count)+'" data-voice-count-label="commerçants">' + verificationDot(r, s) + '<button type="button" class="marketFavoriteStar ' +
         (fav ? "active" : "") +
         '" aria-label="' +
         (fav ? "Retirer des favoris" : "Ajouter aux favoris") +
