@@ -1,4 +1,4 @@
 {
-  "version": "V416",
-  "message": "V416 : la connexion administrateur est maintenant sauvegardée de façon persistante. Une fois Steve connecté, le token administrateur, le secret de compatibilité et l’état administrateur sont conservés pendant les mises à jour et restaurés s’ils disparaissent du stockage local. La V415 des cadeaux concours reste active."
+  "version": "V417",
+  "message": "V417 : la grande image Cadeau Concours est maintenant intégrée au site. Quand un participant reçoit son cadeau, elle s’affiche en plein écran avec feux d’artifice, confettis, son nom et le nombre réel de points gagnés. Elle reste 10 secondes et peut être fermée en appuyant dessus. L’affichage fonctionne même si les notifications sont désactivées."
 }
