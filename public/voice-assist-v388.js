@@ -2,7 +2,7 @@
   'use strict';
   var KEY='carplay_voice_enabled_v387';
   var PRESS_MS=1200;
-  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false;
+  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null;
   function installNoSelectV389(){
     if(document.getElementById('carplayVoiceNoSelectV389'))return;
     var st=document.createElement('style');
@@ -10,8 +10,16 @@
     st.textContent='.carplayVoiceEnabled [data-voice-card],.carplayVoiceEnabled [data-voice-card] *,.carplayVoiceEnabled button,.carplayVoiceEnabled a,.carplayVoiceEnabled [onclick],.carplayVoiceEnabled [role="button"]{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}.carplayVoiceEnabled [data-voice-card]{touch-action:pan-y}';
     (document.head||document.documentElement).appendChild(st);
   }
-  function enabled(){try{return localStorage.getItem(KEY)==='1'}catch(_){return false}}
-  function setEnabled(on){try{localStorage.setItem(KEY,on?'1':'0')}catch(_){}syncSetting();try{window.dispatchEvent(new CustomEvent('carplay-voice-change',{detail:{enabled:!!on}}))}catch(_){}}
+  function enabled(){
+    try{if(localStorage.getItem(KEY)==='1')return true}catch(_){}
+    try{return /(?:^|;\s*)carplay_voice_enabled=1(?:;|$)/.test(document.cookie||'')}catch(_){return false}
+  }
+  function setEnabled(on){
+    try{localStorage.setItem(KEY,on?'1':'0')}catch(_){}
+    try{document.cookie='carplay_voice_enabled='+(on?'1':'0')+'; path=/; max-age=31536000; SameSite=Lax'}catch(_){}
+    syncSetting();
+    try{window.dispatchEvent(new CustomEvent('carplay-voice-change',{detail:{enabled:!!on}}))}catch(_){}
+  }
   function clean(s){return String(s||'').replace(/\s+/g,' ').trim()}
   function hourText(s){return clean(s).replace(/(\d{1,2})[:h.](\d{2})/g,function(_,h,m){return Number(m)?(Number(h)+' heures '+Number(m)):(Number(h)+' heures')}).replace(/\b(\d{1,2})h\b/g,'$1 heures').replace(/–|—/g,' à ')}
   function unknownTime(s){s=clean(s).toLowerCase();return !s||/à vérifier|a verifier|à confirmer|a confirmer|non précisé|non precise|non publié|non publie|inconnu/.test(s)}
@@ -70,6 +78,11 @@
     if(!el)return '';
     var own=clean(el.getAttribute&&el.getAttribute('data-voice-help')||'');
     if(own)return own;
+    if(el.tagName==='SELECT'){
+      var opt=el.options&&el.selectedIndex>=0?el.options[el.selectedIndex]:null;
+      var txt=clean(opt&&opt.textContent||el.getAttribute('aria-label')||'Menu');
+      return txt.replace(/\s*[—–-]\s*/g,', ')+'.';
+    }
     var id=el.id||'';
     var byId={
       fuelStationsQuickBtn:'Stations : essence, gazole et GPL à moins de quinze kilomètres.',
@@ -110,20 +123,35 @@
       preferredVoice=vv.find(function(v){return /^fr(?:-|_)/i.test(v.lang||'')})||vv.find(function(v){return /français|french/i.test(v.name||'')})||null;
     }catch(_){preferredVoice=null}
   }
+  function primeVoiceV396(){
+    if(!enabled()||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
+    try{
+      window.speechSynthesis.resume();
+      primeUtteranceV396=new SpeechSynthesisUtterance('\u00a0');
+      primeUtteranceV396.lang='fr-FR';
+      primeUtteranceV396.volume=0.01;
+      primeUtteranceV396.rate=10;
+      window.speechSynthesis.speak(primeUtteranceV396);
+    }catch(_){}
+  }
   function speak(text){
     text=clean(text);if(!text||!enabled())return false;
     if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){toast('🔇 Lecture vocale indisponible sur cet appareil.');return false}
     try{
       window.speechSynthesis.cancel();window.speechSynthesis.resume();
-      var u=new SpeechSynthesisUtterance(text);u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;if(!preferredVoice)loadPreferredVoice();if(preferredVoice)u.voice=preferredVoice;
-      u.onerror=function(){toast('🔇 La voix ne fonctionne pas sur cet appareil. Vous pouvez la désactiver dans Réglages.')};
-      window.speechSynthesis.speak(u);toast('🔊 '+text);return true;
+      currentUtteranceV396=new SpeechSynthesisUtterance(text);
+      currentUtteranceV396.lang='fr-FR';currentUtteranceV396.rate=.92;currentUtteranceV396.pitch=1;currentUtteranceV396.volume=1;
+      if(!preferredVoice)loadPreferredVoice();if(preferredVoice)currentUtteranceV396.voice=preferredVoice;
+      currentUtteranceV396.onstart=function(){toast('🔊 '+text)};
+      currentUtteranceV396.onend=function(){currentUtteranceV396=null};
+      currentUtteranceV396.onerror=function(){toast('🔇 La voix ne fonctionne pas sur cet appareil.');currentUtteranceV396=null};
+      window.speechSynthesis.speak(currentUtteranceV396);return true;
     }catch(_){toast('🔇 La voix ne fonctionne pas sur cet appareil.');return false}
   }
   function eligibleTarget(e){
     if(!enabled()||!e.target||!e.target.closest)return null;
-    var clickable=e.target.closest('button,a,[onclick],[role="button"]');
-    if(clickable&&!clickable.matches('input,select,textarea,label'))return clickable;
+    var clickable=e.target.closest('button,a,select,[onclick],[role="button"]');
+    if(clickable&&!clickable.matches('input,textarea,label'))return clickable;
     var card=e.target.closest('[data-voice-card]');
     return card||null;
   }
@@ -148,7 +176,7 @@
     var target=eligibleTarget(e);
     if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
-    active=target;fired=false;touchReadyV395=false;touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);
+    active=target;fired=false;touchReadyV395=false;touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);primeVoiceV396();
     timer=setTimeout(function(){
       if(active){
         touchReadyV395=true;
@@ -195,8 +223,14 @@
     }
   }
   installNoSelectV389();
-  document.addEventListener('selectstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,[onclick],[role="button"]'))e.preventDefault()},true);
-  document.addEventListener('dragstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,[onclick],[role="button"]'))e.preventDefault()},true);
+  document.addEventListener('selectstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
+  document.addEventListener('dragstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
+  document.addEventListener('change',function voiceSelectChangeV396(e){
+    if(!enabled()||!e.target||e.target.tagName!=='SELECT')return;
+    var opt=e.target.options&&e.target.selectedIndex>=0?e.target.options[e.target.selectedIndex]:null;
+    var txt=clean(opt&&opt.textContent||'');
+    if(txt)speak(txt.replace(/\s*[—–-]\s*/g,', '));
+  },true);
   document.addEventListener('click',function(e){
     if(suppressClickUntil&&Date.now()<suppressClickUntil&&suppressClickTarget&&(e.target===suppressClickTarget||suppressClickTarget.contains(e.target))){
       e.preventDefault();e.stopImmediatePropagation();suppressClickTarget=null;suppressClickUntil=0;
@@ -207,7 +241,7 @@
   document.addEventListener('touchend',touchEndV394,{capture:true,passive:true});
   document.addEventListener('touchcancel',cancel,{capture:true,passive:true});
   document.addEventListener('pointerdown',begin,true);document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',cancel,true);
-  document.addEventListener('contextmenu',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,[onclick],[role="button"]'))e.preventDefault()},true);
+  document.addEventListener('contextmenu',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSetting);else initSetting();
   window.addEventListener('storage',syncSetting);if(window.speechSynthesis)window.speechSynthesis.addEventListener&&window.speechSynthesis.addEventListener('voiceschanged',loadPreferredVoice);
   window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS};
