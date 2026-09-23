@@ -71,8 +71,8 @@
       }
     }
     var parts=[];
-    if(city)parts.push('Marché de '+city);
-    else parts.push('Marché');
+    if(city)parts.push('Le marché de '+city);
+    else parts.push('Le marché');
     if(name&&clean(name).toLowerCase()!==clean(city).toLowerCase())parts.push(name);
     parts.push(marketCount(card));
     var time=marketTime(card);
