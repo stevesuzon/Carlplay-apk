@@ -1,5 +1,5 @@
-const VERSION = "V414-ADMIN-COMPAT";
-const BASE_CACHE = "couteau-suisse-module-base-v414-admin-compat";
+const VERSION = "V414-SUBSCRIPTION-CUMUL";
+const BASE_CACHE = "couteau-suisse-module-base-v414-subscription-cumul";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v366-admin-fresh";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v367-market-full-review";
@@ -23,7 +23,7 @@ const MODULES={
  [INSTALL_CACHE]:["/installer.html","/visitor-register-v361.js","/app-access-gate-v240.js?v=309-confirmed-direct","/cache-cleanup-v20260910.js?v=283-modules"],
  [STATS_CACHE]:["/user-stats-v285.js?v=328-stations-verifiees"],
  [MUSHROOM_CACHE]:["/champignons.html","/champignons.js?v=300-concours-auto","/champignons.css?v=300-concours-auto"],
- [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=407-inscription"],
+ [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=414-cumul"],
  [AUTORADIO_CACHE]:["/autoradio-home-v386.js?v=386-responsive-images","/autoradio-subscription-v381.js?v=381","/autoradio-version.json?v=386-responsive-images","/autoradio-assets-v386/fuel.svg?v=386","/autoradio-assets-v386/market.svg?v=386","/autoradio-assets-v386/map.svg?v=386","/autoradio-assets-v386/return.svg?v=386","/autoradio-assets-v386/address.svg?v=386","/autoradio-assets-v386/trash.svg?v=386"],
  [PHONE_UI_CACHE]:["/phone-loading-v384.js?v=384-loader"]
 };
