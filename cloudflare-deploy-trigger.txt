@@ -1,3 +1,3 @@
-Cloudflare deploy trigger: 2026-09-23T20:08:48Z
-Run: 35913961302
-Commit: 2f51a320dfcc46819415b217fbe604aa1faa5037
+Cloudflare deploy trigger: V413
+Commit: 537e54b61adf18f4130ac01a8d593ea987d706d1
+Reason: bonus kilometres + cadeau concours 536-1243 + partage admin 0/250
