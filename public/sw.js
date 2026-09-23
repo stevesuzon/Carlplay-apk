@@ -1,5 +1,5 @@
-const VERSION = "V413-KM-RANDOM-GIFT";
-const BASE_CACHE = "couteau-suisse-module-base-v413-km-random-gift";
+const VERSION = "V414-ADMIN-COMPAT";
+const BASE_CACHE = "couteau-suisse-module-base-v414-admin-compat";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v366-admin-fresh";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v367-market-full-review";
