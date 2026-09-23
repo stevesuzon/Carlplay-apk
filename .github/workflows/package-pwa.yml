@@ -11,6 +11,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: package-pwa-main
+  cancel-in-progress: true
+
 jobs:
   package:
     runs-on: ubuntu-latest
@@ -54,4 +58,5 @@ jobs:
             exit 0
           fi
           git commit -m "Met à jour le ZIP et déclenche Cloudflare [skip ci]"
-          git push
+          git pull --rebase origin main
+          git push origin HEAD:main
