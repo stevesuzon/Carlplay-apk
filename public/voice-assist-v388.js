@@ -117,28 +117,19 @@
     if(el.tagName==='SELECT'){
       var opt=el.options&&el.selectedIndex>=0?el.options[el.selectedIndex]:null;
       var txt=clean(opt&&opt.textContent||el.getAttribute('aria-label')||'Menu');
-      return txt.replace(/\s*[—–-]\s*/g,', ')+'.';
+      return txt.replace(/\s*[—–-]\s*/g,', ').replace(/\bKM\b/gi,'kilomètres')+'.';
     }
-    var id=el.id||'';
-    var byId={
-      fuelStationsQuickBtn:'Stations : essence, gazole et GPL à moins de quinze kilomètres.',
-      contactMailButton:'Mail : envoyer un message.',
-      housePhotoButton:'Mesurer une maison : estimer les surfaces de la maison.',
-      nearby80Button:'Marchés à moins de cent cinquante kilomètres.',
-      homeAddressBookBtn:"Adresses : ouvrir le carnet d'adresses.",
-      locationPermissionBtn:'Localisation : activer la position GPS.'
-    };
-    if(byId[id])return byId[id];
-    if(el.classList&&el.classList.contains('gear'))return 'Réglages : ouvrir les réglages.';
-    if(el.matches&&el.matches('.card.blue'))return 'Marchés : marchés, foires, Noël et brocantes.';
-    if(el.matches&&el.matches('.directBtn.place'))return 'Mes papiers : ouvrir vos papiers.';
-    if(el.matches&&el.matches('.directBtn.docs'))return 'Démarches professionnelles : carte commerçant, assurance et K bis.';
-    if(el.matches&&el.matches('.returnPlaceTrafic'))return "Retourner sur la place : ouvrir l'emplacement enregistré.";
-    if(el.matches&&el.matches('.eraseTile'))return "Effacer emplacement : supprimer l'emplacement enregistré.";
-    var label=clean((el.getAttribute&&el.getAttribute('aria-label'))||(el.getAttribute&&el.getAttribute('title'))||el.innerText||el.textContent||'');
-    if(!label)return 'Bouton.';
-    if(label.length>120)label=label.slice(0,120);
-    return label+'.';
+    var txt=clean(el.innerText||el.textContent||'');
+    if(!txt&&el.getAttribute)txt=clean(el.getAttribute('aria-label')||el.getAttribute('title')||'');
+    if(!txt&&el.querySelector){
+      var img=el.querySelector('img[alt]');
+      if(img)txt=clean(img.getAttribute('alt')||'');
+    }
+    if(!txt&&el.classList&&el.classList.contains('gear'))txt='Réglages';
+    txt=txt.replace(/[←→›⌄⚙️⚙]/g,' ').replace(/[•·]/g,', ').replace(/\bKM\b/gi,'kilomètres').replace(/\s+/g,' ').trim();
+    if(!txt)return 'Bouton.';
+    if(txt.length>160)txt=txt.slice(0,160);
+    return txt+'.';
   }
   function buildSpeech(card){
     if(!card)return '';
