@@ -542,38 +542,35 @@ async function activate(request, env) {
   const freshCode = !row.recovery_email_hash && !row.phone_device && !row.autoradio_device && !row.account_first_name && !row.account_last_name;
   const durationDays = Math.max(1, Math.min(3650, Number(row.duration_days) || 365));
 
-  // Un code neuf sert aussi de recharge. Si ce nom/e-mail ou ce téléphone possède déjà
-  // un abonnement, on conserve le même compte et on ajoute la durée du nouveau code.
+  // V414 : un code neuf n'appartient à aucun compte avant sa première activation.
+  // On cherche d'abord le compte par e-mail validé, jamais par l'ancien téléphone.
+  // Ainsi un ancien compte resté sur le même appareil ne provoque plus
+  // "EMAIL_NE_CORRESPOND_PAS" pour un nouveau code.
   if (freshCode) {
-    const candidates = await env.DB.prepare(
+    const account = await env.DB.prepare(
       `SELECT * FROM subscriptions
-       WHERE id<>? AND (recovery_email_hash=? OR phone_device=? OR autoradio_device=?)
+       WHERE id<>? AND (recovery_email_hash=? OR lower(COALESCE(recovery_email_mask,''))=?)
        ORDER BY CASE WHEN recovery_email_hash=? THEN 0 ELSE 1 END,
                 CASE WHEN active=1 THEN 0 ELSE 1 END,
                 COALESCE(account_updated_at,0) DESC, id DESC
        LIMIT 1`
-    ).bind(row.id,emailHash,deviceId,deviceId,emailHash).first();
+    ).bind(row.id,emailHash,email,emailHash).first();
 
-    if (candidates) {
-      const account = candidates;
-      const occupiedDevice = type === "autoradio" ? String(account.autoradio_device || "") : String(account.phone_device || "");
-      // V380 : le code + le même e-mail + les mêmes nom/prénom permettent de déplacer
-      // le slot vers le nouveau téléphone/autoradio. L'ancien appareil perd alors l'accès.
-      // La vérification d'identité ci-dessous reste obligatoire avant le remplacement.
+    if (account) {
       const storedEmail = String(account.recovery_email_hash || "");
       const storedVisibleEmail = normalizeEmail(account.recovery_email_mask || "");
       const storedFirst = String(account.account_first_name || "");
       const storedLast = String(account.account_last_name || "");
-      // V404 : un nouvel utilisateur possède souvent d'abord une ligne d'essai.
-      // Cette ligne utilise une empreinte spéciale "contest-trial-email:*" et non
-      // le SHA-256 normal de l'e-mail. Si l'e-mail lisible correspond, on autorise
-      // le passage essai -> abonnement payant et on remplace ensuite l'empreinte
-      // spéciale par l'empreinte normale dans l'UPDATE ci-dessous.
-      const isTrialAccount = storedEmail.startsWith("contest-trial-email:");
-      if (storedEmail && storedEmail !== emailHash && !(isTrialAccount && storedVisibleEmail === email)) {
+      const sameVisibleEmail = storedVisibleEmail === email;
+
+      // Les anciens comptes d'essai utilisent parfois une empreinte spéciale.
+      // L'e-mail lisible validé reste alors la référence pour rattacher la recharge.
+      if (storedEmail && storedEmail !== emailHash && !sameVisibleEmail) {
         return json({ok:false,error:"EMAIL_NE_CORRESPOND_PAS"},403);
       }
-      if (storedFirst && storedLast && (subscriptionIdentityKey(storedFirst)!==subscriptionIdentityKey(firstName) || subscriptionIdentityKey(storedLast)!==subscriptionIdentityKey(lastName))) {
+      if (storedFirst && storedLast &&
+          (subscriptionIdentityKey(storedFirst)!==subscriptionIdentityKey(firstName) ||
+           subscriptionIdentityKey(storedLast)!==subscriptionIdentityKey(lastName))) {
         return json({ok:false,error:"IDENTITE_NE_CORRESPOND_PAS"},403);
       }
       if (Number(account.lifetime)) return json({ok:false,error:"ABONNEMENT_DEJA_A_VIE"},409);
@@ -584,10 +581,13 @@ async function activate(request, env) {
       const becomesLifetime = Number(row.lifetime) === 1;
       const newExpires = becomesLifetime ? null : new Date(base + durationDays * 86400000).toISOString();
 
-      // D1 batch est transactionnel : on libère d'abord le nouveau code, puis on le
-      // rattache à l'ancien compte afin de garder le même subscription_id et ses données.
+      // Le nouveau code devient le code actuel du même compte.
+      // Les jours restants sont conservés puis la nouvelle durée est ajoutée.
+      // Si ce téléphone était encore rattaché à un autre compte, on libère seulement
+      // son emplacement téléphone/autoradio ; l'ancien compte reste intact sur le serveur.
       await env.DB.batch([
         env.DB.prepare("DELETE FROM subscriptions WHERE id=?").bind(row.id),
+        env.DB.prepare(`UPDATE subscriptions SET ${column}=NULL,updated_at=CURRENT_TIMESTAMP WHERE id<>? AND ${column}=?`).bind(account.id,deviceId),
         env.DB.prepare(`UPDATE subscriptions SET code_hash=?,recovery_code_box=?,expires_at=?,lifetime=?,active=1,
           recovery_email_hash=?,recovery_email_mask=?,account_first_name=?,account_last_name=?,account_updated_at=?,
           duration_days=?,redeemed_at=?,${column}=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
@@ -598,16 +598,20 @@ async function activate(request, env) {
       return json({ok:true,lifetime:becomesLifetime,expiresAt:newExpires,deviceType:type,email,firstName,lastName,renewed:true,addedDays:becomesLifetime?null:durationDays,remainingDays:info.remainingDays});
     }
 
-    // Première activation d'un code neuf : la durée commence le jour de l'activation,
-    // et non le jour où l'administrateur a créé le code.
+    // Aucun compte existant avec cet e-mail : première activation réelle du code.
+    // Le code se lie à cette adresse e-mail validée et devient son abonnement.
     const owner = await activeEmailOwner(env,emailHash,row.id);
     if (owner) return json({ok:false,error:"EMAIL_DEJA_UTILISEE"},409);
     const recoveryCodeBox = await sealRecoveryCode(code,env);
     const becomesLifetime = Number(row.lifetime) === 1;
     const expiresAt = becomesLifetime ? null : new Date(now + durationDays * 86400000).toISOString();
-    await env.DB.prepare(`UPDATE subscriptions SET expires_at=?,recovery_email_hash=?,recovery_email_mask=?,recovery_code_box=?,
-      account_first_name=?,account_last_name=?,account_updated_at=?,duration_days=?,redeemed_at=?,${column}=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-      .bind(expiresAt,emailHash,email,recoveryCodeBox,firstName,lastName,now,durationDays,now,deviceId,row.id).run();
+
+    await env.DB.batch([
+      env.DB.prepare(`UPDATE subscriptions SET ${column}=NULL,updated_at=CURRENT_TIMESTAMP WHERE id<>? AND ${column}=?`).bind(row.id,deviceId),
+      env.DB.prepare(`UPDATE subscriptions SET expires_at=?,recovery_email_hash=?,recovery_email_mask=?,recovery_code_box=?,
+        account_first_name=?,account_last_name=?,account_updated_at=?,duration_days=?,redeemed_at=?,${column}=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+        .bind(expiresAt,emailHash,email,recoveryCodeBox,firstName,lastName,now,durationDays,now,deviceId,row.id)
+    ]);
     const info = subscriptionRemainingInfo({lifetime:becomesLifetime?1:0,expires_at:expiresAt},now);
     return json({ok:true,lifetime:becomesLifetime,expiresAt,deviceType:type,email,firstName,lastName,renewed:false,addedDays:becomesLifetime?null:durationDays,remainingDays:info.remainingDays});
   }
