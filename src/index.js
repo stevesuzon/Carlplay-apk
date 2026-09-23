@@ -1922,6 +1922,50 @@ async function getMarketVerification(url, env) {
   return json({ ok: true, ...(await marketVerificationState(env, marketKey)) });
 }
 
+
+async function adminMarketVerificationForms(request, env) {
+  if (!(await adminAuthorized(request, env))) return json({ok:false,error:"SECRET_INCORRECT"},401);
+  if (!env.DB) return json({ok:false,error:"DB_INDISPONIBLE"},503);
+  await ensureMarketVerificationTables(env);
+
+  const rows=await env.DB.prepare(`
+    SELECT market_key,field,value_display,confirmations,updated_at
+    FROM market_verification_consensus
+    ORDER BY updated_at DESC
+    LIMIT 3000
+  `).all();
+
+  const map=new Map();
+  const ensure=(key)=>{
+    key=String(key||"");
+    if(!map.has(key)){
+      let raw=key.replace(/^marketVerifyV9:/,""),country="",parts=[];
+      const c=raw.indexOf(":");
+      if(c>=0){country=raw.slice(0,c);raw=raw.slice(c+1)}
+      parts=raw.split("|");
+      const name=String(parts[2]||parts[0]||"Marché");
+      const city=String(parts[3]||"");
+      const day=String(parts[4]||"");
+      map.set(key,{marketKey:key,country,name,city,day,values:{},updatedAt:""});
+    }
+    return map.get(key);
+  };
+
+  for(const row of rows.results||[]){
+    const item=ensure(row.market_key);
+    item.values[String(row.field||"")]=String(row.value_display||"");
+    if(!item.updatedAt||String(row.updated_at||"")>item.updatedAt)item.updatedAt=String(row.updated_at||"");
+  }
+
+  const photos=await env.DB.prepare("SELECT market_key,updated_at FROM market_photo_metadata ORDER BY updated_at DESC LIMIT 1000").all();
+  for(const row of photos.results||[]){const item=ensure(row.market_key);item.hasPhoto=true;if(!item.updatedAt||String(row.updated_at||"")>item.updatedAt)item.updatedAt=String(row.updated_at||"")}
+  const locs=await env.DB.prepare("SELECT market_key,address,updated_at FROM market_location_consensus ORDER BY updated_at DESC LIMIT 1000").all();
+  for(const row of locs.results||[]){const item=ensure(row.market_key);item.address=String(row.address||"");if(!item.updatedAt||String(row.updated_at||"")>item.updatedAt)item.updatedAt=String(row.updated_at||"")}
+
+  const forms=[...map.values()].sort((a,b)=>String(b.updatedAt||"").localeCompare(String(a.updatedAt||""))).slice(0,500);
+  return json({ok:true,forms});
+}
+
 async function batchMarketVerifications(request, env) {
   if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE" }, 503);
   await ensureMarketVerificationTables(env);
@@ -4360,6 +4404,7 @@ export default {
     if (url.pathname === "/api/markets" && request.method === "GET") return listMarkets(env);
     if (url.pathname === "/api/markets/refresh-status" && request.method === "GET") return marketRefreshStatus(env);
     if (url.pathname === "/api/admin/markets/import" && request.method === "POST") return importMarkets(request, env);
+    if (url.pathname === "/api/admin/market-verification-forms" && request.method === "GET") return adminMarketVerificationForms(request, env);
     if (url.pathname === "/api/market-verifications" && request.method === "GET") return getMarketVerification(url, env);
     if (url.pathname === "/api/market-verifications" && request.method === "POST") return submitMarketVerification(request, env);
     if (url.pathname === "/api/market-verifications/batch" && request.method === "POST") return batchMarketVerifications(request, env);
