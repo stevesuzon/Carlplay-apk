@@ -1,4 +1,4 @@
 {
-  "version": "V402",
-  "message": "V402 : les fiches marché lisent maintenant la ville en premier, puis le nom/lieu du marché, puis le nombre de commerçants, et l’horaire en dernier. Exemple : Marché de Palaiseau. Place des Causeuses. Nombre de commerçants : à vérifier. Horaire : 8 heures à 12 heures."
+  "version": "V403",
+  "message": "V403 : les fiches classiques commencent maintenant toujours par « Le marché de [ville] ». Exemple : Le marché de Palaiseau. Place des Causeuses. Nombre de commerçants : à vérifier. Horaire : 8 heures à 12 heures."
 }
