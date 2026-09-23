@@ -18,7 +18,8 @@ var EXACT={
   'return_address':1,'return_full_address':1,'return_lat':1,'return_lon':1,
   'return_nearby':1,'return_saved_at':1,'return_context_v231':1,'return_context_updated_at':1,
   'carplay_app_identity_v240':1,'carplay_recovery_email':1,'carplay_subscription_email':1,
-  'carplay_shared_subscription':1,'carplay_device_id':1
+  'carplay_shared_subscription':1,'carplay_device_id':1,
+  'carplay_admin_token':1,'carplay_admin_secret':1,'carplay_admin_here':1
 };
 var PREFIX=[
   'saved_','return_','address_','event_reg_','custom_quote_','generic_client_','generic_company_',
