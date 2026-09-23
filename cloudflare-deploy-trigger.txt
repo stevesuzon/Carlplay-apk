@@ -1,3 +1,3 @@
-Cloudflare deploy trigger: V417
-Commit: ae73d8ff33abc38c2d505dde20ff065acf17eebf
-Reason: image cadeau concours plein ecran avec nom points feux artifice confettis 10 secondes
+Cloudflare deploy trigger: V418
+Commit: 159864c478a0717a67df41e998c2545e844fca6d
+Reason: cadeau concours marque vu seulement apres chargement reel image
