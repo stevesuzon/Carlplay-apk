@@ -226,18 +226,25 @@
     var dx=Math.abs(t.clientX-startX),dy=Math.abs(t.clientY-startY);
     if(dx>28||dy>28){cancel();touchReadyV395=false;touchStartedAtV395=0;}
   }
+  function blockLongPressReleaseV397(e){
+    try{if(e&&e.cancelable)e.preventDefault()}catch(_){}
+    try{if(e)e.stopPropagation()}catch(_){}
+    try{if(e&&e.stopImmediatePropagation)e.stopImmediatePropagation()}catch(_){}
+  }
   function touchEndV394(e){
     var target=active;
     var held=touchStartedAtV395?Date.now()-touchStartedAtV395:0;
+    var isLong=!!(target&&(touchReadyV395||held>=PRESS_MS));
     clearTimeout(timer);timer=0;active=null;
-    if(target&&(touchReadyV395||held>=PRESS_MS)){
+    if(isLong){
       fired=true;
       suppressClickTarget=target;
-      suppressClickUntil=Date.now()+1000;
+      suppressClickUntil=Date.now()+1800;
+      blockLongPressReleaseV397(e);
       speak(buildSpeech(target));
     }
     touchReadyV395=false;touchStartedAtV395=0;
-    setTimeout(function(){fired=false},80);
+    setTimeout(function(){fired=false},120);
   }
   function syncSetting(){
     var t=document.getElementById('voiceAssistToggle'),s=document.getElementById('voiceAssistStatus'),on=enabled();
@@ -273,13 +280,17 @@
     if(txt)speak(txt.replace(/\s*[—–-]\s*/g,', '));
   },true);
   document.addEventListener('click',function(e){
-    if(suppressClickUntil&&Date.now()<suppressClickUntil&&suppressClickTarget&&(e.target===suppressClickTarget||suppressClickTarget.contains(e.target))){
-      e.preventDefault();e.stopImmediatePropagation();suppressClickTarget=null;suppressClickUntil=0;
+    if(suppressClickUntil&&Date.now()<suppressClickUntil&&suppressClickTarget){
+      var hit=(e.target===suppressClickTarget)||(suppressClickTarget.contains&&suppressClickTarget.contains(e.target))||(e.target&&e.target.contains&&e.target.contains(suppressClickTarget));
+      if(hit){
+        e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+        suppressClickTarget=null;suppressClickUntil=0;
+      }
     }
   },true);
   document.addEventListener('touchstart',touchBeginV394,{capture:true,passive:true});
   document.addEventListener('touchmove',touchMoveV394,{capture:true,passive:true});
-  document.addEventListener('touchend',touchEndV394,{capture:true,passive:true});
+  document.addEventListener('touchend',touchEndV394,{capture:true,passive:false});
   document.addEventListener('touchcancel',cancel,{capture:true,passive:true});
   document.addEventListener('pointerdown',begin,true);document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',cancel,true);
   document.addEventListener('contextmenu',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
