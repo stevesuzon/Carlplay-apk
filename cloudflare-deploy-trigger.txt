@@ -1,3 +1,3 @@
-Cloudflare deploy trigger: V415
-Commit: 0e1f5cacbdb1eebea174ebcb979ec134c255d27a
-Reason: cadeaux concours repartis 450-1250 + bulle festive 10 secondes + fermeture tactile
+Cloudflare deploy trigger: V416
+Commit: ad9f078d6922d5b71d071f69b57ee273a29a684b
+Reason: session administrateur persistante pendant les mises a jour
