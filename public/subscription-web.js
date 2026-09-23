@@ -520,7 +520,7 @@
       if (code.length !== 6) { msg.textContent = "Entrez exactement 6 lettres/chiffres."; return; }
       emailProof=emailProof||'adresse-saisie';
       msg.textContent = "Vérification du compte…";
-      activate(code,email,emailProof,firstName,lastName,detectedType(),function (j) { msg.textContent = j&&j.lifetime?"✅ Compte synchronisé — abonnement à vie chargé.":(j&&j.renewed&&j.addedDays?"✅ Renouvellement ajouté : +"+j.addedDays+" jours. Il reste maintenant "+(j.remainingDays||0)+" jours.":"✅ Compte synchronisé — abonnement chargé."); localStorage.setItem('carplay_open_contest_after_identity','1'); setTimeout(function () { location.reload(); }, 600); }, function (e) { msg.textContent = messageFor(e); });
+      activate(code,email,emailProof,firstName,lastName,detectedType(),function (j) { msg.textContent = j&&j.lifetime?"✅ Compte synchronisé — abonnement à vie chargé.":(j&&j.renewed&&j.addedDays?"✅ CUMUL EFFECTUÉ : +"+j.addedDays+" jours ajoutés — total : "+(j.remainingDays||0)+" jours restants.":"✅ Abonnement activé et lié à cette adresse e-mail — "+((j&&j.remainingDays)||0)+" jours restants."); localStorage.setItem('carplay_open_contest_after_identity','1'); setTimeout(function () { location.reload(); }, 900); }, function (e) { msg.textContent = messageFor(e); });
     };
   }
 
