@@ -1,4 +1,4 @@
 {
-  "version": "V418",
-  "message": "V418 : corrige l’affichage de l’image Cadeau Concours. Le cadeau n’est maintenant marqué comme vu qu’après chargement réel de l’image. Si l’image ne charge pas, elle sera reproposée à la prochaine ouverture. Nom et points réels restent affichés pendant 10 secondes."
+  "version": "V420",
+  "message": "V420 : les points cadeaux ne sont plus ajoutés automatiquement. Les anciens points cadeaux déjà crédités sont retirés du total et replacés en cadeau en attente. L’image reste affichée jusqu’à ce que le participant appuie sur RÉCUPÉRER MES POINTS. À ce clic seulement, les points sont ajoutés au classement et l’image disparaît. Si la personne ferme l’application sans récupérer, le cadeau réapparaît à la prochaine ouverture."
 }
