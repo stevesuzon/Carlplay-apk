@@ -1,4 +1,4 @@
 {
-  "version": "V410",
-  "message": "V410 : suppression définitive du bouton « TOUCHER POUR ÉCOUTER ». Dès que Lecture vocale est activée dans Réglages, l’appui long lance directement la voix. Aucun bouton supplémentaire n’apparaît."
+  "version": "V411",
+  "message": "V411 : après validation du nom, du prénom et de l’adresse e-mail, l’utilisateur est directement connecté et inscrit. Les étapes Pays, Département, Commune, bouton COMMUNES et Confirmer mon inscription ont été supprimées."
 }
