@@ -2,7 +2,7 @@
   'use strict';
   var KEY='carplay_voice_enabled_v387';
   var PRESS_MS=1200;
-  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0;
+  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchUtteranceV399=null,queuedTouchTextV399='';
   function installNoSelectV389(){
     if(document.getElementById('carplayVoiceNoSelectV389'))return;
     var st=document.createElement('style');
@@ -207,12 +207,45 @@
   }
   function move(e){if(!active)return;var dx=Math.abs(Number(e.clientX||0)-startX),dy=Math.abs(Number(e.clientY||0)-startY);if(dx>18||dy>18)cancel()}
   function end(){clearTimeout(timer);timer=0;active=null;setTimeout(function(){fired=false},80)}
+  function prepareTouchSpeechV399(target){
+    if(!target||!enabled()||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
+    var text=clean(buildSpeech(target));if(!text)return;
+    try{
+      window.speechSynthesis.cancel();
+      loadPreferredVoice();
+      queuedTouchTextV399=text;
+      queuedTouchUtteranceV399=new SpeechSynthesisUtterance(text);
+      queuedTouchUtteranceV399.lang='fr-FR';
+      queuedTouchUtteranceV399.rate=.92;
+      queuedTouchUtteranceV399.pitch=1;
+      queuedTouchUtteranceV399.volume=1;
+      if(preferredVoice)queuedTouchUtteranceV399.voice=preferredVoice;
+      queuedTouchUtteranceV399.onstart=function(){toast('🔊 '+text)};
+      queuedTouchUtteranceV399.onend=function(){queuedTouchUtteranceV399=null;queuedTouchTextV399='';};
+      queuedTouchUtteranceV399.onerror=function(){toast('🔇 Aucun son. Réessayez une fois.');queuedTouchUtteranceV399=null;queuedTouchTextV399='';};
+      window.speechSynthesis.pause();
+      window.speechSynthesis.speak(queuedTouchUtteranceV399);
+    }catch(_){queuedTouchUtteranceV399=null;queuedTouchTextV399='';}
+  }
+  function cancelTouchSpeechV399(){
+    try{window.speechSynthesis.cancel()}catch(_){}
+    queuedTouchUtteranceV399=null;queuedTouchTextV399='';
+  }
+  function resumeTouchSpeechV399(target){
+    try{
+      if(queuedTouchUtteranceV399&&queuedTouchTextV399){
+        window.speechSynthesis.resume();
+        return true;
+      }
+    }catch(_){}
+    return speak(buildSpeech(target));
+  }
   function touchBeginV394(e){
     if(!enabled()||!e.target||!e.target.closest)return;
     var target=eligibleTarget(e);
     if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
-    active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);primeVoiceV396();
+    active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV399(target);
     timer=setTimeout(function(){
       if(active){
         touchReadyV395=true;
@@ -225,9 +258,9 @@
     if(touchReadyV395)return;
     if(!active)return;
     var t=e.touches&&e.touches[0];
-    if(!t){cancel();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;return}
+    if(!t){cancel();cancelTouchSpeechV399();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;return}
     var dx=Math.abs(t.clientX-startX),dy=Math.abs(t.clientY-startY);
-    if(dx>28||dy>28){cancel();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;}
+    if(dx>28||dy>28){cancel();cancelTouchSpeechV399();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;}
   }
   function blockLongPressReleaseV397(e){
     try{if(e&&e.cancelable)e.preventDefault()}catch(_){}
@@ -245,8 +278,9 @@
       suppressClickUntil=Date.now()+2500;
       suppressAllClicksUntilV398=Date.now()+2500;
       blockLongPressReleaseV397(e);
-      speak(buildSpeech(target));
+      resumeTouchSpeechV399(target);
     }
+    if(!isLong)cancelTouchSpeechV399();
     touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;
     setTimeout(function(){fired=false},160);
   }
@@ -299,7 +333,7 @@
   document.addEventListener('touchstart',touchBeginV394,{capture:true,passive:true});
   document.addEventListener('touchmove',touchMoveV394,{capture:true,passive:true});
   document.addEventListener('touchend',touchEndV394,{capture:true,passive:false});
-  document.addEventListener('touchcancel',cancel,{capture:true,passive:true});
+  document.addEventListener('touchcancel',function(){cancel();cancelTouchSpeechV399();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;},{capture:true,passive:true});
   document.addEventListener('pointerdown',begin,true);document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',cancel,true);
   document.addEventListener('contextmenu',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSetting);else initSetting();
