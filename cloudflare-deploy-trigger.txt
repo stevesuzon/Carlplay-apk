@@ -1,3 +1,3 @@
-Cloudflare deploy trigger: V420
-Commit: 2d3e00cbb1b7728ac55a9637c2f9c6e6281b4f30
-Reason: retire les anciens cadeaux du classement et ajoute les points uniquement apres clic sur RECUPERER MES POINTS
+Cloudflare deploy trigger: V421
+Commit: 2a9e460b83a37476ad4f001d203d625874e6273d
+Reason: affiche correctement l image cadeau directement sur l ecran d accueil
