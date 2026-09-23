@@ -1,5 +1,5 @@
-const VERSION = "V405-CUSTOM-DEPARTMENT-PICKER";
-const BASE_CACHE = "couteau-suisse-module-base-v405-custom-department-picker";
+const VERSION = "V406-ADMIN-MARKET-FORMS-LOCK";
+const BASE_CACHE = "couteau-suisse-module-base-v406-admin-market-forms-lock";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v366-admin-fresh";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v367-market-full-review";
