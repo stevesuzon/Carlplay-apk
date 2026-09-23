@@ -1,4 +1,4 @@
 {
-  "version": "V424",
-  "message": "V424 : corrige le déploiement pour que l’application récupère toujours la toute dernière version. Cette version contient aussi les corrections V423 de la voix après réouverture et du bouton Adresse."
+  "version": "V425",
+  "message": "V425 : ajoute le déploiement direct GitHub vers Cloudflare. Cette version conserve les corrections de la voix après réouverture, du bouton Adresse et du cadeau concours à récupérer manuellement."
 }
