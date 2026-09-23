@@ -1,4 +1,4 @@
 {
-  "version": "V412",
-  "message": "V412 : partage administrateur spécial. Quand l’administrateur partage l’application, il ne gagne aucun point et la personne qui s’inscrit avec son lien reçoit 250 points fixes. Les autres utilisateurs gardent leur barème de parrainage habituel."
+  "version": "V413",
+  "message": "V413 : bonus kilomètres marchés ×3 de 10,01 à 15 km, ×7 de 15,01 à 49,99 km et ×10 à partir de 50 km. Le plus gros multiplicateur disponible est retenu. Chaque participant reçoit une fois un cadeau concours aléatoire de 536 à 1243 points, affiché pendant 10 secondes dans une grande bulle festive. Partage administrateur : 0 point pour l’administrateur et 250 points fixes pour le nouvel utilisateur."
 }
