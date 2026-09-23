@@ -1,4 +1,4 @@
 {
-  "version": "V401",
-  "message": "V401 : les boutons lisent uniquement leur texte visible. Exemple : STATIONS 15 KM est lu « Stations, 15 kilomètres », sans ajouter essence, gazole ou GPL. Les fiches continuent de lire leurs informations détaillées."
+  "version": "V402",
+  "message": "V402 : les fiches marché lisent maintenant la ville en premier, puis le nom/lieu du marché, puis le nombre de commerçants, et l’horaire en dernier. Exemple : Marché de Palaiseau. Place des Causeuses. Nombre de commerçants : à vérifier. Horaire : 8 heures à 12 heures."
 }
