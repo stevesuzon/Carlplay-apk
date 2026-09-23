@@ -57,21 +57,27 @@
     return start?('il faut être là à '+start):"heure d'arrivée inconnue";
   }
   function buildMarket(card){
+    var city=clean(card.dataset.voiceCity||'');
     var name=clean(card.dataset.voiceName||'');
-    if(!name){var h=card.querySelector('h2');if(h)name=clean(h.textContent);}
-    if(!name){var n=card.querySelector('.name');if(n)name=clean(n.textContent.replace(/\d+(?:[,.]\d+)?\s*km/i,''));}
-    if(!name)name='Marché';
-    var day=clean(card.dataset.voiceDay||'');
-    var dist=clean(card.dataset.voiceDistance||'');
-    if(!dist){var d=card.querySelector('[data-feature="market-distance"],.distance');if(d)dist=clean(d.textContent.replace(/^📍\s*/,''));}
-    var time=marketTime(card),parts=[name];
-    if(day)parts.push(day);
-    if(dist)parts.push('à '+dist);
-    if(unknownTime(time))parts.push('horaire inconnu');else parts.push('horaire '+hourText(time));
+    if(!city){
+      var n=card.querySelector('.name');
+      if(n)city=clean(n.childNodes&&n.childNodes[0]?n.childNodes[0].textContent:n.textContent).replace(/\d+(?:[,.]\d+)?\s*km/i,'').trim();
+    }
+    if(!name){
+      var metas=[].slice.call(card.querySelectorAll('.meta'));
+      for(var i=0;i<metas.length;i++){
+        var mt=clean(metas[i].textContent);
+        if(mt&&!/^🕒|^👥|^Tirage|^Humeur|^Responsable|^Modèle/i.test(mt)){name=mt;break}
+      }
+    }
+    var parts=[];
+    if(city)parts.push('Marché de '+city);
+    else parts.push('Marché');
+    if(name&&clean(name).toLowerCase()!==clean(city).toLowerCase())parts.push(name);
     parts.push(marketCount(card));
-    parts.push(marketArrival(card,time));
-    var verified=!!card.querySelector('.marketVerificationDot.green,.statusDot.ok');
-    if(verified)parts.push('fiche vérifiée');
+    var time=marketTime(card);
+    if(unknownTime(time))parts.push('horaire inconnu');
+    else parts.push('horaire '+hourText(time));
     return parts.join('. ')+'.';
   }
   function openVoiceSelectV396(sel){
