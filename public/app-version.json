@@ -1,4 +1,4 @@
 {
-  "version": "V415",
-  "message": "V415 : les points cadeau du concours sont répartis entre tous les participants avec un montant personnel aléatoire de 450 à 1 250 points. L’ancien cadeau est corrigé au lieu d’être ajouté une seconde fois. La grande bulle festive affiche le cadeau pendant 10 secondes avec confettis et feu d’artifice et peut être fermée avant en appuyant dessus. Les bonus kilomètres et les corrections V414 restent actifs."
+  "version": "V416",
+  "message": "V416 : la connexion administrateur est maintenant sauvegardée de façon persistante. Une fois Steve connecté, le token administrateur, le secret de compatibilité et l’état administrateur sont conservés pendant les mises à jour et restaurés s’ils disparaissent du stockage local. La V415 des cadeaux concours reste active."
 }
