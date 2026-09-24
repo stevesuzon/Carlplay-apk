@@ -1273,6 +1273,13 @@ function datatourismeToMarket(o,area,queryKind){
   const label=firstScalar(o&&o.label)||firstScalar(deepValuesByKey(o,/^(name|title)$/i)[0]);if(!label)return null;const addrObj=deepValuesByKey(o,/^address$/i)[0]||{};const city=firstScalar(deepValuesByKey(addrObj,/hasAddressCity|city/i)[0]);const zip=firstScalar(deepValuesByKey(addrObj,/postal|zip/i)[0]);const street=firstScalar(deepValuesByKey(addrObj,/street|address1|addressLocality/i)[0]);const geo=deepValuesByKey(o,/^geo$/i)[0]||{};const lat=Number(firstScalar(deepValuesByKey(geo,/lat/i)[0])),lon=Number(firstScalar(deepValuesByKey(geo,/long|lng|lon/i)[0]));const all=JSON.stringify(o);const dates=[...all.matchAll(/20\d{2}-\d{2}-\d{2}/g)].map(m=>m[0]).sort();const future=dates.filter(d=>d>=marketTodayIso());const start=future[0]||dates[0]||'',end=future[future.length-1]||dates[dates.length-1]||start;if(!start)return null;const phone=marketPhoneFromText(all,'FR');const sourceUrl=String(o.uri||o.url||'');const kind=marketClassFromText(label+' '+all.slice(0,4000));if(queryKind==='brocante'&&kind!=='brocante')return null;if(queryKind==='noel'&&kind!=='noel')return null;return{country:'FR',area:String(area).toUpperCase(),kind:kind||queryKind,name:label,city,day:start,dateLabel:start===end?start:(start+' au '+end),start,end,hours:'',address:[street,zip,city].filter(Boolean).join(', '),phone,merchants:marketCapacityFromText(all),note:'Mise à jour automatique DATAtourisme',sourceUrl,latitude:Number.isFinite(lat)?lat:null,longitude:Number.isFinite(lon)?lon:null}}
 async function upsertAutoMarket(env,raw){
   const m=normalizeMarket(raw);if(!m)return false;
+  let newKey='';
+  if(['marche','brocante','voyageur'].includes(m.kind)){
+    await ensureMarketMilestones(env);
+    newKey=[m.country,m.area,m.kind,m.city.trim().toLowerCase(),m.name.trim().toLowerCase()].join('|');
+    const existing=await env.DB.prepare('SELECT 1 FROM imported_markets WHERE country=? AND area=? AND kind=? AND lower(trim(city))=? AND lower(trim(name))=? LIMIT 1').bind(m.country,m.area,m.kind,m.city.trim().toLowerCase(),m.name.trim().toLowerCase()).first();
+    if(existing)newKey='';
+  }
   // V323 : l'empreinte contient le jour. Une URL source peut donc correspondre à plusieurs jours
   // (ex. mardi + vendredi). On ne fusionne plus deux jours différents sur la seule source_url.
   await env.DB.prepare(`INSERT INTO imported_markets (fingerprint,country,area,kind,name,city,day,hours,address,merchants,draw,registration,note,phone,date_label,start_date,end_date,source_url,latitude,longitude,updated_at)
@@ -1292,6 +1299,10 @@ async function upsertAutoMarket(env,raw){
       source_url=CASE WHEN excluded.source_url<>'' THEN excluded.source_url ELSE imported_markets.source_url END,
       latitude=COALESCE(excluded.latitude,imported_markets.latitude),longitude=COALESCE(excluded.longitude,imported_markets.longitude),updated_at=CURRENT_TIMESTAMP`)
     .bind(m.fingerprint,m.country,m.area,m.kind,m.name,m.city,m.day,m.hours,m.address,m.merchants,m.draw,m.registration,m.note,m.phone,m.dateLabel,m.startDate,m.endDate,m.sourceUrl,m.latitude,m.longitude).run();
+  if(newKey){
+    await env.DB.prepare('INSERT OR IGNORE INTO market_milestone_additions(market_key,area,kind,added_at) VALUES(?,?,?,?)').bind(newKey,m.area,m.kind,Date.now()).run();
+    await publishMarketMilestones(env);
+  }
   return true;
 }
 
@@ -1378,11 +1389,11 @@ function parseJdmMarketPage(html,area,pageUrl){
     if(range.end&&range.end<today)continue;
     if(kind==='noel'||range.start){
       const day=range.label||range.start||days.join(', ');
-      if(day)out.push({country:'FR',area:actualArea,kind:kind==='noel'?'noel':'marche',name:title,city:pc.city,day,dateLabel:range.label||day,start:range.start,end:range.end||range.start,hours,address:jdmFullAddress(address,pc),merchants,phone,note,sourceUrl});
+      if(day)out.push({country:'FR',area:actualArea,kind:kind==='noel'?'noel':kind==='voyageur'?'voyageur':'marche',name:title,city:pc.city,day,dateLabel:range.label||day,start:range.start,end:range.end||range.start,hours,address:jdmFullAddress(address,pc),merchants,phone,note,sourceUrl});
       continue;
     }
     // IMPORTANT : un même marché présent lundi + dimanche donne bien 2 fiches distinctes.
-    for(const day of days){out.push({country:'FR',area:actualArea,kind:'marche',name:title,city:pc.city,day,dateLabel:day,hours,address:jdmFullAddress(address,pc),merchants,phone,note,sourceUrl})}
+    for(const day of days){out.push({country:'FR',area:actualArea,kind:kind==='voyageur'?'voyageur':'marche',name:title,city:pc.city,day,dateLabel:day,hours,address:jdmFullAddress(address,pc),merchants,phone,note,sourceUrl})}
   }
   return out;
 }
@@ -1414,6 +1425,38 @@ async function refreshJdmArea(env,state){
   await env.DB.prepare('UPDATE market_jdm_refresh_state SET city_cursor=?,city_count=?,next_check_at=?,last_check_at=?,last_found=?,last_pages=?,last_message=? WHERE area=?').bind(nextCursor,cityUrls.length,next,Date.now(),count,pages,msg,area).run();
   return{area,count,pages,pending:!wrapped,message:msg};
 }
+const marketMilestoneReady=new WeakSet();
+async function ensureMarketMilestones(env){
+  if(marketMilestoneReady.has(env.DB))return;
+  await ensureMarketTable(env);
+  await env.DB.prepare('CREATE TABLE IF NOT EXISTS market_milestone_additions (id INTEGER PRIMARY KEY AUTOINCREMENT,market_key TEXT NOT NULL UNIQUE,area TEXT NOT NULL,kind TEXT NOT NULL,added_at INTEGER NOT NULL)').run();
+  await env.DB.prepare('CREATE TABLE IF NOT EXISTS market_milestone_events (milestone INTEGER PRIMARY KEY,breakdown_json TEXT NOT NULL,created_at INTEGER NOT NULL)').run();
+  await env.DB.prepare('CREATE TABLE IF NOT EXISTS market_milestone_meta (key TEXT PRIMARY KEY,value TEXT NOT NULL)').run();
+  const meta=await env.DB.prepare("SELECT value FROM market_milestone_meta WHERE key='baseline'").first();
+  if(!meta){
+    await env.DB.prepare("INSERT OR IGNORE INTO market_milestone_additions(market_key,area,kind,added_at) SELECT lower(country)||'|'||area||'|'||kind||'|'||lower(trim(city))||'|'||lower(trim(name)),area,kind,? FROM imported_markets WHERE kind IN ('marche','brocante','voyageur') GROUP BY lower(country)||'|'||area||'|'||kind||'|'||lower(trim(city))||'|'||lower(trim(name))").bind(Date.now()).run();
+    const total=await env.DB.prepare('SELECT count(*) AS n FROM market_milestone_additions').first();
+    await env.DB.prepare("INSERT OR IGNORE INTO market_milestone_meta(key,value) VALUES('baseline',?)").bind(String(total.n||0)).run();
+  }
+  marketMilestoneReady.add(env.DB);
+}
+async function publishMarketMilestones(env){
+  const total=Number((await env.DB.prepare('SELECT count(*) AS n FROM market_milestone_additions').first()).n||0);
+  const baseline=Number((await env.DB.prepare("SELECT value FROM market_milestone_meta WHERE key='baseline'").first()).value||0);
+  for(let milestone=50;milestone<=total-baseline;milestone+=50){
+    const rows=await env.DB.prepare('SELECT area,kind,count(*) AS count FROM (SELECT area,kind FROM market_milestone_additions ORDER BY id LIMIT 50 OFFSET ?) GROUP BY area,kind ORDER BY area,kind').bind(baseline+milestone-50).all();
+    await env.DB.prepare('INSERT OR IGNORE INTO market_milestone_events(milestone,breakdown_json,created_at) VALUES(?,?,?)').bind(milestone,JSON.stringify(rows.results||[]),Date.now()).run();
+  }
+}
+async function marketMilestoneFeed(url,env){
+  if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
+  await ensureMarketMilestones(env);
+  const after=Math.max(0,Math.floor(Number(url.searchParams.get('after'))||0));
+  const result=await env.DB.prepare('SELECT milestone,breakdown_json,created_at FROM market_milestone_events WHERE milestone>? ORDER BY milestone ASC LIMIT 20').bind(after).all();
+  return json({ok:true,milestones:(result.results||[]).map(row=>({milestone:row.milestone,breakdown:JSON.parse(row.breakdown_json),createdAt:row.created_at}))});
+}
+
+
 async function runJdmIncremental(env){
   await seedJdmRefreshQueue(env);
   const results=[];
@@ -4538,6 +4581,7 @@ export default {
     // Brocante / braderie / foire : 90 jours par zone. Voyageurs : 60 jours par zone.
     if (String(env.MARKET_AUTO_REFRESH || "1") === "0") return;
     ctx.waitUntil(runSpecialEventRefresh(env));
+    ctx.waitUntil(runJdmIncremental(env));
   },
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -4590,6 +4634,7 @@ export default {
     if (url.pathname === "/api/event-registration-info" && request.method === "GET") return eventRegistrationInfo(request);
     if (url.pathname === "/api/markets" && request.method === "GET") return listMarkets(env);
     if (url.pathname === "/api/markets/refresh-status" && request.method === "GET") return marketRefreshStatus(env);
+    if (url.pathname === "/api/markets/milestones" && request.method === "GET") return marketMilestoneFeed(url, env);
     if (url.pathname === "/api/admin/markets/import" && request.method === "POST") return importMarkets(request, env);
     if (url.pathname === "/api/admin/market-verification-forms" && request.method === "GET") return adminMarketVerificationForms(request, env);
     if (url.pathname === "/api/market-verifications" && request.method === "GET") return getMarketVerification(url, env);
