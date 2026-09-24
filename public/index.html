@@ -1651,9 +1651,6 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
     var v=String(j.version||'').trim();if(!v)return;var old=localStorage.getItem('carplay.lastSeenVersion');
     if(old!==v){
       show(v,j.message);
-      if(old&&localStorage.getItem('carplay_notifications_enabled')==='1'&&'Notification'in window&&Notification.permission==='granted'&&'serviceWorker'in navigator){
-        navigator.serviceWorker.ready.then(function(registration){return registration.showNotification('✅ Couteau Suisse mis à jour',{body:j.message||'Les dernières nouveautés et mises à jour des marchés sont installées.',icon:'/couteau-suisse-192.png?v=281',badge:'/couteau-suisse-192.png?v=281',tag:'couteau-suisse-update-'+v,renotify:true,data:{url:'/index.html'}})}).catch(function(){});
-      }
     }
   }).catch(function(){});
 })();

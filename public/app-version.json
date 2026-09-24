@@ -1,4 +1,4 @@
 {
-  "version": "V442",
-  "message": "V442 : correction du son sur iPhone. La voix reste active après réouverture, elle est réamorcée automatiquement, l’appui long parle après 1,20 seconde sans demander de relâcher, et la fiche marché est désormais lisible par appui long."
+  "version": "V443",
+  "message": "V443 : correction des notifications en double. Une mise à jour ne génère plus plusieurs notifications système, et une même notification de marché n’est affichée qu’une seule fois sur le téléphone."
 }
