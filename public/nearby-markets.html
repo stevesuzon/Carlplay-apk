@@ -38,13 +38,20 @@
 }
 [data-voice-card]{touch-action:pan-y!important}
 </style>
+<style id="nearbyPeriodStatusV428">
+#status.status{cursor:pointer;user-select:none;-webkit-user-select:none}
+#status .marketPeriodMain{display:block;font:1000 clamp(25px,6.8vw,38px)/1.08 Arial,sans-serif;color:#fff;text-transform:uppercase;letter-spacing:.2px}
+#status .marketPeriodCount{display:block;margin-bottom:6px;font:950 clamp(18px,4.8vw,24px)/1.15 Arial,sans-serif;color:#fff}
+#status .marketPeriodExtra{display:block;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.18);font:850 clamp(15px,4vw,20px)/1.35 Arial,sans-serif;color:#d9e6f5;text-transform:none}
+#status:active{transform:scale(.995)}
+</style>
 </head>
 <body>
 <main class="wrap">
 <a class="back" href="index.html">← RETOUR</a>
 <section class="hero">
 <h1 id="marketHeading">📍 MARCHÉS AUTOUR DE MOI</h1>
-<div id="status" class="status">Recherche des marchés d’aujourd’hui…</div>
+<div id="status" class="status" role="button" tabindex="0" aria-label="Informations sur les marchés affichés" data-voice-help="">Recherche des marchés d’aujourd’hui…</div>
 </section>
 <section id="cards" class="cards"></section>
 </main>
@@ -59,10 +66,15 @@
   const LIMIT_KM = requestedRadius===80?80:150;
   const DAYS = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
   let viewDate = new Date();
-  let showTomorrow = viewDate.getHours() >= 15;
+  let showTomorrow = viewDate.getHours() >= 17;
   if(showTomorrow) viewDate.setDate(viewDate.getDate()+1);
   let selectedDay = DAYS[viewDate.getDay()];
   let viewToken = viewDate.getFullYear()+'-'+viewDate.getMonth()+'-'+viewDate.getDate()+'-'+(showTomorrow?'tomorrow':'today');
+  // V428-period-rollover : à 17 h on passe à demain, à minuit on revient à aujourd’hui.
+  setInterval(()=>{
+    const shouldTomorrow=(new Date()).getHours()>=17;
+    if(shouldTomorrow!==showTomorrow) location.reload();
+  },30000);
   const heading = document.getElementById('marketHeading');
   const status = document.getElementById('status');
   const cards = document.getElementById('cards');
@@ -369,12 +381,29 @@
     });
   }
 
+  function statusCopy(count){
+    const period=showTomorrow?'demain':'aujourd’hui';
+    const countText=count+' résultat'+(count>1?'s':'')+' à moins de '+LIMIT_KM+' km';
+    const main='MARCHÉS '+(showTomorrow?'DE DEMAIN':'AUJOURD’HUI');
+    const extra='Et les brocantes, braderies, foires et marchés de Noël dans les 30 prochains jours.';
+    const voice=countText+'. '+main+'. '+extra;
+    status.innerHTML='<span class="marketPeriodCount">'+esc(countText)+'</span><span class="marketPeriodMain">'+esc(main)+'</span><span class="marketPeriodExtra">'+esc(extra)+'</span>';
+    status.setAttribute('data-voice-help',voice);
+    status.setAttribute('aria-label',voice);
+  }
+  function speakStatus(){
+    const txt=status.getAttribute('data-voice-help')||status.innerText||'';
+    if(window.CouteauVoice&&typeof window.CouteauVoice.speak==='function')window.CouteauVoice.speak(txt);
+  }
+  status.addEventListener('click',speakStatus);
+  status.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();speakStatus();}});
+
   function render(list){
     const period=showTomorrow?'demain':'aujourd’hui';
     if(!list.length){status.textContent='Aucun marché du jour ni événement prévu dans les 30 prochains jours à moins de '+LIMIT_KM+' km.';cards.innerHTML='';return;}
     const weekly=list.filter(item=>!item.special).sort((a,b)=>a.d-b.d);
     const special=list.filter(item=>!!item.special).sort((a,b)=>a.d-b.d);
-    status.textContent=list.length+' résultat'+(list.length>1?'s':'')+' à moins de '+LIMIT_KM+' km : marchés '+period+' puis brocantes, braderies, foires et marchés de Noël dans les 30 prochains jours.';
+    statusCopy(list.length);
     function renderCard(item){
       const r=item.row, s=saved(item.country,r)||{};
       const place=cleanCardText(r[3]||'À préciser');
@@ -417,7 +446,7 @@
         '<div class="market-actions'+(regAction&&item.special?' has-three':'')+'"><a class="open" data-navigation="1" target="_blank" rel="noopener" href="'+link+'">'+esc(goText)+'</a><a class="details" href="'+details+'">VOIR LA FICHE</a>'+(regAction&&item.special?'<a class="register" '+(regAction.kind==='web'?'target="_blank" rel="noopener" ':'')+'href="'+esc(regAction.href)+'">'+esc(regAction.label)+'</a>':'')+'</div></article>';
     }
     let html='';
-    if(weekly.length){ html+='<div class="sectionTitle">MARCHÉS DU JOUR</div>'+weekly.map(renderCard).join(''); }
+    if(weekly.length){ html+='<div class="sectionTitle">'+(showTomorrow?'MARCHÉS DE DEMAIN':'MARCHÉS DU JOUR')+'</div>'+weekly.map(renderCard).join(''); }
     if(special.length){ html+='<div class="sectionTitle">BROCANTES · BRADERIES · FOIRES · NOËL</div>'+special.map(renderCard).join(''); }
     cards.innerHTML=html;
     wireFavorites();
@@ -430,7 +459,7 @@
   function refreshVisibleStatus(){
     const n=cards.querySelectorAll('.card').length,period=showTomorrow?'demain':'aujourd’hui';
     if(!n){status.textContent='Aucun marché du jour ni événement prévu dans les 30 prochains jours à moins de '+LIMIT_KM+' km.';return}
-    status.textContent=n+' résultat'+(n>1?'s':'')+' à moins de '+LIMIT_KM+' km : marchés '+period+' + événements qui commencent dans les 30 jours.';
+    statusCopy(n);
   }
 
   function loadShared(list){
