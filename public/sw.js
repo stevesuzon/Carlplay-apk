@@ -1,7 +1,7 @@
-const VERSION = "V431-GPS-PHOTO";
-const BASE_CACHE = "couteau-suisse-module-base-v431-gps-photo";
+const VERSION = "V432-HOME-CLEAN";
+const BASE_CACHE = "couteau-suisse-module-base-v432-home-clean";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
-const CONTEST_CACHE = "couteau-suisse-module-contest-v426-current";
+const CONTEST_CACHE = "couteau-suisse-module-contest-v432-current";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v367-market-full-review";
 const DATA_CACHE = "couteau-suisse-module-data-v426-current";
 const INSTALL_CACHE = "couteau-suisse-module-install-v426-current";
@@ -9,15 +9,15 @@ const STATS_CACHE = "couteau-suisse-module-stats-v362";
 const MUSHROOM_CACHE = "couteau-suisse-module-mushroom-v300";
 const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v426-current";
 const AUTORADIO_CACHE = "couteau-suisse-module-autoradio-v386-responsive-images";
-const PHONE_UI_CACHE = "couteau-suisse-module-phone-ui-v384-loader";
+const PHONE_UI_CACHE = "couteau-suisse-module-phone-ui-v432-home-clean";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 async function notificationsEnabled(){const cache=await caches.open(NOTIFICATION_PREF_CACHE),r=await cache.match(NOTIFICATION_PREF_URL);return !!r&&(await r.text())==="1"}
 async function saveNotificationPreference(enabled){const cache=await caches.open(NOTIFICATION_PREF_CACHE);await cache.put(NOTIFICATION_PREF_URL,new Response(enabled?"1":"0"))}
-const BASE_CORE=["/index.html","/stations-carburant.html?v=388-voix","/voice-assist-v388.js?v=427-ios-sound","/mobile-overrides.css?v=64","/weather-all-pages.js?v=68-notifications-globales","/notification-settings.js?v=282-onboarding-notification-detail","/market-update-notifications-v281.js?v=282","/home-work.css?v=64","/home-work.js?v=302-d1","/markets-final.css?v=126-favori-fluide","/choix-marches-v409.html","/special-marches.html?v=388-voix","/nearby-markets.html?v=431-gps-photo","/traveller-markets.html?v=388-voix","/verification-v9.html?v=431-gps-distance","/market-consensus.js?v=320-verification-speciale","/special-market-server-v157.js?v=320-verification-speciale","/brocante-crosscheck-v316.js?v=316","/market-auto-update-v319.js?v=320","/market-attendance-v317.js?v=320","/market-navigation-confirm-v189.js?v=320"];
+const BASE_CORE=["/index.html","/stations-carburant.html?v=388-voix","/voice-assist-v388.js?v=427-ios-sound","/mobile-overrides.css?v=432-home-clean","/weather-all-pages.js?v=68-notifications-globales","/notification-settings.js?v=282-onboarding-notification-detail","/market-update-notifications-v281.js?v=282","/home-work.css?v=432-home-clean","/home-work.js?v=432-home-clean","/markets-final.css?v=126-favori-fluide","/choix-marches-v409.html","/special-marches.html?v=388-voix","/nearby-markets.html?v=431-gps-photo","/traveller-markets.html?v=388-voix","/verification-v9.html?v=431-gps-distance","/market-consensus.js?v=320-verification-speciale","/special-market-server-v157.js?v=320-verification-speciale","/brocante-crosscheck-v316.js?v=316","/market-auto-update-v319.js?v=320","/market-attendance-v317.js?v=320","/market-navigation-confirm-v189.js?v=320"];
 const MODULES={
  [ICON_CACHE]:["/manifest.webmanifest?v=283-icons","/couteau-suisse-v283-152.png?v=283","/couteau-suisse-v283-167.png?v=283","/couteau-suisse-v283-180.png?v=283","/couteau-suisse-v283-192.png?v=283","/couteau-suisse-v283-512.png?v=283","/couteau-suisse-v283-1024.png?v=283","/couteau-suisse-v283-maskable-192.png?v=283","/couteau-suisse-v283-maskable-512.png?v=283"],
- [CONTEST_CACHE]:["/contest-v188.js?v=426-current","/cadeau-concours-v417.svg?v=422"],
+ [CONTEST_CACHE]:["/contest-v188.js?v=432-contest","/cadeau-concours-v417.svg?v=422"],
  [ADMIN_CACHE]:["/admin.html","/contest-admin-v188.js?v=302-d1"],
  [DATA_CACHE]:["/persistent-user-data-v283.js?v=426-current"],
  [INSTALL_CACHE]:["/installer.html","/visitor-register-v361.js","/app-access-gate-v240.js?v=426-current","/cache-cleanup-v20260910.js?v=283-modules"],
@@ -25,7 +25,7 @@ const MODULES={
  [MUSHROOM_CACHE]:["/champignons.html","/champignons.js?v=300-concours-auto","/champignons.css?v=300-concours-auto"],
  [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=426-current"],
  [AUTORADIO_CACHE]:["/autoradio-home-v386.js?v=386-responsive-images","/autoradio-subscription-v381.js?v=381","/autoradio-version.json?v=386-responsive-images","/autoradio-assets-v386/fuel.svg?v=386","/autoradio-assets-v386/market.svg?v=386","/autoradio-assets-v386/map.svg?v=386","/autoradio-assets-v386/return.svg?v=386","/autoradio-assets-v386/address.svg?v=386","/autoradio-assets-v386/trash.svg?v=386"],
- [PHONE_UI_CACHE]:["/phone-loading-v384.js?v=384-loader"]
+ [PHONE_UI_CACHE]:["/phone-loading-v384.js?v=432-home-clean"]
 };
 async function putFresh(cacheName,path){try{const req=new Request(path,{cache:"reload"}),res=await fetch(req);if(res&&res.ok)(await caches.open(cacheName)).put(req,res.clone())}catch(_){}}
 async function ensureBase(){const c=await caches.open(BASE_CACHE);await Promise.allSettled(BASE_CORE.map(async p=>{const req=new Request(p);if(await c.match(req))return;const res=await fetch(new Request(p,{cache:"reload"}));if(res&&res.ok)await c.put(req,res)}))}

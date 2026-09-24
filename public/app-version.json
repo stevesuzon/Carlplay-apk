@@ -1,4 +1,4 @@
 {
-  "version": "V431",
-  "message": "V431 : après Vérifier localisation GPS, la distance des marchés est recalculée immédiatement avec la position GPS récente. Dans Marchés à moins de 150 km, les fiches s’affichent d’abord et les photos ne se chargent qu’à proximité de l’écran pour accélérer l’affichage."
+  "version": "V432",
+  "message": "V432 : supprime l’ancien affichage téléphone/autoradio qui pouvait se remettre par-dessus l’accueil, force le chargement du design actuel et recharge le module Concours. Les corrections GPS et le chargement rapide des photos à moins de 150 km restent conservés."
 }
