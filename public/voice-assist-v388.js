@@ -227,13 +227,30 @@
   function move(e){if(!active)return;var dx=Math.abs(Number(e.clientX||0)-startX),dy=Math.abs(Number(e.clientY||0)-startY);if(dx>18||dy>18)cancel()}
   function end(){clearTimeout(timer);timer=0;active=null;setTimeout(function(){fired=false},80)}
   function showTapFallbackV400(text){
-    var old=document.getElementById('voiceTapFallbackV400');
-    if(old)old.remove();
-    return false;
+    text=clean(text);if(!text)return false;
+    var old=document.getElementById('voiceTapFallbackV400');if(old)old.remove();
+    var b=document.createElement('button');
+    b.id='voiceTapFallbackV400';b.type='button';
+    b.textContent='🔊 TOUCHER POUR ÉCOUTER';
+    b.setAttribute('aria-label','Toucher pour écouter : '+text);
+    b.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147483647;width:min(92vw,430px);min-height:62px;padding:12px 16px;border:3px solid #f39b19;border-radius:18px;background:#0b668d;color:#fff;font:950 19px Arial,sans-serif;box-shadow:0 10px 30px #000b;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none';
+    b.addEventListener('click',function(e){
+      e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+      try{window.speechSynthesis&&window.speechSynthesis.cancel()}catch(_){}
+      speakImmediateV400(text,true);
+      b.remove();
+    },true);
+    document.body.appendChild(b);
+    setTimeout(function(){if(b&&b.parentNode)b.remove()},8000);
+    return true;
   }
-  function speakImmediateV400(text){
+  function speakImmediateV400(text,fromFallback){
     text=clean(text);if(!text||!enabled())return false;
-    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){toast('🔇 Lecture vocale indisponible.');return false}
+    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){
+      if(!fromFallback)showTapFallbackV400(text);
+      else toast('🔇 Lecture vocale indisponible.');
+      return false
+    }
     try{
       window.speechSynthesis.cancel();
       window.speechSynthesis.resume();
@@ -242,36 +259,27 @@
       currentUtteranceV396=u;
       u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;
       if(preferredVoice)u.voice=preferredVoice;
-      var started=false,retried=false;
+      var started=false,finished=false;
       u.onstart=function(){started=true;voiceAwakeV423=true;toast('🔊 '+text)};
-      u.onend=function(){currentUtteranceV396=null};
+      u.onend=function(){finished=true;if(currentUtteranceV396===u)currentUtteranceV396=null};
       u.onerror=function(){
-        currentUtteranceV396=null;
-        if(!retried){
-          retried=true;
-          try{
-            window.speechSynthesis.resume();
-            var u2=new SpeechSynthesisUtterance(text);
-            currentUtteranceV396=u2;
-            u2.lang='fr-FR';u2.rate=.92;u2.pitch=1;u2.volume=1;
-            if(preferredVoice)u2.voice=preferredVoice;
-            u2.onstart=function(){voiceAwakeV423=true;toast('🔊 '+text)};
-            u2.onend=function(){currentUtteranceV396=null};
-            u2.onerror=function(){currentUtteranceV396=null;toast('🔇 La lecture vocale n’a pas démarré. Réessayez l’appui long.')};
-            window.speechSynthesis.speak(u2);
-            return;
-          }catch(_){}
-        }
-        toast('🔇 La lecture vocale n’a pas démarré. Réessayez l’appui long.');
+        finished=true;if(currentUtteranceV396===u)currentUtteranceV396=null;
+        if(!fromFallback)showTapFallbackV400(text);
+        else toast('🔇 La lecture vocale n’a pas démarré.');
       };
       window.speechSynthesis.speak(u);
       setTimeout(function(){
-        if(!started&&currentUtteranceV396===u){
+        if(!started&&!finished&&currentUtteranceV396===u){
           try{window.speechSynthesis.resume()}catch(_){}
+          if(!fromFallback)showTapFallbackV400(text);
         }
-      },450);
+      },800);
       return true;
-    }catch(_){toast('🔇 La lecture vocale n’a pas démarré. Réessayez l’appui long.');return false}
+    }catch(_){
+      if(!fromFallback)showTapFallbackV400(text);
+      else toast('🔇 La lecture vocale n’a pas démarré.');
+      return false
+    }
   }
   function prepareTouchSpeechV400(target){
     queuedTouchTextV400=target?clean(buildSpeech(target)):'';
@@ -334,7 +342,7 @@
     var t=document.getElementById('voiceAssistToggle'),s=document.getElementById('voiceAssistStatus'),on=enabled();
     document.documentElement.classList.toggle('carplayVoiceEnabled',on);
     if(t)t.checked=on;
-    if(s)s.textContent=on?'🔊 Voix activée — appui long 1,20 seconde sur une fiche ou un bouton.':'🔇 Voix désactivée.';
+    if(s)s.textContent=on?'🔊 Voix activée — appui long 1,20 seconde. Si iPhone bloque la voix, touchez « TOUCHER POUR ÉCOUTER ».':'🔇 Voix désactivée.';
   }
   function initSetting(){
     loadPreferredVoice();
