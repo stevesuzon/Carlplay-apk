@@ -43,7 +43,7 @@ jobs:
       - name: Test mobile UI, buttons and long-press voice
         shell: bash
         run: |
-          cat > /tmp/test-v448.mjs <<'EOF'
+          cat > test-v448.mjs <<'EOF'
           import { chromium } from 'playwright';
 
           const browser = await chromium.launch({headless:true});
@@ -174,7 +174,7 @@ jobs:
           console.log(JSON.stringify({ok:true,duplicates:duplicateCounts,layout,marketTapMs:elapsed},null,2));
           await browser.close();
           EOF
-          node /tmp/test-v448.mjs
+          node test-v448.mjs
 
       - name: Show Worker log on failure
         if: failure()
