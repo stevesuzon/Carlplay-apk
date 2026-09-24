@@ -1,4 +1,4 @@
 {
-  "version": "V452",
-  "message": "V452 : appui long vocal généralisé. Après 1,20 seconde, tous les boutons et cartes lisibles parlent sans ouvrir leur action. Un appui normal ouvre le bouton normalement. Les boutons Retour, Adresse, Marchés, Marchés 150 km, Concours, Mesurer une maison et les autres contrôles utilisent la même règle."
+  "version": "V453-TEST",
+  "message": "V453 test : le bouton Mise à jour ne supprime plus les caches de l’application. Il vérifie uniquement les fichiers essentiels, met à jour le service worker sans vider les données, puis recharge une seule fois. La synchronisation des notifications ne force plus de cycle de mise à jour."
 }
