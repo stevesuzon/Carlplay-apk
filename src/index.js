@@ -1406,7 +1406,12 @@ function parseJdmVideGreniers(html,area,pageUrl){
   }
   return out;
 }
-async function ensureJdmRefreshTable(env){await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_jdm_refresh_state(area TEXT PRIMARY KEY,city_cursor INTEGER NOT NULL DEFAULT 0,city_count INTEGER NOT NULL DEFAULT 0,next_check_at INTEGER NOT NULL DEFAULT 0,last_check_at INTEGER NOT NULL DEFAULT 0,last_found INTEGER NOT NULL DEFAULT 0,last_pages INTEGER NOT NULL DEFAULT 0,last_message TEXT NOT NULL DEFAULT '')`).run();try{await env.DB.prepare('CREATE INDEX IF NOT EXISTS market_jdm_due ON market_jdm_refresh_state(next_check_at)').run()}catch(_){} }
+async function ensureJdmRefreshTable(env){
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_jdm_refresh_state(area TEXT PRIMARY KEY,city_cursor INTEGER NOT NULL DEFAULT 0,city_count INTEGER NOT NULL DEFAULT 0,next_check_at INTEGER NOT NULL DEFAULT 0,last_check_at INTEGER NOT NULL DEFAULT 0,last_found INTEGER NOT NULL DEFAULT 0,last_pages INTEGER NOT NULL DEFAULT 0,last_message TEXT NOT NULL DEFAULT '',first_scan_done INTEGER NOT NULL DEFAULT 0)`).run();
+  try{await env.DB.prepare('ALTER TABLE market_jdm_refresh_state ADD COLUMN first_scan_done INTEGER NOT NULL DEFAULT 0').run()}catch(_){}
+  await env.DB.prepare('UPDATE market_jdm_refresh_state SET first_scan_done=1 WHERE first_scan_done=0 AND last_check_at>0 AND next_check_at-last_check_at>=?').bind(7*86400000).run();
+  try{await env.DB.prepare('CREATE INDEX IF NOT EXISTS market_jdm_due ON market_jdm_refresh_state(next_check_at)').run()}catch(_){}
+}
 async function seedJdmRefreshQueue(env){await ensureJdmRefreshTable(env);const now=Date.now(),jobs=[];for(const area of Object.keys(JDM_FR_SLUGS))jobs.push(env.DB.prepare('INSERT OR IGNORE INTO market_jdm_refresh_state(area,next_check_at) VALUES(?,?)').bind(area,now));for(let i=0;i<jobs.length;i+=40)await env.DB.batch(jobs.slice(i,i+40))}
 async function jdmFetch(url){try{const r=await fetch(url,{headers:{'user-agent':'Mozilla/5.0 (compatible; Couteau-Suisse/324; +https://carplay-telephone.appli-suzon.workers.dev/)','accept-language':'fr-FR,fr;q=0.9','accept':'text/html,application/xhtml+xml'},cf:{cacheTtl:3600}});if(!r.ok)return'';return await r.text()}catch(_){return''}}
 async function refreshJdmArea(env,state){
@@ -1422,7 +1427,7 @@ async function refreshJdmArea(env,state){
   let count=0;for(const e of events){if(await upsertAutoMarket(env,e))count++}
   const consumed=cityUrls.length?Math.min(batchSize,cityUrls.length):0,nextCursor=cityUrls.length?(start+consumed)%cityUrls.length:0,wrapped=!cityUrls.length||start+consumed>=cityUrls.length;
   const next=Date.now()+(wrapped?30*86400000:2*3600000),msg=`Jours-de-Marché: ${count} fiches · ${pages} pages · villes ${cityUrls.length}`;
-  await env.DB.prepare('UPDATE market_jdm_refresh_state SET city_cursor=?,city_count=?,next_check_at=?,last_check_at=?,last_found=?,last_pages=?,last_message=? WHERE area=?').bind(nextCursor,cityUrls.length,next,Date.now(),count,pages,msg,area).run();
+  await env.DB.prepare('UPDATE market_jdm_refresh_state SET city_cursor=?,city_count=?,next_check_at=?,last_check_at=?,last_found=?,last_pages=?,last_message=?,first_scan_done=CASE WHEN ?=1 THEN 1 ELSE first_scan_done END WHERE area=?').bind(nextCursor,cityUrls.length,next,Date.now(),count,pages,msg,wrapped?1:0,area).run();
   return{area,count,pages,pending:!wrapped,message:msg};
 }
 const marketMilestoneReady=new WeakSet();
@@ -1471,7 +1476,15 @@ async function runJdmIncremental(env){
   const results=[];
   // Deux lots par passage : assez rapide pour remplir la France, sans lancer tout le pays d'un coup.
   for(let i=0;i<2;i++){
-    const row=await env.DB.prepare('SELECT area,city_cursor,city_count,next_check_at FROM market_jdm_refresh_state WHERE next_check_at<=? ORDER BY next_check_at ASC,area ASC LIMIT 1').bind(Date.now()).first();
+    const idf=['75','77','78','91','92','93','94','95'];
+    const idfPending=await env.DB.prepare("SELECT 1 FROM market_jdm_refresh_state WHERE area IN ('75','77','78','91','92','93','94','95') AND first_scan_done=0 LIMIT 1").first();
+    const firstPassPending=!idfPending&&await env.DB.prepare('SELECT 1 FROM market_jdm_refresh_state WHERE first_scan_done=0 LIMIT 1').first();
+    const query=idfPending
+      ?"SELECT area,city_cursor,city_count,next_check_at FROM market_jdm_refresh_state WHERE area IN ('75','77','78','91','92','93','94','95') AND first_scan_done=0 AND next_check_at<=? ORDER BY area ASC LIMIT 1"
+      :firstPassPending
+        ?"SELECT area,city_cursor,city_count,next_check_at FROM market_jdm_refresh_state WHERE first_scan_done=0 AND next_check_at<=? ORDER BY area ASC LIMIT 1"
+        :"SELECT area,city_cursor,city_count,next_check_at FROM market_jdm_refresh_state WHERE next_check_at<=? ORDER BY next_check_at ASC,area ASC LIMIT 1";
+    const row=await env.DB.prepare(query).bind(Date.now()).first();
     if(!row)break;
     try{results.push(await refreshJdmArea(env,row))}
     catch(e){await env.DB.prepare('UPDATE market_jdm_refresh_state SET next_check_at=?,last_check_at=?,last_message=? WHERE area=?').bind(Date.now()+6*3600000,Date.now(),String(e&&e.message||e).slice(0,250),row.area).run()}
