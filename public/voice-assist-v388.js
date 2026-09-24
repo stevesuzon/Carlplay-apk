@@ -9,7 +9,7 @@
     if(document.getElementById('carplayVoiceNoSelectV389'))return;
     var st=document.createElement('style');
     st.id='carplayVoiceNoSelectV389';
-    st.textContent='.carplayVoiceEnabled [data-voice-card],.carplayVoiceEnabled [data-voice-card] *,.carplayVoiceEnabled button,.carplayVoiceEnabled button *,.carplayVoiceEnabled a,.carplayVoiceEnabled a *,.carplayVoiceEnabled [onclick],.carplayVoiceEnabled [onclick] *,.carplayVoiceEnabled [role="button"],.carplayVoiceEnabled [role="button"] *,.carplayVoiceEnabled .card,.carplayVoiceEnabled .card *,.carplayVoiceEnabled .small,.carplayVoiceEnabled .small *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;-webkit-tap-highlight-color:transparent!important}.carplayVoiceEnabled img{-webkit-user-drag:none!important;user-drag:none!important}.carplayVoiceEnabled button,.carplayVoiceEnabled a,.carplayVoiceEnabled [onclick],.carplayVoiceEnabled [role="button"]{touch-action:manipulation}.carplayVoiceEnabled [data-voice-card]{touch-action:pan-y}';
+    st.textContent='.carplayVoiceEnabled [data-voice-card],.carplayVoiceEnabled [data-voice-card] *,.carplayVoiceEnabled button,.carplayVoiceEnabled button *,.carplayVoiceEnabled a,.carplayVoiceEnabled a *,.carplayVoiceEnabled [onclick],.carplayVoiceEnabled [onclick] *,.carplayVoiceEnabled [role="button"],.carplayVoiceEnabled [role="button"] *,.carplayVoiceEnabled .card,.carplayVoiceEnabled .card *,.carplayVoiceEnabled .small,.carplayVoiceEnabled .small *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;-webkit-tap-highlight-color:transparent!important}.carplayVoiceEnabled img{-webkit-user-drag:none!important;user-drag:none!important}.carplayVoiceEnabled button,.carplayVoiceEnabled a,.carplayVoiceEnabled [onclick],.carplayVoiceEnabled [role="button"]{touch-action:manipulation}.carplayVoiceEnabled [data-voice-card]{touch-action:pan-y}.carplayVoiceLongHold,.carplayVoiceLongHold *{outline:none!important;-webkit-tap-highlight-color:transparent!important;-webkit-touch-callout:none!important;-webkit-user-select:none!important;user-select:none!important}';
     (document.head||document.documentElement).appendChild(st);
   }
   function enabled(){
@@ -128,8 +128,12 @@
       var txt=clean(opt&&opt.textContent||el.getAttribute('aria-label')||'Menu');
       return txt.replace(/\s*[—–-]\s*/g,', ').replace(/\bKM\b/gi,'kilomètres')+'.';
     }
-    var txt=clean(el.innerText||el.textContent||'');
-    if(!txt&&el.getAttribute)txt=clean(el.getAttribute('aria-label')||el.getAttribute('title')||el.getAttribute('data-voice-help')||'');
+    var txt='';
+    if(el.getAttribute){
+      txt=clean(el.getAttribute('data-voice-help')||el.getAttribute('aria-label')||'');
+    }
+    if(!txt)txt=clean(el.innerText||el.textContent||'');
+    if(!txt&&el.getAttribute)txt=clean(el.getAttribute('title')||el.getAttribute('value')||'');
     if(!txt&&el.querySelector){
       var img=el.querySelector('img[alt]');
       if(img)txt=clean(img.getAttribute('alt')||'');
@@ -138,7 +142,7 @@
     txt=txt.replace(/[←→›⌄⚙️⚙]/g,' ').replace(/[•·]/g,', ').replace(/\bKM\b/gi,'kilomètres').replace(/\s+/g,' ').trim();
     if(!txt)return 'Bouton.';
     if(txt.length>160)txt=txt.slice(0,160);
-    return txt+'.';
+    return /[.!?]$/.test(txt)?txt:(txt+'.');
   }
   function buildSpeech(card){
     if(!card)return '';
@@ -220,7 +224,7 @@
   }
   function voiceTargetFrom(node){
     if(!node||!node.closest)return null;
-    var selector='button,a,select,[onclick],[role="button"],[data-voice-help],[data-voice-card],#homeAddressBookBtn,.addressBookTile,.card,.small,.settingHead,.market,.market-card,.marketCard,.station-card,.stationCard,.result-card,.resultCard,.tile,.directBtn,.homeTopButton';
+    var selector='button,a,select,input[type="button"],input[type="submit"],summary,[onclick],[role="button"],[data-voice-help],[data-voice-card],#homeAddressBookBtn,.addressBookTile,.card,.small,.settingHead,.market,.market-card,.marketCard,.station-card,.stationCard,.result-card,.resultCard,.tile,.directBtn,.homeTopButton,.back,.backBtn,.backButton';
     var target=node.closest(selector);
     if(!target||target.matches('input,textarea,label'))return null;
     return target;
@@ -234,7 +238,9 @@
     if(!target)return;
     fired=true;
     suppressClickTarget=target;
-    suppressClickUntil=Date.now()+1000;
+    suppressClickUntil=Date.now()+1400;
+    try{target.classList&&target.classList.add('carplayVoiceLongHold')}catch(_){}
+    try{target.blur&&target.blur()}catch(_){}
     try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
     speak(buildSpeech(target));
   }
@@ -245,7 +251,15 @@
     timer=setTimeout(function(){if(active)fireLongPress(active)},PRESS_MS);
   }
   function move(e){if(!active)return;var dx=Math.abs(Number(e.clientX||0)-startX),dy=Math.abs(Number(e.clientY||0)-startY);if(dx>18||dy>18)cancel()}
-  function end(){clearTimeout(timer);timer=0;active=null;setTimeout(function(){fired=false},80)}
+  function end(e){
+    var target=active;
+    clearTimeout(timer);timer=0;active=null;
+    if(fired){
+      blockLongPressReleaseV397(e);
+      setTimeout(function(){try{target&&target.classList&&target.classList.remove('carplayVoiceLongHold')}catch(_){}},500);
+    }
+    setTimeout(function(){fired=false},80);
+  }
   function showTapFallbackV400(text){
     var old=document.getElementById('voiceTapFallbackV400');
     if(old)old.remove();
@@ -342,7 +356,9 @@
     timer=setTimeout(function(){
       if(!active)return;
       touchReadyV395=true;fired=true;suppressClickTarget=active;
-      suppressClickUntil=Date.now()+1800;suppressAllClicksUntilV398=Date.now()+1800;
+      suppressClickUntil=Date.now()+1400;
+      try{active.classList&&active.classList.add('carplayVoiceLongHold')}catch(_){}
+      try{active.blur&&active.blur()}catch(_){}
       try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
       touchSpeechStartedV442=!!resumeTouchSpeechV400(active);
     },PRESS_MS);
@@ -366,11 +382,15 @@
     var isLong=!!(target&&(touchReadyV395||held>=PRESS_MS));
     clearTimeout(timer);timer=0;active=null;
     if(isLong){
-      fired=true;suppressClickTarget=target;suppressClickUntil=Date.now()+2500;suppressAllClicksUntilV398=Date.now()+2500;
+      fired=true;suppressClickTarget=target;suppressClickUntil=Date.now()+1400;
+      try{target&&target.classList&&target.classList.add('carplayVoiceLongHold')}catch(_){}
+      try{target&&target.blur&&target.blur()}catch(_){}
       blockLongPressReleaseV397(e);
       if(!touchSpeechStartedV442)touchSpeechStartedV442=!!resumeTouchSpeechV400(target);
+      setTimeout(function(){try{target&&target.classList&&target.classList.remove('carplayVoiceLongHold')}catch(_){}},500);
     }else{
       cancelTouchSpeechV400();
+      try{target&&target.classList&&target.classList.remove('carplayVoiceLongHold')}catch(_){}
     }
     touchTargetV398=null;touchReadyV395=false;touchSpeechStartedV442=false;touchStartedAtV395=0;
     setTimeout(function(){fired=false},160);
@@ -414,10 +434,6 @@
     if(txt)speak(txt.replace(/\s*[—–-]\s*/g,', '));
   },true);
   document.addEventListener('click',function(e){
-    if(suppressAllClicksUntilV398&&Date.now()<suppressAllClicksUntilV398){
-      e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
-      return;
-    }
     if(suppressClickUntil&&Date.now()<suppressClickUntil&&suppressClickTarget){
       var hit=(e.target===suppressClickTarget)||(suppressClickTarget.contains&&suppressClickTarget.contains(e.target))||(e.target&&e.target.contains&&e.target.contains(suppressClickTarget));
       if(hit){
@@ -429,7 +445,7 @@
   document.addEventListener('touchstart',touchBeginV394,{capture:true,passive:true});
   document.addEventListener('touchmove',touchMoveV394,{capture:true,passive:true});
   document.addEventListener('touchend',touchEndV394,{capture:true,passive:false});
-  document.addEventListener('touchcancel',function(){cancel();cancelTouchSpeechV400();cancelArmedTouchSpeechV444();touchTargetV398=null;touchReadyV395=false;touchSpeechStartedV442=false;touchStartedAtV395=0;},{capture:true,passive:true});
+  document.addEventListener('touchcancel',function(){try{touchTargetV398&&touchTargetV398.classList&&touchTargetV398.classList.remove('carplayVoiceLongHold')}catch(_){}cancel();cancelTouchSpeechV400();cancelArmedTouchSpeechV444();touchTargetV398=null;touchReadyV395=false;touchSpeechStartedV442=false;touchStartedAtV395=0;},{capture:true,passive:true});
   document.addEventListener('pointerdown',begin,true);document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',cancel,true);
   document.addEventListener('contextmenu',blockNativeLongPressV448,true);
   function disableImageDragV448(root){
