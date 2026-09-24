@@ -837,7 +837,7 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
     }
     if(window.CarPlayEnsureSubscriptionSettings){ready();return}
     if(!document.getElementById('subscriptionLoaderV439')){
-      var s=document.createElement('script');s.id='subscriptionLoaderV439';s.src='/subscription-web.js?v=440-home-buttons'+Date.now();s.onload=ready;s.onerror=function(){var b=document.getElementById('subscriptionMenu');if(b)b.innerHTML='<div class="settingNote" style="padding:12px;color:#ffb2b2">Impossible de charger l’abonnement. Appuyez sur MISE À JOUR puis réessayez.</div>'};document.head.appendChild(s);
+      var s=document.createElement('script');s.id='subscriptionLoaderV439';s.src='/subscription-web.js?v=441-syntax-fix'+Date.now();s.onload=ready;s.onerror=function(){var b=document.getElementById('subscriptionMenu');if(b)b.innerHTML='<div class="settingNote" style="padding:12px;color:#ffb2b2">Impossible de charger l’abonnement. Appuyez sur MISE À JOUR puis réessayez.</div>'};document.head.appendChild(s);
     }
   };
   window.openContestV439=function(){
@@ -849,7 +849,7 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
   };
 })();
 </script>
-<script src="/subscription-web.js?v=440-home-buttons" defer></script>
+<script src="/subscription-web.js?v=441-syntax-fix" defer></script>
 <script src="/contest-v188.js?v=439-direct" defer></script>
 </head>
 <body class="homePage">
@@ -1405,11 +1405,11 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
     await Promise.allSettled([check('/notification-settings.js?v=282-onboarding-notification-detail'),check('/market-update-notifications-v281.js?v=282')]);
     setProgress(72,'Vérification du compte…','Contrôle de l’abonnement, de l’identité et des réglages.');
-    await Promise.allSettled([check('/subscription-web.js?v=440-home-buttons'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
+    await Promise.allSettled([check('/subscription-web.js?v=441-syntax-fix'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
     setProgress(82,'Recherche de la nouvelle version…','Seuls les fichiers de l’application sont actualisés.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=440-home-buttons',{updateViaCache:'none'})]}catch(_){regs=[]}}
+      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=441-syntax-fix',{updateViaCache:'none'})]}catch(_){regs=[]}}
       for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){}
       var reg=regs[0];
       if(reg&&reg.waiting){

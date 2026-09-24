@@ -1,6 +1,6 @@
 (function () {
-  if(window.__subscriptionWebV440Loaded)return;
-  window.__subscriptionWebV440Loaded=1;
+  if(window.__subscriptionWebV441Loaded)return;
+  window.__subscriptionWebV441Loaded=1;
   if ("serviceWorker" in navigator) {
     var swLastCheck = 0;
     var swReloading = false;
@@ -13,7 +13,7 @@
       if (Date.now() - swLastCheck < 30000) return;
       swLastCheck = Date.now();
       try {
-        var registration = await navigator.serviceWorker.register("/sw.js?v=440-home-buttons", { updateViaCache: "none" });
+        var registration = await navigator.serviceWorker.register("/sw.js?v=441-syntax-fix", { updateViaCache: "none" });
         activateWaiting(registration);
         registration.addEventListener("updatefound", function () {
           var worker = registration.installing;
@@ -116,7 +116,14 @@
     return real;
   }
   function valid(s) { return s && (s.lifetime || (s.expiresAt && Date.parse(s.expiresAt) > Date.now())); }
-  function adminBypass() {\n    try { return localStorage.getItem("carplay_admin_here") === "1"; } catch (_) { return false; }\n  }\n  function unlocked() { return adminBypass() || valid(saved()); }
+  function adminBypass() {
+    try {
+      return localStorage.getItem("carplay_admin_here") === "1" ||
+             !!localStorage.getItem("carplay_admin_token") ||
+             !!localStorage.getItem("carplay_admin_secret");
+    } catch (_) { return false; }
+  }
+  function unlocked() { return adminBypass() || valid(saved()); }
   function detectedType() { return "phone"; }
   function rememberEmail(value) {
     var email=String(value||"").trim().toLowerCase();

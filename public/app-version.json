@@ -1,4 +1,4 @@
 {
-  "version": "V440",
-  "message": "V440 : correction du blocage général des boutons de l’accueil. La session administrateur reconnue sur le téléphone contourne correctement le verrou d’abonnement, et les fichiers d’accueil sont rechargés avec une nouvelle version de cache."
+  "version": "V441",
+  "message": "V441 : correction du blocage de l’application. Une erreur de syntaxe dans le module abonnement empêchait son exécution sur le téléphone. Le module est corrigé, vérifié avant déploiement, le cache est renouvelé et la session administrateur est reconnue par ses marqueurs de connexion."
 }
