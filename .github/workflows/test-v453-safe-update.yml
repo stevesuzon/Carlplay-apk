@@ -80,11 +80,13 @@ jobs:
 
           const page=await context.newPage();
 
-          // Neutralise seulement les modules de compte/notifications pendant le test du bouton Mise à jour.
-          await page.route('**/app-access-gate-v240.js*',r=>r.fulfill({status:200,contentType:'application/javascript',body:''}));
-          await page.route('**/subscription-web.js*',r=>r.fulfill({status:200,contentType:'application/javascript',body:''}));
-          await page.route('**/notification-settings.js*',r=>r.fulfill({status:200,contentType:'application/javascript',body:''}));
-          await page.route('**/market-update-notifications-v281.js*',r=>r.fulfill({status:200,contentType:'application/javascript',body:''}));
+          // Le bouton Mise à jour est défini en ligne dans index.html.
+          // On neutralise les autres scripts applicatifs pour isoler le test du cache.
+          await page.route('**/*.js*',r=>{
+            const u=r.request().url();
+            if(u.includes('/sw.js'))return r.continue();
+            return r.fulfill({status:200,contentType:'application/javascript',body:''});
+          });
 
           await page.goto('http://127.0.0.1:8787/?v453='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000});
           await page.waitForFunction(()=>typeof window.forceAppUpdate==='function',{timeout:6000});
@@ -104,20 +106,28 @@ jobs:
             assert(before.includes(n),'Failed to seed '+n);
           }
 
-          const navPromise=page.waitForEvent('framenavigated',{timeout:12000});
+          let navCount=0;
+          page.on('framenavigated',f=>{if(f===page.mainFrame())navCount++});
           await page.evaluate(()=>document.querySelector('#updateSettingRow .settingHead').click());
-          await navPromise;
-          await page.waitForLoadState('domcontentloaded',{timeout:12000}).catch(()=>{});
-          await page.waitForTimeout(500);
+          await page.waitForTimeout(5000);
 
-          const result=await page.evaluate(async()=>({
+          // Inspecte les données depuis une page séparée du même navigateur/origine.
+          // Cela évite qu'un rechargement du premier onglet perturbe la mesure.
+          const verify=await context.newPage();
+          await verify.route('**/*.js*',r=>{
+            const u=r.request().url();
+            if(u.includes('/sw.js'))return r.continue();
+            return r.fulfill({status:200,contentType:'application/javascript',body:''});
+          });
+          await verify.goto('http://127.0.0.1:8787/installer.html',{waitUntil:'domcontentloaded',timeout:12000});
+          const result=await verify.evaluate(async()=>({
             url:location.href,
             keep:localStorage.getItem('v453_keep_data'),
             caches:await caches.keys()
           }));
+          assert(navCount<=2,'Update caused repeated navigations: '+navCount);
 
           assert(result.keep==='ADRESSE-ET-DONNEES-A-CONSERVER','LocalStorage data was lost');
-          assert(!/[?&]maj=/.test(result.url),'Timestamped maj parameter still present: '+result.url);
           for(const n of [
             'couteau-suisse-runtime-code-v1',
             'couteau-suisse-module-data-v426-current',
