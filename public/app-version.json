@@ -1,4 +1,4 @@
 {
-  "version": "V428",
-  "message": "V428 : dans les marchés à moins de 150 km, affiche en grand MARCHÉS AUJOURD’HUI jusqu’à 16 h 59, puis MARCHÉS DE DEMAIN à partir de 17 h jusqu’à minuit. Les brocantes, braderies, foires et marchés de Noël des 30 prochains jours restent affichés juste en dessous. Un appui sur le bloc lance aussi la lecture vocale."
+  "version": "V429",
+  "message": "V429 : le texte sous les marchés affiche exactement « Brocantes, braderies, foires et marchés de Noël dans les 30 prochains jours. »"
 }
