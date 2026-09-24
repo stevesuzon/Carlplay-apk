@@ -1,0 +1,281 @@
+name: Test V448 Stability
+
+on:
+  push:
+    branches: ["test-v448-stabilite"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-v448-stability
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install test tools
+        run: |
+          npm install
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps webkit
+
+      - name: Syntax checks
+        shell: bash
+        run: |
+          node --check public/voice-assist-v388.js
+          node --check public/sw.js
+          node --check public/weather-all-pages.js
+          node --check public/sanction-guard-v161.js
+          node --check public/market-update-notifications-v281.js
+          node - <<'NODE'
+          const fs=require('fs');
+          const html=fs.readFileSync('public/index.html','utf8');
+          const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m=>m[1]).filter(s=>s.trim());
+          for(let i=0;i<scripts.length;i++){
+            try{new Function(scripts[i])}catch(e){throw new Error('index inline script '+i+': '+e.message)}
+          }
+          console.log('index inline scripts OK:',scripts.length);
+          NODE
+
+      - name: Start local Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler dev --local --ip 127.0.0.1 --port 8787 > /tmp/v448-wrangler.log 2>&1 &
+          echo $! > /tmp/v448-wrangler.pid
+          for i in $(seq 1 45); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8787/ >/tmp/v448-home-probe.html; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/v448-wrangler.log
+          exit 1
+
+      - name: Test transformed home and iPhone long-press
+        shell: bash
+        run: |
+          cat > test-v448.mjs <<'EOF'
+          import { webkit } from 'playwright';
+          import fs from 'node:fs';
+
+          const base='http://127.0.0.1:8787';
+          function assert(cond,msg){if(!cond)throw new Error(msg)}
+          function countTag(html,re){return [...html.matchAll(re)].length}
+
+          // Test the actual Worker-transformed home response.
+          const startedFetch=Date.now();
+          const response=await fetch(base+'/?v448test='+Date.now());
+          assert(response.ok,'Home HTTP '+response.status);
+          const html=await response.text();
+          const fetchMs=Date.now()-startedFetch;
+          assert(fetchMs<3000,'Home response too slow: '+fetchMs+'ms');
+          assert(html.includes('id="nearby80Button"'),'Missing 150 km button');
+          assert(html.includes('class="card blue marketHomeFast"'),'Missing native Marchés link');
+          assert(html.includes('id="homeAddressBookBtn"'),'Missing address button');
+          assert(html.includes('id="contestHomeButton"'),'Missing contest button');
+          assert(html.includes('id="housePhotoButton"'),'Missing house button');
+
+          const voiceTags=countTag(html,/<script[^>]+src=["'][^"']*voice-assist-v388\.js[^"']*["'][^>]*>/gi);
+          const subTags=countTag(html,/<script[^>]+src=["'][^"']*subscription-web\.js[^"']*["'][^>]*>/gi);
+          const contestTags=countTag(html,/<script[^>]+src=["'][^"']*contest-v188\.js[^"']*["'][^>]*>/gi);
+          assert(voiceTags===1,'Voice script tag count='+voiceTags);
+          assert(subTags===1,'Subscription script tag count='+subTags);
+          assert(contestTags===1,'Contest script tag count='+contestTags);
+          assert(!/unpkg\.com\/leaflet/i.test(html),'Leaflet still loaded on home');
+
+          const browser=await webkit.launch({headless:true});
+          const context=await browser.newContext({
+            viewport:{width:390,height:844},
+            isMobile:true,
+            hasTouch:true,
+            deviceScaleFactor:3,
+            userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1',
+            serviceWorkers:'block'
+          });
+
+          await context.addInitScript(() => {
+            try {
+              localStorage.setItem('carplay_voice_enabled_v387','1');
+              localStorage.setItem('carplay_admin_here','1');
+              localStorage.setItem('carplay_notifications_enabled','0');
+            } catch (_) {}
+            window.__spokenV448=[];
+            class FakeUtterance{
+              constructor(text){this.text=String(text||'');this.lang='';this.rate=1;this.pitch=1;this.volume=1;this.voice=null;this.onstart=null;this.onend=null;this.onerror=null;}
+            }
+            const synth={
+              paused:false,speaking:false,pending:false,
+              getVoices(){return[{lang:'fr-FR',name:'Français test'}]},
+              addEventListener(){},
+              cancel(){this.paused=false;this.speaking=false},
+              resume(){this.paused=false},
+              pause(){this.paused=true},
+              speak(u){
+                window.__spokenV448.push(String(u.text||''));
+                this.speaking=true;
+                if(typeof u.onstart==='function')u.onstart();
+                setTimeout(()=>{this.speaking=false;if(typeof u.onend==='function')u.onend()},8);
+              }
+            };
+            try{Object.defineProperty(window,'SpeechSynthesisUtterance',{configurable:true,value:FakeUtterance})}catch(_){window.SpeechSynthesisUtterance=FakeUtterance}
+            try{Object.defineProperty(window,'speechSynthesis',{configurable:true,value:synth})}catch(_){window.speechSynthesis=synth}
+          });
+
+          const page=await context.newPage();
+          const errors=[];
+          page.on('pageerror',e=>errors.push(String(e)));
+
+          // Keep the real HTML/CSS and real voice module. Neutralize unrelated business logic
+          // so this test measures UI/touch behavior instead of account or D1 state.
+          await page.route('**/*',async route=>{
+            const req=route.request(),url=req.url(),type=req.resourceType();
+            if(type==='script'){
+              if(url.includes('voice-assist-v388.js'))return route.continue();
+              return route.fulfill({status:200,contentType:'application/javascript',body:''});
+            }
+            if(type==='image'||type==='font'||type==='media')return route.abort();
+            return route.continue();
+          });
+
+          await page.goto(base+'/?uitest='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000});
+          await page.waitForFunction(()=>!!window.CouteauVoice,{timeout:5000});
+          await page.waitForTimeout(100);
+
+          const counts=await page.evaluate(()=>({
+            voice:document.querySelectorAll('script[src*="voice-assist-v388.js"]').length,
+            subscription:document.querySelectorAll('script[src*="subscription-web.js"]').length,
+            contest:document.querySelectorAll('script[src*="contest-v188.js"]').length
+          }));
+          assert(counts.voice===1,'Browser voice script tags='+counts.voice);
+          assert(counts.subscription===1,'Browser subscription script tags='+counts.subscription);
+          assert(counts.contest===1,'Browser contest script tags='+counts.contest);
+
+          const required=[
+            '#nearby80Button','a.marketHomeFast','#homeAddressBookBtn','#contestHomeButton',
+            '#housePhotoButton','.returnPlaceTrafic','a[href="mes-papiers.html"]',
+            'a[href="documents-travail.html"]','.eraseTile'
+          ];
+          for(const sel of required)assert(await page.locator(sel).count()===1,'Missing control '+sel);
+
+          async function installWeatherAndCheck(){
+            const result=await page.evaluate(()=>{
+              let w=document.getElementById('weatherBubble');
+              if(!w){
+                w=document.createElement('div');w.id='weatherBubble';
+                w.innerHTML='<div class="weatherMain">☁️ 0 % — TRÈS BON JOUR POUR TRAVAILLER</div><div class="weatherDate">JEUDI / 24/09/26</div>';
+                document.body.appendChild(w);
+              }
+              w.style.display='block';w.style.visibility='visible';
+              const c=document.getElementById('contestHomeButton'),h=document.getElementById('housePhotoButton');
+              const r=e=>e?e.getBoundingClientRect():null;
+              const ov=(a,b)=>!!(a&&b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top);
+              const wr=r(w),cr=r(c),hr=r(h);
+              return {weather:wr,contest:cr,house:hr,weatherContest:ov(wr,cr),weatherHouse:ov(wr,hr)};
+            });
+            assert(!result.weatherContest,'Weather overlaps Contest');
+            assert(!result.weatherHouse,'Weather overlaps House');
+            return result;
+          }
+
+          const layout390=await installWeatherAndCheck();
+          await page.screenshot({path:'v448-390.png',fullPage:true});
+          await page.setViewportSize({width:430,height:932});
+          await page.waitForTimeout(80);
+          const layout430=await installWeatherAndCheck();
+          await page.screenshot({path:'v448-430.png',fullPage:true});
+
+          const callout=await page.evaluate(()=>{
+            const el=document.getElementById('homeAddressBookBtn');
+            const ev=new Event('contextmenu',{bubbles:true,cancelable:true});
+            const result=el.dispatchEvent(ev);
+            const cs=getComputedStyle(el);
+            return {prevented:ev.defaultPrevented||result===false,userSelect:cs.userSelect,webkitUserSelect:cs.webkitUserSelect};
+          });
+          assert(callout.prevented,'Native long-press/context menu was not blocked');
+          assert(callout.userSelect==='none'||callout.webkitUserSelect==='none','Text selection still enabled on long press');
+
+          async function hold(selector,ms=1320){
+            await page.evaluate(async ({selector,ms})=>{
+              const el=document.querySelector(selector);
+              if(!el)throw new Error('Missing '+selector);
+              const r=el.getBoundingClientRect();
+              const point={clientX:r.left+r.width/2,clientY:r.top+r.height/2,pageX:r.left+r.width/2,pageY:r.top+r.height/2};
+              const startEv=new Event('touchstart',{bubbles:true,cancelable:true});
+              Object.defineProperty(startEv,'touches',{value:[point]});
+              Object.defineProperty(startEv,'targetTouches',{value:[point]});
+              Object.defineProperty(startEv,'changedTouches',{value:[point]});
+              el.dispatchEvent(startEv);
+              await new Promise(ok=>setTimeout(ok,ms));
+              const endEv=new Event('touchend',{bubbles:true,cancelable:true});
+              Object.defineProperty(endEv,'touches',{value:[]});
+              Object.defineProperty(endEv,'targetTouches',{value:[]});
+              Object.defineProperty(endEv,'changedTouches',{value:[point]});
+              el.dispatchEvent(endEv);
+              await new Promise(ok=>setTimeout(ok,100));
+            },{selector,ms});
+          }
+
+          const voiceTargets=[
+            ['#homeAddressBookBtn',/adresse|carnet/i],
+            ['a.marketHomeFast',/march/i],
+            ['#contestHomeButton',/concours/i],
+            ['#housePhotoButton',/maison|mesurer/i],
+            ['#nearby80Button',/march/i],
+            ['.returnPlaceTrafic',/retourner|place/i],
+            ['a[href="mes-papiers.html"]',/papiers/i],
+            ['a[href="documents-travail.html"]',/démarches|demarches|pro/i],
+            ['.eraseTile',/effacer|emplacement/i]
+          ];
+          const spokenByTarget={};
+          for(const [sel,rx] of voiceTargets){
+            const before=await page.evaluate(()=>window.__spokenV448.length);
+            await hold(sel,1320);
+            const spoken=await page.evaluate(before=>window.__spokenV448.slice(before).map(x=>String(x)).filter(x=>x.trim()),before);
+            spokenByTarget[sel]=spoken;
+            assert(spoken.some(x=>rx.test(x)),'No correct voice for '+sel+': '+JSON.stringify(spoken));
+          }
+
+          // Short touch must stay a normal, fast tap: no meaningful phrase after 120 ms.
+          const beforeShort=await page.evaluate(()=>window.__spokenV448.length);
+          await hold('#homeAddressBookBtn',120);
+          const shortSpoken=await page.evaluate(before=>window.__spokenV448.slice(before).map(x=>String(x)).filter(x=>x.trim()),beforeShort);
+          assert(shortSpoken.length===0,'Short tap spoke unexpectedly: '+JSON.stringify(shortSpoken));
+
+          const href=await page.locator('a.marketHomeFast').getAttribute('href');
+          assert(href==='choix-marches-v409.html','Marchés is not a direct native link: '+href);
+
+          assert(errors.length===0,'JS page errors: '+errors.join(' | '));
+          const report={ok:true,fetchMs,counts,layout390,layout430,callout,spokenByTarget,shortSpoken,href};
+          fs.writeFileSync('v448-test-report.json',JSON.stringify(report,null,2));
+          console.log(JSON.stringify(report,null,2));
+          await browser.close();
+          EOF
+          node test-v448.mjs
+
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v448-test-evidence
+          path: |
+            v448-test-report.json
+            v448-390.png
+            v448-430.png
+            /tmp/v448-wrangler.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Show Worker log on failure
+        if: failure()
+        run: cat /tmp/v448-wrangler.log || true
