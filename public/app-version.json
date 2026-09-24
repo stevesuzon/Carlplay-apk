@@ -1,4 +1,4 @@
 {
-  "version": "V440",
-  "message": "V440 : correction des actions des boutons d’abonnement. « MODIFIER MES INFORMATIONS » ouvre uniquement la modification du nom, prénom et e-mail. « ME FAIRE RENVOYER MON CODE D’ABONNEMENT » envoie uniquement le code de récupération. Nouveau cache abonnement pour forcer la correction sur iPhone."
+  "version": "V439",
+  "message": "V439 : correction prioritaire des trois problèmes signalés. ABONNEMENT se charge directement et peut être rechargé au toucher, CONCOURS possède maintenant un bouton direct qui recharge son module si nécessaire, et Voir les fiches de marché charge les fiches par petits lots pour éviter l’erreur iPhone. La migration des anciennes fiches se fait progressivement en arrière-plan sans bloquer l’administration."
 }
