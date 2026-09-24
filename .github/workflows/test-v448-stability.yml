@@ -210,16 +210,18 @@ jobs:
               const el=document.querySelector(selector);
               if(!el)throw new Error('Missing '+selector);
               const r=el.getBoundingClientRect();
-              if(typeof Touch==='function'&&typeof TouchEvent==='function'){
-                const t=new Touch({identifier:123,target:el,clientX:r.left+r.width/2,clientY:r.top+r.height/2,pageX:r.left+r.width/2,pageY:r.top+r.height/2,screenX:0,screenY:0,radiusX:2,radiusY:2,rotationAngle:0,force:1});
-                el.dispatchEvent(new TouchEvent('touchstart',{bubbles:true,cancelable:true,touches:[t],targetTouches:[t],changedTouches:[t]}));
-                await new Promise(ok=>setTimeout(ok,ms));
-                el.dispatchEvent(new TouchEvent('touchend',{bubbles:true,cancelable:true,touches:[],targetTouches:[],changedTouches:[t]}));
-              }else{
-                el.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,pointerType:'touch',clientX:r.left+r.width/2,clientY:r.top+r.height/2}));
-                await new Promise(ok=>setTimeout(ok,ms));
-                el.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,cancelable:true,pointerType:'touch',clientX:r.left+r.width/2,clientY:r.top+r.height/2}));
-              }
+              const point={clientX:r.left+r.width/2,clientY:r.top+r.height/2,pageX:r.left+r.width/2,pageY:r.top+r.height/2};
+              const startEv=new Event('touchstart',{bubbles:true,cancelable:true});
+              Object.defineProperty(startEv,'touches',{value:[point]});
+              Object.defineProperty(startEv,'targetTouches',{value:[point]});
+              Object.defineProperty(startEv,'changedTouches',{value:[point]});
+              el.dispatchEvent(startEv);
+              await new Promise(ok=>setTimeout(ok,ms));
+              const endEv=new Event('touchend',{bubbles:true,cancelable:true});
+              Object.defineProperty(endEv,'touches',{value:[]});
+              Object.defineProperty(endEv,'targetTouches',{value:[]});
+              Object.defineProperty(endEv,'changedTouches',{value:[point]});
+              el.dispatchEvent(endEv);
               await new Promise(ok=>setTimeout(ok,100));
             },{selector,ms});
           }
