@@ -1,4 +1,4 @@
 {
-  "version": "V429",
-  "message": "V429 : le texte sous les marchés affiche exactement « Brocantes, braderies, foires et marchés de Noël dans les 30 prochains jours. »"
+  "version": "V430",
+  "message": "V430 : la page des marchés à moins de 150 km recharge maintenant les mêmes marchés que la rubrique Marchés, ajoute les marchés récupérés du serveur Jours-de-Marché, utilise les coordonnées d’un autre marché de la même ville quand une fiche n’a pas encore son GPS exact, agrandit le nombre de résultats et le texte brocantes/braderies/foires/Noël, et passe à demain à 17 h."
 }
