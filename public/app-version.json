@@ -1,4 +1,4 @@
 {
-  "version": "V448",
-  "message": "V448 : passe de stabilisation testée avant déploiement. Les boutons de l’accueil sont actifs dès que la page est construite, sans attendre le chargement complet des images. Les scripts dupliqués et inutiles sont retirés ou différés, les modules marchés ne sont chargés que sur les pages marchés, la météo ne bloque aucun bouton et la voix reste disponible par appui long de 1,20 seconde."
+  "version": "V449",
+  "message": "V449 : correction de l’appui long vocal sur iPhone. Le carré/menu blanc natif est bloqué sur les boutons, images et cartes. La voix se déclenche après 1,20 seconde sur Carnet d’adresses, Marchés, Concours, Mesurer une maison, Marchés 150 km, Retourner sur la place, Mes papiers, Démarches pro et Effacer emplacement. Un appui court reste silencieux et immédiat."
 }
