@@ -1,0 +1,143 @@
+name: Test V450 Cache Stability
+
+on:
+  push:
+    branches: ["test-v450-cache"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-v450-cache
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install test tools
+        run: |
+          npm install
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Syntax and cache-policy checks
+        run: |
+          node --check public/sw.js
+          node --check public/cache-cleanup-v20260910.js
+          node - <<'NODE'
+          const fs=require('fs');
+          const sw=fs.readFileSync('public/sw.js','utf8');
+          const html=fs.readFileSync('public/index.html','utf8');
+          if(/refreshModules\(\)/.test(sw)||/ensureBase\(\)/.test(sw)) throw new Error('SW still preloads full app');
+          if(/keys\.filter\(n=>n!==NOTIFICATION_PREF_CACHE\)/.test(sw)) throw new Error('SW still deletes every cache');
+          if(/hardCacheResetV436/.test(html)) throw new Error('Aggressive hard cache reset still present');
+          if(!/sw\.js\?v=450-cache-stable/.test(html)) throw new Error('Old SW registration URL');
+          if(!/cache-cleanup-v20260910\.js\?v=450-cache-stable/.test(html)) throw new Error('Old cleanup URL');
+          const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m=>m[1]).filter(s=>s.trim());
+          scripts.forEach((s,i)=>{try{new Function(s)}catch(e){throw new Error('index inline '+i+': '+e.message)}});
+          console.log('Static cache checks OK');
+          NODE
+
+      - name: Start local Worker
+        shell: bash
+        run: |
+          set -e
+          npx wrangler dev --local --ip 127.0.0.1 --port 8787 > /tmp/v450-wrangler.log 2>&1 &
+          echo $! > /tmp/v450-wrangler.pid
+          for i in $(seq 1 40); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8787/installer.html >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/v450-wrangler.log
+          exit 1
+
+      - name: Test real CacheStorage and Service Worker
+        shell: bash
+        run: |
+          cat > test-v450.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'allow'});
+          const page=await context.newPage();
+          function assert(x,m){if(!x)throw new Error(m)}
+          await page.goto('http://127.0.0.1:8787/installer.html',{waitUntil:'domcontentloaded',timeout:12000});
+
+          // Start from a controlled cache state.
+          await page.evaluate(async()=>{
+            const regs=await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(r=>r.unregister()));
+            const keys=await caches.keys();
+            await Promise.all(keys.map(k=>caches.delete(k)));
+            await caches.open('couteau-suisse-module-base-v449-longpress-ios');
+            await caches.open('couteau-suisse-module-contest-v302');
+            await caches.open('couteau-suisse-module-install-v308');
+            await caches.open('couteau-suisse-runtime-code-v1');
+            await caches.open('couteau-suisse-module-contest-v439-direct');
+            await caches.open('carplay-notification-preference-v1');
+          });
+
+          const reg=await page.evaluate(async()=>{
+            const r=await navigator.serviceWorker.register('/sw.js?v=450-cache-stable',{updateViaCache:'none'});
+            await navigator.serviceWorker.ready;
+            return {scope:r.scope};
+          });
+          assert(/127\.0\.0\.1:8787\/$/.test(reg.scope),'Bad SW scope '+reg.scope);
+          await page.waitForTimeout(700);
+
+          const afterActivate=await page.evaluate(()=>caches.keys());
+          for(const oldName of [
+            'couteau-suisse-module-base-v449-longpress-ios',
+            'couteau-suisse-module-contest-v302',
+            'couteau-suisse-module-install-v308'
+          ]) assert(!afterActivate.includes(oldName),'Old cache survived activation: '+oldName);
+          for(const keepName of [
+            'couteau-suisse-runtime-code-v1',
+            'couteau-suisse-module-contest-v439-direct',
+            'carplay-notification-preference-v1'
+          ]) assert(afterActivate.includes(keepName),'Current cache deleted by activation: '+keepName);
+
+          // Network-first must beat a stale runtime-cache entry while online.
+          await page.evaluate(async()=>{
+            const c=await caches.open('couteau-suisse-runtime-code-v1');
+            await c.put('/voice-assist-v388.js?v=449-longpress-ios',new Response('STALE-V450-TEST',{headers:{'content-type':'application/javascript'}}));
+          });
+          const voiceText=await page.evaluate(async()=>await (await fetch('/voice-assist-v388.js?v=449-longpress-ios')).text());
+          assert(!voiceText.includes('STALE-V450-TEST'),'SW served stale JS while online');
+          assert(voiceText.includes('CouteauVoice')||voiceText.includes('SpeechSynthesisUtterance'),'Fresh voice JS not returned');
+
+          // Browser cleanup must delete old families only and preserve current caches.
+          await page.evaluate(async()=>{
+            await caches.open('couteau-suisse-module-data-v283');
+            await caches.open('couteau-suisse-module-data-v426-current');
+            localStorage.setItem('carplay_cache_cleanup_version','old');
+          });
+          await page.addScriptTag({url:'/cache-cleanup-v20260910.js?v=450-cache-stable'});
+          await page.waitForTimeout(300);
+          const afterCleanup=await page.evaluate(()=>caches.keys());
+          assert(!afterCleanup.includes('couteau-suisse-module-data-v283'),'Old data cache survived cleanup');
+          assert(afterCleanup.includes('couteau-suisse-module-data-v426-current'),'Current data cache was wrongly deleted');
+          assert(afterCleanup.includes('carplay-notification-preference-v1'),'Notification preference cache was deleted');
+
+          // Home response must advertise the new cache policy and no aggressive reset.
+          const html=await (await fetch('http://127.0.0.1:8787/')).text();
+          assert(!html.includes('hardCacheResetV436'),'Home still contains hard cache reset');
+          assert(html.includes('sw.js?v=450-cache-stable'),'Home still points to old service worker');
+          assert(html.includes('cache-cleanup-v20260910.js?v=450-cache-stable'),'Home still points to old cleanup');
+
+          console.log(JSON.stringify({ok:true,afterActivate,afterCleanup,voiceFresh:true},null,2));
+          await browser.close();
+          EOF
+          node test-v450.mjs
+
+      - name: Show Worker log on failure
+        if: failure()
+        run: cat /tmp/v450-wrangler.log || true
