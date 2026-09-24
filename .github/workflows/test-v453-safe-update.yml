@@ -128,7 +128,7 @@ jobs:
           console.log(JSON.stringify({ok:true,before,after:result.caches,url:result.url,dataPreserved:true},null,2));
           await browser.close();
           EOF
-          node test-v453.mjs
+          timeout 45s node test-v453.mjs
 
       - name: Show Worker log on failure
         if: failure()
