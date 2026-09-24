@@ -1,4 +1,4 @@
 {
-  "version": "V433",
-  "message": "V433 : le bouton MAIL a été supprimé de l’accueil et remplacé par le bouton CONCOURS. Le bouton ABONNEMENT est restauré immédiatement dans Réglages, puis actualisé après vérification du compte. Les corrections GPS, photos 150 km et nettoyage de l’ancien affichage restent conservés."
+  "version": "V434",
+  "message": "V434 : nettoyage définitif des anciens affichages. Le vieux bouton MAIL et son ancien formulaire ont été retirés du site, les anciens fichiers d’affichage et correctifs inutilisés ont été supprimés, et les caches effacent maintenant ces anciennes ressources. CONCOURS et ABONNEMENT restent sur l’affichage actuel."
 }
