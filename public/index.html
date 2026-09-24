@@ -157,6 +157,10 @@ body.homePage.homeChromeHidden #directArticle{opacity:1!important;pointer-events
 #nearby80Button{width:100%;min-height:58px;border:3px solid #111;border-radius:17px;background:linear-gradient(135deg,#ff9a19,#ff5b00);color:#111;display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 16px;font:950 17px Arial,sans-serif;box-shadow:0 7px 18px #0007;cursor:pointer}
 #nearby80Button .pencil{font-size:25px;line-height:1;filter:grayscale(1) brightness(.1)}
 #nearby80Button .nearText{line-height:1.08;text-align:center}
+
+button,a,[role="button"],[onclick],.card,.small{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+button:active,a:active,[role="button"]:active,[onclick]:active,.card:active,.small:active{transform:scale(.985)}
+.marketHomeFast{color:inherit;text-decoration:none}
 @media(max-width:720px){#homeDepartmentSearch{margin:-38px 0 9px}#nearby80Button{min-height:56px;font-size:15px;padding:9px 12px}#nearby80Button .pencil{font-size:22px}}
 .addressBookTile{position:relative;overflow:hidden;cursor:pointer;padding:0!important;background:#08752f!important}
 .addressBookTitle{display:none!important}
@@ -895,11 +899,11 @@ opacity:.9;
     <span class="nearText">MARCHÉS À MOINS DE 150 KM</span>
   </button>
 </section><div class="grid homeDesignGrid">
-  <div class="card blue" onclick="location.href='choix-marches-v409.html'">
+  <a class="card blue marketHomeFast" href="choix-marches-v409.html" aria-label="Marchés, foires, Noël et brocantes">
     <div class="tag">FRANCE + BELGIQUE</div>
     <div class="vehicleVisual"><img src="master-front-transparent.png?v=444-home-images" alt="Marchés"></div>
     <div class="marketText"><div class="title">MARCHÉS</div><div class="marketKinds">FOIRES • NOËL • BROCANTES</div></div>
-  </div>
+  </a>
   <div id="homeAddressBookBtn" class="card orange addressBookTile" role="button" tabindex="0" aria-label="Adresse. Ouvrir le carnet d’adresses" data-voice-help="Adresse. Ouvrir le carnet d’adresses.">
     <img class="addressButtonFull" src="address-button.png?v=444-home-images" alt="Adresse">
   </div>
@@ -1399,7 +1403,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications.');
     await check('/contest-v188.js?v=439-direct');
     setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique et événements.');
-    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=438-stable-market-key'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=445-global-voice'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=438-stable-market-key'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
+    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=438-stable-market-key'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=446-fast-tap'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=438-stable-market-key'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
     setProgress(48,'Vérification des champignons…','Contrôle des fiches Champignons et des coins enregistrés.');
     await Promise.allSettled([check('/champignons.html'),check('/champignons.js?v=300-concours-auto')]);
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
@@ -1625,11 +1629,14 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 (function(){
   var btn=document.getElementById('nearby80Button');
   if(!btn)return;
+  var opening=false;
   btn.addEventListener('click',function(){
+    if(opening)return;
     var lat=localStorage.getItem('return_lat'),lon=localStorage.getItem('return_lon');
     if(!lat||!lon){alert('Enregistre d’abord ta position avec « Retourner sur la place ».');return;}
-    location.href='nearby-markets.html?radius=150&v=431';
-  });
+    opening=true;
+    location.assign('nearby-markets.html?radius=150&v=446');
+  },{passive:true});
 })();
 </script>
 <style id="updateNotificationStyle">
@@ -2812,7 +2819,7 @@ window.addEventListener('load',function(){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
-<script src="/voice-assist-v388.js?v=445-global-voice"></script>
+<script src="/voice-assist-v388.js?v=446-fast-tap"></script>
 </body>
 </html>
 

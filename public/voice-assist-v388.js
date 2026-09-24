@@ -329,17 +329,16 @@
   }
   function touchBeginV394(e){
     if(!enabled()||!e.target||!e.target.closest)return;
-    primeFromGestureV442();wakeSpeechV423();
+    primeFromGestureV442();
     var target=eligibleTarget(e);if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
     active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchSpeechStartedV442=false;touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV400(target);
-    armTouchSpeechV444(target);
     timer=setTimeout(function(){
       if(active){
         touchReadyV395=true;fired=true;suppressClickTarget=active;
-        suppressClickUntil=Date.now()+2500;suppressAllClicksUntilV398=Date.now()+2500;
+        suppressClickUntil=Date.now()+1800;suppressAllClicksUntilV398=Date.now()+1800;
         try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
-        touchSpeechStartedV442=!!startArmedTouchSpeechV444(active);
+        touchSpeechStartedV442=!!resumeTouchSpeechV400(active);
       }
     },PRESS_MS);
   }
@@ -364,9 +363,9 @@
     if(isLong){
       fired=true;suppressClickTarget=target;suppressClickUntil=Date.now()+2500;suppressAllClicksUntilV398=Date.now()+2500;
       blockLongPressReleaseV397(e);
-      if(!touchSpeechStartedV442)touchSpeechStartedV442=!!startArmedTouchSpeechV444(target);
+      if(!touchSpeechStartedV442)touchSpeechStartedV442=!!resumeTouchSpeechV400(target);
     }else{
-      cancelTouchSpeechV400();cancelArmedTouchSpeechV444();
+      cancelTouchSpeechV400();
     }
     touchTargetV398=null;touchReadyV395=false;touchSpeechStartedV442=false;touchStartedAtV395=0;
     setTimeout(function(){fired=false},160);
