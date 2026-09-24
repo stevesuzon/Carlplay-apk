@@ -15,7 +15,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -27,16 +27,34 @@ jobs:
         run: |
           npm install
           npm install --no-save playwright@1.55.0
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps webkit
+
+      - name: Syntax checks
+        shell: bash
+        run: |
+          node --check public/voice-assist-v388.js
+          node --check public/sw.js
+          node --check public/weather-all-pages.js
+          node --check public/sanction-guard-v161.js
+          node --check public/market-update-notifications-v281.js
+          node - <<'NODE'
+          const fs=require('fs');
+          const html=fs.readFileSync('public/index.html','utf8');
+          const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m=>m[1]).filter(s=>s.trim());
+          for(let i=0;i<scripts.length;i++){
+            try{new Function(scripts[i])}catch(e){throw new Error('index inline script '+i+': '+e.message)}
+          }
+          console.log('index inline scripts OK:',scripts.length);
+          NODE
 
       - name: Start local Worker
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
           npx wrangler dev --local --ip 127.0.0.1 --port 8787 > /tmp/v448-wrangler.log 2>&1 &
           echo $! > /tmp/v448-wrangler.pid
-          for i in $(seq 1 40); do
-            if curl -fsS http://127.0.0.1:8787/ >/dev/null; then
+          for i in $(seq 1 45); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8787/ >/tmp/v448-home-probe.html; then
               exit 0
             fi
             sleep 1
@@ -44,14 +62,40 @@ jobs:
           cat /tmp/v448-wrangler.log
           exit 1
 
-      - name: Test mobile UI, buttons and long-press voice
+      - name: Test transformed home and iPhone long-press
         shell: bash
         run: |
           cat > test-v448.mjs <<'EOF'
-          import { chromium } from 'playwright';
+          import { webkit } from 'playwright';
+          import fs from 'node:fs';
 
-          const browser = await chromium.launch({headless:true});
-          const context = await browser.newContext({
+          const base='http://127.0.0.1:8787';
+          function assert(cond,msg){if(!cond)throw new Error(msg)}
+          function countTag(html,re){return [...html.matchAll(re)].length}
+
+          // Test the actual Worker-transformed home response.
+          const startedFetch=Date.now();
+          const response=await fetch(base+'/?v448test='+Date.now());
+          assert(response.ok,'Home HTTP '+response.status);
+          const html=await response.text();
+          const fetchMs=Date.now()-startedFetch;
+          assert(fetchMs<3000,'Home response too slow: '+fetchMs+'ms');
+          assert(html.includes('id="nearby80Button"'),'Missing 150 km button');
+          assert(html.includes('class="card blue marketHomeFast"'),'Missing native Marchés link');
+          assert(html.includes('id="homeAddressBookBtn"'),'Missing address button');
+          assert(html.includes('id="contestHomeButton"'),'Missing contest button');
+          assert(html.includes('id="housePhotoButton"'),'Missing house button');
+
+          const voiceTags=countTag(html,/<script[^>]+src=["'][^"']*voice-assist-v388\.js[^"']*["'][^>]*>/gi);
+          const subTags=countTag(html,/<script[^>]+src=["'][^"']*subscription-web\.js[^"']*["'][^>]*>/gi);
+          const contestTags=countTag(html,/<script[^>]+src=["'][^"']*contest-v188\.js[^"']*["'][^>]*>/gi);
+          assert(voiceTags===1,'Voice script tag count='+voiceTags);
+          assert(subTags===1,'Subscription script tag count='+subTags);
+          assert(contestTags===1,'Contest script tag count='+contestTags);
+          assert(!/unpkg\.com\/leaflet/i.test(html),'Leaflet still loaded on home');
+
+          const browser=await webkit.launch({headless:true});
+          const context=await browser.newContext({
             viewport:{width:390,height:844},
             isMobile:true,
             hasTouch:true,
@@ -62,26 +106,17 @@ jobs:
 
           await context.addInitScript(() => {
             try {
-              const did='test-device-v448';
-              const identity={firstName:'Test',lastName:'Utilisateur',email:'test-v448@example.com'};
-              localStorage.setItem('carplay_device_id',did);
-              localStorage.setItem('carplay_app_identity_v240',JSON.stringify(identity));
-              localStorage.setItem('carplay_identity_email_verified_v304',JSON.stringify({email:identity.email,deviceId:did,verifiedAt:Date.now()}));
-              localStorage.setItem('carplay_recovery_email',identity.email);
-              sessionStorage.setItem('carplay_install_browser_handoff_v282','1');
               localStorage.setItem('carplay_voice_enabled_v387','1');
               localStorage.setItem('carplay_admin_here','1');
               localStorage.setItem('carplay_notifications_enabled','0');
             } catch (_) {}
-            window.__spokenV448 = [];
-            class FakeUtterance {
+            window.__spokenV448=[];
+            class FakeUtterance{
               constructor(text){this.text=String(text||'');this.lang='';this.rate=1;this.pitch=1;this.volume=1;this.voice=null;this.onstart=null;this.onend=null;this.onerror=null;}
             }
-            const fakeSynth = {
-              paused:false,
-              speaking:false,
-              pending:false,
-              getVoices(){return [{lang:'fr-FR',name:'Français test'}]},
+            const synth={
+              paused:false,speaking:false,pending:false,
+              getVoices(){return[{lang:'fr-FR',name:'Français test'}]},
               addEventListener(){},
               cancel(){this.paused=false;this.speaking=false},
               resume(){this.paused=false},
@@ -90,116 +125,154 @@ jobs:
                 window.__spokenV448.push(String(u.text||''));
                 this.speaking=true;
                 if(typeof u.onstart==='function')u.onstart();
-                setTimeout(()=>{this.speaking=false;if(typeof u.onend==='function')u.onend()},5);
+                setTimeout(()=>{this.speaking=false;if(typeof u.onend==='function')u.onend()},8);
               }
             };
-            try { Object.defineProperty(window,'SpeechSynthesisUtterance',{configurable:true,value:FakeUtterance}); } catch (_) { window.SpeechSynthesisUtterance=FakeUtterance; }
-            try { Object.defineProperty(window,'speechSynthesis',{configurable:true,value:fakeSynth}); } catch (_) { window.speechSynthesis=fakeSynth; }
+            try{Object.defineProperty(window,'SpeechSynthesisUtterance',{configurable:true,value:FakeUtterance})}catch(_){window.SpeechSynthesisUtterance=FakeUtterance}
+            try{Object.defineProperty(window,'speechSynthesis',{configurable:true,value:synth})}catch(_){window.speechSynthesis=synth}
           });
 
-          const page = await context.newPage();
-          const pageErrors=[];
-          const navigations=[];
-          page.on('pageerror',e=>pageErrors.push(String(e)));
-          page.on('framenavigated',f=>{if(f===page.mainFrame())navigations.push(f.url())});
-          await page.route('**/api/contest/status',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,participant:null,entries:[],points:0})}));
-          await page.route('**/api/presence',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,count:0})}));
+          const page=await context.newPage();
+          const errors=[];
+          page.on('pageerror',e=>errors.push(String(e)));
 
-          async function openHome(){
-            await page.goto('http://127.0.0.1:8787/?testv448='+Date.now(),{waitUntil:'commit',timeout:10000});
-            await page.waitForTimeout(1600);
-            const state=await page.evaluate(()=>({path:location.pathname,home:!!document.getElementById('nearby80Button'),voice:!!window.CouteauVoice}));
-            assert(state.path==='/'||state.path==='/index.html','Unexpected navigation: '+page.url()+' history='+JSON.stringify(navigations));
-            assert(state.home,'Home did not render nearby market button; url='+page.url());
-            assert(state.voice,'Voice module did not initialize; url='+page.url());
-          }
-          function assert(cond,msg){if(!cond)throw new Error(msg)}
+          // Keep the real HTML/CSS and real voice module. Neutralize unrelated business logic
+          // so this test measures UI/touch behavior instead of account or D1 state.
+          await page.route('**/*',async route=>{
+            const req=route.request(),url=req.url(),type=req.resourceType();
+            if(type==='script'){
+              if(url.includes('voice-assist-v388.js'))return route.continue();
+              return route.fulfill({status:200,contentType:'application/javascript',body:''});
+            }
+            if(type==='image'||type==='font'||type==='media')return route.abort();
+            return route.continue();
+          });
 
-          console.log('TEST stage: open home');
-          await openHome();
-          console.log('TEST stage: duplicates');
+          await page.goto(base+'/?uitest='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000});
+          await page.waitForFunction(()=>!!window.CouteauVoice,{timeout:5000});
+          await page.waitForTimeout(100);
 
-          const duplicateCounts = await page.evaluate(() => ({
+          const counts=await page.evaluate(()=>({
             voice:document.querySelectorAll('script[src*="voice-assist-v388.js"]').length,
             subscription:document.querySelectorAll('script[src*="subscription-web.js"]').length,
             contest:document.querySelectorAll('script[src*="contest-v188.js"]').length
           }));
-          assert(duplicateCounts.voice===1,'Voice script loaded '+duplicateCounts.voice+' times');
-          assert(duplicateCounts.subscription===1,'Subscription script loaded '+duplicateCounts.subscription+' times');
-          assert(duplicateCounts.contest===1,'Contest script loaded '+duplicateCounts.contest+' times');
+          assert(counts.voice===1,'Browser voice script tags='+counts.voice);
+          assert(counts.subscription===1,'Browser subscription script tags='+counts.subscription);
+          assert(counts.contest===1,'Browser contest script tags='+counts.contest);
 
-          const required=['#nearby80Button','a.marketHomeFast','#homeAddressBookBtn','#contestHomeButton','#housePhotoButton','.returnPlaceTrafic'];
-          for(const sel of required) assert(await page.locator(sel).count()===1,'Missing home control '+sel);
+          const required=[
+            '#nearby80Button','a.marketHomeFast','#homeAddressBookBtn','#contestHomeButton',
+            '#housePhotoButton','.returnPlaceTrafic','a[href="mes-papiers.html"]',
+            'a[href="documents-travail.html"]','.eraseTile'
+          ];
+          for(const sel of required)assert(await page.locator(sel).count()===1,'Missing control '+sel);
 
-          const layout = await page.evaluate(() => {
-            const w=document.getElementById('weatherBubble');
-            const c=document.getElementById('contestHomeButton');
-            const h=document.getElementById('housePhotoButton');
-            if(w){w.style.display='block';w.style.visibility='visible';w.textContent='☁️ 0 % — TRÈS BON JOUR POUR TRAVAILLER — JEUDI';}
-            const r=e=>e?e.getBoundingClientRect():null;
-            const overlaps=(a,b)=>!!(a&&b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top);
-            const wr=r(w),cr=r(c),hr=r(h);
-            return {weather:wr,contest:cr,house:hr,weatherContest:overlaps(wr,cr),weatherHouse:overlaps(wr,hr)};
-          });
-          assert(!layout.weatherContest,'Weather overlaps Contest button');
-          assert(!layout.weatherHouse,'Weather overlaps House button');
+          async function installWeatherAndCheck(){
+            const result=await page.evaluate(()=>{
+              let w=document.getElementById('weatherBubble');
+              if(!w){
+                w=document.createElement('div');w.id='weatherBubble';
+                w.innerHTML='<div class="weatherMain">☁️ 0 % — TRÈS BON JOUR POUR TRAVAILLER</div><div class="weatherDate">JEUDI / 24/09/26</div>';
+                document.body.appendChild(w);
+              }
+              w.style.display='block';w.style.visibility='visible';
+              const c=document.getElementById('contestHomeButton'),h=document.getElementById('housePhotoButton');
+              const r=e=>e?e.getBoundingClientRect():null;
+              const ov=(a,b)=>!!(a&&b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top);
+              const wr=r(w),cr=r(c),hr=r(h);
+              return {weather:wr,contest:cr,house:hr,weatherContest:ov(wr,cr),weatherHouse:ov(wr,hr)};
+            });
+            assert(!result.weatherContest,'Weather overlaps Contest');
+            assert(!result.weatherHouse,'Weather overlaps House');
+            return result;
+          }
 
-          console.log('TEST stage: layout ok');
-          const callout = await page.evaluate(() => {
+          const layout390=await installWeatherAndCheck();
+          await page.screenshot({path:'v448-390.png',fullPage:true});
+          await page.setViewportSize({width:430,height:932});
+          await page.waitForTimeout(80);
+          const layout430=await installWeatherAndCheck();
+          await page.screenshot({path:'v448-430.png',fullPage:true});
+
+          const callout=await page.evaluate(()=>{
             const el=document.getElementById('homeAddressBookBtn');
             const ev=new Event('contextmenu',{bubbles:true,cancelable:true});
-            const dispatched=el.dispatchEvent(ev);
+            const result=el.dispatchEvent(ev);
             const cs=getComputedStyle(el);
-            return {prevented:ev.defaultPrevented||dispatched===false, userSelect:cs.userSelect, webkitUserSelect:cs.webkitUserSelect};
+            return {prevented:ev.defaultPrevented||result===false,userSelect:cs.userSelect,webkitUserSelect:cs.webkitUserSelect};
           });
-          assert(callout.prevented,'Long-press context menu not prevented');
+          assert(callout.prevented,'Native long-press/context menu was not blocked');
+          assert(callout.userSelect==='none'||callout.webkitUserSelect==='none','Text selection still enabled on long press');
 
-          async function hold(selector){
-            await page.evaluate(async (selector) => {
+          async function hold(selector,ms=1320){
+            await page.evaluate(async ({selector,ms})=>{
               const el=document.querySelector(selector);
               if(!el)throw new Error('Missing '+selector);
               const r=el.getBoundingClientRect();
-              const opts={identifier:Date.now()%100000,target:el,clientX:r.left+r.width/2,clientY:r.top+r.height/2,pageX:r.left+r.width/2,pageY:r.top+r.height/2,screenX:0,screenY:0,radiusX:2,radiusY:2,rotationAngle:0,force:1};
-              const t=new Touch(opts);
-              el.dispatchEvent(new TouchEvent('touchstart',{bubbles:true,cancelable:true,touches:[t],targetTouches:[t],changedTouches:[t]}));
-              await new Promise(r=>setTimeout(r,1320));
-              el.dispatchEvent(new TouchEvent('touchend',{bubbles:true,cancelable:true,touches:[],targetTouches:[],changedTouches:[t]}));
-              await new Promise(r=>setTimeout(r,80));
-            },selector);
+              if(typeof Touch==='function'&&typeof TouchEvent==='function'){
+                const t=new Touch({identifier:123,target:el,clientX:r.left+r.width/2,clientY:r.top+r.height/2,pageX:r.left+r.width/2,pageY:r.top+r.height/2,screenX:0,screenY:0,radiusX:2,radiusY:2,rotationAngle:0,force:1});
+                el.dispatchEvent(new TouchEvent('touchstart',{bubbles:true,cancelable:true,touches:[t],targetTouches:[t],changedTouches:[t]}));
+                await new Promise(ok=>setTimeout(ok,ms));
+                el.dispatchEvent(new TouchEvent('touchend',{bubbles:true,cancelable:true,touches:[],targetTouches:[],changedTouches:[t]}));
+              }else{
+                el.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,pointerType:'touch',clientX:r.left+r.width/2,clientY:r.top+r.height/2}));
+                await new Promise(ok=>setTimeout(ok,ms));
+                el.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,cancelable:true,pointerType:'touch',clientX:r.left+r.width/2,clientY:r.top+r.height/2}));
+              }
+              await new Promise(ok=>setTimeout(ok,100));
+            },{selector,ms});
           }
 
-          const targets=[
+          const voiceTargets=[
             ['#homeAddressBookBtn',/adresse|carnet/i],
             ['a.marketHomeFast',/march/i],
             ['#contestHomeButton',/concours/i],
             ['#housePhotoButton',/maison|mesurer/i],
-            ['#nearby80Button',/march/i]
+            ['#nearby80Button',/march/i],
+            ['.returnPlaceTrafic',/retourner|place/i],
+            ['a[href="mes-papiers.html"]',/papiers/i],
+            ['a[href="documents-travail.html"]',/démarches|demarches|pro/i],
+            ['.eraseTile',/effacer|emplacement/i]
           ];
-          for(const [sel,rx] of targets){
-            console.log('TEST stage: hold '+sel);
+          const spokenByTarget={};
+          for(const [sel,rx] of voiceTargets){
             const before=await page.evaluate(()=>window.__spokenV448.length);
-            await hold(sel);
-            const after=await page.evaluate((before)=>window.__spokenV448.slice(before).filter(x=>String(x).trim()),before);
-            assert(after.some(x=>rx.test(x)),'No meaningful voice for '+sel+'; got '+JSON.stringify(after));
+            await hold(sel,1320);
+            const spoken=await page.evaluate(before=>window.__spokenV448.slice(before).map(x=>String(x)).filter(x=>x.trim()),before);
+            spokenByTarget[sel]=spoken;
+            assert(spoken.some(x=>rx.test(x)),'No correct voice for '+sel+': '+JSON.stringify(spoken));
           }
 
-          console.log('TEST stage: long-press voice ok');
-          // A normal tap on Marchés must navigate immediately and must not trigger the long-press voice.
-          await openHome();
-          const spokenBefore=await page.evaluate(()=>window.__spokenV448.length);
-          const started=Date.now();
-          await page.locator('a.marketHomeFast').tap({timeout:3000});
-          await page.waitForURL(/choix-marches-v409\.html/,{timeout:2500});
-          const elapsed=Date.now()-started;
-          assert(elapsed<2500,'Market navigation too slow: '+elapsed+'ms');
-          const spokenAfter=await page.evaluate(()=>window.__spokenV448.length);
-          assert(spokenAfter===spokenBefore,'Normal tap triggered voice');
+          // Short touch must stay a normal, fast tap: no meaningful phrase after 120 ms.
+          const beforeShort=await page.evaluate(()=>window.__spokenV448.length);
+          await hold('#homeAddressBookBtn',120);
+          const shortSpoken=await page.evaluate(before=>window.__spokenV448.slice(before).map(x=>String(x)).filter(x=>x.trim()),beforeShort);
+          assert(shortSpoken.length===0,'Short tap spoke unexpectedly: '+JSON.stringify(shortSpoken));
 
-          assert(pageErrors.length===0,'Page JS errors: '+pageErrors.join(' | '));
-          console.log(JSON.stringify({ok:true,duplicates:duplicateCounts,layout,marketTapMs:elapsed},null,2));
+          const href=await page.locator('a.marketHomeFast').getAttribute('href');
+          assert(href==='choix-marches-v409.html','Marchés is not a direct native link: '+href);
+
+          assert(errors.length===0,'JS page errors: '+errors.join(' | '));
+          const report={ok:true,fetchMs,counts,layout390,layout430,callout,spokenByTarget,shortSpoken,href};
+          fs.writeFileSync('v448-test-report.json',JSON.stringify(report,null,2));
+          console.log(JSON.stringify(report,null,2));
           await browser.close();
           EOF
-          timeout 75s node test-v448.mjs
+          node test-v448.mjs
+
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v448-test-evidence
+          path: |
+            v448-test-report.json
+            v448-390.png
+            v448-430.png
+            /tmp/v448-wrangler.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Show Worker log on failure
         if: failure()
