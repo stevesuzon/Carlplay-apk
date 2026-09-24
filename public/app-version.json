@@ -1,4 +1,4 @@
 {
-  "version": "V446",
-  "message": "V446 : boutons plus réactifs, surtout Marchés. Le bouton principal Marchés utilise maintenant une navigation native immédiate, les boutons utilisent le mode tactile rapide iPhone, et la voix ne prépare plus une synthèse complète à chaque simple toucher : elle ne parle qu’après 1,20 seconde d’appui long."
+  "version": "V447",
+  "message": "V447 : correction de l’accueil. La météo ne recouvre plus les boutons Concours et Mesurer une maison, elle ne peut plus bloquer les touchers, et les grandes images de l’accueil disposent maintenant d’un chargement prioritaire avec une image de secours si le gros fichier tarde ou échoue."
 }
