@@ -1,4 +1,4 @@
 {
-  "version": "V437",
-  "message": "V437 : les données de fiches marché restent sur le serveur après les mises à jour. Les horaires récupérés sur Jours-de-Marché commencent 30 minutes plus tôt et, avec les nombres de commerçants disponibles, sont verrouillés pour les utilisateurs. Les champs confirmés restent visibles avec un bouton pour signaler un problème à l’administrateur. Dans Administration > Voir les fiches de marché : compteur renseigné / total, aperçu photo avant ouverture, déblocage photo/GPS/champs et modification administrateur."
+  "version": "V438",
+  "message": "V438 : les fiches marché utilisent maintenant une identité stable qui ne dépend plus de l’adresse. Les GPS, photos, horaires et renseignements déjà confirmés sont migrés sur cette identité stable et restent retrouvables après les mises à jour de données. Les fonctions V437 restent actives : horaires Jours-de-Marché -30 min, verrouillage des champs, aperçu photo et déblocage administrateur, compteur renseigné / total."
 }

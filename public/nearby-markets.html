@@ -96,7 +96,7 @@
 
   const norm = v => String(v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
   const cleanCardText = v => String(v ?? '').replace(/\s+officiellement\b/gi,'').replace(/\s*[,;:-]?\s*GPS\s+[àa]\s+confirmer\s+sur\s+place\b/gi,'').replace(/\s{2,}/g,' ').trim();
-  const identity = (country,row) => [country,row?.[0],row?.[2],row?.[3],row?.[4],row?.[8]||''].join('|');
+  const identity = (country,row) => [country,row?.[0],row?.[2],row?.[3],row?.[4]].join('|');
   const isServerDisabled = (country,row) => { const key=identity(country,row); if(disabledKeys.has(key)) return true; try{return localStorage.getItem('marketPresenceV174:'+key)==='non'}catch(e){return false} };
   async function loadDisabledKeys(){
     try{

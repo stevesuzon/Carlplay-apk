@@ -1091,7 +1091,7 @@ async function listMarkets(env) {
   const removed = await env.DB.prepare("SELECT market_key FROM market_verification_consensus WHERE field='exists' AND lower(value_norm)='non'").all();
   const disabled = new Set((removed.results || []).map(r => String(r.market_key || '')));
   const markets = (result.results || []).filter(m => {
-    const key = [String(m.country || '').toLowerCase(),m.area,m.name,m.city,m.day,m.address || ''].join('|');
+    const key = [String(m.country || '').toLowerCase(),m.area,m.name,m.city,m.day].join('|');
     return !disabled.has(key) && !storedMarketExpired(m);
   }).map(m=>isJdmSource(m)?{...m,hours:jdmEffectiveHours(m)}:m);
   const latest = (result.results || []).reduce((m,r) => String(r.updated_at || '') > m ? String(r.updated_at || '') : m, '');
@@ -1706,9 +1706,57 @@ async function ensureMarketVerificationTables(env) {
     market_key TEXT PRIMARY KEY, latitude REAL NOT NULL, longitude REAL NOT NULL, address TEXT NOT NULL DEFAULT '',
     confirmations INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`).run();
+  await migrateMarketKeysV438(env);
 }
 
-function cleanMarketKey(value) { return String(value || "").replace(/[\u0000-\u001f]/g, "").trim().slice(0, 500); }
+function stableMarketKeyValue(value){
+  let v=String(value||"").replace(/[\u0000-\u001f]/g,"").trim().slice(0,500);
+  if(!v)return"";
+  if(v.startsWith("marketVerifyV9:")){
+    let raw=v.slice("marketVerifyV9:".length),country="";
+    const c=raw.indexOf(":");
+    if(c>0&&/^(fr|be)$/i.test(raw.slice(0,c))){country=raw.slice(0,c).toLowerCase();raw=raw.slice(c+1)}
+    const p=raw.split("|");
+    if(country&&p.length>=5)return[country,p[0]||"",p[2]||"",p[3]||"",p[4]||""].join("|").slice(0,500);
+  }
+  const p=v.split("|");
+  return p.length>=5?p.slice(0,5).join("|").slice(0,500):v;
+}
+function cleanMarketKey(value){return stableMarketKeyValue(value)}
+async function migrateOneLegacyMarketKeyV438(env,oldKey){
+  oldKey=String(oldKey||"");const stable=stableMarketKeyValue(oldKey);if(!oldKey||!stable||stable===oldKey)return false;
+  const pairs=[
+    [`INSERT OR IGNORE INTO market_verification_consensus(market_key,field,value_norm,value_display,confirmations,updated_at) SELECT ?,field,value_norm,value_display,confirmations,updated_at FROM market_verification_consensus WHERE market_key=?`,"market_verification_consensus"],
+    [`INSERT OR IGNORE INTO market_verification_votes(market_key,field,value_norm,value_display,device_id,ip_hash,created_at,updated_at) SELECT ?,field,value_norm,value_display,device_id,ip_hash,created_at,updated_at FROM market_verification_votes WHERE market_key=?`,"market_verification_votes"],
+    [`INSERT OR IGNORE INTO market_photo_metadata(market_key,object_key,mime_type,device_id,user_latitude,user_longitude,market_latitude,market_longitude,distance_meters,quality_score,stall_count,ai_reason,replacement_count,captured_at,updated_at) SELECT ?,object_key,mime_type,device_id,user_latitude,user_longitude,market_latitude,market_longitude,distance_meters,quality_score,stall_count,ai_reason,replacement_count,captured_at,updated_at FROM market_photo_metadata WHERE market_key=?`,"market_photo_metadata"],
+    [`INSERT OR IGNORE INTO market_photo_blobs(market_key,data_base64,mime_type,updated_at) SELECT ?,data_base64,mime_type,updated_at FROM market_photo_blobs WHERE market_key=?`,"market_photo_blobs"],
+    [`INSERT OR IGNORE INTO market_photo_uploads(market_key,device_id,uploaded_at) SELECT ?,device_id,uploaded_at FROM market_photo_uploads WHERE market_key=?`,"market_photo_uploads"],
+    [`INSERT OR IGNORE INTO market_location_consensus(market_key,latitude,longitude,address,confirmations,updated_at) SELECT ?,latitude,longitude,address,confirmations,updated_at FROM market_location_consensus WHERE market_key=?`,"market_location_consensus"],
+    [`INSERT OR IGNORE INTO market_location_votes(market_key,device_id,latitude,longitude,accuracy,address,created_at,updated_at) SELECT ?,device_id,latitude,longitude,accuracy,address,created_at,updated_at FROM market_location_votes WHERE market_key=?`,"market_location_votes"]
+  ];
+  for(const pair of pairs){
+    try{await env.DB.prepare(pair[0]).bind(stable,oldKey).run();await env.DB.prepare("DELETE FROM "+pair[1]+" WHERE market_key=?").bind(oldKey).run()}catch(_){}
+  }
+  return true;
+}
+async function migrateMarketKeysV438(env){
+  try{
+    await env.DB.prepare("CREATE TABLE IF NOT EXISTS market_schema_migrations(key TEXT PRIMARY KEY,done_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
+    const done=await env.DB.prepare("SELECT key FROM market_schema_migrations WHERE key='stable-market-key-v438' LIMIT 1").first();
+    if(done)return;
+    const rows=await env.DB.prepare(`SELECT market_key FROM (
+      SELECT market_key FROM market_verification_consensus
+      UNION SELECT market_key FROM market_verification_votes
+      UNION SELECT market_key FROM market_photo_metadata
+      UNION SELECT market_key FROM market_photo_blobs
+      UNION SELECT market_key FROM market_photo_uploads
+      UNION SELECT market_key FROM market_location_consensus
+      UNION SELECT market_key FROM market_location_votes
+    ) LIMIT 5000`).all();
+    for(const row of rows.results||[])await migrateOneLegacyMarketKeyV438(env,row.market_key);
+    await env.DB.prepare("INSERT OR REPLACE INTO market_schema_migrations(key,done_at) VALUES('stable-market-key-v438',CURRENT_TIMESTAMP)").run();
+  }catch(_){}
+}
 
 function normalizedVerification(field, raw) {
   const value = String(raw == null ? "" : raw).trim();
@@ -2025,7 +2073,7 @@ async function adminMarketVerificationForms(request, env) {
   const url=new URL(request.url),limit=Math.max(50,Math.min(300,Number(url.searchParams.get('limit')||200)||200)),offset=Math.max(0,Number(url.searchParams.get('offset')||0)||0);
 
   const totalRow=await env.DB.prepare("SELECT COUNT(*) AS n FROM imported_markets").first();
-  const currentKeySql="lower(COALESCE(country,''))||'|'||COALESCE(area,'')||'|'||COALESCE(name,'')||'|'||COALESCE(city,'')||'|'||COALESCE(day,'')||'|'||COALESCE(address,'')";
+  const currentKeySql="lower(COALESCE(country,''))||'|'||COALESCE(area,'')||'|'||COALESCE(name,'')||'|'||COALESCE(city,'')||'|'||COALESCE(day,'')";
   let informedCount=0;
   try{
     const informed=await env.DB.prepare(`SELECT COUNT(*) AS n FROM imported_markets
@@ -2040,7 +2088,7 @@ async function adminMarketVerificationForms(request, env) {
   const page=await env.DB.prepare(`SELECT country,area,kind,name,city,day,hours,address,merchants,source_url,note,updated_at
     FROM imported_markets ORDER BY country,area,city,name,day LIMIT ? OFFSET ?`).bind(limit,offset).all();
   const forms=(page.results||[]).map(row=>{
-    const marketKey=[String(row.country||'').toLowerCase(),row.area||'',row.name||'',row.city||'',row.day||'',row.address||''].join('|');
+    const marketKey=[String(row.country||'').toLowerCase(),row.area||'',row.name||'',row.city||'',row.day||''].join('|');
     return{
       marketKey,country:String(row.country||'').toLowerCase(),area:String(row.area||''),kind:String(row.kind||'marche'),
       name:String(row.name||'Marché'),city:String(row.city||''),day:String(row.day||''),address:String(row.address||''),
