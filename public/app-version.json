@@ -1,4 +1,4 @@
 {
-  "version": "V439",
-  "message": "V439 : correction prioritaire des trois problèmes signalés. ABONNEMENT se charge directement et peut être rechargé au toucher, CONCOURS possède maintenant un bouton direct qui recharge son module si nécessaire, et Voir les fiches de marché charge les fiches par petits lots pour éviter l’erreur iPhone. La migration des anciennes fiches se fait progressivement en arrière-plan sans bloquer l’administration."
+  "version": "V440",
+  "message": "V440 : correction du blocage général des boutons de l’accueil. La session administrateur reconnue sur le téléphone contourne correctement le verrou d’abonnement, et les fichiers d’accueil sont rechargés avec une nouvelle version de cache."
 }
