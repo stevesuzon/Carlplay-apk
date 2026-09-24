@@ -2,7 +2,7 @@
   'use strict';
   var KEY='carplay_voice_enabled_v387';
   var PRESS_MS=1200;
-  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='',voiceAwakeV423=false;
+  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='',voiceAwakeV423=false,gesturePrimedV442=false,touchSpeechStartedV442=false;
   function installNoSelectV389(){
     if(document.getElementById('carplayVoiceNoSelectV389'))return;
     var st=document.createElement('style');
@@ -19,6 +19,8 @@
     try{localStorage.setItem(KEY,on?'1':'0')}catch(_){}
     try{document.cookie='carplay_voice_enabled='+(on?'1':'0')+'; path=/; max-age=31536000; SameSite=Lax'}catch(_){}
     syncSetting();
+    if(on)primeVoiceV396();
+    else{try{if(window.speechSynthesis)window.speechSynthesis.cancel()}catch(_){}}
     try{window.dispatchEvent(new CustomEvent('carplay-voice-change',{detail:{enabled:!!on}}))}catch(_){}
   }
   function clean(s){return String(s||'').replace(/\s+/g,' ').trim()}
@@ -166,6 +168,18 @@
       window.speechSynthesis.speak(primeUtteranceV396);
     }catch(_){}
   }
+  function primeFromGestureV442(){
+    if(!enabled()||gesturePrimedV442||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
+    try{
+      window.speechSynthesis.cancel();window.speechSynthesis.resume();loadPreferredVoice();
+      var u=new SpeechSynthesisUtterance('\u00a0');primeUtteranceV396=u;
+      u.lang='fr-FR';u.volume=1;u.rate=1;u.pitch=1;if(preferredVoice)u.voice=preferredVoice;
+      u.onstart=function(){gesturePrimedV442=true;voiceAwakeV423=true};
+      u.onend=function(){primeUtteranceV396=null;gesturePrimedV442=true;voiceAwakeV423=true};
+      u.onerror=function(){primeUtteranceV396=null;gesturePrimedV442=false;voiceAwakeV423=false};
+      window.speechSynthesis.speak(u);gesturePrimedV442=true;
+    }catch(_){gesturePrimedV442=false}
+  }
   function wakeSpeechV423(){
     if(!enabled()||voiceAwakeV423||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
     try{
@@ -182,7 +196,7 @@
     }catch(_){voiceAwakeV423=false}
   }
   function resetSpeechV423(){
-    voiceAwakeV423=false;
+    voiceAwakeV423=false;gesturePrimedV442=false;touchSpeechStartedV442=false;
     preferredVoice=null;
     try{if(window.speechSynthesis){window.speechSynthesis.cancel();window.speechSynthesis.resume()}}catch(_){}
     loadPreferredVoice();
@@ -220,7 +234,7 @@
   }
   function begin(e){
     if(e&&e.pointerType==='touch')return;
-    wakeSpeechV423();
+    primeFromGestureV442();wakeSpeechV423();
     var card=eligibleTarget(e);if(!card)return;active=card;fired=false;startX=Number(e.clientX||0);startY=Number(e.clientY||0);clearTimeout(timer);
     timer=setTimeout(function(){if(active)fireLongPress(active)},PRESS_MS);
   }
@@ -286,16 +300,16 @@
   }
   function touchBeginV394(e){
     if(!enabled()||!e.target||!e.target.closest)return;
-    wakeSpeechV423();
-    var target=eligibleTarget(e);
-    if(!target)return;
+    primeFromGestureV442();wakeSpeechV423();
+    var target=eligibleTarget(e);if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
-    active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV400(target);
+    active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchSpeechStartedV442=false;touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV400(target);
     timer=setTimeout(function(){
       if(active){
-        touchReadyV395=true;
-        suppressAllClicksUntilV398=Date.now()+4000;
-        toast('🔊 Relâchez pour écouter');
+        touchReadyV395=true;fired=true;suppressClickTarget=active;
+        suppressClickUntil=Date.now()+2500;suppressAllClicksUntilV398=Date.now()+2500;
+        try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
+        touchSpeechStartedV442=!!resumeTouchSpeechV400(active);
       }
     },PRESS_MS);
   }
@@ -318,15 +332,12 @@
     var isLong=!!(target&&(touchReadyV395||held>=PRESS_MS));
     clearTimeout(timer);timer=0;active=null;
     if(isLong){
-      fired=true;
-      suppressClickTarget=target;
-      suppressClickUntil=Date.now()+2500;
-      suppressAllClicksUntilV398=Date.now()+2500;
+      fired=true;suppressClickTarget=target;suppressClickUntil=Date.now()+2500;suppressAllClicksUntilV398=Date.now()+2500;
       blockLongPressReleaseV397(e);
-      resumeTouchSpeechV400(target);
+      if(!touchSpeechStartedV442)touchSpeechStartedV442=!!resumeTouchSpeechV400(target);
     }
     if(!isLong)cancelTouchSpeechV400();
-    touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;
+    touchTargetV398=null;touchReadyV395=false;touchSpeechStartedV442=false;touchStartedAtV395=0;
     setTimeout(function(){fired=false},160);
   }
   function syncSetting(){
@@ -337,8 +348,8 @@
     if(s)s.textContent=on?'🔊 Voix activée — appui long 1,20 seconde sur une fiche ou un bouton.':'🔇 Voix désactivée.';
   }
   function initSetting(){
-    loadPreferredVoice();
-    syncSetting();
+    loadPreferredVoice();syncSetting();
+    if(enabled())setTimeout(primeVoiceV396,0);
     var t=document.getElementById('voiceAssistToggle');
     if(t&&!t.dataset.voiceWired){
       if(window.voiceSettingsDirect){
@@ -379,13 +390,13 @@
   document.addEventListener('touchstart',touchBeginV394,{capture:true,passive:true});
   document.addEventListener('touchmove',touchMoveV394,{capture:true,passive:true});
   document.addEventListener('touchend',touchEndV394,{capture:true,passive:false});
-  document.addEventListener('touchcancel',function(){cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;},{capture:true,passive:true});
+  document.addEventListener('touchcancel',function(){cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchSpeechStartedV442=false;touchStartedAtV395=0;},{capture:true,passive:true});
   document.addEventListener('pointerdown',begin,true);document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',cancel,true);
   document.addEventListener('contextmenu',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSetting);else initSetting();
   window.addEventListener('storage',syncSetting);if(window.speechSynthesis)window.speechSynthesis.addEventListener&&window.speechSynthesis.addEventListener('voiceschanged',loadPreferredVoice);
-  window.addEventListener('pageshow',function(){resetSpeechV423()});
-  document.addEventListener('visibilitychange',function(){if(!document.hidden)resetSpeechV423()});
-  window.addEventListener('focus',function(){if(enabled())resetSpeechV423()});
-  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS};
+  window.addEventListener('pageshow',function(){resetSpeechV423();if(enabled())setTimeout(primeVoiceV396,0)});
+  document.addEventListener('visibilitychange',function(){if(!document.hidden){resetSpeechV423();if(enabled())setTimeout(primeVoiceV396,0)}});
+  window.addEventListener('focus',function(){if(enabled()){resetSpeechV423();setTimeout(primeVoiceV396,0)}});
+  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,prime:primeFromGestureV442,pressMs:PRESS_MS};
 })();
