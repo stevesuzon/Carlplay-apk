@@ -160,7 +160,20 @@ body.homePage.homeChromeHidden #directArticle{opacity:1!important;pointer-events
 
 button,a,[role="button"],[onclick],.card,.small{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 button:active,a:active,[role="button"]:active,[onclick]:active,.card:active,.small:active{transform:scale(.985)}
-.marketHomeFast{color:inherit;text-decoration:none}
+.marketHomeFast,.marketHomeFast:focus,.marketHomeFast:focus-visible,.marketHomeFast:active{
+  color:inherit!important;
+  text-decoration:none!important;
+  outline:0!important;
+  -webkit-tap-highlight-color:transparent!important;
+  -webkit-touch-callout:none!important;
+  -webkit-user-select:none!important;
+  user-select:none!important;
+  background:linear-gradient(145deg,#05aaff,#1934d7)!important;
+  border:2px solid #ffffff55!important;
+  box-shadow:0 8px 24px #0007!important;
+}
+.marketHomeFast *{-webkit-touch-callout:none!important;-webkit-user-select:none!important;user-select:none!important}
+.marketHomeFast:active{transform:scale(.985)!important}
 @media(max-width:720px){#homeDepartmentSearch{margin:-38px 0 9px}#nearby80Button{min-height:56px;font-size:15px;padding:9px 12px}#nearby80Button .pencil{font-size:22px}}
 .addressBookTile{position:relative;overflow:hidden;cursor:pointer;padding:0!important;background:#08752f!important}
 .addressBookTitle{display:none!important}
@@ -901,11 +914,16 @@ opacity:.9;
     <span class="nearText">MARCHÉS À MOINS DE 150 KM</span>
   </button>
 </section><div class="grid homeDesignGrid">
-  <a class="card blue marketHomeFast" href="choix-marches-v409.html" aria-label="Marchés, foires, Noël et brocantes">
+  <div class="card blue marketHomeFast" role="button" tabindex="0"
+       aria-label="Marchés, foires, Noël et brocantes"
+       data-voice-card="button"
+       data-voice-text="Marchés. Foires, Noël et brocantes."
+       onclick="location.href='choix-marches-v409.html'"
+       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='choix-marches-v409.html'}">
     <div class="tag">FRANCE + BELGIQUE</div>
     <div class="vehicleVisual"><img src="master-front-transparent.png?v=448-stable" alt="Marchés" loading="lazy" decoding="async" fetchpriority="low" onerror="this.onerror=null;this.src='master-front.jpg?v=448-fallback'"></div>
     <div class="marketText"><div class="title">MARCHÉS</div><div class="marketKinds">FOIRES • NOËL • BROCANTES</div></div>
-  </a>
+  </div>
   <div id="homeAddressBookBtn" class="card orange addressBookTile" role="button" tabindex="0" aria-label="Adresse. Ouvrir le carnet d’adresses" data-voice-help="Adresse. Ouvrir le carnet d’adresses.">
     <span class="addressFallbackV448">📒<br>CARNET D’ADRESSES</span>
     <img class="addressButtonFull" src="address-button.png?v=448-stable" alt="Adresse" loading="lazy" decoding="async" fetchpriority="low" onerror="this.onerror=null;this.src='/autoradio-assets-v386/address.svg?v=448-fallback'">
