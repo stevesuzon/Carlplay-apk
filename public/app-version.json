@@ -1,4 +1,4 @@
 {
-  "version": "V450",
-  "message": "V450 : correction du système de cache. Les mises à jour ne vident plus brutalement tous les caches et ne préchargent plus toute l’application pendant l’activation. Seuls les anciens caches sont supprimés, les caches courants sont conservés, et les fichiers de code utilisent le réseau en priorité pour éviter les anciennes versions."
+  "version": "V451",
+  "message": "V451 : correction du bouton Marchés. Le cadre blanc iPhone a été supprimé, le bouton n’est plus traité comme un lien Safari lors de l’appui long, et la lecture vocale annonce « Marchés. Foires, Noël et brocantes. » après 1,20 seconde."
 }
