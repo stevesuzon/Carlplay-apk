@@ -1,4 +1,4 @@
 {
-  "version": "V434",
-  "message": "V434 : nettoyage définitif des anciens affichages. Le vieux bouton MAIL et son ancien formulaire ont été retirés du site, les anciens fichiers d’affichage et correctifs inutilisés ont été supprimés, et les caches effacent maintenant ces anciennes ressources. CONCOURS et ABONNEMENT restent sur l’affichage actuel."
+  "version": "V454",
+  "message": "V454 : retour du bouton vocal tactile fiable sur iPhone, sans toucher à la base stable. Après un appui long de 1,20 seconde, la voix est tentée. Si iOS bloque le son, le bouton bleu « TOUCHER POUR ÉCOUTER » apparaît ; un appui dessus déclenche la lecture. La voix est chargée sur toutes les pages téléphone et un appui normal continue d’ouvrir le bouton normalement."
 }
