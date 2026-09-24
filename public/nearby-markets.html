@@ -385,7 +385,7 @@
     const period=showTomorrow?'demain':'aujourd’hui';
     const countText=count+' résultat'+(count>1?'s':'')+' à moins de '+LIMIT_KM+' km';
     const main='MARCHÉS '+(showTomorrow?'DE DEMAIN':'AUJOURD’HUI');
-    const extra='Et les brocantes, braderies, foires et marchés de Noël dans les 30 prochains jours.';
+    const extra='Brocantes, braderies, foires et marchés de Noël dans les 30 prochains jours.';
     const voice=countText+'. '+main+'. '+extra;
     status.innerHTML='<span class="marketPeriodCount">'+esc(countText)+'</span><span class="marketPeriodMain">'+esc(main)+'</span><span class="marketPeriodExtra">'+esc(extra)+'</span>';
     status.setAttribute('data-voice-help',voice);
