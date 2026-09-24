@@ -99,7 +99,7 @@
     },260);
   }
 
-  var initialMode=readInternal()?"small":"large";
+  var initialMode="large";
 
   function boot(){
     show(initialMode);
@@ -111,6 +111,8 @@
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",boot,{once:true});
   else boot();
 
+  // Navigation interne : ne pas afficher un second petit logo de chargement.
+  // Le nouvel écran affichera uniquement son chargement central.
   document.addEventListener("click",function(ev){
     var a=ev.target&&ev.target.closest?ev.target.closest("a[href]"):null;
     if(!a)return;
@@ -118,21 +120,17 @@
     if(!href||href.charAt(0)==="#"||/^javascript:/i.test(href)||/^mailto:/i.test(href)||/^tel:/i.test(href))return;
     try{
       var u=new URL(a.href,location.href);
-      if(u.origin!==location.origin)return;
-      if(u.href===location.href)return;
-      markInternal();
-      show("small");
+      if(u.origin!==location.origin||u.href===location.href)return;
+      try{sessionStorage.removeItem(INTERNAL_KEY)}catch(_){}
     }catch(_){}
   },true);
 
   document.addEventListener("submit",function(){
-    markInternal();
-    show("small");
+    try{sessionStorage.removeItem(INTERNAL_KEY)}catch(_){}
   },true);
 
   window.addEventListener("beforeunload",function(){
-    markInternal();
-    show("small");
+    try{sessionStorage.removeItem(INTERNAL_KEY)}catch(_){}
   });
 
   window.CouteauPhoneLoading={

@@ -1,4 +1,4 @@
 {
-  "version": "V454",
-  "message": "V454 : retour du bouton vocal tactile fiable sur iPhone, sans toucher à la base stable. Après un appui long de 1,20 seconde, la voix est tentée. Si iOS bloque le son, le bouton bleu « TOUCHER POUR ÉCOUTER » apparaît ; un appui dessus déclenche la lecture. La voix est chargée sur toutes les pages téléphone et un appui normal continue d’ouvrir le bouton normalement."
+  "version": "V455",
+  "message": "V455 : suppression du deuxième logo de chargement. Quand on ouvre Marchés ou une autre page, le petit chargement supplémentaire n’apparaît plus ; seul le chargement principal au milieu reste affiché. La voix V454 avec « TOUCHER POUR ÉCOUTER » reste inchangée."
 }
