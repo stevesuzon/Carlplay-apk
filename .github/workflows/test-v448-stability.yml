@@ -58,6 +58,13 @@ jobs:
 
           await context.addInitScript(() => {
             try {
+              const did='test-device-v448';
+              const identity={firstName:'Test',lastName:'Utilisateur',email:'test-v448@example.com'};
+              localStorage.setItem('carplay_device_id',did);
+              localStorage.setItem('carplay_app_identity_v240',JSON.stringify(identity));
+              localStorage.setItem('carplay_identity_email_verified_v304',JSON.stringify({email:identity.email,deviceId:did,verifiedAt:Date.now()}));
+              localStorage.setItem('carplay_recovery_email',identity.email);
+              sessionStorage.setItem('carplay_install_browser_handoff_v282','1');
               localStorage.setItem('carplay_voice_enabled_v387','1');
               localStorage.setItem('carplay_admin_here','1');
               localStorage.setItem('carplay_notifications_enabled','0');
