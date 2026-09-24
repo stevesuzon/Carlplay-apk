@@ -1,4 +1,4 @@
 {
-  "version": "V459",
-  "message": "Recherche progressive activée chaque heure et compteurs administrateur distinguant catalogue intégré et base dynamique."
+  "version": "V460",
+  "message": "Recherche progressive : départements d’Île-de-France en premier, puis 01, 02 et la suite."
 }
