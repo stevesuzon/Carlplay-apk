@@ -1435,7 +1435,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
         setTimeout(done,1600);
       });
       for(var i=0;i<regs.length;i++){
-        try{await regs[i].update()}catch(_){}
+        try{await Promise.race([regs[i].update(),sleep(2500)])}catch(_){}
       }
       var reg=regs[0];
       if(reg&&reg.waiting){
