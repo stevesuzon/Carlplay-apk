@@ -1351,8 +1351,8 @@ Si Android le demande, autorise l’installation d’applications provenant de c
   </div>
 </div>
 <script>window.updateNetworkStatus=function(){let ok=false;try{ok=window.AndroidStatus?AndroidStatus.hasInternet():navigator.onLine}catch(e){ok=navigator.onLine}network.textContent=ok?'Internet disponible':'Réseau indisponible'};addEventListener('online',updateNetworkStatus);addEventListener('offline',updateNetworkStatus);setInterval(updateNetworkStatus,4000);updateNetworkStatus();function toggleSettings(){settings.classList.toggle('open');const open=settings.classList.contains('open');document.body.classList.toggle('settings-open',open);if(open&&window.CarPlayLocation)window.CarPlayLocation.refresh()}function toggleSection(id,btn){const b=document.getElementById(id),open=b.classList.contains('open');document.querySelectorAll('.settingBody').forEach(x=>x.classList.remove('open'));document.querySelectorAll('.settingHead span:last-child').forEach(x=>x.textContent='⌄');if(!open){b.classList.add('open');btn.querySelector('span:last-child').textContent='⌃'}}function saveGps(v){localStorage.setItem('gps_pref',v);refreshPrefs()}function refreshPrefs(){const g=localStorage.getItem('gps_pref')||'';gpsStatus.textContent=g?'GPS choisi : '+g:'Aucun GPS choisi';gpsWaze.classList.toggle('selected',g==='Waze');gpsGoogle.classList.toggle('selected',g==='Google Maps')}async function _returnPlaceAddress(lat,lon){try{const r=await fetch('/api/place-address?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{cache:'no-store'}),j=await r.json();if(r.ok&&j&&j.address)return String(j.address)}catch(e){}return 'Emplacement enregistré'}async function returnPlace(){let a=localStorage.getItem('return_lat'),o=localStorage.getItem('return_lon');if(!a||!o){if(!navigator.geolocation)return alert('GPS indisponible');navigator.geolocation.getCurrentPosition(async p=>{const lat=p.coords.latitude,lon=p.coords.longitude,address=await _returnPlaceAddress(lat,lon);if(!confirm('Êtes-vous sûr de vouloir enregistrer cet emplacement comme votre place ?\n\n'+address))return;localStorage.setItem('return_lat',lat);localStorage.setItem('return_lon',lon);localStorage.setItem('return_address',address);showStatuses();window.dispatchEvent(new CustomEvent('carplay-return-place-saved',{detail:{lat:lat,lon:lon,address:address}}));alert('✅ Emplacement enregistré\n\n'+address)},e=>{var m=window.CarPlayLocation?window.CarPlayLocation.showHelp(e):'Activez la localisation.';alert(m)},{enableHighAccuracy:true,timeout:15000,maximumAge:0});return}let address=localStorage.getItem('return_address')||'';if(!address||address==='Emplacement enregistré'){address=await _returnPlaceAddress(a,o);localStorage.setItem('return_address',address)}if(!confirm('Êtes-vous sûr de vouloir retourner sur la place ?\n\n'+address))return;const q=a+','+o,pref=localStorage.getItem('gps_pref')||'Google Maps';location.href=pref==='Waze'?'https://waze.com/ul?ll='+encodeURIComponent(q)+'&navigate=yes':'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(q)+'&travelmode=driving&dir_action=navigate'}function clearReturnPlace(){localStorage.removeItem('return_lat');localStorage.removeItem('return_lon');localStorage.removeItem('return_address');showStatuses();alert('Emplacement de retour effacé.')}function showStatuses(){const a=localStorage.getItem('return_address')||'';returnStatus.textContent=localStorage.getItem('return_lat')?(a?'Place enregistrée : '+a:'Place enregistrée.') : ''}async function shareApp(){let u=(location.origin&&location.origin!=='null')?location.origin+'/installer.html':'https://carplay-telephone.appli-suzon.workers.dev/installer.html';try{if(window.CarPlayReferralShareLink)u=await window.CarPlayReferralShareLink()}catch(e){}const data={title:'Couteau Suisse',text:'Je te parraine sur Couteau Suisse. Ajoute l’application à ton écran d’accueil, ouvre-la depuis l’icône puis renseigne nom, prénom et e-mail. Tu recevras un e-mail pour activer tes 96 points. Moi, je gagne 320 points.',url:u};try{if(navigator.share){navigator.share(data).catch(function(e){if(e&&e.name==='AbortError')return;copyShareLink(u)});return}}catch(e){}copyShareLink(u)}function copyShareLink(u){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(function(){alert('Lien de l’application copié. Tu peux maintenant l’envoyer à ton ami.')}).catch(function(){prompt('Copie ce lien et envoie-le à ton ami :',u)});return}}catch(e){}prompt('Copie ce lien et envoie-le à ton ami :',u)}async function forceAppUpdate(){
-  if(window.__manualUpdateV368Running)return;
-  window.__manualUpdateV368Running=true;
+  if(window.__manualUpdateV453Running)return;
+  window.__manualUpdateV453Running=true;
   var overlay=document.getElementById('manualUpdateV368');
   if(!overlay){
     var st=document.getElementById('manualUpdateStyleV368');
@@ -1388,75 +1388,70 @@ Si Android le demande, autorise l’installation d’applications provenant de c
         '<svg class="muSerpette" viewBox="0 0 120 120" aria-hidden="true">'+
           '<rect x="18" y="82" width="63" height="24" rx="11" fill="#218c55" stroke="#0d5834" stroke-width="4"/>'+
           '<text x="49" y="99" text-anchor="middle" font-family="Arial" font-size="13" font-weight="900" fill="#fff">SS</text>'+
-          '<g class="muBlade">'+
-            '<path d="M29 88 C34 59 58 21 105 15 C90 39 67 67 29 88 Z" fill="#eef2f5" stroke="#56636d" stroke-width="3"/>'+
-            '<path d="M38 78 C50 56 70 33 94 25" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>'+
-          '</g>'+
-          '<circle cx="29" cy="88" r="7" fill="#f1f3f5" stroke="#2e3942" stroke-width="3"/>'+
-          '<circle cx="29" cy="88" r="2.5" fill="#2e3942"/>'+
+          '<g class="muBlade"><path d="M29 88 C34 59 58 21 105 15 C90 39 67 67 29 88 Z" fill="#eef2f5" stroke="#56636d" stroke-width="3"/><path d="M38 78 C50 56 70 33 94 25" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/></g>'+
+          '<circle cx="29" cy="88" r="7" fill="#f1f3f5" stroke="#2e3942" stroke-width="3"/><circle cx="29" cy="88" r="2.5" fill="#2e3942"/>'+
         '</svg>'+
       '</div>'+
       '<div class="muTitle">COUTEAU SUISSE</div>'+
       '<div id="manualUpdateLoadingV368" class="muLoading">Chargement…</div>'+
-      '<div id="manualUpdateStageV368" class="muStage">Préparation de la mise à jour…</div>'+
+      '<div id="manualUpdateStageV368" class="muStage">Recherche de la mise à jour…</div>'+
       '<div class="muTrack"><div id="manualUpdateBarV368" class="muBar"></div></div>'+
       '<div id="manualUpdatePctV368" class="muPct">0 %</div>'+
-      '<div id="manualUpdateDetailV368" class="muDetail">Vos données enregistrées restent conservées.</div>'+
+      '<div id="manualUpdateDetailV368" class="muDetail">Vos données et les caches stables restent conservés.</div>'+
       '<button id="manualUpdateCloseV368" class="muClose" type="button">FERMER</button>'+
     '</div>';
     document.body.appendChild(overlay);
   }else overlay.style.display='flex';
+
   var stage=document.getElementById('manualUpdateStageV368'),bar=document.getElementById('manualUpdateBarV368'),pct=document.getElementById('manualUpdatePctV368'),detail=document.getElementById('manualUpdateDetailV368'),close=document.getElementById('manualUpdateCloseV368'),loading=document.getElementById('manualUpdateLoadingV368');
   close.style.display='none';
   function setProgress(n,label,sub){n=Math.max(0,Math.min(100,Math.round(n)));bar.style.width=n+'%';pct.textContent=n+' %';if(label)stage.textContent=label;if(sub!==undefined)detail.textContent=sub}
   function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
-  async function check(url){var x=await fetch(url+(url.indexOf('?')>=0?'&':'?')+'_maj='+Date.now(),{cache:'no-store'});if(!x.ok)throw new Error('HTTP '+x.status);return x}
+  async function fetchVersion(){var r=await fetch('/app-version.json?_maj='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
+
   try{
     if(window.CouteauUserDataSafety&&typeof window.CouteauUserDataSafety.save==='function'){try{await window.CouteauUserDataSafety.save()}catch(_){}}
     if(!navigator.onLine)throw new Error('Pas de connexion Internet.');
-    setProgress(2,'Nettoyage complet…','Suppression des anciens caches de l’application. Vos données personnelles restent conservées.');
-    if('caches' in window){try{var cacheNames=await caches.keys();await Promise.all(cacheNames.filter(function(n){return n!=='carplay-notification-preference-v1'}).map(function(n){return caches.delete(n)}))}catch(_){}}
-    setProgress(3,'Connexion au serveur…','Recherche de la dernière version disponible.');
-    var versionInfo=null;
-    try{versionInfo=await (await check('/app-version.json')).json()}catch(_){versionInfo=null}
-    await sleep(120);
-    setProgress(10,'Vérification de l’application…','Contrôle de la page d’accueil et des réglages.');
-    await check('/index.html');
-    setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications.');
-    await check('/contest-v188.js?v=439-direct');
-    setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique et événements.');
-    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=438-stable-market-key'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=452-global-longpress'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=438-stable-market-key'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
-    setProgress(48,'Vérification des champignons…','Contrôle des fiches Champignons et des coins enregistrés.');
-    await Promise.allSettled([check('/champignons.html'),check('/champignons.js?v=300-concours-auto')]);
-    setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
-    await Promise.allSettled([check('/notification-settings.js?v=282-onboarding-notification-detail'),check('/market-update-notifications-v281.js?v=282')]);
-    setProgress(72,'Vérification du compte…','Contrôle de l’abonnement, de l’identité et des réglages.');
-    await Promise.allSettled([check('/subscription-web.js?v=441-syntax-fix'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
-    setProgress(82,'Recherche de la nouvelle version…','Seuls les fichiers de l’application sont actualisés.');
+
+    // IMPORTANT V453 : ne plus supprimer les caches et ne plus télécharger toute l'application.
+    setProgress(15,'Connexion au serveur…','Vérification de la version disponible, sans vider le cache.');
+    var versionInfo=await fetchVersion();
+
+    setProgress(45,'Mise à jour…','Actualisation du service worker uniquement.');
     if('serviceWorker' in navigator){
-      var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=450-cache-stable',{updateViaCache:'none'})]}catch(_){regs=[]}}
-      for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){}
-      var reg=regs[0];
-      if(reg&&reg.waiting){
-        setProgress(90,'Installation…','Activation des nouveaux fichiers.');
-        reg.waiting.postMessage({type:'SKIP_WAITING'});
-        await Promise.race([new Promise(function(resolve){navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true})}),sleep(1800)]);
+      var reg=await navigator.serviceWorker.getRegistration('/');
+      if(!reg){
+        try{reg=await navigator.serviceWorker.register('/sw.js?v=450-cache-stable',{updateViaCache:'none'})}catch(_){reg=null}
+      }
+      if(reg){
+        try{await reg.update()}catch(_){}
+        if(reg.waiting){
+          setProgress(72,'Installation…','Activation de la nouvelle version.');
+          var changed=new Promise(function(resolve){
+            var done=false;
+            function finish(){if(done)return;done=true;resolve()}
+            navigator.serviceWorker.addEventListener('controllerchange',finish,{once:true});
+            setTimeout(finish,2200);
+          });
+          reg.waiting.postMessage({type:'SKIP_WAITING'});
+          await changed;
+        }
       }
     }
-    setProgress(96,'Finalisation…','Vos adresses, papiers, photos, positions et autres données restent conservés.');
-    await sleep(220);
+
+    setProgress(92,'Finalisation…','Aucun cache courant ni donnée personnelle n’a été supprimé.');
+    await sleep(250);
     var ver=versionInfo&&versionInfo.version?String(versionInfo.version):'';
     if(loading)loading.textContent='Mise à jour terminée';
-    setProgress(100,'✅ PRÊT',ver?'Version '+ver+' installée.':'L’application est à jour.');
-    await sleep(650);
-    window.__manualUpdateV368Running=false;
-    var u=new URL(location.href);u.searchParams.set('maj',Date.now());location.replace(u.toString());
+    setProgress(100,'✅ PRÊT',ver?'Version '+ver+' vérifiée.':'L’application est à jour.');
+    await sleep(600);
+    window.__manualUpdateV453Running=false;
+    location.reload();
   }catch(e){
     if(loading)loading.textContent='Mise à jour interrompue';
     setProgress(0,'⚠️ MISE À JOUR IMPOSSIBLE',e&&e.message?e.message:'Vérifiez votre connexion Internet puis réessayez.');
     close.style.display='block';
-    close.onclick=function(){overlay.style.display='none';window.__manualUpdateV368Running=false};
+    close.onclick=function(){overlay.style.display='none';window.__manualUpdateV453Running=false};
   }
 }function _addressBackupArray(key){try{var v=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(v)?v:[]}catch(e){return []}}
 function _addressBackupIdentity(x){if(!x||typeof x!=='object')return '';var pick=['id','type','documentFolder','firstName','lastName','name','phone','address','street','postalCode','postcode','city','department','province','country','createdAt','date'];return pick.map(function(k){var v=x[k];return v==null?'':String(v).trim().toLowerCase()}).join('|')}
