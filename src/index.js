@@ -1448,6 +1448,15 @@ async function publishMarketMilestones(env){
     await env.DB.prepare('INSERT OR IGNORE INTO market_milestone_events(milestone,breakdown_json,created_at) VALUES(?,?,?)').bind(milestone,JSON.stringify(rows.results||[]),Date.now()).run();
   }
 }
+async function adminMarketSourceCounts(request,env){
+  if(!(await adminAuthorized(request,env)))return json({ok:false,error:'ACCES_REFUSE'},401);
+  if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
+  await ensureMarketTable(env);
+  const markets=await env.DB.prepare("SELECT count(*) AS n FROM (SELECT 1 FROM imported_markets WHERE kind='marche' GROUP BY country,area,lower(trim(city)),lower(trim(name)))").first();
+  const source=await env.DB.prepare("SELECT count(*) AS n FROM (SELECT 1 FROM imported_markets WHERE kind='marche' AND lower(source_url) LIKE '%jours-de-marche.fr%' GROUP BY country,area,lower(trim(city)),lower(trim(name)))").first();
+  const areas=await env.DB.prepare("SELECT area,count(*) AS n FROM (SELECT area,city,name FROM imported_markets WHERE kind='marche' AND lower(source_url) LIKE '%jours-de-marche.fr%' GROUP BY area,lower(trim(city)),lower(trim(name))) GROUP BY area ORDER BY area").all();
+  return json({ok:true,totalMarkets:Number(markets.n||0),fromMarketWebsite:Number(source.n||0),departments:areas.results||[]});
+}
 async function marketMilestoneFeed(url,env){
   if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
   await ensureMarketMilestones(env);
@@ -4635,6 +4644,7 @@ export default {
     if (url.pathname === "/api/markets" && request.method === "GET") return listMarkets(env);
     if (url.pathname === "/api/markets/refresh-status" && request.method === "GET") return marketRefreshStatus(env);
     if (url.pathname === "/api/markets/milestones" && request.method === "GET") return marketMilestoneFeed(url, env);
+    if (url.pathname === "/api/admin/market-source-counts" && request.method === "GET") return adminMarketSourceCounts(request,env);
     if (url.pathname === "/api/admin/markets/import" && request.method === "POST") return importMarkets(request, env);
     if (url.pathname === "/api/admin/market-verification-forms" && request.method === "GET") return adminMarketVerificationForms(request, env);
     if (url.pathname === "/api/market-verifications" && request.method === "GET") return getMarketVerification(url, env);
