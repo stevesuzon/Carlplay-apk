@@ -153,7 +153,7 @@ jobs:
           await page.goto('http://127.0.0.1:8787/?v452normal='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000});
           await page.waitForFunction(()=>!!window.CouteauVoice,{timeout:6000});
           await page.locator('.marketHomeFast').tap({timeout:3000});
-          await page.waitForURL(/choix-marches-v409\.html/,{timeout:3000});
+          await page.waitForURL(/choix-marches-v409(?:\.html)?(?:\?.*)?$/,{timeout:3000});
 
           console.log(JSON.stringify({ok:true,longPressTargets:tests.map(x=>x[0]),shortTap:'activates without speech',marketNormalTap:'navigates'},null,2));
           await browser.close();
