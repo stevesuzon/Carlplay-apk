@@ -1414,44 +1414,63 @@ Si Android le demande, autorise l’installation d’applications provenant de c
   try{
     if(window.CouteauUserDataSafety&&typeof window.CouteauUserDataSafety.save==='function'){try{await window.CouteauUserDataSafety.save()}catch(_){}}
     if(!navigator.onLine)throw new Error('Pas de connexion Internet.');
-    setProgress(2,'Nettoyage complet…','Suppression des anciens caches de l’application. Vos données personnelles restent conservées.');
-    if('caches' in window){try{var cacheNames=await caches.keys();await Promise.all(cacheNames.filter(function(n){return n!=='carplay-notification-preference-v1'}).map(function(n){return caches.delete(n)}))}catch(_){}}
-    setProgress(3,'Connexion au serveur…','Recherche de la dernière version disponible.');
+
+    // Ne jamais vider les caches ici : l'ancien bouton de mise à jour supprimait
+    // les fichiers encore utilisés et pouvait casser l'application juste après l'appui.
+    setProgress(8,'Connexion au serveur…','Vérification de la version sans effacer les fichiers déjà installés.');
     var versionInfo=null;
     try{versionInfo=await (await check('/app-version.json')).json()}catch(_){versionInfo=null}
-    await sleep(120);
-    setProgress(10,'Vérification de l’application…','Contrôle de la page d’accueil et des réglages.');
-    await check('/index.html');
-    setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications.');
-    await check('/contest-v188.js?v=439-direct');
-    setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique et événements.');
-    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=438-stable-market-key'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=452-global-longpress'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=438-stable-market-key'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
-    setProgress(48,'Vérification des champignons…','Contrôle des fiches Champignons et des coins enregistrés.');
-    await Promise.allSettled([check('/champignons.html'),check('/champignons.js?v=300-concours-auto')]);
-    setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
-    await Promise.allSettled([check('/notification-settings.js?v=282-onboarding-notification-detail'),check('/market-update-notifications-v281.js?v=282')]);
-    setProgress(72,'Vérification du compte…','Contrôle de l’abonnement, de l’identité et des réglages.');
-    await Promise.allSettled([check('/subscription-web.js?v=441-syntax-fix'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
-    setProgress(82,'Recherche de la nouvelle version…','Seuls les fichiers de l’application sont actualisés.');
+
+    setProgress(28,'Vérification de l’application…','Contrôle des fichiers essentiels uniquement.');
+    await Promise.all([
+      check('/index.html'),
+      check('/voice-assist-v388.js?v=452-global-longpress')
+    ]);
+
+    setProgress(58,'Recherche de la nouvelle version…','Le cache actuel reste en place pendant le contrôle.');
+    var changed=false;
     if('serviceWorker' in navigator){
-      var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=450-cache-stable',{updateViaCache:'none'})]}catch(_){regs=[]}}
-      for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){}
-      var reg=regs[0];
-      if(reg&&reg.waiting){
-        setProgress(90,'Installation…','Activation des nouveaux fichiers.');
-        reg.waiting.postMessage({type:'SKIP_WAITING'});
-        await Promise.race([new Promise(function(resolve){navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true})}),sleep(1800)]);
+      var reg=await navigator.serviceWorker.getRegistration();
+      if(!reg){
+        try{reg=await navigator.serviceWorker.register('/sw.js',{updateViaCache:'none'})}catch(_){reg=null}
+      }
+      if(reg){
+        await reg.update().catch(function(){});
+        if(reg.installing){
+          await Promise.race([
+            new Promise(function(resolve){
+              var w=reg.installing;
+              function done(){if(!w||w.state==='installed'||w.state==='activated'||w.state==='redundant')resolve()}
+              if(w)w.addEventListener('statechange',done);done();
+            }),
+            sleep(2200)
+          ]);
+        }
+        if(reg.waiting){
+          changed=true;
+          setProgress(82,'Installation…','Activation de la nouvelle version sans nettoyage brutal du cache.');
+          reg.waiting.postMessage({type:'SKIP_WAITING'});
+          await Promise.race([
+            new Promise(function(resolve){navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true})}),
+            sleep(1800)
+          ]);
+        }
       }
     }
-    setProgress(96,'Finalisation…','Vos adresses, papiers, photos, positions et autres données restent conservés.');
-    await sleep(220);
+
+    setProgress(96,'Finalisation…','Vos adresses, papiers, photos, positions et réglages restent conservés.');
+    await sleep(180);
     var ver=versionInfo&&versionInfo.version?String(versionInfo.version):'';
-    if(loading)loading.textContent='Mise à jour terminée';
-    setProgress(100,'✅ PRÊT',ver?'Version '+ver+' installée.':'L’application est à jour.');
-    await sleep(650);
+    try{if(ver)localStorage.setItem('carplay.lastManualUpdateVersion',ver)}catch(_){}
+    if(loading)loading.textContent=changed?'Mise à jour installée':'Vérification terminée';
+    setProgress(100,'✅ PRÊT',ver?(changed?'Version '+ver+' installée.':'Version '+ver+' vérifiée.'):'L’application est à jour.');
+    await sleep(500);
     window.__manualUpdateV368Running=false;
-    var u=new URL(location.href);u.searchParams.set('maj',Date.now());location.replace(u.toString());
+
+    // Un seul rechargement normal suffit. Aucun effacement de cache avant ce rechargement.
+    var u=new URL(location.href);
+    u.searchParams.set('maj',Date.now());
+    location.replace(u.toString());
   }catch(e){
     if(loading)loading.textContent='Mise à jour interrompue';
     setProgress(0,'⚠️ MISE À JOUR IMPOSSIBLE',e&&e.message?e.message:'Vérifiez votre connexion Internet puis réessayez.');
