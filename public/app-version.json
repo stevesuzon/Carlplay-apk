@@ -1,4 +1,4 @@
 {
-  "version": "V447",
-  "message": "V447 : correction de l’accueil. La météo ne recouvre plus les boutons Concours et Mesurer une maison, elle ne peut plus bloquer les touchers, et les grandes images de l’accueil disposent maintenant d’un chargement prioritaire avec une image de secours si le gros fichier tarde ou échoue."
+  "version": "V448-TEST",
+  "message": "Version de test stabilité : suppression des doubles chargements de scripts sur l’accueil et retrait de Leaflet inutilisé. Aucun déploiement production avant validation."
 }
