@@ -1,4 +1,5 @@
 (function(){'use strict';
+  if(window.__sanctionGuardV448Loaded)return;window.__sanctionGuardV448Loaded=true;
   if(/^\/admin(?:\.html)?$/.test(location.pathname)||location.pathname==='/import-marches.html')return;
   function deviceId(){var v='';try{v=localStorage.getItem('carplay_device_id')||''}catch(e){}if(!v){v=crypto.randomUUID?crypto.randomUUID():'dev-'+Date.now()+'-'+Math.random().toString(36).slice(2);try{localStorage.setItem('carplay_device_id',v)}catch(e){}}return v}
   function subscription(){try{return JSON.parse(localStorage.getItem('carplay_shared_subscription')||'null')||{}}catch(e){return{}}}
