@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: test-v448-stability
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -111,7 +115,9 @@ jobs:
           }
           function assert(cond,msg){if(!cond)throw new Error(msg)}
 
+          console.log('TEST stage: open home');
           await openHome();
+          console.log('TEST stage: duplicates');
 
           const duplicateCounts = await page.evaluate(() => ({
             voice:document.querySelectorAll('script[src*="voice-assist-v388.js"]').length,
@@ -138,6 +144,7 @@ jobs:
           assert(!layout.weatherContest,'Weather overlaps Contest button');
           assert(!layout.weatherHouse,'Weather overlaps House button');
 
+          console.log('TEST stage: layout ok');
           const callout = await page.evaluate(() => {
             const el=document.getElementById('homeAddressBookBtn');
             const ev=new Event('contextmenu',{bubbles:true,cancelable:true});
@@ -169,12 +176,14 @@ jobs:
             ['#nearby80Button',/march/i]
           ];
           for(const [sel,rx] of targets){
+            console.log('TEST stage: hold '+sel);
             const before=await page.evaluate(()=>window.__spokenV448.length);
             await hold(sel);
             const after=await page.evaluate((before)=>window.__spokenV448.slice(before).filter(x=>String(x).trim()),before);
             assert(after.some(x=>rx.test(x)),'No meaningful voice for '+sel+'; got '+JSON.stringify(after));
           }
 
+          console.log('TEST stage: long-press voice ok');
           // A normal tap on Marchés must navigate immediately and must not trigger the long-press voice.
           await openHome();
           const spokenBefore=await page.evaluate(()=>window.__spokenV448.length);
@@ -190,7 +199,7 @@ jobs:
           console.log(JSON.stringify({ok:true,duplicates:duplicateCounts,layout,marketTapMs:elapsed},null,2));
           await browser.close();
           EOF
-          node test-v448.mjs
+          timeout 75s node test-v448.mjs
 
       - name: Show Worker log on failure
         if: failure()
