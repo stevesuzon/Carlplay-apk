@@ -95,17 +95,19 @@ jobs:
 
           const page = await context.newPage();
           const pageErrors=[];
+          const navigations=[];
           page.on('pageerror',e=>pageErrors.push(String(e)));
+          page.on('framenavigated',f=>{if(f===page.mainFrame())navigations.push(f.url())});
           await page.route('**/api/contest/status',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,participant:null,entries:[],points:0})}));
           await page.route('**/api/presence',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,count:0})}));
 
           async function openHome(){
-            await page.goto('http://127.0.0.1:8787/?testv448='+Date.now(),{waitUntil:'domcontentloaded',timeout:15000});
-            await page.waitForTimeout(900);
-            const homeOk=await page.evaluate(()=>!!document.getElementById('nearby80Button'));
-            assert(homeOk,'Home did not render nearby market button');
-            const voiceOk=await page.evaluate(()=>!!window.CouteauVoice);
-            assert(voiceOk,'Voice module did not initialize');
+            await page.goto('http://127.0.0.1:8787/?testv448='+Date.now(),{waitUntil:'commit',timeout:10000});
+            await page.waitForTimeout(1600);
+            const state=await page.evaluate(()=>({path:location.pathname,home:!!document.getElementById('nearby80Button'),voice:!!window.CouteauVoice}));
+            assert(state.path==='/'||state.path==='/index.html','Unexpected navigation: '+page.url()+' history='+JSON.stringify(navigations));
+            assert(state.home,'Home did not render nearby market button; url='+page.url());
+            assert(state.voice,'Voice module did not initialize; url='+page.url());
           }
           function assert(cond,msg){if(!cond)throw new Error(msg)}
 
