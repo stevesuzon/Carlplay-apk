@@ -822,9 +822,6 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
 .homeTopButton{min-height:58px;padding:10px 17px;border:3px solid #66d9ff;border-radius:18px;background:#087fd4;color:#fff;font:950 18px Arial;box-shadow:0 5px 15px #0008;cursor:pointer;white-space:nowrap}
 .homeTopHelp{max-width:350px;padding:7px 10px;border-radius:12px;background:#07111ddd;color:#fff;font:800 13px/1.25 Arial;text-align:right}
 </style>
-<script id="hardCacheResetV436">
-(function(){try{var k='couteau_cache_reset_v439';if(localStorage.getItem(k)==='1')return;localStorage.setItem(k,'1');if('caches'in window)caches.keys().then(function(names){return Promise.all(names.filter(function(n){return n!=='carplay-notification-preference-v1'}).map(function(n){return caches.delete(n)}))}).catch(function(){});if('serviceWorker'in navigator)navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(r){try{r.update()}catch(_){}})}).catch(function(){})}catch(_){}})();
-</script>
 <script id="criticalModulesV439">
 (function(){
   window.openSubscriptionSettingsV439=function(){
@@ -1420,7 +1417,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(82,'Recherche de la nouvelle version…','Seuls les fichiers de l’application sont actualisés.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=441-syntax-fix',{updateViaCache:'none'})]}catch(_){regs=[]}}
+      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=450-cache-stable',{updateViaCache:'none'})]}catch(_){regs=[]}}
       for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){}
       var reg=regs[0];
       if(reg&&reg.waiting){
@@ -1996,7 +1993,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 })();
 </script>
 
-<script src="/cache-cleanup-v20260910.js?v=283-modules" defer></script>
+<script src="/cache-cleanup-v20260910.js?v=450-cache-stable" defer></script>
 <script src="/christmas-market-updater.js" defer></script>
 
 <script id="removeOldUsersConnectedBoxV2">

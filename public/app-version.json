@@ -1,4 +1,4 @@
 {
-  "version": "V449",
-  "message": "V449 : correction de l’appui long vocal sur iPhone. Le carré/menu blanc natif est bloqué sur les boutons, images et cartes. La voix se déclenche après 1,20 seconde sur Carnet d’adresses, Marchés, Concours, Mesurer une maison, Marchés 150 km, Retourner sur la place, Mes papiers, Démarches pro et Effacer emplacement. Un appui court reste silencieux et immédiat."
+  "version": "V450",
+  "message": "V450 : correction du système de cache. Les mises à jour ne vident plus brutalement tous les caches et ne préchargent plus toute l’application pendant l’activation. Seuls les anciens caches sont supprimés, les caches courants sont conservés, et les fichiers de code utilisent le réseau en priorité pour éviter les anciennes versions."
 }
