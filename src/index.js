@@ -1378,11 +1378,11 @@ function parseJdmMarketPage(html,area,pageUrl){
     if(range.end&&range.end<today)continue;
     if(kind==='noel'||range.start){
       const day=range.label||range.start||days.join(', ');
-      if(day)out.push({country:'FR',area:actualArea,kind:kind==='noel'?'noel':'marche',name:title,city:pc.city,day,dateLabel:range.label||day,start:range.start,end:range.end||range.start,hours,address:jdmFullAddress(address,pc),merchants,phone,note,sourceUrl});
+      if(day)out.push({country:'FR',area:actualArea,kind:kind==='noel'?'noel':kind==='voyageur'?'voyageur':'marche',name:title,city:pc.city,day,dateLabel:range.label||day,start:range.start,end:range.end||range.start,hours,address:jdmFullAddress(address,pc),merchants,phone,note,sourceUrl});
       continue;
     }
     // IMPORTANT : un même marché présent lundi + dimanche donne bien 2 fiches distinctes.
-    for(const day of days){out.push({country:'FR',area:actualArea,kind:'marche',name:title,city:pc.city,day,dateLabel:day,hours,address:jdmFullAddress(address,pc),merchants,phone,note,sourceUrl})}
+    for(const day of days){out.push({country:'FR',area:actualArea,kind:kind==='voyageur'?'voyageur':'marche',name:title,city:pc.city,day,dateLabel:day,hours,address:jdmFullAddress(address,pc),merchants,phone,note,sourceUrl})}
   }
   return out;
 }
@@ -1413,13 +1413,13 @@ async function refreshJdmArea(env,state){
   for(const e of events){
     const m=normalizeMarket(e);if(!m)continue;
     const key=[m.country,m.area,m.kind,m.city.trim().toLowerCase(),m.name.trim().toLowerCase()].join('|');
-    if(!checked.has(key)){
+    if(['marche','brocante','voyageur'].includes(m.kind)&&!checked.has(key)){
       const existing=await env.DB.prepare('SELECT 1 FROM imported_markets WHERE country=? AND area=? AND kind=? AND lower(trim(city))=? AND lower(trim(name))=? LIMIT 1').bind(m.country,m.area,m.kind,m.city.trim().toLowerCase(),m.name.trim().toLowerCase()).first();
       checked.set(key,!existing);
     }
     if(await upsertAutoMarket(env,m)){
       count++;
-      if(checked.get(key)){
+      if(['marche','brocante','voyageur'].includes(m.kind)&&checked.get(key)){
         await env.DB.prepare('INSERT OR IGNORE INTO market_milestone_additions(market_key,area,kind,added_at) VALUES(?,?,?,?)').bind(key,m.area,m.kind,Date.now()).run();
         checked.set(key,false);
       }
@@ -1438,7 +1438,7 @@ async function ensureMarketMilestones(env){
   await env.DB.prepare('CREATE TABLE IF NOT EXISTS market_milestone_meta (key TEXT PRIMARY KEY,value TEXT NOT NULL)').run();
   const meta=await env.DB.prepare("SELECT value FROM market_milestone_meta WHERE key='baseline'").first();
   if(!meta){
-    await env.DB.prepare("INSERT OR IGNORE INTO market_milestone_additions(market_key,area,kind,added_at) SELECT lower(country)||'|'||area||'|'||kind||'|'||lower(trim(city))||'|'||lower(trim(name)),area,kind,? FROM imported_markets WHERE kind IN ('marche','brocante','voyageur') AND lower(source_url) LIKE '%jours-de-marche.fr%' GROUP BY lower(country)||'|'||area||'|'||lower(trim(city))||'|'||lower(trim(name))").bind(Date.now()).run();
+    await env.DB.prepare("INSERT OR IGNORE INTO market_milestone_additions(market_key,area,kind,added_at) SELECT lower(country)||'|'||area||'|'||kind||'|'||lower(trim(city))||'|'||lower(trim(name)),area,kind,? FROM imported_markets WHERE kind IN ('marche','brocante','voyageur') AND lower(source_url) LIKE '%jours-de-marche.fr%' GROUP BY lower(country)||'|'||area||'|'||kind||'|'||lower(trim(city))||'|'||lower(trim(name))").bind(Date.now()).run();
     const total=await env.DB.prepare('SELECT count(*) AS n FROM market_milestone_additions').first();
     await env.DB.prepare("INSERT OR IGNORE INTO market_milestone_meta(key,value) VALUES('baseline',?)").bind(String(total.n||0)).run();
   }
@@ -1446,8 +1446,8 @@ async function ensureMarketMilestones(env){
 async function publishMarketMilestones(env){
   const total=Number((await env.DB.prepare('SELECT count(*) AS n FROM market_milestone_additions').first()).n||0);
   const baseline=Number((await env.DB.prepare("SELECT value FROM market_milestone_meta WHERE key='baseline'").first()).value||0);
-  for(let milestone=(Math.floor(baseline/50)+1)*50;milestone<=total;milestone+=50){
-    const rows=await env.DB.prepare('SELECT area,kind,count(*) AS count FROM (SELECT area,kind FROM market_milestone_additions ORDER BY id LIMIT 50 OFFSET ?) GROUP BY area,kind ORDER BY area,kind').bind(milestone-50).all();
+  for(let milestone=50;milestone<=total-baseline;milestone+=50){
+    const rows=await env.DB.prepare('SELECT area,kind,count(*) AS count FROM (SELECT area,kind FROM market_milestone_additions ORDER BY id LIMIT 50 OFFSET ?) GROUP BY area,kind ORDER BY area,kind').bind(baseline+milestone-50).all();
     await env.DB.prepare('INSERT OR IGNORE INTO market_milestone_events(milestone,breakdown_json,created_at) VALUES(?,?,?)').bind(milestone,JSON.stringify(rows.results||[]),Date.now()).run();
   }
 }
