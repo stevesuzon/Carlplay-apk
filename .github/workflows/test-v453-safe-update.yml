@@ -1,0 +1,135 @@
+name: Test V453 Safe Update
+
+on:
+  push:
+    branches: ["test-v453-safe-update"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-v453-safe-update
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install test tools
+        run: |
+          npm install
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps webkit
+
+      - name: Static update safety checks
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const html=fs.readFileSync('public/index.html','utf8');
+          const a=html.indexOf('async function forceAppUpdate(){');
+          const b=html.indexOf('function _addressBackupArray',a);
+          if(a<0||b<0)throw new Error('forceAppUpdate block not found');
+          const block=html.slice(a,b);
+          if(block.includes('caches.delete'))throw new Error('Manual update still deletes CacheStorage');
+          if(block.includes('Promise.all(cacheNames'))throw new Error('Manual update still bulk-deletes caches');
+          if(block.includes("searchParams.set('maj'"))throw new Error('Manual update still creates timestamped navigation cache entries');
+          if(!block.includes('location.reload()'))throw new Error('Manual update does not use stable reload');
+          if(!block.includes("Aucun cache utilisateur n’est supprimé"))throw new Error('Safe update text missing');
+          const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m=>m[1]).filter(s=>s.trim());
+          scripts.forEach((s,i)=>{try{new Function(s)}catch(e){throw new Error('inline '+i+': '+e.message)}});
+          console.log('Static updater checks OK');
+          NODE
+
+      - name: Start local Worker
+        shell: bash
+        run: |
+          set -e
+          npx wrangler dev --local --ip 127.0.0.1 --port 8787 > /tmp/v453-wrangler.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8787/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/v453-wrangler.log
+          exit 1
+
+      - name: Test update button preserves caches and data
+        shell: bash
+        run: |
+          cat > test-v453.mjs <<'EOF'
+          import { webkit } from 'playwright';
+          function assert(x,m){if(!x)throw new Error(m)}
+          const browser=await webkit.launch({headless:true});
+          const context=await browser.newContext({
+            viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:3,
+            userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1',
+            serviceWorkers:'allow'
+          });
+
+          await context.addInitScript(()=>{
+            localStorage.setItem('carplay_admin_here','1');
+            localStorage.setItem('v453_keep_data','ADRESSE-ET-DONNEES-A-CONSERVER');
+          });
+
+          const page=await context.newPage();
+
+          // Neutralise seulement les modules de compte/notifications pendant le test du bouton Mise à jour.
+          await page.route('**/app-access-gate-v240.js*',r=>r.fulfill({status:200,contentType:'application/javascript',body:''}));
+          await page.route('**/subscription-web.js*',r=>r.fulfill({status:200,contentType:'application/javascript',body:''}));
+          await page.route('**/notification-settings.js*',r=>r.fulfill({status:200,contentType:'application/javascript',body:''}));
+          await page.route('**/market-update-notifications-v281.js*',r=>r.fulfill({status:200,contentType:'application/javascript',body:''}));
+
+          await page.goto('http://127.0.0.1:8787/?v453='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000});
+          await page.waitForFunction(()=>typeof window.forceAppUpdate==='function',{timeout:6000});
+
+          await page.evaluate(async()=>{
+            const keep=[
+              'couteau-suisse-runtime-code-v1',
+              'couteau-suisse-module-data-v426-current',
+              'couteau-suisse-module-phone-ui-v432-home-clean',
+              'carplay-notification-preference-v1'
+            ];
+            for(const n of keep){const c=await caches.open(n);await c.put('/__v453_'+n,new Response('keep'))}
+          });
+
+          const before=await page.evaluate(()=>caches.keys());
+          for(const n of ['couteau-suisse-runtime-code-v1','couteau-suisse-module-data-v426-current','carplay-notification-preference-v1']){
+            assert(before.includes(n),'Failed to seed '+n);
+          }
+
+          const navPromise=page.waitForEvent('framenavigated',{timeout:12000});
+          await page.evaluate(()=>document.querySelector('#updateSettingRow .settingHead').click());
+          await navPromise;
+          await page.waitForLoadState('domcontentloaded',{timeout:12000}).catch(()=>{});
+          await page.waitForTimeout(500);
+
+          const result=await page.evaluate(async()=>({
+            url:location.href,
+            keep:localStorage.getItem('v453_keep_data'),
+            caches:await caches.keys()
+          }));
+
+          assert(result.keep==='ADRESSE-ET-DONNEES-A-CONSERVER','LocalStorage data was lost');
+          assert(!/[?&]maj=/.test(result.url),'Timestamped maj parameter still present: '+result.url);
+          for(const n of [
+            'couteau-suisse-runtime-code-v1',
+            'couteau-suisse-module-data-v426-current',
+            'couteau-suisse-module-phone-ui-v432-home-clean',
+            'carplay-notification-preference-v1'
+          ]) assert(result.caches.includes(n),'Current cache was deleted by update button: '+n);
+
+          console.log(JSON.stringify({ok:true,before,after:result.caches,url:result.url,dataPreserved:true},null,2));
+          await browser.close();
+          EOF
+          node test-v453.mjs
+
+      - name: Show Worker log on failure
+        if: failure()
+        run: cat /tmp/v453-wrangler.log || true
