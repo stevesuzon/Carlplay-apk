@@ -46,9 +46,8 @@
   }
   async function sync(){
     if(!('serviceWorker'in navigator))return;
-    const registration=await navigator.serviceWorker.register('/sw.js?v=330-gpl-favori-verif',{updateViaCache:'none'});
-    await registration.update().catch(function(){});
-    if(registration.waiting)registration.waiting.postMessage({type:'SKIP_WAITING'});
+    let registration=await navigator.serviceWorker.getRegistration();
+    if(!registration)registration=await navigator.serviceWorker.register('/sw.js',{updateViaCache:'none'});
     await navigator.serviceWorker.ready;
     await tellWorker(registration,enabled()&&permission()==='granted');
     if(enabled()&&permission()==='granted')await syncAdminPush(registration);
