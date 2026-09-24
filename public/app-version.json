@@ -1,4 +1,4 @@
 {
-  "version": "V441",
-  "message": "V441 : correction du blocage de l’application. Une erreur de syntaxe dans le module abonnement empêchait son exécution sur le téléphone. Le module est corrigé, vérifié avant déploiement, le cache est renouvelé et la session administrateur est reconnue par ses marqueurs de connexion."
+  "version": "V442",
+  "message": "V442 : correction du son sur iPhone. La voix reste active après réouverture, elle est réamorcée automatiquement, l’appui long parle après 1,20 seconde sans demander de relâcher, et la fiche marché est désormais lisible par appui long."
 }
