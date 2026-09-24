@@ -1425,7 +1425,9 @@ async function refreshJdmArea(env,state){
   await env.DB.prepare('UPDATE market_jdm_refresh_state SET city_cursor=?,city_count=?,next_check_at=?,last_check_at=?,last_found=?,last_pages=?,last_message=? WHERE area=?').bind(nextCursor,cityUrls.length,next,Date.now(),count,pages,msg,area).run();
   return{area,count,pages,pending:!wrapped,message:msg};
 }
+const marketMilestoneReady=new WeakSet();
 async function ensureMarketMilestones(env){
+  if(marketMilestoneReady.has(env.DB))return;
   await ensureMarketTable(env);
   await env.DB.prepare('CREATE TABLE IF NOT EXISTS market_milestone_additions (id INTEGER PRIMARY KEY AUTOINCREMENT,market_key TEXT NOT NULL UNIQUE,area TEXT NOT NULL,kind TEXT NOT NULL,added_at INTEGER NOT NULL)').run();
   await env.DB.prepare('CREATE TABLE IF NOT EXISTS market_milestone_events (milestone INTEGER PRIMARY KEY,breakdown_json TEXT NOT NULL,created_at INTEGER NOT NULL)').run();
@@ -1436,6 +1438,7 @@ async function ensureMarketMilestones(env){
     const total=await env.DB.prepare('SELECT count(*) AS n FROM market_milestone_additions').first();
     await env.DB.prepare("INSERT OR IGNORE INTO market_milestone_meta(key,value) VALUES('baseline',?)").bind(String(total.n||0)).run();
   }
+  marketMilestoneReady.add(env.DB);
 }
 async function publishMarketMilestones(env){
   const total=Number((await env.DB.prepare('SELECT count(*) AS n FROM market_milestone_additions').first()).n||0);
