@@ -1,5 +1,7 @@
 (function(){
   'use strict';
+  if(window.__carplayVoiceV454Loaded)return;
+  window.__carplayVoiceV454Loaded=true;
   var KEY='carplay_voice_enabled_v387';
   var PRESS_MS=1200;
   var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='',voiceAwakeV423=false;
@@ -204,7 +206,7 @@
   }
   function eligibleTarget(e){
     if(!enabled()||!e.target||!e.target.closest)return null;
-    var clickable=e.target.closest('button,a,select,[onclick],[role="button"],[data-voice-help],#homeAddressBookBtn,.addressBookTile');
+    var clickable=e.target.closest('button,a,select,input[type="button"],input[type="submit"],summary,[onclick],[role="button"],[data-voice-help],[data-voice-card],#homeAddressBookBtn,.addressBookTile,.card,.small,.settingHead,.market,.market-card,.marketCard,.station-card,.stationCard,.result-card,.resultCard,.tile,.directBtn,.homeTopButton');
     if(clickable&&!clickable.matches('input,textarea,label'))return clickable;
     var card=e.target.closest('[data-voice-card]');
     return card||null;
@@ -227,13 +229,38 @@
   function move(e){if(!active)return;var dx=Math.abs(Number(e.clientX||0)-startX),dy=Math.abs(Number(e.clientY||0)-startY);if(dx>18||dy>18)cancel()}
   function end(){clearTimeout(timer);timer=0;active=null;setTimeout(function(){fired=false},80)}
   function showTapFallbackV400(text){
-    var old=document.getElementById('voiceTapFallbackV400');
-    if(old)old.remove();
-    return false;
+    text=clean(text);if(!text||!enabled())return false;
+    var old=document.getElementById('voiceTapFallbackV400');if(old)old.remove();
+    var b=document.createElement('button');
+    b.id='voiceTapFallbackV400';b.type='button';
+    b.setAttribute('aria-label','Écouter '+text);
+    b.textContent='🔊 TOUCHER POUR ÉCOUTER';
+    b.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147483647;width:min(92vw,430px);min-height:62px;padding:12px 16px;border:3px solid #f39b19;border-radius:18px;background:#0b668d;color:#fff;font:950 19px Arial,sans-serif;box-shadow:0 10px 30px #000b;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation';
+    var busy=false;
+    function play(e){
+      if(e){try{e.preventDefault()}catch(_){}try{e.stopPropagation()}catch(_){}}
+      if(busy)return;busy=true;
+      try{
+        if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')throw 0;
+        window.speechSynthesis.cancel();window.speechSynthesis.resume();loadPreferredVoice();
+        var u=new SpeechSynthesisUtterance(text);
+        currentUtteranceV396=u;u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;
+        if(preferredVoice)u.voice=preferredVoice;
+        u.onstart=function(){voiceAwakeV423=true;toast('🔊 '+text)};
+        u.onend=function(){currentUtteranceV396=null;if(b&&b.parentNode)b.remove()};
+        u.onerror=function(){currentUtteranceV396=null;busy=false;toast('🔇 Touchez encore une fois pour écouter.')};
+        window.speechSynthesis.speak(u);
+      }catch(_){busy=false;toast('🔇 Lecture vocale indisponible.')}
+    }
+    b.addEventListener('click',play,true);
+    b.addEventListener('touchend',function(e){play(e)}, {passive:false,capture:true});
+    document.body.appendChild(b);
+    setTimeout(function(){if(b&&b.parentNode)b.remove()},8000);
+    return true;
   }
   function speakImmediateV400(text){
     text=clean(text);if(!text||!enabled())return false;
-    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){toast('🔇 Lecture vocale indisponible.');return false}
+    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){showTapFallbackV400(text);return false}
     try{
       window.speechSynthesis.cancel();
       window.speechSynthesis.resume();
@@ -242,42 +269,27 @@
       currentUtteranceV396=u;
       u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;
       if(preferredVoice)u.voice=preferredVoice;
-      var started=false,retried=false;
+      var started=false,finished=false;
       u.onstart=function(){started=true;voiceAwakeV423=true;toast('🔊 '+text)};
-      u.onend=function(){currentUtteranceV396=null};
-      u.onerror=function(){
-        currentUtteranceV396=null;
-        if(!retried){
-          retried=true;
-          try{
-            window.speechSynthesis.resume();
-            var u2=new SpeechSynthesisUtterance(text);
-            currentUtteranceV396=u2;
-            u2.lang='fr-FR';u2.rate=.92;u2.pitch=1;u2.volume=1;
-            if(preferredVoice)u2.voice=preferredVoice;
-            u2.onstart=function(){voiceAwakeV423=true;toast('🔊 '+text)};
-            u2.onend=function(){currentUtteranceV396=null};
-            u2.onerror=function(){currentUtteranceV396=null;toast('🔇 La lecture vocale n’a pas démarré. Réessayez l’appui long.')};
-            window.speechSynthesis.speak(u2);
-            return;
-          }catch(_){}
-        }
-        toast('🔇 La lecture vocale n’a pas démarré. Réessayez l’appui long.');
-      };
+      u.onend=function(){finished=true;currentUtteranceV396=null};
+      u.onerror=function(){finished=true;currentUtteranceV396=null;showTapFallbackV400(text)};
       window.speechSynthesis.speak(u);
       setTimeout(function(){
-        if(!started&&currentUtteranceV396===u){
-          try{window.speechSynthesis.resume()}catch(_){}
+        if(!started&&!finished&&currentUtteranceV396===u){
+          try{window.speechSynthesis.cancel()}catch(_){}
+          currentUtteranceV396=null;
+          showTapFallbackV400(text);
         }
-      },450);
+      },700);
       return true;
-    }catch(_){toast('🔇 La lecture vocale n’a pas démarré. Réessayez l’appui long.');return false}
+    }catch(_){showTapFallbackV400(text);return false}
   }
   function prepareTouchSpeechV400(target){
     queuedTouchTextV400=target?clean(buildSpeech(target)):'';
   }
   function cancelTouchSpeechV400(){
     queuedTouchTextV400='';
+    var old=document.getElementById('voiceTapFallbackV400');if(old)old.remove();
   }
   function resumeTouchSpeechV400(target){
     var text=queuedTouchTextV400||clean(buildSpeech(target));
