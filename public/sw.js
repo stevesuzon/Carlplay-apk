@@ -1,112 +1,40 @@
-const VERSION = "V450-CACHE-STABLE";
-const BASE_CACHE = "couteau-suisse-runtime-code-v1";
+const VERSION = "V435-SETTINGS-ORDER";
+const BASE_CACHE = "couteau-suisse-module-base-v435-settings-order";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
-const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";
-const ADMIN_CACHE = "couteau-suisse-module-admin-v439-market-list";
+const CONTEST_CACHE = "couteau-suisse-module-contest-v434-current";
+const ADMIN_CACHE = "couteau-suisse-module-admin-v367-market-full-review";
 const DATA_CACHE = "couteau-suisse-module-data-v426-current";
 const INSTALL_CACHE = "couteau-suisse-module-install-v426-current";
 const STATS_CACHE = "couteau-suisse-module-stats-v362";
 const MUSHROOM_CACHE = "couteau-suisse-module-mushroom-v300";
-const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v441-syntax-fix";
+const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v435-settings-order";
 const AUTORADIO_CACHE = "couteau-suisse-module-autoradio-v386-responsive-images";
 const PHONE_UI_CACHE = "couteau-suisse-module-phone-ui-v432-home-clean";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
-const NOTIFICATION_LAST_UPDATE_URL = "/__carplay_last_update_notification_version__";
-
-const CURRENT_CACHES = new Set([
-  BASE_CACHE, ICON_CACHE, CONTEST_CACHE, ADMIN_CACHE, DATA_CACHE, INSTALL_CACHE,
-  STATS_CACHE, MUSHROOM_CACHE, SUBSCRIPTION_CACHE, AUTORADIO_CACHE,
-  PHONE_UI_CACHE, NOTIFICATION_PREF_CACHE
-]);
-
-async function notificationsEnabled(){
-  const cache=await caches.open(NOTIFICATION_PREF_CACHE),r=await cache.match(NOTIFICATION_PREF_URL);
-  return !!r&&(await r.text())==="1";
-}
-async function saveNotificationPreference(enabled){
-  const cache=await caches.open(NOTIFICATION_PREF_CACHE);
-  await cache.put(NOTIFICATION_PREF_URL,new Response(enabled?"1":"0"));
-}
-function moduleCacheFor(path){
-  if(path==="/phone-loading-v384.js")return PHONE_UI_CACHE;
-  if(path.indexOf("/autoradio-assets-v386/")===0||path==="/autoradio-home-v386.js"||path==="/autoradio-subscription-v381.js"||path==="/autoradio-version.json")return AUTORADIO_CACHE;
-  if(path==="/manifest.webmanifest"||/couteau-suisse-v283-/.test(path))return ICON_CACHE;
-  if(path==="/contest-v188.js")return CONTEST_CACHE;
-  if(path==="/contest-admin-v188.js"||path==="/admin.html")return ADMIN_CACHE;
-  if(path==="/champignons.html"||path==="/champignons.js"||path==="/champignons.css")return MUSHROOM_CACHE;
-  if(path==="/subscription-web.js")return SUBSCRIPTION_CACHE;
-  if(path==="/persistent-user-data-v283.js")return DATA_CACHE;
-  if(path==="/visitor-register-v361.js"||path==="/installer.html"||path==="/app-access-gate-v240.js"||path==="/cache-cleanup-v20260910.js")return INSTALL_CACHE;
-  if(path==="/user-stats-v285.js")return STATS_CACHE;
-  return BASE_CACHE;
-}
-function isOwnedCache(name){
-  return name===NOTIFICATION_PREF_CACHE||name.indexOf("couteau-suisse-module-")===0||name.indexOf("couteau-suisse-runtime-")===0;
-}
-async function deleteObsoleteCaches(){
-  const keys=await caches.keys();
-  await Promise.all(keys.filter(name=>isOwnedCache(name)&&!CURRENT_CACHES.has(name)).map(name=>caches.delete(name)));
-}
-async function showUpdateNotification(){
-  if(!(await notificationsEnabled()))return;
-  let message="Mise à jour ciblée installée.",version=VERSION;
-  try{
-    const r=await fetch('/app-version.json?_='+Date.now(),{cache:'no-store'});
-    if(r.ok){const d=await r.json();if(d&&d.message)message=String(d.message);if(d&&d.version)version=String(d.version)}
-  }catch(_){}
-  try{
-    const cache=await caches.open(NOTIFICATION_PREF_CACHE),seen=await cache.match(NOTIFICATION_LAST_UPDATE_URL),last=seen?await seen.text():"";
-    if(last===version)return;
-    await cache.put(NOTIFICATION_LAST_UPDATE_URL,new Response(version));
-  }catch(_){}
-  await self.registration.showNotification('✅ Couteau Suisse mis à jour',{
-    body:message,icon:'/couteau-suisse-v283-192.png?v=283',badge:'/couteau-suisse-v283-192.png?v=283',
-    tag:'couteau-suisse-update',renotify:false,data:{url:'/index.html'}
-  });
-}
-
-// Important: l'installation/activation ne précharge plus des dizaines de fichiers.
-// C'était une source de lenteur et de concurrence avec l'ouverture de l'application.
-self.addEventListener('install',e=>{e.waitUntil(self.skipWaiting())});
-self.addEventListener('activate',e=>{e.waitUntil((async()=>{
-  await deleteObsoleteCaches();
-  await self.clients.claim();
-  await showUpdateNotification();
-})())});
-
-self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET')return;
-  const u=new URL(e.request.url);
-  if(u.pathname.startsWith('/api/'))return;
-  if(u.pathname==='/sw.js'||u.pathname==='/app-version.json'||u.pathname==='/autoradio-version.json'){
-    e.respondWith(fetch(e.request,{cache:'no-store'}));return;
-  }
-  const cacheName=moduleCacheFor(u.pathname),isNav=e.request.mode==='navigate',isCode=/\.(?:js|json|css|html|webmanifest)$/i.test(u.pathname);
-  if(isNav||isCode){
-    e.respondWith((async()=>{
-      try{
-        const r=await fetch(e.request,{cache:'no-store'});
-        if(r&&r.ok)(await caches.open(cacheName)).put(e.request,r.clone());
-        return r;
-      }catch(_){
-        return (await caches.match(e.request))||
-          (isNav?await caches.match('/'):undefined)||
-          (isNav?await caches.match('/index.html'):undefined)||
-          Response.error();
-      }
-    })());
-    return;
-  }
-  if(/\.(?:png|jpe?g|webp|svg|mp4|woff2?)$/i.test(u.pathname)){
-    e.respondWith((async()=>{
-      const c=await caches.open(cacheName),cached=await c.match(e.request);
-      const update=fetch(e.request,{cache:'no-cache'}).then(async r=>{if(r&&r.ok)await c.put(e.request,r.clone());return r}).catch(()=>null);
-      if(cached){e.waitUntil(update);return cached}
-      return (await update)||Response.error();
-    })());
-  }
-});
-self.addEventListener('push',e=>{e.waitUntil(notificationsEnabled().then(enabled=>{if(!enabled)return;let p={};if(e.data){try{p=e.data.json()||{}}catch(_){try{p={body:e.data.text()}}catch(_){}}}const hasPayload=!!(p&&Object.keys(p).length),title=String(p.title||(hasPayload?'Notification Couteau Suisse':'✅ Nouvelle fiche / demande à contrôler')),body=String(p.body||(hasPayload?'Une nouvelle information est disponible.':'Une personne a envoyé une fiche ou une demande. Ouvrez Administration pour voir son nom et contrôler le contenu.')),target=String(p.url||(hasPayload?'/index.html':'/admin.html'));return self.registration.showNotification(title,{body,icon:String(p.icon||'/couteau-suisse-v283-192.png?v=283'),badge:String(p.badge||'/couteau-suisse-v283-192.png?v=283'),tag:String(p.tag||(hasPayload?'couteau-suisse':'couteau-suisse-admin-pending')),renotify:p.renotify===true,data:{url:target}})}))});
+async function notificationsEnabled(){const cache=await caches.open(NOTIFICATION_PREF_CACHE),r=await cache.match(NOTIFICATION_PREF_URL);return !!r&&(await r.text())==="1"}
+async function saveNotificationPreference(enabled){const cache=await caches.open(NOTIFICATION_PREF_CACHE);await cache.put(NOTIFICATION_PREF_URL,new Response(enabled?"1":"0"))}
+const BASE_CORE=["/index.html","/stations-carburant.html?v=388-voix","/voice-assist-v388.js?v=427-ios-sound","/mobile-overrides.css?v=432-home-clean","/weather-all-pages.js?v=68-notifications-globales","/notification-settings.js?v=282-onboarding-notification-detail","/market-update-notifications-v281.js?v=282","/home-work.css?v=432-home-clean","/home-work.js?v=432-home-clean","/markets-final.css?v=126-favori-fluide","/choix-marches-v409.html","/special-marches.html?v=388-voix","/nearby-markets.html?v=431-gps-photo","/traveller-markets.html?v=388-voix","/verification-v9.html?v=431-gps-distance","/market-consensus.js?v=320-verification-speciale","/special-market-server-v157.js?v=320-verification-speciale","/brocante-crosscheck-v316.js?v=316","/market-auto-update-v319.js?v=320","/market-attendance-v317.js?v=320","/market-navigation-confirm-v189.js?v=320"];
+const MODULES={
+ [ICON_CACHE]:["/manifest.webmanifest?v=283-icons","/couteau-suisse-v283-152.png?v=283","/couteau-suisse-v283-167.png?v=283","/couteau-suisse-v283-180.png?v=283","/couteau-suisse-v283-192.png?v=283","/couteau-suisse-v283-512.png?v=283","/couteau-suisse-v283-1024.png?v=283","/couteau-suisse-v283-maskable-192.png?v=283","/couteau-suisse-v283-maskable-512.png?v=283"],
+ [CONTEST_CACHE]:["/contest-v188.js?v=434-legacy-purge","/cadeau-concours-v417.svg?v=422"],
+ [ADMIN_CACHE]:["/admin.html","/contest-admin-v188.js?v=302-d1"],
+ [DATA_CACHE]:["/persistent-user-data-v283.js?v=426-current"],
+ [INSTALL_CACHE]:["/installer.html","/visitor-register-v361.js","/app-access-gate-v240.js?v=426-current","/cache-cleanup-v20260910.js?v=283-modules"],
+ [STATS_CACHE]:["/user-stats-v285.js?v=328-stations-verifiees"],
+ [MUSHROOM_CACHE]:["/champignons.html","/champignons.js?v=300-concours-auto","/champignons.css?v=300-concours-auto"],
+ [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=435-settings-order"],
+ [AUTORADIO_CACHE]:["/autoradio-home-v386.js?v=386-responsive-images","/autoradio-subscription-v381.js?v=381","/autoradio-version.json?v=386-responsive-images","/autoradio-assets-v386/fuel.svg?v=386","/autoradio-assets-v386/market.svg?v=386","/autoradio-assets-v386/map.svg?v=386","/autoradio-assets-v386/return.svg?v=386","/autoradio-assets-v386/address.svg?v=386","/autoradio-assets-v386/trash.svg?v=386"],
+ [PHONE_UI_CACHE]:["/phone-loading-v384.js?v=432-home-clean"]
+};
+async function putFresh(cacheName,path){try{const req=new Request(path,{cache:"reload"}),res=await fetch(req);if(res&&res.ok)(await caches.open(cacheName)).put(req,res.clone())}catch(_){}}
+async function ensureBase(){const c=await caches.open(BASE_CACHE);await Promise.allSettled(BASE_CORE.map(async p=>{const req=new Request(p);if(await c.match(req))return;const res=await fetch(new Request(p,{cache:"reload"}));if(res&&res.ok)await c.put(req,res)}))}
+async function refreshModules(){for(const [name,paths] of Object.entries(MODULES))await Promise.allSettled(paths.map(p=>putFresh(name,p)))}
+function moduleCacheFor(path){if(path==="/phone-loading-v384.js")return PHONE_UI_CACHE;if(path.indexOf("/autoradio-assets-v386/")===0||path==="/autoradio-home-v386.js"||path==="/autoradio-subscription-v381.js"||path==="/autoradio-version.json")return AUTORADIO_CACHE;if(path==="/manifest.webmanifest"||/couteau-suisse-v283-/.test(path))return ICON_CACHE;if(path==="/contest-v188.js")return CONTEST_CACHE;if(path==="/contest-admin-v188.js"||path==="/admin.html")return ADMIN_CACHE;if(path==="/champignons.html"||path==="/champignons.js"||path==="/champignons.css")return MUSHROOM_CACHE;if(path==="/subscription-web.js")return SUBSCRIPTION_CACHE;if(path==="/persistent-user-data-v283.js")return DATA_CACHE;if(path==="/visitor-register-v361.js"||path==="/installer.html"||path==="/app-access-gate-v240.js"||path==="/cache-cleanup-v20260910.js")return INSTALL_CACHE;if(path==="/user-stats-v285.js")return STATS_CACHE;return BASE_CACHE}
+async function showUpdateNotification(){if(!(await notificationsEnabled()))return;let message="Mise à jour ciblée installée.";try{const r=await fetch('/app-version.json?_='+Date.now(),{cache:'no-store'});if(r.ok){const d=await r.json();if(d&&d.message)message=String(d.message)}}catch(_){}await self.registration.showNotification('✅ Couteau Suisse mis à jour',{body:message,icon:'/couteau-suisse-v283-192.png?v=283',badge:'/couteau-suisse-v283-192.png?v=283',tag:'couteau-suisse-update-'+VERSION,renotify:true,data:{url:'/index.html'}})}
+self.addEventListener('install',e=>{e.waitUntil(Promise.all([ensureBase(),refreshModules()]).then(()=>self.skipWaiting()))});
+self.addEventListener('activate',e=>{e.waitUntil((async()=>{const keys=await caches.keys(),prefixes=['couteau-suisse-module-base-v','couteau-suisse-module-icons-v','couteau-suisse-module-contest-v','couteau-suisse-module-admin-v','couteau-suisse-module-data-v','couteau-suisse-module-install-v','couteau-suisse-module-stats-v','couteau-suisse-module-mushroom-v','couteau-suisse-module-subscription-v','couteau-suisse-module-autoradio-v','couteau-suisse-module-phone-ui-v'],keep=new Set([BASE_CACHE,ICON_CACHE,CONTEST_CACHE,ADMIN_CACHE,DATA_CACHE,INSTALL_CACHE,STATS_CACHE,MUSHROOM_CACHE,SUBSCRIPTION_CACHE,AUTORADIO_CACHE,PHONE_UI_CACHE]);await Promise.all(keys.filter(n=>prefixes.some(p=>n.startsWith(p))&&!keep.has(n)).map(n=>caches.delete(n)));for(const name of await caches.keys()){const cache=await caches.open(name);for(const req of await cache.keys()){const p=new URL(req.url).pathname;if(p==='/contact-mail-v99.js'||p==='/contact-mail-v99.css'||p==='/subscription-v154-patch.js'||p==='/trial-home-banner-v291.js')await cache.delete(req)}}await self.clients.claim();await showUpdateNotification()})())});
+self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;const u=new URL(e.request.url);if(u.pathname.startsWith('/api/'))return;if(u.pathname==='/sw.js'||u.pathname==='/app-version.json'){e.respondWith(fetch(e.request,{cache:'no-store'}));return}const cacheName=moduleCacheFor(u.pathname),isNav=e.request.mode==='navigate',isCode=/\.(?:js|json|css|html|webmanifest)$/i.test(u.pathname);if(isNav||isCode){e.respondWith((async()=>{try{const r=await fetch(e.request,{cache:'no-store'});if(r&&r.ok)(await caches.open(cacheName)).put(e.request,r.clone());return r}catch(_){return (await caches.match(e.request))||(isNav?await caches.match('/index.html'):undefined)||Response.error()}})());return}if(/\.(?:png|jpe?g|webp|svg|mp4|woff2?)$/i.test(u.pathname)){e.respondWith((async()=>{const c=await caches.open(cacheName),cached=await c.match(e.request),update=fetch(e.request).then(async r=>{if(r&&r.ok)await c.put(e.request,r.clone());return r}).catch(()=>null);if(cached){e.waitUntil(update);return cached}return (await update)||Response.error()})())}});
+self.addEventListener('push',e=>{e.waitUntil(notificationsEnabled().then(enabled=>{if(!enabled)return;let p={};if(e.data){try{p=e.data.json()||{}}catch(_){try{p={body:e.data.text()}}catch(_){}}}const hasPayload=!!(p&&Object.keys(p).length),title=String(p.title||(hasPayload?'Notification Couteau Suisse':'✅ Nouvelle fiche / demande à contrôler')),body=String(p.body||(hasPayload?'Une nouvelle information est disponible.':'Une personne a envoyé une fiche ou une demande. Ouvrez Administration pour voir son nom et contrôler le contenu.')),target=String(p.url||(hasPayload?'/index.html':'/admin.html'));return self.registration.showNotification(title,{body,icon:String(p.icon||'/couteau-suisse-v283-192.png?v=283'),badge:String(p.badge||'/couteau-suisse-v283-192.png?v=283'),tag:String(p.tag||(hasPayload?'couteau-suisse':'couteau-suisse-admin-pending')),renotify:p.renotify!==false,data:{url:target}})}))});
 self.addEventListener('message',e=>{if(e.data&&e.data.type==='SKIP_WAITING'){e.waitUntil(self.skipWaiting());return}if(e.data&&e.data.type==='CARPLAY_NOTIFICATIONS_PREFERENCE')e.waitUntil(saveNotificationPreference(e.data.enabled===true))});
 self.addEventListener('notificationclick',e=>{const n=e.notification||{},target=n.data&&n.data.url?String(n.data.url):'/index.html',detail=new URL('/index.html',self.location.origin);detail.searchParams.set('notification_open','1');detail.searchParams.set('notification_title',String(n.title||'Notification Couteau Suisse'));detail.searchParams.set('notification_body',String((n.options&&n.options.body)||n.body||''));detail.searchParams.set('notification_target',target);e.notification.close();e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(list=>{for(const client of list)if('focus'in client)return client.navigate(detail.href).then(()=>client.focus()).catch(()=>clients.openWindow(detail.href));return clients.openWindow(detail.href)}))});

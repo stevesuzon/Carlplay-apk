@@ -3,21 +3,15 @@
   if(window.__marketUpdateNotificationsV281)return;
   window.__marketUpdateNotificationsV281=true;
   var LAST_KEY='carplay_market_update_announcement_last_id';
-  var LAST_NOTIFIED_KEY='carplay_market_update_notification_last_id';
   var checking=false,queue=[];
   function notificationsEnabled(){return localStorage.getItem('carplay_notifications_enabled')==='1'}
   function lastId(){return Math.max(0,Number(localStorage.getItem(LAST_KEY)||0))}
   function remember(id){try{localStorage.setItem(LAST_KEY,String(Math.max(lastId(),Number(id)||0)))}catch(e){}}
-  function lastNotifiedId(){return Math.max(0,Number(localStorage.getItem(LAST_NOTIFIED_KEY)||0))}
-  function rememberNotified(id){try{localStorage.setItem(LAST_NOTIFIED_KEY,String(Math.max(lastNotifiedId(),Number(id)||0)))}catch(e){}}
   function removeBubble(){var old=document.getElementById('marketUpdateBubbleV281');if(old)old.remove()}
   function notifyPhone(item,title,body){
     try{
-      var id=Math.max(0,Number(item&&item.id||0));
-      if(!id||id<=lastNotifiedId())return;
       if(!notificationsEnabled()||!('Notification'in window)||Notification.permission!=='granted'||!('serviceWorker'in navigator))return;
-      rememberNotified(id);
-      navigator.serviceWorker.ready.then(function(registration){return registration.showNotification(title,{body:body,icon:'/couteau-suisse-192.png?v=281',badge:'/couteau-suisse-192.png?v=281',tag:'market-update-'+id,renotify:false,data:{url:'/index.html'}})}).catch(function(){});
+      navigator.serviceWorker.ready.then(function(registration){return registration.showNotification(title,{body:body,icon:'/couteau-suisse-192.png?v=281',badge:'/couteau-suisse-192.png?v=281',tag:'market-update-'+item.id,renotify:true,data:{url:'/index.html'}})}).catch(function(){});
     }catch(e){}
   }
   function showNext(){

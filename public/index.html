@@ -157,23 +157,6 @@ body.homePage.homeChromeHidden #directArticle{opacity:1!important;pointer-events
 #nearby80Button{width:100%;min-height:58px;border:3px solid #111;border-radius:17px;background:linear-gradient(135deg,#ff9a19,#ff5b00);color:#111;display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 16px;font:950 17px Arial,sans-serif;box-shadow:0 7px 18px #0007;cursor:pointer}
 #nearby80Button .pencil{font-size:25px;line-height:1;filter:grayscale(1) brightness(.1)}
 #nearby80Button .nearText{line-height:1.08;text-align:center}
-
-button,a,[role="button"],[onclick],.card,.small{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-button:active,a:active,[role="button"]:active,[onclick]:active,.card:active,.small:active{transform:scale(.985)}
-.marketHomeFast,.marketHomeFast:focus,.marketHomeFast:focus-visible,.marketHomeFast:active{
-  color:inherit!important;
-  text-decoration:none!important;
-  outline:0!important;
-  -webkit-tap-highlight-color:transparent!important;
-  -webkit-touch-callout:none!important;
-  -webkit-user-select:none!important;
-  user-select:none!important;
-  background:linear-gradient(145deg,#05aaff,#1934d7)!important;
-  border:2px solid #ffffff55!important;
-  box-shadow:0 8px 24px #0007!important;
-}
-.marketHomeFast *{-webkit-touch-callout:none!important;-webkit-user-select:none!important;user-select:none!important}
-.marketHomeFast:active{transform:scale(.985)!important}
 @media(max-width:720px){#homeDepartmentSearch{margin:-38px 0 9px}#nearby80Button{min-height:56px;font-size:15px;padding:9px 12px}#nearby80Button .pencil{font-size:22px}}
 .addressBookTile{position:relative;overflow:hidden;cursor:pointer;padding:0!important;background:#08752f!important}
 .addressBookTitle{display:none!important}
@@ -568,6 +551,11 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
 @media print{body>*:not(#genericQuoteModal){display:none!important}#genericQuoteModal{display:block!important;position:static;background:#fff;padding:0}.gqPanel{border:0;margin:0;width:100%;color:#111;background:#fff}.gqTop,.gqClient,.gqLogoRow,#gqLines,#gqAddLine,.gqSummary,.gqNotes,.gqExtraOptions,.gqActions,#gqSignatureArea{display:none!important}#gqDocPreview{display:block!important}}
 </style>
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+ integrity="sha256-p4NxAoJBhIINfQ3yn5nR3b8kRib5+CMf6eKzQq6u0lQ=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+ integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
 <style id="roofSatelliteSlopeStyle">
 #roofSatelliteOverlay{position:fixed;inset:0;z-index:2147483646;background:#000;color:#fff;display:none;overflow:auto;font-family:Arial,sans-serif}
 #roofSatelliteOverlay.open{display:block}
@@ -822,7 +810,7 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
 #locationPermissionBtn:disabled{opacity:.72}
 #locationPermissionNote{font-size:14px;line-height:1.45}
 </style>
-<style id="voiceNoCopyV391">
+<script src="/persistent-user-data-v283.js?v=416-admin-session"></script><style id="voiceNoCopyV391">
 [data-voice-card],[data-voice-card] *,button,button *,a,a *,[onclick],[onclick] *{
   -webkit-user-select:none!important;
   user-select:none!important;
@@ -834,41 +822,6 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
 .homeTopActions{display:flex;align-items:center;justify-content:flex-end;gap:10px;max-width:72%}
 .homeTopButton{min-height:58px;padding:10px 17px;border:3px solid #66d9ff;border-radius:18px;background:#087fd4;color:#fff;font:950 18px Arial;box-shadow:0 5px 15px #0008;cursor:pointer;white-space:nowrap}
 .homeTopHelp{max-width:350px;padding:7px 10px;border-radius:12px;background:#07111ddd;color:#fff;font:800 13px/1.25 Arial;text-align:right}
-</style>
-<script id="criticalModulesV439">
-(function(){
-  window.openSubscriptionSettingsV439=function(){
-    var body=document.getElementById('subscriptionMenu');
-    if(body)body.classList.add('open');
-    function ready(){
-      try{if(window.CarPlayEnsureSubscriptionSettings)window.CarPlayEnsureSubscriptionSettings()}catch(_){}
-      var b=document.getElementById('subscriptionMenu');if(b)b.classList.add('open');
-    }
-    if(window.CarPlayEnsureSubscriptionSettings){ready();return}
-    if(!document.getElementById('subscriptionLoaderV439')){
-      var s=document.createElement('script');s.id='subscriptionLoaderV439';s.src='/subscription-web.js?v=441-syntax-fix'+Date.now();s.onload=ready;s.onerror=function(){var b=document.getElementById('subscriptionMenu');if(b)b.innerHTML='<div class="settingNote" style="padding:12px;color:#ffb2b2">Impossible de charger l’abonnement. Appuyez sur MISE À JOUR puis réessayez.</div>'};document.head.appendChild(s);
-    }
-  };
-  window.openContestV439=function(){
-    function ready(){try{if(window.CarPlayOpenContest)window.CarPlayOpenContest()}catch(_){}}
-    if(window.CarPlayOpenContest){ready();return}
-    if(!document.getElementById('contestLoaderV439')){
-      var s=document.createElement('script');s.id='contestLoaderV439';s.src='/contest-v188.js?v=439-direct-'+Date.now();s.onload=ready;document.head.appendChild(s);
-    }
-  };
-})();
-</script>
-
-
-<style id="homeStabilityV448">
-body.homePage #weatherBubble{pointer-events:none!important;z-index:4!important}
-body.homePage .homeTopActions{position:relative!important;z-index:6!important}
-body.homePage button,body.homePage a,body.homePage [role="button"],body.homePage [onclick]{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-body.homePage .card img,body.homePage .returnPlaceTraficImg{pointer-events:none!important}
-.addressFallbackV448,.returnFallbackV448{position:absolute;inset:12px;z-index:0;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;font:950 clamp(18px,5vw,30px)/1.05 Arial,sans-serif;text-shadow:0 3px 8px #0009;pointer-events:none}
-.addressButtonFull,.returnPlaceTraficImg{position:relative;z-index:1}
-@media(max-width:720px){body.homePage .homeTopActions{margin-top:10px!important}body.homePage #homeDepartmentSearch{margin-top:14px!important}}
-@media(min-width:721px){body.homePage .homeTopActions{margin-top:10px!important}}
 </style>
 </head>
 <body class="homePage">
@@ -903,7 +856,7 @@ opacity:.9;
 <div id="network" class="status">Vérification Internet…</div>
 <div class="homeTopActions">
   <div class="homeTopHelp">Concours Couteau Suisse : points, bonus et classement.</div>
-  <button id="contestHomeButton" class="homeTopButton" type="button" onclick="openContestV439()">🏆 CONCOURS</button>
+  <button id="contestHomeButton" class="homeTopButton" type="button">🏆 CONCOURS</button>
   <button id="housePhotoButton" class="homeTopButton housePhotoTopButton" type="button" aria-label="Mesurer une maison"><span class="houseBtnIcon">📐</span><span class="houseBtnText">MESURER UNE MAISON</span></button>
   <div class="gear" onclick="toggleSettings()">⚙</div>
 </div>
@@ -914,19 +867,13 @@ opacity:.9;
     <span class="nearText">MARCHÉS À MOINS DE 150 KM</span>
   </button>
 </section><div class="grid homeDesignGrid">
-  <div class="card blue marketHomeFast" role="button" tabindex="0"
-       aria-label="Marchés, foires, Noël et brocantes"
-       data-voice-card="button"
-       data-voice-text="Marchés. Foires, Noël et brocantes."
-       onclick="location.href='choix-marches-v409.html'"
-       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='choix-marches-v409.html'}">
+  <div class="card blue" onclick="location.href='choix-marches-v409.html'">
     <div class="tag">FRANCE + BELGIQUE</div>
-    <div class="vehicleVisual"><img src="master-front-transparent.png?v=448-stable" alt="Marchés" loading="lazy" decoding="async" fetchpriority="low" onerror="this.onerror=null;this.src='master-front.jpg?v=448-fallback'"></div>
+    <div class="vehicleVisual"><img src="master-front-transparent.png" alt="Marchés"></div>
     <div class="marketText"><div class="title">MARCHÉS</div><div class="marketKinds">FOIRES • NOËL • BROCANTES</div></div>
   </div>
   <div id="homeAddressBookBtn" class="card orange addressBookTile" role="button" tabindex="0" aria-label="Adresse. Ouvrir le carnet d’adresses" data-voice-help="Adresse. Ouvrir le carnet d’adresses.">
-    <span class="addressFallbackV448">📒<br>CARNET D’ADRESSES</span>
-    <img class="addressButtonFull" src="address-button.png?v=448-stable" alt="Adresse" loading="lazy" decoding="async" fetchpriority="low" onerror="this.onerror=null;this.src='/autoradio-assets-v386/address.svg?v=448-fallback'">
+    <img class="addressButtonFull" src="address-button.png" alt="Adresse">
   </div>
 
   <a class="directBtn place homeBigTile" href="mes-papiers.html">
@@ -939,8 +886,7 @@ opacity:.9;
   </a>
 
   <div class="small green returnPlaceTrafic" onclick="returnPlace()" aria-label="Retourner sur la place">
-    <span class="returnFallbackV448">🚐<br>RETOURNER SUR LA PLACE</span>
-    <img class="returnPlaceTraficImg" src="retourner-place-trafic-2025.png?v=448-stable" alt="Retourner sur la place - Renault Trafic 2025 et caravane" loading="lazy" decoding="async" fetchpriority="low" onerror="this.onerror=null;this.src='/autoradio-assets-v386/return.svg?v=448-fallback'">
+    <img class="returnPlaceTraficImg" src="retourner-place-trafic-2025.png" alt="Retourner sur la place - Renault Trafic 2025 et caravane">
   </div>
   <div class="small red eraseTile" onclick="clearReturnPlace()">
     <span class="eraseTitle">EFFACER EMPLACEMENT</span><span class="eraseIcon">🗑️</span>
@@ -955,15 +901,6 @@ opacity:.9;
 </button>
 <div class="settingNote" style="padding:0 16px 14px">Charger la dernière version de l’application.</div>
 </div>
-<div class="settingRow" id="subscriptionSettings">
-<button class="settingHead" type="button" onclick="openSubscriptionSettingsV439()">
-<span>🔐 ABONNEMENT</span>
-<span>⌄</span>
-</button>
-<div class="settingBody" id="subscriptionMenu">
-<div class="settingNote" style="padding:12px">Chargement de votre abonnement…</div>
-</div>
-</div>
 <div class="settingRow">
 <button class="settingHead" onclick="toggleSection('gpsMenu',this)">
 <span>🧭 GPS / navigation</span>
@@ -977,6 +914,17 @@ opacity:.9;
 <button id="gpsApple" onclick="saveGps('Plans Apple')">Plans Apple</button>
 <div class="settingNote" id="gpsStatus">
 </div>
+</div>
+</div>
+<div class="settingRow" id="offlineMapsSettingRow">
+<button class="settingHead" onclick="toggleSection('mapsMenu',this)">
+<span>🗺️ Cartes hors ligne</span>
+<span>⌄</span>
+</button>
+<div class="settingBody" id="mapsMenu">
+<button onclick="openExternal('https://www.google.com/maps/search/France')">🇫🇷 France</button>
+<button onclick="openExternal('https://www.google.com/maps/search/Belgique')">🇧🇪 Belgique</button>
+<div class="settingNote">Ouvre Google Maps pour préparer les cartes hors connexion.</div>
 </div>
 </div>
 <div class="settingRow">
@@ -1030,13 +978,6 @@ Si Android le demande, autorise l’installation d’applications provenant de c
 <span>›</span>
 </button>
 <div class="settingNote" style="padding:0 16px 14px">Accès privé : compteurs des demandes et gestion des abonnements.</div>
-</div>
-<div class="settingRow" id="adminMarketFormsSettingRow">
-<button class="settingHead" onclick="location.href='/admin.html#marketFormsBox'">
-<span>📝 VOIR LES FICHES DE MARCHÉ</span>
-<span>›</span>
-</button>
-<div class="settingNote" style="padding:0 16px 14px">Aperçu des photos, compteur renseigné / total, déblocage et modification administrateur.</div>
 </div>
 <div class="settingRow" id="adminBanSettingRow">
 <button class="settingHead" onclick="location.href='/admin.html#allUsersBox'">
@@ -1414,8 +1355,6 @@ Si Android le demande, autorise l’installation d’applications provenant de c
   try{
     if(window.CouteauUserDataSafety&&typeof window.CouteauUserDataSafety.save==='function'){try{await window.CouteauUserDataSafety.save()}catch(_){}}
     if(!navigator.onLine)throw new Error('Pas de connexion Internet.');
-    setProgress(2,'Nettoyage complet…','Suppression des anciens caches de l’application. Vos données personnelles restent conservées.');
-    if('caches' in window){try{var cacheNames=await caches.keys();await Promise.all(cacheNames.filter(function(n){return n!=='carplay-notification-preference-v1'}).map(function(n){return caches.delete(n)}))}catch(_){}}
     setProgress(3,'Connexion au serveur…','Recherche de la dernière version disponible.');
     var versionInfo=null;
     try{versionInfo=await (await check('/app-version.json')).json()}catch(_){versionInfo=null}
@@ -1423,19 +1362,19 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(10,'Vérification de l’application…','Contrôle de la page d’accueil et des réglages.');
     await check('/index.html');
     setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications.');
-    await check('/contest-v188.js?v=439-direct');
+    await check('/contest-v188.js?v=434-legacy-purge');
     setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique et événements.');
-    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=438-stable-market-key'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=452-global-longpress'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=438-stable-market-key'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
+    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=431-gps-photo'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=427-ios-sound'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=431-gps-distance'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
     setProgress(48,'Vérification des champignons…','Contrôle des fiches Champignons et des coins enregistrés.');
     await Promise.allSettled([check('/champignons.html'),check('/champignons.js?v=300-concours-auto')]);
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
     await Promise.allSettled([check('/notification-settings.js?v=282-onboarding-notification-detail'),check('/market-update-notifications-v281.js?v=282')]);
     setProgress(72,'Vérification du compte…','Contrôle de l’abonnement, de l’identité et des réglages.');
-    await Promise.allSettled([check('/subscription-web.js?v=441-syntax-fix'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
+    await Promise.allSettled([check('/subscription-web.js?v=435-settings-order'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
     setProgress(82,'Recherche de la nouvelle version…','Seuls les fichiers de l’application sont actualisés.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=450-cache-stable',{updateViaCache:'none'})]}catch(_){regs=[]}}
+      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=435-settings-order',{updateViaCache:'none'})]}catch(_){regs=[]}}
       for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){}
       var reg=regs[0];
       if(reg&&reg.waiting){
@@ -1514,8 +1453,8 @@ function importMyAddressesText(){
 }
 function importMyAddresses(file){if(!file)return;var r=new FileReader();r.onload=function(){_importMyAddressesPayload(String(r.result||''))};r.onerror=function(){alert('Impossible de lire ce fichier.')};r.readAsText(file)}
 function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
-<script src="/location-permission-v20260911.js?v=20260911" defer></script>
-<script src="/gps-apple-plans-v141.js?v=316-confirm-clear-location" defer></script>
+<script src="/location-permission-v20260911.js?v=20260911"></script>
+<script src="/gps-apple-plans-v141.js?v=316-confirm-clear-location"></script>
 <script id="paperWorkRequestForm">
 (function(){
   var modal=document.getElementById('directArticleModal');
@@ -1651,14 +1590,11 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 (function(){
   var btn=document.getElementById('nearby80Button');
   if(!btn)return;
-  var opening=false;
   btn.addEventListener('click',function(){
-    if(opening)return;
     var lat=localStorage.getItem('return_lat'),lon=localStorage.getItem('return_lon');
     if(!lat||!lon){alert('Enregistre d’abord ta position avec « Retourner sur la place ».');return;}
-    opening=true;
-    location.assign('nearby-markets.html?radius=150&v=446');
-  },{passive:true});
+    location.href='nearby-markets.html?radius=150&v=431';
+  });
 })();
 </script>
 <style id="updateNotificationStyle">
@@ -1680,6 +1616,9 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
     var v=String(j.version||'').trim();if(!v)return;var old=localStorage.getItem('carplay.lastSeenVersion');
     if(old!==v){
       show(v,j.message);
+      if(old&&localStorage.getItem('carplay_notifications_enabled')==='1'&&'Notification'in window&&Notification.permission==='granted'&&'serviceWorker'in navigator){
+        navigator.serviceWorker.ready.then(function(registration){return registration.showNotification('✅ Couteau Suisse mis à jour',{body:j.message||'Les dernières nouveautés et mises à jour des marchés sont installées.',icon:'/couteau-suisse-192.png?v=281',badge:'/couteau-suisse-192.png?v=281',tag:'couteau-suisse-update-'+v,renotify:true,data:{url:'/index.html'}})}).catch(function(){});
+      }
     }
   }).catch(function(){});
 })();
@@ -1699,9 +1638,8 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
   }
   function updateAdminVisibility(){
     const row=document.getElementById('adminSettingRow');
-    const marketFormsRow=document.getElementById('adminMarketFormsSettingRow');
     const banRow=document.getElementById('adminBanSettingRow');
-    if(!row&&!marketFormsRow&&!banRow)return;
+    if(!row&&!banRow)return;
     const email=currentAccountEmail();
     const hasAdminSession=localStorage.getItem('carplay_admin_here')==='1'||!!localStorage.getItem('carplay_admin_token');
     // La section admin appartient uniquement au compte Steve Suzon.
@@ -1709,7 +1647,6 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
     // ce statut pouvait rester actif après une ancienne session et masquer l'accès sur le téléphone de Steve.
     const visible=email===ADMIN_EMAIL||hasAdminSession;
     if(row)row.style.display=visible?'':'none';
-    if(marketFormsRow)marketFormsRow.style.display=visible?'':'none';
     if(banRow)banRow.style.display=visible?'':'none';
   }
   updateAdminVisibility();
@@ -2011,8 +1948,8 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 })();
 </script>
 
-<script src="/cache-cleanup-v20260910.js?v=450-cache-stable" defer></script>
-<script src="/christmas-market-updater.js" defer></script>
+<script src="/cache-cleanup-v20260910.js?v=283-modules"></script>
+<script src="/christmas-market-updater.js"></script>
 
 <script id="removeOldUsersConnectedBoxV2">
 (function(){
@@ -2404,8 +2341,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 </script>
 
 <script id="cleanHomeNavigation">
-(function initHomeNavigationV448(){
- function wire(){
+window.addEventListener('load',function(){
   var house=document.getElementById('housePhotoButton');
   if(house){
     house.onclick=function(){
@@ -2429,9 +2365,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
       }
     };
   }
- }
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',wire,{once:true});else wire();
-})();
+});
 </script>
 
 <script id="roofSatelliteSlopeScript">
@@ -2777,11 +2711,11 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
   },true);
 })();
 </script>
-<script src="/devis-personnalises-v2.js?v=238-admin-email-devis" defer></script>
-<script src="/brocante-fiche-achat-v1.js?v=238-compat" defer></script>
+<script src="/devis-personnalises-v2.js?v=238-admin-email-devis"></script>
+<script src="/brocante-fiche-achat-v1.js?v=238-compat"></script>
 <!-- V426 téléphone : ancien écran de licence 8 chiffres retiré ; abonnement géré par subscription-web.js -->
-<script src="/admin-approval-overlay.js?v=302-d1" defer></script><script src="/user-stats-v285.js?v=328-stations-verifiees" defer></script><script src="/auto-market-counter-v204.js?v=204" defer></script>
-<script src="/trial-home-banner-v292.js?v=292" defer></script>
+<script src="/notification-settings.js?v=282-onboarding-notification-detail"></script><script src="/admin-approval-overlay.js?v=302-d1"></script><script src="/sanction-guard-v161.js?v=302-d1"></script><script src="/user-stats-v285.js?v=328-stations-verifiees"></script><script src="/auto-market-counter-v204.js?v=204" defer></script>
+<script src="/trial-home-banner-v292.js?v=292"></script>
 <script id="voiceSettingsDirectV393">
 (function(){
   var KEY='carplay_voice_enabled_v387';
@@ -2844,7 +2778,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
-
+<script src="/voice-assist-v388.js?v=427-ios-sound"></script>
 </body>
 </html>
 

@@ -1,4 +1,4 @@
 {
-  "version": "V452",
-  "message": "V452 : appui long vocal généralisé. Après 1,20 seconde, tous les boutons et cartes lisibles parlent sans ouvrir leur action. Un appui normal ouvre le bouton normalement. Les boutons Retour, Adresse, Marchés, Marchés 150 km, Concours, Mesurer une maison et les autres contrôles utilisent la même règle."
+  "version": "V435",
+  "message": "V435 : sur téléphone, Cartes hors ligne est supprimé des Réglages. ABONNEMENT est forcé juste sous MISE À JOUR et remis à sa place automatiquement s’il manque ou s’il est déplacé par un ancien cache."
 }

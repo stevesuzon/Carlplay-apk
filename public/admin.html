@@ -12,12 +12,11 @@
 
 
 <section class="box" id="marketFormsBox" style="display:none">
-<h2>📝 VOIR LES FICHES DE MARCHÉ</h2>
-<div id="marketFormsProgress" style="margin:0 0 10px;padding:13px;border:2px solid #55d98b;border-radius:13px;background:#09271b;color:#c9ffdc;text-align:center;font-size:21px;font-weight:1000">— / — MARCHÉS RENSEIGNÉS</div>
+<h2>📝 REGARDER LES FICHES</h2>
 <button class="refresh" id="toggleMarketForms" type="button">REGARDER LES FICHES <span id="marketFormsCount"></span></button>
 <div id="marketFormsStatus" style="display:none;margin-top:12px;padding:12px;border-radius:12px;background:#000;text-align:center;font-weight:900"></div>
 <div id="marketFormsList" style="display:none;margin-top:12px"></div>
-<p class="note">La photo apparaît directement dans la liste. Tu peux débloquer une photo, le GPS ou un renseignement confirmé pour qu’il puisse être repris. Toi, en mode administrateur, tu peux toujours ouvrir et modifier la fiche.</p>
+<p class="note">Toutes les informations déjà enregistrées par les utilisateurs restent verrouillées pour eux. Seul l’administrateur peut ouvrir une fiche ici et la remodifier.</p>
 </section>
 
 <section class="box" id="gpsPermissionBox" style="display:none"><h2>✅ DEMANDES À VALIDER / CONTRÔLER</h2><button class="pendingTotalButton" id="togglePendingPeople" type="button"><strong id="pendingRequestsCount">0</strong><span>DEMANDE(S) À CONTRÔLER</span><small>APPUYER POUR VOIR LES PERSONNES</small></button><button class="refresh" id="catchupExistingForms" type="button" style="margin:0 0 12px">🏆 RATTRAPER LES ANCIENNES FICHES</button><p class="note" id="catchupExistingFormsNote" style="margin:-4px 0 12px">Les fiches Marché, Noël, brocante, voyageurs, saisonniers et Champignons gagnent maintenant leurs points automatiquement. Elles restent ici avec le nom de la personne pour contrôle. OUI conserve les points et confirme « L’administrateur a validé » ; NON retire les points de la fiche. Les bugs / idées attendent toujours votre validation avant gain.</p><div id="gpsPushStatus" style="display:none"></div><div id="gpsRequests" style="display:none"></div><div id="recentValidated"></div><p class="note">Appuie sur une personne pour consulter ses fiches. Pour une fiche déjà créditée : OUI = points conservés, NON = points retirés. Pour un bug ou une idée : les points / bonus ne sont attribués qu’après OUI.</p></section>
@@ -34,7 +33,7 @@ const savedSecret=localStorage.getItem('carplay_admin_token')||''; if(savedSecre
 function deviceId(){let id=localStorage.getItem('carplay_device_id')||'';if(!id){id=(crypto.randomUUID?crypto.randomUUID():'d-'+Date.now()+'-'+Math.random().toString(36).slice(2));localStorage.setItem('carplay_device_id',id)}return id}
 async function setAdminPresence(active){try{if(!secret.value)return;await fetch('/api/admin/presence',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+secret.value},body:JSON.stringify({active})})}catch(e){}}
 async function loadPeopleCount(){try{let r=await fetch('/api/admin/installations',{headers:{authorization:'Bearer '+secret.value},cache:'no-store'}),j=await r.json();if(!r.ok||!j.ok)throw j;document.getElementById('installedCount').textContent=Math.max(0,Number(j.count||0));if(window.loadAdminAppMessages)window.loadAdminAppMessages();}catch(e){document.getElementById('installedCount').textContent='—';}}
-async function loadCounters(){mailStatus.textContent='Connexion…';try{let r=await fetch('/api/admin/mail-counters',{headers:{authorization:'Bearer '+secret.value}}),j=await r.json();if(!r.ok)throw j;localStorage.setItem('carplay_admin_token',secret.value);localStorage.setItem('carplay_admin_secret',secret.value);localStorage.setItem('carplay_admin_here','1');await setAdminPresence(true);adminSendCode.style.display='none';adminCode.style.display='none';adminCodeLabel.style.display='none';refresh.style.display='none';logout.style.display='block';mailCountersBox.style.display='block';peopleCountersBox.style.display='block';allUsersBox.style.display='block';mushroomsAdminBox.style.display='block';if(marketFormsBox)marketFormsBox.style.display='block';loadPeopleCount();loadAllUsers();loadMushroomsAdmin();loadMarketVerificationForms(false);document.getElementById('mTotal').textContent=j.total||0;document.getElementById('mPapers').textContent=j.counts.papiers_travail||0;document.getElementById('mGo2').textContent=j.counts.mypos_go2||0;document.getElementById('mUltra').textContent=j.counts.mypos_ultra||0;document.getElementById('mFlex').textContent=j.counts.mypos_flex||0;if(location.hash==='#allUsersBox'){allUsersList.style.display='block';document.getElementById('toggleAllUsers').firstChild.nodeValue='MASQUER TOUS LES UTILISATEURS ';setTimeout(()=>allUsersBox.scrollIntoView({behavior:'smooth',block:'start'}),50)}if(location.hash==='#marketFormsBox'){marketFormsList.style.display='block';document.getElementById('toggleMarketForms').firstChild.nodeValue='MASQUER LES FICHES ';loadMarketVerificationForms(true,false);setTimeout(()=>marketFormsBox.scrollIntoView({behavior:'smooth',block:'start'}),80)}if(window.CarPlayNotifications)window.CarPlayNotifications.sync().catch(function(){});mailStatus.textContent='✅ Steve Suzon confirmé par e-mail — administrateur connecté.'}catch(e){localStorage.removeItem('carplay_admin_here');localStorage.removeItem('carplay_admin_token');localStorage.removeItem('carplay_admin_secret');secret.value='';logout.style.display='none';mailCountersBox.style.display='none';peopleCountersBox.style.display='none';allUsersBox.style.display='none';mushroomsAdminBox.style.display='none';if(marketFormsBox)marketFormsBox.style.display='none';adminSendCode.style.display='block';mailStatus.textContent='Session administrateur expirée. Confirme à nouveau par e-mail.'}}
+async function loadCounters(){mailStatus.textContent='Connexion…';try{let r=await fetch('/api/admin/mail-counters',{headers:{authorization:'Bearer '+secret.value}}),j=await r.json();if(!r.ok)throw j;localStorage.setItem('carplay_admin_token',secret.value);localStorage.setItem('carplay_admin_secret',secret.value);localStorage.setItem('carplay_admin_here','1');await setAdminPresence(true);adminSendCode.style.display='none';adminCode.style.display='none';adminCodeLabel.style.display='none';refresh.style.display='none';logout.style.display='block';mailCountersBox.style.display='block';peopleCountersBox.style.display='block';allUsersBox.style.display='block';mushroomsAdminBox.style.display='block';if(marketFormsBox)marketFormsBox.style.display='block';loadPeopleCount();loadAllUsers();loadMushroomsAdmin();loadMarketVerificationForms(false);document.getElementById('mTotal').textContent=j.total||0;document.getElementById('mPapers').textContent=j.counts.papiers_travail||0;document.getElementById('mGo2').textContent=j.counts.mypos_go2||0;document.getElementById('mUltra').textContent=j.counts.mypos_ultra||0;document.getElementById('mFlex').textContent=j.counts.mypos_flex||0;if(location.hash==='#allUsersBox'){allUsersList.style.display='block';document.getElementById('toggleAllUsers').firstChild.nodeValue='MASQUER TOUS LES UTILISATEURS ';setTimeout(()=>allUsersBox.scrollIntoView({behavior:'smooth',block:'start'}),50)}if(window.CarPlayNotifications)window.CarPlayNotifications.sync().catch(function(){});mailStatus.textContent='✅ Steve Suzon confirmé par e-mail — administrateur connecté.'}catch(e){localStorage.removeItem('carplay_admin_here');localStorage.removeItem('carplay_admin_token');localStorage.removeItem('carplay_admin_secret');secret.value='';logout.style.display='none';mailCountersBox.style.display='none';peopleCountersBox.style.display='none';allUsersBox.style.display='none';mushroomsAdminBox.style.display='none';if(marketFormsBox)marketFormsBox.style.display='none';adminSendCode.style.display='block';mailStatus.textContent='Session administrateur expirée. Confirme à nouveau par e-mail.'}}
 adminSendCode.onclick=async()=>{mailStatus.textContent='Envoi du code à appli.suzon@gmail.com…';adminSendCode.disabled=true;try{const r=await fetch('/api/admin/login/request',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'appli.suzon@gmail.com',deviceId:deviceId()})}),j=await r.json();if(!r.ok)throw new Error(j.error||'Envoi impossible');adminChallengeId=j.challengeId;adminCodeLabel.style.display='block';adminCode.style.display='block';refresh.style.display='block';adminCode.focus();mailStatus.textContent='✅ Code envoyé à appli.suzon@gmail.com. Il est valable 10 minutes.'}catch(e){mailStatus.textContent='⚠️ '+(e.message||'Envoi impossible')}finally{setTimeout(()=>{adminSendCode.disabled=false},45000)}};
 refresh.onclick=async()=>{const code=String(adminCode.value||'').replace(/\D/g,'');if(!adminChallengeId||code.length!==6){mailStatus.textContent='Entre le code à 6 chiffres reçu par e-mail.';return}refresh.disabled=true;mailStatus.textContent='Vérification…';try{const r=await fetch('/api/admin/login/verify',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({challengeId:adminChallengeId,code,deviceId:deviceId()})}),j=await r.json();if(!r.ok)throw new Error(j.error||'Code incorrect');secret.value=j.token;localStorage.setItem('carplay_admin_token',j.token);localStorage.setItem('carplay_admin_secret',j.token);localStorage.setItem('carplay_admin_here','1');await loadCounters()}catch(e){mailStatus.textContent='⚠️ '+(e.message||'Code incorrect')}finally{refresh.disabled=false}};
 logout.onclick=async()=>{try{if(secret.value)await fetch('/api/admin/logout',{method:'POST',headers:{authorization:'Bearer '+secret.value}})}catch(_){}await setAdminPresence(false);localStorage.removeItem('carplay_admin_here');localStorage.removeItem('carplay_admin_token');localStorage.removeItem('carplay_admin_secret');secret.value='';adminChallengeId='';adminCode.value='';adminSendCode.style.display='block';adminCode.style.display='none';adminCodeLabel.style.display='none';refresh.style.display='none';logout.style.display='none';mailCountersBox.style.display='none';peopleCountersBox.style.display='none';allUsersBox.style.display='none';if(marketFormsBox)marketFormsBox.style.display='none';mailStatus.textContent='Déconnecté. Une confirmation e-mail sera nécessaire pour revenir en administration.';setTimeout(()=>location.href='/index.html',500)};
@@ -43,67 +42,37 @@ setInterval(function(){if(localStorage.getItem('carplay_admin_here')==='1'&&!doc
 
 
 
-let adminMarketForms=[],adminMarketTotal=0,adminMarketInformed=0,adminMarketHasMore=false;
+let adminMarketForms=[];
 function marketFormLabel(f){
   const city=String(f.city||'').trim(),name=String(f.name||'').trim();
   if(city&&name&&city.toLowerCase()!==name.toLowerCase())return city+' — '+name;
   return city||name||'Marché';
 }
-function renderAdminMarketForms(){
-  const labels={exists:'Existe',time:'Horaire',count:'Commerçants / exposants',draw:'Tirage au sort',welcome:'Humeur du placier',placer:'Responsable',clientModel:'Modèle de clients'};
-  marketFormsList.innerHTML=adminMarketForms.map(function(f,i){
-    const vals=f.values||{};
-    const lines=Object.keys(labels).filter(function(k){return vals[k]!==undefined&&vals[k]!==''}).map(function(k){
-      return '<div style="margin-top:5px;display:flex;align-items:center;justify-content:space-between;gap:8px"><span><b style="color:#ffd36c">'+safeHtml(labels[k])+' :</b> '+safeHtml(vals[k])+' ✅</span><button type="button" style="flex:0 0 auto;min-height:30px;padding:4px 7px;border:1px solid #ffb14a;border-radius:8px;background:#3b2607;color:#ffdca1;font-size:10px;font-weight:950" onclick="unlockAdminMarketField('+i+',\''+k+'\')">🔓 DÉBLOQUER</button></div>';
-    }).join('');
-    const meta=[f.day,f.address].filter(Boolean).map(safeHtml).join(' · ');
-    const sourceInfo=(f.hours?'<div style="margin-top:5px;color:#d7e9f6"><b>Horaire affiché :</b> '+safeHtml(f.hours)+'</div>':'')+(f.merchants?'<div style="margin-top:3px;color:#d7e9f6"><b>Commerçants / emplacements :</b> '+safeHtml(f.merchants)+'</div>':'');
-    const photo=f.photoUrl?'<div style="display:flex;gap:10px;align-items:center;margin-top:10px;padding:8px;border-radius:11px;background:#07101a"><img loading="lazy" src="'+safeHtml(f.photoUrl)+'" alt="Photo du marché" style="width:110px;height:78px;object-fit:cover;border:2px solid #62d8ff;border-radius:9px;background:#000"><div style="flex:1"><div style="color:#55e58c;font-weight:950">📷 PHOTO ACTUELLE</div><button type="button" style="width:100%;min-height:34px;margin-top:7px;border:0;border-radius:8px;background:#b73b27;color:#fff;font-weight:950;font-size:11px" onclick="unlockAdminMarketField('+i+',\'photo\')">🔓 DÉBLOQUER LA PHOTO</button></div></div>':'<div style="margin-top:7px;color:#90a8bb;font-size:12px">📷 Pas encore de photo.</div>';
-    const gps=f.hasLocation?'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:7px"><span style="color:#55e58c;font-weight:900">📍 GPS confirmé</span><button type="button" style="min-height:30px;padding:4px 7px;border:1px solid #ffb14a;border-radius:8px;background:#3b2607;color:#ffdca1;font-size:10px;font-weight:950" onclick="unlockAdminMarketField('+i+',\'gps\')">🔓 DÉBLOQUER GPS</button></div>':'';
-    return '<div style="margin:9px 0;padding:12px;border:2px solid '+(f.informed?'#55d98b':'#4c6b88')+';border-radius:13px;background:#0a1725"><div style="font-size:17px;font-weight:950;color:#fff">'+safeHtml(marketFormLabel(f))+'</div>'+(meta?'<div style="margin-top:4px;color:#a9c5dc;font-size:12px">'+meta+'</div>':'')+sourceInfo+photo+gps+(lines||'<div style="margin-top:7px;color:#b7c8d7">Aucun renseignement utilisateur confirmé pour le moment.</div>')+'<button type="button" style="width:100%;min-height:45px;margin-top:9px;border:0;border-radius:10px;background:#f39b19;color:#111;font-weight:950" onclick="openAdminMarketForm('+i+')">✏️ OUVRIR / MODIFIER — ADMIN</button></div>';
-  }).join('')||'<p class="note">Aucune fiche disponible.</p>';
-  if(adminMarketHasMore)marketFormsList.insertAdjacentHTML('beforeend','<button type="button" class="refresh" style="margin-top:12px" onclick="loadMoreMarketVerificationForms()">AFFICHER 50 FICHES DE PLUS</button>');
-}
-async function loadMarketVerificationForms(openAfter,append){
+async function loadMarketVerificationForms(openAfter){
   if(localStorage.getItem('carplay_admin_here')!=='1'||!marketFormsBox)return;
   try{
     if(marketFormsStatus){marketFormsStatus.style.display='block';marketFormsStatus.textContent='Chargement des fiches…';}
-    const offset=append?adminMarketForms.length:0;
-    const r=await fetch('/api/admin/market-verification-forms?limit=50&offset='+offset,{headers:{authorization:'Bearer '+secret.value},cache:'no-store'}),j=await r.json();
+    const r=await fetch('/api/admin/market-verification-forms',{headers:{authorization:'Bearer '+secret.value},cache:'no-store'}),j=await r.json();
     if(!r.ok||!j.ok)throw new Error(j.error||'Chargement impossible');
-    adminMarketTotal=Number(j.totalCount||0);adminMarketInformed=Number(j.informedCount||0);adminMarketHasMore=!!j.hasMore;
-    adminMarketForms=append?adminMarketForms.concat(j.forms||[]):(j.forms||[]);
-    const progress=document.getElementById('marketFormsProgress');
-    if(progress)progress.textContent=adminMarketInformed+' / '+adminMarketTotal+' MARCHÉS RENSEIGNÉS';
-    if(marketFormsCount)marketFormsCount.textContent='('+adminMarketInformed+'/'+adminMarketTotal+')';
-    renderAdminMarketForms();
-    if(marketFormsStatus)marketFormsStatus.textContent='✅ '+adminMarketForms.length+' fiche(s) affichée(s) sur '+adminMarketTotal+'.';
+    adminMarketForms=j.forms||[];
+    if(marketFormsCount)marketFormsCount.textContent='('+adminMarketForms.length+')';
+    const labels={exists:'Existe',time:'Horaire',count:'Commerçants / exposants',draw:'Tirage au sort',welcome:'Humeur du placier',placer:'Responsable',clientModel:'Modèle de clients'};
+    marketFormsList.innerHTML=adminMarketForms.map(function(f,i){
+      const vals=f.values||{},lines=Object.keys(labels).filter(function(k){return vals[k]!==undefined&&vals[k]!==''}).map(function(k){return '<div style="margin-top:4px"><b style="color:#ffd36c">'+safeHtml(labels[k])+' :</b> '+safeHtml(vals[k])+'</div>'}).join('');
+      const meta=[f.day,f.address].filter(Boolean).map(safeHtml).join(' · ');
+      return '<div style="margin:9px 0;padding:12px;border:2px solid #4c6b88;border-radius:13px;background:#0a1725"><div style="font-size:17px;font-weight:950;color:#fff">'+safeHtml(marketFormLabel(f))+'</div>'+(meta?'<div style="margin-top:4px;color:#a9c5dc;font-size:12px">'+meta+'</div>':'')+(lines||'<div style="margin-top:5px;color:#b7c8d7">Photo / GPS enregistré.</div>')+'<button type="button" style="width:100%;min-height:45px;margin-top:9px;border:0;border-radius:10px;background:#f39b19;color:#111;font-weight:950" onclick="openAdminMarketForm('+i+')">✏️ MODIFIER — ADMIN</button></div>';
+    }).join('')||'<p class="note">Aucune fiche enregistrée pour le moment.</p>';
+    if(marketFormsStatus){marketFormsStatus.textContent='✅ '+adminMarketForms.length+' fiche(s) enregistrée(s).';}
     if(openAfter&&marketFormsList)marketFormsList.style.display='block';
   }catch(e){
-    if(marketFormsStatus){marketFormsStatus.style.display='block';marketFormsStatus.textContent='⚠️ Chargement des fiches impossible. Réessayez dans quelques secondes.';console.error('market forms',e);}
+    if(marketFormsStatus){marketFormsStatus.style.display='block';marketFormsStatus.textContent='⚠️ '+(e.message||'Chargement impossible');}
   }
-}
-function loadMoreMarketVerificationForms(){loadMarketVerificationForms(true,true)}
-async function unlockAdminMarketField(index,field){
-  const f=adminMarketForms[Number(index)];if(!f)return;
-  const names={photo:'la photo',gps:'le GPS',time:'l’horaire',count:'le nombre de commerçants / emplacements',draw:'le tirage au sort',welcome:'l’humeur du placier',placer:'le responsable',clientModel:'le modèle de clients',exists:'l’existence du marché'};
-  if(!confirm('Débloquer '+(names[field]||field)+' pour '+marketFormLabel(f)+' ?'))return;
-  try{
-    const r=await fetch('/api/admin/market-verification-unlock',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+secret.value},body:JSON.stringify({marketKey:f.marketKey,field}),cache:'no-store'}),j=await r.json();
-    if(!r.ok||!j.ok)throw new Error(j.error||'Déblocage impossible');
-    if(j.sourceLocked)alert('Ce champ vient de Jours-de-Marché : il reste verrouillé pour les utilisateurs. Toi, administrateur, tu peux l’ouvrir et le corriger directement.');
-    else alert('✅ Débloqué. Une personne peut maintenant le renseigner de nouveau.');
-    await loadMarketVerificationForms(true,false);
-  }catch(e){alert('⚠️ '+(e.message||'Déblocage impossible'))}
 }
 function openAdminMarketForm(index){
   const f=adminMarketForms[Number(index)];if(!f)return;
   const params=new URLSearchParams();
   params.set('k',f.marketKey);params.set('mk',f.marketKey);params.set('n',marketFormLabel(f));
   if(f.country)params.set('country',f.country);
-  if(f.kind)params.set('type',f.kind);
-  if(f.hours)params.set('t',f.hours);
-  if(f.merchants)params.set('c',String(f.merchants).match(/\d+/)?.[0]||'');
   params.set('back','/admin.html#marketFormsBox');
   location.href='/verification-v9.html?'+params.toString();
 }
@@ -141,7 +110,7 @@ async function toggleUserBan(index,shouldBan){
     allUsersStatus.textContent=shouldBan?'✅ Utilisateur banni.':'✅ Utilisateur débanni.';await loadAllUsers();
   }catch(e){allUsersStatus.textContent='⚠️ '+(e.message||'Action impossible')}
 }
-document.getElementById('toggleMarketForms').onclick=function(){const open=marketFormsList.style.display!=='none';marketFormsList.style.display=open?'none':'block';this.firstChild.nodeValue=open?'REGARDER LES FICHES ':'MASQUER LES FICHES ';if(!open)loadMarketVerificationForms(true,false)};
+document.getElementById('toggleMarketForms').onclick=function(){const open=marketFormsList.style.display!=='none';marketFormsList.style.display=open?'none':'block';this.firstChild.nodeValue=open?'REGARDER LES FICHES ':'MASQUER LES FICHES ';if(!open)loadMarketVerificationForms(true)};
 document.getElementById('toggleAllUsers').onclick=function(){const open=allUsersList.style.display!=='none';allUsersList.style.display=open?'none':'block';this.firstChild.nodeValue=open?'VOIR TOUS LES UTILISATEURS ':'MASQUER TOUS LES UTILISATEURS ';if(!open)loadAllUsers()};
 setInterval(function(){if(localStorage.getItem('carplay_admin_here')==='1'&&allUsersList.style.display!=='none')loadAllUsers()},60000);
 
@@ -241,5 +210,5 @@ window.loadGpsRequests=loadGpsRequests;
 setInterval(()=>{const active=localStorage.getItem('carplay_admin_here')==='1';gpsPermissionBox.style.display=active?'block':'none';if(active)loadGpsRequests();},15000);
 
 </script><script src="/notification-settings.js?v=282-onboarding-notification-detail"></script><script src="/contest-admin-v188.js?v=302-d1"></script>
-<script src="/voice-assist-v388.js?v=448-stable"></script>
+<script src="/voice-assist-v388.js?v=396"></script>
 </body></html>

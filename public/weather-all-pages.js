@@ -1,6 +1,4 @@
 (function () {
-  if(window.__weatherAllPagesV448Loaded)return;
-  window.__weatherAllPagesV448Loaded=true;
 
   var style = document.createElement("style");
   style.textContent = "#weatherBubble{position:fixed;z-index:2147483000;top:max(4px,env(safe-area-inset-top));left:50%;right:auto;transform:translateX(-50%);box-sizing:border-box;width:auto;max-width:calc(100vw - 20px);min-width:280px;padding:7px 13px;border-radius:18px;border:2px solid #f39b19;background:rgba(5,10,18,.96);color:#fff;text-align:center;font:900 15px/1.15 Arial;box-shadow:0 5px 14px #0008;overflow:hidden;transition:opacity .18s ease,transform .18s ease}#weatherBubble .weatherMain{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#weatherBubble .weatherDay{margin-top:3px;font-size:12px;color:#fff}body:not(.homePage){padding-top:62px!important}body.settings-open #weatherBubble{display:none!important}body.weatherScrolled #weatherBubble{opacity:0!important;pointer-events:none!important;transform:translate(-50%,-90px)!important}@media(max-width:720px){#weatherBubble{top:max(3px,env(safe-area-inset-top));max-width:calc(100vw - 18px);min-width:0;width:auto;padding:6px 10px;font-size:12px}#weatherBubble .weatherDay{font-size:10px}}"+

@@ -1091,9 +1091,9 @@ async function listMarkets(env) {
   const removed = await env.DB.prepare("SELECT market_key FROM market_verification_consensus WHERE field='exists' AND lower(value_norm)='non'").all();
   const disabled = new Set((removed.results || []).map(r => String(r.market_key || '')));
   const markets = (result.results || []).filter(m => {
-    const key = [String(m.country || '').toLowerCase(),m.area,m.name,m.city,m.day].join('|');
+    const key = [String(m.country || '').toLowerCase(),m.area,m.name,m.city,m.day,m.address || ''].join('|');
     return !disabled.has(key) && !storedMarketExpired(m);
-  }).map(m=>isJdmSource(m)?{...m,hours:jdmEffectiveHours(m)}:m);
+  });
   const latest = (result.results || []).reduce((m,r) => String(r.updated_at || '') > m ? String(r.updated_at || '') : m, '');
   return json({ ok: true, markets, updatedAt: latest || null, serverTime: Date.now() });
 }
@@ -1326,78 +1326,9 @@ function jdmDateRange(text){
   if(m){const d=`${m[3]}-${String(Number(m[2])).padStart(2,'0')}-${String(Number(m[1])).padStart(2,'0')}`;return{start:d,end:d,label:`${m[1]}/${m[2]}/${m[3]}`}}
   return{start:'',end:'',label:''};
 }
-function marketClockParts(token){
-  const m=String(token||'').trim().match(/^([0-2]?\d)(?:h|:)([0-5]?\d)?$/i);
-  if(!m)return null;
-  const h=Number(m[1]),min=Number(m[2]||0);
-  if(h>23||min>59)return null;
-  return{h,min};
-}
-function marketClockLabel(total){
-  total=(Number(total)%1440+1440)%1440;
-  const h=Math.floor(total/60),m=total%60;
-  return String(h).padStart(2,'0')+'h'+String(m).padStart(2,'0');
-}
-function marketHoursMinus30(raw){
-  const s=String(raw||'').trim();
-  const m=s.match(/^\s*([0-2]?\d(?:h|:)[0-5]?\d?)\s*[-–—]\s*([0-2]?\d(?:h|:)[0-5]?\d?)\s*$/i);
-  if(!m)return s;
-  const p=marketClockParts(m[1]);
-  if(!p)return s;
-  return marketClockLabel(p.h*60+p.min-30)+'-'+String(m[2]).trim();
-}
 function jdmHours(text){
   const t=String(text||'').replace(/\s+/g,' '),m=t.match(/\bde\s+([0-2]?\d(?:h|:)[0-5]?\d?)\s+(?:à|a)\s+([0-2]?\d(?:h|:)[0-5]?\d?)/i);
-  return m?marketHoursMinus30(`${m[1]}-${m[2]}`):'';
-}
-function isJdmSource(row){
-  return /jours-de-marche\.fr/i.test(String(row&&row.source_url||row&&row.sourceUrl||''))||
-    /Jours-de-March[eé]\.fr/i.test(String(row&&row.note||''));
-}
-function jdmEffectiveHours(row){
-  const raw=String(row&&row.hours||'').trim();
-  if(!raw||!isJdmSource(row))return raw;
-  // New imports are already shifted by jdmHours(). Old rows are shifted once on delivery.
-  return /D[eé]but affich[eé] 30 min avant/i.test(String(row&&row.note||''))?raw:marketHoursMinus30(raw);
-}
-function marketStartTimeValue(hours){
-  const m=String(hours||'').match(/([0-2]?\d)(?:h|:)([0-5]\d)/i);
-  if(!m)return'';
-  return String(Number(m[1])).padStart(2,'0')+':'+String(Number(m[2])).padStart(2,'0');
-}
-function marketPublishedCount(value){
-  const m=String(value||'').match(/\b(\d{1,4})\b/);
-  return m?String(Number(m[1])):'';
-}
-function marketSourceKeyParts(marketKey){
-  let raw=String(marketKey||'').replace(/^marketVerifyV9:/,'');
-  let legacyCountry='';
-  const c=raw.indexOf(':');
-  if(c>0&&/^(fr|be)$/i.test(raw.slice(0,c))){
-    legacyCountry=raw.slice(0,c).toUpperCase();
-    raw=raw.slice(c+1);
-  }
-  const p=raw.split('|');
-  if(legacyCountry){
-    if(p.length<5)return null;
-    return{country:legacyCountry,area:String(p[0]||''),name:String(p[2]||''),city:String(p[3]||''),day:String(p[4]||''),address:String(p[6]||'')};
-  }
-  if(p.length<5)return null;
-  return{country:String(p[0]||'').toUpperCase(),area:String(p[1]||''),name:String(p[2]||''),city:String(p[3]||''),day:String(p[4]||''),address:String(p.slice(5).join('|')||'')};
-}
-async function marketSourceLocks(env,marketKey){
-  const p=marketSourceKeyParts(marketKey);
-  if(!p||!p.country||!p.area||!p.name||!p.day)return{};
-  const row=await env.DB.prepare(`SELECT hours,merchants,note,source_url FROM imported_markets
-    WHERE upper(country)=? AND area=? AND name=? AND city=? AND day=?
-      AND (?='' OR address=?)
-    ORDER BY CASE WHEN source_url LIKE '%jours-de-marche.fr%' OR note LIKE '%Jours-de-Marché.fr%' THEN 0 ELSE 1 END,updated_at DESC LIMIT 1`)
-    .bind(p.country,p.area,p.name,p.city,p.day,p.address,p.address).first();
-  if(!row||!isJdmSource(row))return{};
-  const out={},time=marketStartTimeValue(jdmEffectiveHours(row)),count=marketPublishedCount(row.merchants);
-  if(time)out.time={value:time.slice(0,2)+'h'+(time.slice(3)==='00'?'':time.slice(3)),norm:time,source:'Jours-de-Marché.fr',locked:true};
-  if(count)out.count={value:count,norm:count,source:'Jours-de-Marché.fr',locked:true};
-  return out;
+  return m?`${m[1]}-${m[2]}`:'';
 }
 function jdmDays(text){
   const t=normMarketText(text),out=[];let m=t.match(/jours suivants\s*:\s*([^.;]+?)(?:\s+de\s+\d|\s+info\s*:|\s+adresse\s*:|$)/i);
@@ -1443,7 +1374,7 @@ function parseJdmMarketPage(html,area,pageUrl){
     const actualArea=jdmAreaForPostal(area,pc);
     const href=(h.raw.match(/href=["']([^"']+)["']/i)||[])[1]||'',sourceUrl=href?jdmDecodeUrl(href):String(pageUrl||'');
     const periodic=jdmPeriodic(body),phone=marketPhoneFromText(body,'FR'),merchants=marketCapacityFromText(body);
-    const note=(periodic?'Marché périodique — ':'')+'Source Jours-de-Marché.fr. Début affiché 30 min avant l’horaire source. '+String(body||'').slice(0,420);
+    const note=(periodic?'Marché périodique — ':'')+'Source Jours-de-Marché.fr. '+String(body||'').slice(0,420);
     if(range.end&&range.end<today)continue;
     if(kind==='noel'||range.start){
       const day=range.label||range.start||days.join(', ');
@@ -1460,7 +1391,7 @@ function parseJdmVideGreniers(html,area,pageUrl){
   for(const h of hs){if(h.level!==3)continue;const title=String(h.text||'').trim(),body=marketPlainText(h.after||''),combined=title+' '+body,n=normMarketText(combined);if(!title||!/vide[ -]?grenier|brocante|foire|braderie|bric ?a ?brac|bourse d.?echange|puces/.test(n))continue;
     const range=jdmDateRange(body),pc=jdmPostalCity(body);if(!range.start)continue;if(range.end&&range.end<today)continue;
     const href=(h.raw.match(/href=["']([^"']+)["']/i)||[])[1]||'',sourceUrl=href?jdmDecodeUrl(href):String(pageUrl||'');
-    out.push({country:'FR',area:jdmAreaForPostal(area,pc),kind:'brocante',name:title,city:pc.city,day:range.label,dateLabel:range.label,start:range.start,end:range.end||range.start,hours:jdmHours(body),address:[pc.postal,pc.city].filter(Boolean).join(' '),merchants:marketCapacityFromText(body),phone:marketPhoneFromText(body,'FR'),note:`${marketLabelFromKindText(combined)} — source Jours-de-Marché.fr. Début affiché 30 min avant l’horaire source. ${String(body||'').slice(0,380)}`,sourceUrl});
+    out.push({country:'FR',area:jdmAreaForPostal(area,pc),kind:'brocante',name:title,city:pc.city,day:range.label,dateLabel:range.label,start:range.start,end:range.end||range.start,hours:jdmHours(body),address:[pc.postal,pc.city].filter(Boolean).join(' '),merchants:marketCapacityFromText(body),phone:marketPhoneFromText(body,'FR'),note:`${marketLabelFromKindText(combined)} — source Jours-de-Marché.fr. ${String(body||'').slice(0,380)}`,sourceUrl});
   }
   return out;
 }
@@ -1706,62 +1637,9 @@ async function ensureMarketVerificationTables(env) {
     market_key TEXT PRIMARY KEY, latitude REAL NOT NULL, longitude REAL NOT NULL, address TEXT NOT NULL DEFAULT '',
     confirmations INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`).run();
-  // V439 : ne jamais bloquer une fiche ou l’admin avec une grosse migration.
 }
 
-function stableMarketKeyValue(value){
-  let v=String(value||"").replace(/[\u0000-\u001f]/g,"").trim().slice(0,500);
-  if(!v)return"";
-  if(v.startsWith("marketVerifyV9:")){
-    let raw=v.slice("marketVerifyV9:".length),country="";
-    const c=raw.indexOf(":");
-    if(c>0&&/^(fr|be)$/i.test(raw.slice(0,c))){country=raw.slice(0,c).toLowerCase();raw=raw.slice(c+1)}
-    const p=raw.split("|");
-    if(country&&p.length>=5)return[country,p[0]||"",p[2]||"",p[3]||"",p[4]||""].join("|").slice(0,500);
-  }
-  const p=v.split("|");
-  return p.length>=5?p.slice(0,5).join("|").slice(0,500):v;
-}
-function cleanMarketKey(value){return stableMarketKeyValue(value)}
-async function migrateOneLegacyMarketKeyV438(env,oldKey){
-  oldKey=String(oldKey||"");const stable=stableMarketKeyValue(oldKey);if(!oldKey||!stable||stable===oldKey)return false;
-  const pairs=[
-    [`INSERT OR IGNORE INTO market_verification_consensus(market_key,field,value_norm,value_display,confirmations,updated_at) SELECT ?,field,value_norm,value_display,confirmations,updated_at FROM market_verification_consensus WHERE market_key=?`,"market_verification_consensus"],
-    [`INSERT OR IGNORE INTO market_verification_votes(market_key,field,value_norm,value_display,device_id,ip_hash,created_at,updated_at) SELECT ?,field,value_norm,value_display,device_id,ip_hash,created_at,updated_at FROM market_verification_votes WHERE market_key=?`,"market_verification_votes"],
-    [`INSERT OR IGNORE INTO market_photo_metadata(market_key,object_key,mime_type,device_id,user_latitude,user_longitude,market_latitude,market_longitude,distance_meters,quality_score,stall_count,ai_reason,replacement_count,captured_at,updated_at) SELECT ?,object_key,mime_type,device_id,user_latitude,user_longitude,market_latitude,market_longitude,distance_meters,quality_score,stall_count,ai_reason,replacement_count,captured_at,updated_at FROM market_photo_metadata WHERE market_key=?`,"market_photo_metadata"],
-    [`INSERT OR IGNORE INTO market_photo_blobs(market_key,data_base64,mime_type,updated_at) SELECT ?,data_base64,mime_type,updated_at FROM market_photo_blobs WHERE market_key=?`,"market_photo_blobs"],
-    [`INSERT OR IGNORE INTO market_photo_uploads(market_key,device_id,uploaded_at) SELECT ?,device_id,uploaded_at FROM market_photo_uploads WHERE market_key=?`,"market_photo_uploads"],
-    [`INSERT OR IGNORE INTO market_location_consensus(market_key,latitude,longitude,address,confirmations,updated_at) SELECT ?,latitude,longitude,address,confirmations,updated_at FROM market_location_consensus WHERE market_key=?`,"market_location_consensus"],
-    [`INSERT OR IGNORE INTO market_location_votes(market_key,device_id,latitude,longitude,accuracy,address,created_at,updated_at) SELECT ?,device_id,latitude,longitude,accuracy,address,created_at,updated_at FROM market_location_votes WHERE market_key=?`,"market_location_votes"]
-  ];
-  for(const pair of pairs){
-    try{await env.DB.prepare(pair[0]).bind(stable,oldKey).run();await env.DB.prepare("DELETE FROM "+pair[1]+" WHERE market_key=?").bind(oldKey).run()}catch(_){}
-  }
-  return true;
-}
-async function migrateMarketKeysV438(env,limit=12){
-  try{
-    await env.DB.prepare("CREATE TABLE IF NOT EXISTS market_schema_migrations(key TEXT PRIMARY KEY,done_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
-    const done=await env.DB.prepare("SELECT key FROM market_schema_migrations WHERE key='stable-market-key-v438' LIMIT 1").first();
-    if(done)return {done:true,count:0};
-    const n=Math.max(1,Math.min(25,Number(limit)||12));
-    const rows=await env.DB.prepare(`SELECT market_key FROM (
-      SELECT market_key FROM market_verification_consensus
-      UNION SELECT market_key FROM market_verification_votes
-      UNION SELECT market_key FROM market_photo_metadata
-      UNION SELECT market_key FROM market_photo_blobs
-      UNION SELECT market_key FROM market_photo_uploads
-      UNION SELECT market_key FROM market_location_consensus
-      UNION SELECT market_key FROM market_location_votes
-    ) WHERE market_key LIKE 'marketVerifyV9:%' OR
-      (length(market_key)-length(replace(market_key,'|','')))>=5
-      LIMIT ?`).bind(n).all();
-    let moved=0;
-    for(const row of rows.results||[])if(await migrateOneLegacyMarketKeyV438(env,row.market_key))moved++;
-    if(!(rows.results||[]).length)await env.DB.prepare("INSERT OR REPLACE INTO market_schema_migrations(key,done_at) VALUES('stable-market-key-v438',CURRENT_TIMESTAMP)").run();
-    return {done:!(rows.results||[]).length,count:moved};
-  }catch(_){return {done:false,count:0}}
-}
+function cleanMarketKey(value) { return String(value || "").replace(/[\u0000-\u001f]/g, "").trim().slice(0, 500); }
 
 function normalizedVerification(field, raw) {
   const value = String(raw == null ? "" : raw).trim();
@@ -1853,10 +1731,6 @@ async function marketVerificationState(env, marketKey, includePhoto = true) {
   const values = {}, leaders = {};
   for (const row of consensus.results || []) values[row.field] = { value: row.value_display, confirmations: Number(row.confirmations || 1), updatedAt: row.updated_at, locked:true };
   for (const row of pending.results || []) if (!leaders[row.field] && !values[row.field]) leaders[row.field] = { value: row.value_display, confirmations: Number(row.confirmations), required: 1 };
-  try{
-    const sourceLocks=await marketSourceLocks(env,marketKey);
-    for(const field of ['time','count'])if(sourceLocks[field]&&!values[field])values[field]={value:sourceLocks[field].value,confirmations:1,updatedAt:'source',locked:true,source:sourceLocks[field].source};
-  }catch(_){}
   let photo = null;
   if (includePhoto) {
     const row = await env.DB.prepare("SELECT distance_meters,quality_score,stall_count,replacement_count,captured_at,updated_at FROM market_photo_metadata WHERE market_key=?").bind(marketKey).first();
@@ -2003,12 +1877,9 @@ async function submitMarketVerificationCore(request, env) {
   const existingPresence = await env.DB.prepare("SELECT value_norm,value_display FROM market_verification_consensus WHERE market_key=? AND field='exists' LIMIT 1").bind(marketKey).first();
   if(existingPresence && String(existingPresence.value_norm||'').toLowerCase()==='non' && !isAdminRequest) return json({ok:false,error:'MARCHE_SUPPRIME'},409);
   let confirmsPresence=false;
-  let sourceLocks={};try{sourceLocks=await marketSourceLocks(env,marketKey)}catch(_){}
   for (const field of ["time", "count", "draw", "clientModel", "welcome", "placer", "exists"]) {
     const locked = await env.DB.prepare("SELECT field,value_display,confirmations,updated_at FROM market_verification_consensus WHERE market_key=? AND field=?").bind(marketKey,field).first();
-    const sourceLocked=!isAdminRequest&&sourceLocks[field];
     const mayReplaceTime=locked&&isAdminRequest;
-    if(sourceLocked){results[field]={field,leadingValue:sourceLocked.value,confirmations:1,confirmed:{field,value_display:sourceLocked.value,confirmations:1,source:sourceLocked.source},locked:true,source:sourceLocked.source};continue;}
     if (locked&&!mayReplaceTime) { results[field]={field,leadingValue:locked.value_display,confirmations:Number(locked.confirmations||1),confirmed:locked,locked:true}; continue; }
     const value = normalizedVerification(field, data.values && data.values[field]);
     if (!value) continue;
@@ -2073,100 +1944,44 @@ async function getMarketVerification(url, env) {
 async function adminMarketVerificationForms(request, env) {
   if (!(await adminAuthorized(request, env))) return json({ok:false,error:"SECRET_INCORRECT"},401);
   if (!env.DB) return json({ok:false,error:"DB_INDISPONIBLE"},503);
-  await ensureMarketTable(env);
   await ensureMarketVerificationTables(env);
-  const url=new URL(request.url),limit=Math.max(20,Math.min(50,Number(url.searchParams.get('limit')||50)||50)),offset=Math.max(0,Number(url.searchParams.get('offset')||0)||0);
 
-  const totalRow=await env.DB.prepare("SELECT COUNT(*) AS n FROM imported_markets").first();
-  const currentKeySql="lower(COALESCE(country,''))||'|'||COALESCE(area,'')||'|'||COALESCE(name,'')||'|'||COALESCE(city,'')||'|'||COALESCE(day,'')";
-  let informedCount=0;
-  try{
-    const informed=await env.DB.prepare(`SELECT COUNT(*) AS n FROM imported_markets
-      WHERE ${currentKeySql} IN (
-        SELECT market_key FROM market_verification_consensus
-        UNION SELECT market_key FROM market_photo_metadata
-        UNION SELECT market_key FROM market_location_consensus
-      )`).first();
-    informedCount=Number(informed&&informed.n||0);
-  }catch(_){}
+  const rows=await env.DB.prepare(`
+    SELECT market_key,field,value_display,confirmations,updated_at
+    FROM market_verification_consensus
+    ORDER BY updated_at DESC
+    LIMIT 3000
+  `).all();
 
-  const page=await env.DB.prepare(`SELECT country,area,kind,name,city,day,hours,address,merchants,source_url,note,updated_at
-    FROM imported_markets ORDER BY country,area,city,name,day LIMIT ? OFFSET ?`).bind(limit,offset).all();
-  const forms=(page.results||[]).map(row=>{
-    const marketKey=[String(row.country||'').toLowerCase(),row.area||'',row.name||'',row.city||'',row.day||''].join('|');
-    return{
-      marketKey,country:String(row.country||'').toLowerCase(),area:String(row.area||''),kind:String(row.kind||'marche'),
-      name:String(row.name||'Marché'),city:String(row.city||''),day:String(row.day||''),address:String(row.address||''),
-      hours:isJdmSource(row)?jdmEffectiveHours(row):String(row.hours||''),merchants:String(row.merchants||''),
-      source:String(row.source_url||''),values:{},updatedAt:String(row.updated_at||''),hasPhoto:false,hasLocation:false,informed:false
-    };
-  });
-  const byKey=new Map(forms.map(f=>[f.marketKey,f])),keys=forms.map(f=>f.marketKey);
-  if(keys.length){
-    const ph=keys.map(()=>'?').join(',');
-    const rows=await env.DB.prepare(`SELECT market_key,field,value_display,confirmations,updated_at FROM market_verification_consensus WHERE market_key IN (${ph})`).bind(...keys).all();
-    for(const row of rows.results||[]){
-      const item=byKey.get(String(row.market_key||''));if(!item)continue;
-      item.values[String(row.field||'')]=String(row.value_display||'');
-      item.informed=true;
-      if(!item.updatedAt||String(row.updated_at||'')>item.updatedAt)item.updatedAt=String(row.updated_at||'');
+  const map=new Map();
+  const ensure=(key)=>{
+    key=String(key||"");
+    if(!map.has(key)){
+      let raw=key.replace(/^marketVerifyV9:/,""),country="",parts=[];
+      const c=raw.indexOf(":");
+      if(c>=0){country=raw.slice(0,c);raw=raw.slice(c+1)}
+      parts=raw.split("|");
+      const name=String(parts[2]||parts[0]||"Marché");
+      const city=String(parts[3]||"");
+      const day=String(parts[4]||"");
+      map.set(key,{marketKey:key,country,name,city,day,values:{},updatedAt:""});
     }
-    const photos=await env.DB.prepare(`SELECT market_key,updated_at FROM market_photo_metadata WHERE market_key IN (${ph})`).bind(...keys).all();
-    for(const row of photos.results||[]){
-      const item=byKey.get(String(row.market_key||''));if(!item)continue;
-      item.hasPhoto=true;item.informed=true;
-      item.photoUrl=`/api/market-photo?marketKey=${encodeURIComponent(item.marketKey)}&v=${encodeURIComponent(row.updated_at||'')}`;
-      if(!item.updatedAt||String(row.updated_at||'')>item.updatedAt)item.updatedAt=String(row.updated_at||'');
-    }
-    const locs=await env.DB.prepare(`SELECT market_key,address,updated_at FROM market_location_consensus WHERE market_key IN (${ph})`).bind(...keys).all();
-    for(const row of locs.results||[]){
-      const item=byKey.get(String(row.market_key||''));if(!item)continue;
-      item.hasLocation=true;item.informed=true;item.verifiedAddress=String(row.address||'');
-      if(!item.updatedAt||String(row.updated_at||'')>item.updatedAt)item.updatedAt=String(row.updated_at||'');
-    }
-  }
-  forms.sort((a,b)=>(Number(b.informed)-Number(a.informed))||String(a.city||a.name).localeCompare(String(b.city||b.name),'fr'));
-  const totalCount=Number(totalRow&&totalRow.n||0);
-  return json({ok:true,forms,totalCount,informedCount,offset,limit,hasMore:offset+forms.length<totalCount});
-}
+    return map.get(key);
+  };
 
-async function adminMarketVerificationUnlock(request,env){
-  if (!(await adminAuthorized(request,env))) return json({ok:false,error:"SECRET_INCORRECT"},401);
-  if(!env.DB)return json({ok:false,error:"DB_INDISPONIBLE"},503);
-  await ensureMarketVerificationTables(env);
-  const data=await body(request),marketKey=cleanMarketKey(data.marketKey),field=String(data.field||'');
-  const allowed=new Set(['time','count','draw','clientModel','welcome','placer','exists','photo','gps']);
-  if(!marketKey||!allowed.has(field))return json({ok:false,error:'DEMANDE_INVALIDE'},400);
-
-  if(field==='photo'){
-    const row=await env.DB.prepare("SELECT object_key FROM market_photo_metadata WHERE market_key=?").bind(marketKey).first();
-    if(row&&env.MARKET_PHOTOS&&row.object_key&&!String(row.object_key).startsWith('d1:')){
-      try{await env.MARKET_PHOTOS.delete(String(row.object_key))}catch(_){}
-    }
-    await env.DB.batch([
-      env.DB.prepare("DELETE FROM market_photo_metadata WHERE market_key=?").bind(marketKey),
-      env.DB.prepare("DELETE FROM market_photo_blobs WHERE market_key=?").bind(marketKey),
-      env.DB.prepare("DELETE FROM market_photo_uploads WHERE market_key=?").bind(marketKey)
-    ]);
-    return json({ok:true,field,message:'PHOTO_DEBLOQUEE'});
-  }
-  if(field==='gps'){
-    await env.DB.batch([
-      env.DB.prepare("DELETE FROM market_location_consensus WHERE market_key=?").bind(marketKey),
-      env.DB.prepare("DELETE FROM market_location_votes WHERE market_key=?").bind(marketKey)
-    ]);
-    return json({ok:true,field,message:'GPS_DEBLOQUE'});
+  for(const row of rows.results||[]){
+    const item=ensure(row.market_key);
+    item.values[String(row.field||"")]=String(row.value_display||"");
+    if(!item.updatedAt||String(row.updated_at||"")>item.updatedAt)item.updatedAt=String(row.updated_at||"");
   }
 
-  await env.DB.batch([
-    env.DB.prepare("DELETE FROM market_verification_consensus WHERE market_key=? AND field=?").bind(marketKey,field),
-    env.DB.prepare("DELETE FROM market_verification_votes WHERE market_key=? AND field=?").bind(marketKey,field)
-  ]);
-  let sourceLocked=false;
-  if(field==='time'||field==='count'){
-    try{sourceLocked=!!(await marketSourceLocks(env,marketKey))[field]}catch(_){}
-  }
-  return json({ok:true,field,sourceLocked,message:sourceLocked?'SOURCE_JOURS_DE_MARCHE_RESTE_VERROUILLEE':'CHAMP_DEBLOQUE'});
+  const photos=await env.DB.prepare("SELECT market_key,updated_at FROM market_photo_metadata ORDER BY updated_at DESC LIMIT 1000").all();
+  for(const row of photos.results||[]){const item=ensure(row.market_key);item.hasPhoto=true;if(!item.updatedAt||String(row.updated_at||"")>item.updatedAt)item.updatedAt=String(row.updated_at||"")}
+  const locs=await env.DB.prepare("SELECT market_key,address,updated_at FROM market_location_consensus ORDER BY updated_at DESC LIMIT 1000").all();
+  for(const row of locs.results||[]){const item=ensure(row.market_key);item.address=String(row.address||"");if(!item.updatedAt||String(row.updated_at||"")>item.updatedAt)item.updatedAt=String(row.updated_at||"")}
+
+  const forms=[...map.values()].sort((a,b)=>String(b.updatedAt||"").localeCompare(String(a.updatedAt||""))).slice(0,500);
+  return json({ok:true,forms});
 }
 
 async function batchMarketVerifications(request, env) {
@@ -4443,23 +4258,8 @@ async function mushroomPhoto(url,env){
 // ===== FIN V244 ACCÈS GLOBAL + CHAMPIGNONS =====
 
 class InjectAppFiles {
-  constructor(pathname){ this.pathname=String(pathname||''); }
   element(element) {
-    const path=this.pathname.split('?')[0];
-    const isHome=path==='/'||path==='/index.html'||path==='/index';
-    const marketPages=new Set([
-      '/choix-marches-v409.html','/choix-marches-final.html','/belgique-categorie.html',
-      '/marches-final.html','/belgique-marches-final.html','/nearby-markets.html','/marches-proches.html',
-      '/special-marches.html','/traveller-markets.html','/verification-v9.html'
-    ]);
-    // Noyau téléphone : compte, accès, météo et voix. Rien d'autre n'est chargé partout.
-    element.append('<script src="/persistent-user-data-v283.js?v=426-current"></script><link rel="manifest" href="/manifest.webmanifest?v=283-icons"><link rel="stylesheet" href="/mobile-overrides.css?v=432-home-clean"><link rel="stylesheet" href="/subscription-locks.css?v=426-current"><script src="/subscription-web.js?v=441-syntax-fix" defer></script><script src="/voice-assist-v388.js?v=452-global-longpress" defer></script><script src="/weather-all-pages.js?v=448-stable" defer></script><script src="/notification-detail-v282.js?v=426-current" defer></script><script src="/app-access-gate-v240.js?v=426-current" defer></script><script src="/sanction-guard-v161.js?v=426-current" defer></script>', { html: true });
-    if(isHome){
-      element.append(`<script>(function(){window.__phoneHomeV439=1;function cleanOldHome(){["autoradioHomeV381Web","autoradioHomeV382Web","autoradioHomeV383Web","autoradioHomeV385Web","autoradioDisplaySettingV381","autoradioDisplaySettingV382","autoradioDisplaySettingV383","autoradioDisplaySettingV385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});["autoradioHomeStyleV381","autoradioHomeStyleV382","autoradioHomeStyleV383","autoradioHomeStyleV385","autoradio-boot-hide-v381","autoradio-boot-hide-v382","autoradio-boot-hide-v383","autoradio-boot-hide-v385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});var oldMail=document.getElementById("contactMailButton");if(oldMail){oldMail.id="contestHomeButton";oldMail.className=String(oldMail.className||"").replace(/\\bmailTopButton\\b/g,"homeTopButton");oldMail.removeAttribute("onclick");oldMail.textContent="🏆 CONCOURS"}var oldOverlay=document.getElementById("contactMailOverlay");if(oldOverlay)oldOverlay.remove();var maps=document.getElementById("offlineMapsSettingRow")||document.getElementById("mapsMenu");if(maps){var mr=maps.id==="offlineMapsSettingRow"?maps:(maps.closest?maps.closest(".settingRow"):maps.parentNode);if(mr)mr.remove()}if(window.CarPlayEnsureSubscriptionSettings)try{window.CarPlayEnsureSubscriptionSettings()}catch(_){};document.documentElement.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385");if(document.body)document.body.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385")}cleanOldHome();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",cleanOldHome,{once:true});var mo=new MutationObserver(cleanOldHome);try{mo.observe(document.documentElement,{childList:true,subtree:true})}catch(_){}setTimeout(function(){try{mo.disconnect()}catch(_){}cleanOldHome()},3500)})();</script><script src="/phone-loading-v384.js?v=432-home-clean" defer></script><link rel="stylesheet" href="/home-work.css?v=432-home-clean"><script defer>(function(){function fix(){var maps=document.getElementById("offlineMapsSettingRow")||document.getElementById("mapsMenu");if(maps){var row=maps.id==="offlineMapsSettingRow"?maps:(maps.closest?maps.closest(".settingRow"):maps.parentNode);if(row)row.remove()}if(window.CarPlayEnsureSubscriptionSettings)try{window.CarPlayEnsureSubscriptionSettings()}catch(_){}}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){fix();setTimeout(fix,120);setTimeout(fix,900)});else{fix();setTimeout(fix,120);setTimeout(fix,900)}})();</script><script src="/notification-settings.js?v=282-onboarding-notification-detail" defer></script><script src="/market-update-notifications-v281.js?v=448-stable" defer></script><script src="/home-work.js?v=432-home-clean" defer></script><script src="/contest-v188.js?v=439-direct" defer></script><script src="/referral-v232.js?v=426-current" defer></script>`, { html: true });
-    }
-    if(marketPages.has(path)){
-      element.append('<script src="/market-presence-global.js?v=448-stable" defer></script><script src="/market-auto-update-v319.js?v=448-stable" defer></script><script src="/market-attendance-v317.js?v=448-stable" defer></script><script src="/market-navigation-confirm-v189.js?v=448-stable" defer></script>', { html: true });
-    }
+    element.append(`<script>(function(){window.__phoneHomeV435=1;function cleanOldHome(){["autoradioHomeV381Web","autoradioHomeV382Web","autoradioHomeV383Web","autoradioHomeV385Web","autoradioDisplaySettingV381","autoradioDisplaySettingV382","autoradioDisplaySettingV383","autoradioDisplaySettingV385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});["autoradioHomeStyleV381","autoradioHomeStyleV382","autoradioHomeStyleV383","autoradioHomeStyleV385","autoradio-boot-hide-v381","autoradio-boot-hide-v382","autoradio-boot-hide-v383","autoradio-boot-hide-v385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});var oldMail=document.getElementById("contactMailButton");if(oldMail){oldMail.id="contestHomeButton";oldMail.className=String(oldMail.className||"").replace(/\bmailTopButton\b/g,"homeTopButton");oldMail.removeAttribute("onclick");oldMail.textContent="🏆 CONCOURS"}var oldOverlay=document.getElementById("contactMailOverlay");if(oldOverlay)oldOverlay.remove();var maps=document.getElementById("offlineMapsSettingRow")||document.getElementById("mapsMenu");if(maps){var mr=maps.id==="offlineMapsSettingRow"?maps:(maps.closest?maps.closest(".settingRow"):maps.parentNode);if(mr)mr.remove()}if(window.CarPlayEnsureSubscriptionSettings)try{window.CarPlayEnsureSubscriptionSettings()}catch(_){};document.documentElement.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385");if(document.body)document.body.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385")}cleanOldHome();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",cleanOldHome,{once:true});var mo=new MutationObserver(cleanOldHome);try{mo.observe(document.documentElement,{childList:true,subtree:true})}catch(_){}setTimeout(function(){try{mo.disconnect()}catch(_){}cleanOldHome()},5000)})();</script><script src="/phone-loading-v384.js?v=432-home-clean"></script><link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=426-current"></script><link rel="stylesheet" href="/mobile-overrides.css?v=432-home-clean"><link rel="stylesheet" href="/subscription-locks.css?v=426-current"><link rel="stylesheet" href="/home-work.css?v=432-home-clean"><script src="/weather-all-pages.js?v=426-current" defer></script><script src="/subscription-web.js?v=435-settings-order" defer></script><script defer>(function(){function fix(){var maps=document.getElementById("offlineMapsSettingRow")||document.getElementById("mapsMenu");if(maps){var row=maps.id==="offlineMapsSettingRow"?maps:(maps.closest?maps.closest(".settingRow"):maps.parentNode);if(row)row.remove()}if(window.CarPlayEnsureSubscriptionSettings)try{window.CarPlayEnsureSubscriptionSettings()}catch(_){}}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){fix();setTimeout(fix,120);setTimeout(fix,900)});else{fix();setTimeout(fix,120);setTimeout(fix,900)}})();</script><script src="/market-update-notifications-v281.js?v=426-current" defer></script><script src="/notification-detail-v282.js?v=426-current" defer></script><script src="/home-work.js?v=432-home-clean" defer></script><script src="/market-presence-global.js?v=426-current" defer></script><script src="/market-auto-update-v319.js?v=426-current" defer></script><script src="/market-attendance-v317.js?v=426-current" defer></script><script src="/market-navigation-confirm-v189.js?v=426-current" defer></script><script src="/contest-v188.js?v=434-legacy-purge" defer></script><script src="/referral-v232.js?v=426-current" defer></script><script src="/app-access-gate-v240.js?v=426-current" defer></script><script src="/sanction-guard-v161.js?v=426-current" defer></script>`, { html: true });
   }
 }
 
@@ -4738,7 +4538,6 @@ export default {
     // Brocante / braderie / foire : 90 jours par zone. Voyageurs : 60 jours par zone.
     if (String(env.MARKET_AUTO_REFRESH || "1") === "0") return;
     ctx.waitUntil(runSpecialEventRefresh(env));
-    ctx.waitUntil(migrateMarketKeysV438(env,12));
   },
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -4793,7 +4592,6 @@ export default {
     if (url.pathname === "/api/markets/refresh-status" && request.method === "GET") return marketRefreshStatus(env);
     if (url.pathname === "/api/admin/markets/import" && request.method === "POST") return importMarkets(request, env);
     if (url.pathname === "/api/admin/market-verification-forms" && request.method === "GET") return adminMarketVerificationForms(request, env);
-    if (url.pathname === "/api/admin/market-verification-unlock" && request.method === "POST") return adminMarketVerificationUnlock(request, env);
     if (url.pathname === "/api/market-verifications" && request.method === "GET") return getMarketVerification(url, env);
     if (url.pathname === "/api/market-verifications" && request.method === "POST") return submitMarketVerification(request, env);
     if (url.pathname === "/api/market-verifications/batch" && request.method === "POST") return batchMarketVerifications(request, env);
@@ -4840,7 +4638,7 @@ export default {
     const type = response.headers.get("content-type") || "";
     if (type.includes("text/html") && url.pathname !== "/admin.html" && url.pathname !== "/admin" && url.pathname !== "/import-marches.html" && url.pathname !== "/installer.html" && url.pathname !== "/installer") {
       const autoradio = /CouteauSuisseAutoradio/i.test(request.headers.get("user-agent") || "");
-      const transformed = new HTMLRewriter().on("head", autoradio ? new InjectAutoradioFiles() : new InjectAppFiles(url.pathname)).on("a", new FixAndroidLinks()).on("script", new InjectMarketLive()).transform(response);
+      const transformed = new HTMLRewriter().on("head", autoradio ? new InjectAutoradioFiles() : new InjectAppFiles()).on("a", new FixAndroidLinks()).on("script", new InjectMarketLive()).transform(response);
       const headers = new Headers(transformed.headers);
       headers.set("cache-control", "no-store, no-cache, must-revalidate");
       return new Response(transformed.body, { status: transformed.status, statusText: transformed.statusText, headers });
