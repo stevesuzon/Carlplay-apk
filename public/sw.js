@@ -1,4 +1,4 @@
-const VERSION = "V440-ABONNEMENT-ACTIONS";
+const VERSION = "V438-STABLE-MARKET-KEY";
 const BASE_CACHE = "couteau-suisse-module-base-v438-stable-market-key";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";
@@ -7,7 +7,7 @@ const DATA_CACHE = "couteau-suisse-module-data-v426-current";
 const INSTALL_CACHE = "couteau-suisse-module-install-v426-current";
 const STATS_CACHE = "couteau-suisse-module-stats-v362";
 const MUSHROOM_CACHE = "couteau-suisse-module-mushroom-v300";
-const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v440-actions-correctes";
+const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v439-direct";
 const AUTORADIO_CACHE = "couteau-suisse-module-autoradio-v386-responsive-images";
 const PHONE_UI_CACHE = "couteau-suisse-module-phone-ui-v432-home-clean";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
@@ -23,7 +23,7 @@ const MODULES={
  [INSTALL_CACHE]:["/installer.html","/visitor-register-v361.js","/app-access-gate-v240.js?v=426-current","/cache-cleanup-v20260910.js?v=283-modules"],
  [STATS_CACHE]:["/user-stats-v285.js?v=328-stations-verifiees"],
  [MUSHROOM_CACHE]:["/champignons.html","/champignons.js?v=300-concours-auto","/champignons.css?v=300-concours-auto"],
- [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=440-actions-correctes"],
+ [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=439-direct"],
  [AUTORADIO_CACHE]:["/autoradio-home-v386.js?v=386-responsive-images","/autoradio-subscription-v381.js?v=381","/autoradio-version.json?v=386-responsive-images","/autoradio-assets-v386/fuel.svg?v=386","/autoradio-assets-v386/market.svg?v=386","/autoradio-assets-v386/map.svg?v=386","/autoradio-assets-v386/return.svg?v=386","/autoradio-assets-v386/address.svg?v=386","/autoradio-assets-v386/trash.svg?v=386"],
  [PHONE_UI_CACHE]:["/phone-loading-v384.js?v=432-home-clean"]
 };
