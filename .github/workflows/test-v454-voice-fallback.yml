@@ -1,0 +1,159 @@
+name: Test V454 Voice Fallback
+
+on:
+  push:
+    branches: ["test-v454-voice-fallback"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-v454-voice-fallback
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install test tools
+        run: |
+          npm install
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps webkit
+
+      - name: Static checks
+        run: |
+          node --check public/voice-assist-v388.js
+          node - <<'NODE'
+          const fs=require('fs');
+          const voice=fs.readFileSync('public/voice-assist-v388.js','utf8');
+          const src=fs.readFileSync('src/index.js','utf8');
+          if(!voice.includes('🔊 TOUCHER POUR ÉCOUTER')) throw new Error('Fallback button missing');
+          if(!voice.includes('window.__carplayVoiceV454Loaded')) throw new Error('Singleton guard missing');
+          if(!src.includes('/voice-assist-v388.js?v=454-touch-fallback')) throw new Error('Global voice injection missing');
+          console.log('Static checks OK');
+          NODE
+
+      - name: Start local Worker
+        shell: bash
+        run: |
+          set -e
+          npx wrangler dev --local --ip 127.0.0.1 --port 8787 > /tmp/v454-wrangler.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8787/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/v454-wrangler.log
+          exit 1
+
+      - name: Test iPhone fallback and global voice
+        shell: bash
+        run: |
+          cat > test-v454.mjs <<'EOF'
+          import { webkit } from 'playwright';
+          const browser=await webkit.launch({headless:true});
+          const context=await browser.newContext({
+            viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:3,
+            userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1',
+            serviceWorkers:'block'
+          });
+          await context.addInitScript(()=>{
+            localStorage.setItem('carplay_voice_enabled_v387','1');
+            window.__allowSpeechV454=false;
+            window.__speechV454=[];
+            class U{constructor(t){this.text=String(t||'');this.lang='';this.rate=1;this.pitch=1;this.volume=1;this.voice=null;this.onstart=null;this.onend=null;this.onerror=null;}}
+            const synth={
+              getVoices(){return[{lang:'fr-FR',name:'Français test'}]},addEventListener(){},cancel(){},resume(){},pause(){},
+              speak(u){
+                window.__speechV454.push(String(u.text||''));
+                if(window.__allowSpeechV454){
+                  if(u.onstart)u.onstart();
+                  setTimeout(()=>u.onend&&u.onend(),20);
+                }
+              }
+            };
+            try{Object.defineProperty(window,'SpeechSynthesisUtterance',{configurable:true,value:U})}catch(_){window.SpeechSynthesisUtterance=U}
+            try{Object.defineProperty(window,'speechSynthesis',{configurable:true,value:synth})}catch(_){window.speechSynthesis=synth}
+          });
+
+          const page=await context.newPage();
+          function assert(x,m){if(!x)throw new Error(m)}
+
+          // Keep only the voice module active; unrelated app scripts are not part of this test.
+          await page.route('**/*',async route=>{
+            const req=route.request(),u=req.url(),type=req.resourceType();
+            if(type==='script'){
+              if(u.includes('voice-assist-v388.js')) return route.continue();
+              return route.fulfill({status:200,contentType:'application/javascript',body:''});
+            }
+            if(type==='image'||type==='font'||type==='media') return route.abort();
+            return route.continue();
+          });
+
+          await page.goto('http://127.0.0.1:8787/?v454='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000});
+          await page.waitForFunction(()=>!!window.CouteauVoice,{timeout:6000});
+
+          // Add a controlled button so we can prove long press does not activate it.
+          await page.evaluate(()=>{
+            window.__activatedV454=0;
+            const b=document.createElement('button');
+            b.id='v454Button';b.textContent='Marchés';b.setAttribute('aria-label','Marchés');
+            b.onclick=()=>window.__activatedV454++;
+            document.body.appendChild(b);
+          });
+
+          async function longPress(sel,ms=1320){
+            await page.evaluate(async({sel,ms})=>{
+              const el=document.querySelector(sel),r=el.getBoundingClientRect();
+              const p={clientX:r.left+r.width/2,clientY:r.top+r.height/2,pageX:r.left+r.width/2,pageY:r.top+r.height/2};
+              const a=new Event('touchstart',{bubbles:true,cancelable:true});
+              Object.defineProperty(a,'touches',{value:[p]});Object.defineProperty(a,'targetTouches',{value:[p]});Object.defineProperty(a,'changedTouches',{value:[p]});
+              el.dispatchEvent(a);
+              await new Promise(ok=>setTimeout(ok,ms));
+              const z=new Event('touchend',{bubbles:true,cancelable:true});
+              Object.defineProperty(z,'touches',{value:[]});Object.defineProperty(z,'targetTouches',{value:[]});Object.defineProperty(z,'changedTouches',{value:[p]});
+              el.dispatchEvent(z);
+              await new Promise(ok=>setTimeout(ok,850));
+            },{sel,ms});
+          }
+
+          await longPress('#v454Button');
+          assert(await page.locator('#voiceTapFallbackV400').count()===1,'Fallback button did not appear after blocked iPhone speech');
+          assert(await page.locator('#voiceTapFallbackV400').textContent()==='🔊 TOUCHER POUR ÉCOUTER','Wrong fallback label');
+          assert(await page.evaluate(()=>window.__activatedV454)===0,'Long press activated the underlying button');
+
+          // The explicit fallback tap is a user gesture and must speak.
+          await page.evaluate(()=>window.__allowSpeechV454=true);
+          await page.locator('#voiceTapFallbackV400').tap();
+          await page.waitForTimeout(80);
+          const spoken=await page.evaluate(()=>window.__speechV454.filter(x=>String(x).trim()));
+          assert(spoken.some(x=>/marchés/i.test(x)),'Fallback tap did not speak Marchés: '+JSON.stringify(spoken));
+          assert(await page.locator('#voiceTapFallbackV400').count()===0,'Fallback button did not close after speech');
+
+          // Normal tap remains a normal tap.
+          const before=await page.evaluate(()=>window.__activatedV454);
+          await page.locator('#v454Button').tap();
+          assert(await page.evaluate(()=>window.__activatedV454)===before+1,'Normal tap no longer activates the button');
+
+          // Check voice module is also injected on a secondary market page.
+          await page.goto('http://127.0.0.1:8787/choix-marches-v409',{waitUntil:'domcontentloaded',timeout:12000});
+          await page.waitForFunction(()=>!!window.CouteauVoice,{timeout:6000});
+          const voiceScripts=await page.locator('script[src*="voice-assist-v388.js"]').count();
+          assert(voiceScripts>=1,'Voice script not present on secondary page');
+
+          console.log(JSON.stringify({ok:true,fallback:'appears and speaks',longPress:'does not activate',normalTap:'activates',secondaryPageVoice:true},null,2));
+          await browser.close();
+          EOF
+          node test-v454.mjs
+
+      - name: Show Worker log on failure
+        if: failure()
+        run: cat /tmp/v454-wrangler.log || true
