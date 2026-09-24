@@ -1,4 +1,4 @@
 {
-  "version": "V455",
-  "message": "V455 : suppression du deuxième logo de chargement. Quand on ouvre Marchés ou une autre page, le petit chargement supplémentaire n’apparaît plus ; seul le chargement principal au milieu reste affiché. La voix V454 avec « TOUCHER POUR ÉCOUTER » reste inchangée."
+  "version": "V456",
+  "message": "V456 : la voix n’a plus besoin d’être activée dans Réglages. Au premier appui long de 1,20 seconde, un carré « TOUCHER POUR ÉCOUTER » apparaît au milieu de l’écran. Touchez-le une fois : il lit le bouton et débloque la voix pour les autres boutons. Ensuite, chaque appui long parle sans ouvrir le bouton ; un appui normal ouvre l’action. Le bouton Mise à jour ne vide plus brutalement les caches."
 }

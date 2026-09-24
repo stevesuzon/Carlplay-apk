@@ -1,10 +1,10 @@
 (function(){
   'use strict';
-  if(window.__carplayVoiceV454Loaded)return;
-  window.__carplayVoiceV454Loaded=true;
+  if(window.__carplayVoiceV456Loaded)return;
+  window.__carplayVoiceV456Loaded=true;
   var KEY='carplay_voice_enabled_v387';
   var PRESS_MS=1200;
-  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='',voiceAwakeV423=false;
+  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='',voiceAwakeV423=false,touchActionDoneV456=false;
   function installNoSelectV389(){
     if(document.getElementById('carplayVoiceNoSelectV389'))return;
     var st=document.createElement('style');
@@ -12,16 +12,19 @@
     st.textContent='.carplayVoiceEnabled [data-voice-card],.carplayVoiceEnabled [data-voice-card] *,.carplayVoiceEnabled button,.carplayVoiceEnabled a,.carplayVoiceEnabled [onclick],.carplayVoiceEnabled [role="button"]{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}.carplayVoiceEnabled [data-voice-card]{touch-action:pan-y}';
     (document.head||document.documentElement).appendChild(st);
   }
-  function enabled(){
-    try{if(localStorage.getItem(KEY)==='1')return true}catch(_){}
-    try{return /(?:^|;\s*)carplay_voice_enabled=1(?:;|$)/.test(document.cookie||'')}catch(_){return false}
+  function enabled(){return true}
+  function voiceUnlockedV456(){try{return sessionStorage.getItem('carplay_voice_unlocked_v456')==='1'}catch(_){return false}}
+  function unlockVoiceV456(){
+    voiceAwakeV423=true;
+    try{sessionStorage.setItem('carplay_voice_unlocked_v456','1')}catch(_){}
+    try{localStorage.setItem(KEY,'1')}catch(_){}
+    try{document.cookie='carplay_voice_enabled=1; path=/; max-age=31536000; SameSite=Lax'}catch(_){}
+    document.documentElement.classList.add('carplayVoiceEnabled');
   }
-  function setEnabled(on){
-    voiceAwakeV423=false;
-    try{localStorage.setItem(KEY,on?'1':'0')}catch(_){}
-    try{document.cookie='carplay_voice_enabled='+(on?'1':'0')+'; path=/; max-age=31536000; SameSite=Lax'}catch(_){}
+  function setEnabled(){
+    unlockVoiceV456();
     syncSetting();
-    try{window.dispatchEvent(new CustomEvent('carplay-voice-change',{detail:{enabled:!!on}}))}catch(_){}
+    try{window.dispatchEvent(new CustomEvent('carplay-voice-change',{detail:{enabled:true}}))}catch(_){}
   }
   function clean(s){return String(s||'').replace(/\s+/g,' ').trim()}
   function hourText(s){return clean(s).replace(/(\d{1,2})[:h.](\d{2})/g,function(_,h,m){return Number(m)?(Number(h)+' heures '+Number(m)):(Number(h)+' heures')}).replace(/\b(\d{1,2})h\b/g,'$1 heures').replace(/–|—/g,' à ')}
@@ -158,7 +161,7 @@
     }catch(_){preferredVoice=null}
   }
   function primeVoiceV396(){
-    if(!enabled()||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
+    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
     try{
       window.speechSynthesis.resume();
       primeUtteranceV396=new SpeechSynthesisUtterance('\u00a0');
@@ -169,7 +172,7 @@
     }catch(_){}
   }
   function wakeSpeechV423(){
-    if(!enabled()||voiceAwakeV423||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
+    if(voiceAwakeV423||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
     try{
       window.speechSynthesis.resume();
       loadPreferredVoice();
@@ -205,7 +208,7 @@
     }catch(_){toast('🔇 La voix ne fonctionne pas sur cet appareil.');return false}
   }
   function eligibleTarget(e){
-    if(!enabled()||!e.target||!e.target.closest)return null;
+    if(!e.target||!e.target.closest)return null;
     var clickable=e.target.closest('button,a,select,input[type="button"],input[type="submit"],summary,[onclick],[role="button"],[data-voice-help],[data-voice-card],#homeAddressBookBtn,.addressBookTile,.card,.small,.settingHead,.market,.market-card,.marketCard,.station-card,.stationCard,.result-card,.resultCard,.tile,.directBtn,.homeTopButton');
     if(clickable&&!clickable.matches('input,textarea,label'))return clickable;
     var card=e.target.closest('[data-voice-card]');
@@ -216,50 +219,53 @@
     if(!target)return;
     fired=true;
     suppressClickTarget=target;
-    suppressClickUntil=Date.now()+1000;
+    suppressClickUntil=Date.now()+1800;
     try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
-    speak(buildSpeech(target));
+    var text=clean(buildSpeech(target));
+    if(voiceUnlockedV456())speakImmediateV400(text);
+    else showTapFallbackV400(text);
   }
   function begin(e){
     if(e&&e.pointerType==='touch')return;
-    wakeSpeechV423();
-    var card=eligibleTarget(e);if(!card)return;active=card;fired=false;startX=Number(e.clientX||0);startY=Number(e.clientY||0);clearTimeout(timer);
+    var card=eligibleTarget(e);if(!card)return;
+    active=card;fired=false;startX=Number(e.clientX||0);startY=Number(e.clientY||0);clearTimeout(timer);
     timer=setTimeout(function(){if(active)fireLongPress(active)},PRESS_MS);
   }
   function move(e){if(!active)return;var dx=Math.abs(Number(e.clientX||0)-startX),dy=Math.abs(Number(e.clientY||0)-startY);if(dx>18||dy>18)cancel()}
   function end(){clearTimeout(timer);timer=0;active=null;setTimeout(function(){fired=false},80)}
   function showTapFallbackV400(text){
-    text=clean(text);if(!text||!enabled())return false;
+    text=clean(text);if(!text)return false;
     var old=document.getElementById('voiceTapFallbackV400');if(old)old.remove();
     var b=document.createElement('button');
     b.id='voiceTapFallbackV400';b.type='button';
-    b.setAttribute('aria-label','Écouter '+text);
-    b.textContent='🔊 TOUCHER POUR ÉCOUTER';
-    b.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147483647;width:min(92vw,430px);min-height:62px;padding:12px 16px;border:3px solid #f39b19;border-radius:18px;background:#0b668d;color:#fff;font:950 19px Arial,sans-serif;box-shadow:0 10px 30px #000b;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation';
+    b.setAttribute('aria-label','Toucher pour écouter '+text);
+    b.innerHTML='<span style="display:block;font-size:42px;line-height:1;margin-bottom:12px">🔊</span><span style="display:block;font-size:21px;line-height:1.15">TOUCHER POUR ÉCOUTER</span><span style="display:block;margin-top:12px;font-size:13px;line-height:1.25;color:#d8ecff">La voix sera ensuite prête pour les autres boutons.</span>';
+    b.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483647;width:min(72vw,280px);height:min(72vw,280px);max-height:280px;min-height:230px;padding:22px 18px;border:4px solid #f39b19;border-radius:26px;background:#0b668d;color:#fff;font:950 19px Arial,sans-serif;text-align:center;box-shadow:0 16px 46px #000d;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;outline:none';
     var busy=false;
     function play(e){
-      if(e){try{e.preventDefault()}catch(_){}try{e.stopPropagation()}catch(_){}}
+      if(e){try{e.preventDefault()}catch(_){}try{e.stopPropagation()}catch(_){}try{e.stopImmediatePropagation&&e.stopImmediatePropagation()}catch(_){}}
       if(busy)return;busy=true;
+      unlockVoiceV456();
       try{
         if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')throw 0;
         window.speechSynthesis.cancel();window.speechSynthesis.resume();loadPreferredVoice();
         var u=new SpeechSynthesisUtterance(text);
         currentUtteranceV396=u;u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;
         if(preferredVoice)u.voice=preferredVoice;
-        u.onstart=function(){voiceAwakeV423=true;toast('🔊 '+text)};
+        u.onstart=function(){voiceAwakeV423=true;toast('🔊 '+text);if(b&&b.parentNode)b.remove()};
         u.onend=function(){currentUtteranceV396=null;if(b&&b.parentNode)b.remove()};
         u.onerror=function(){currentUtteranceV396=null;busy=false;toast('🔇 Touchez encore une fois pour écouter.')};
         window.speechSynthesis.speak(u);
       }catch(_){busy=false;toast('🔇 Lecture vocale indisponible.')}
     }
     b.addEventListener('click',play,true);
-    b.addEventListener('touchend',function(e){play(e)}, {passive:false,capture:true});
+    b.addEventListener('touchend',play,{passive:false,capture:true});
     document.body.appendChild(b);
-    setTimeout(function(){if(b&&b.parentNode)b.remove()},8000);
     return true;
   }
   function speakImmediateV400(text){
-    text=clean(text);if(!text||!enabled())return false;
+    text=clean(text);if(!text)return false;
+    if(!voiceUnlockedV456()){showTapFallbackV400(text);return false}
     if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){showTapFallbackV400(text);return false}
     try{
       window.speechSynthesis.cancel();
@@ -284,40 +290,35 @@
       return true;
     }catch(_){showTapFallbackV400(text);return false}
   }
-  function prepareTouchSpeechV400(target){
-    queuedTouchTextV400=target?clean(buildSpeech(target)):'';
-  }
-  function cancelTouchSpeechV400(){
-    queuedTouchTextV400='';
-    var old=document.getElementById('voiceTapFallbackV400');if(old)old.remove();
-  }
+  function prepareTouchSpeechV400(target){queuedTouchTextV400=target?clean(buildSpeech(target)):''}
+  function cancelTouchSpeechV400(){queuedTouchTextV400=''}
   function resumeTouchSpeechV400(target){
     var text=queuedTouchTextV400||clean(buildSpeech(target));
     queuedTouchTextV400='';
-    return speakImmediateV400(text);
+    if(voiceUnlockedV456())return speakImmediateV400(text);
+    return showTapFallbackV400(text);
   }
   function touchBeginV394(e){
-    if(!enabled()||!e.target||!e.target.closest)return;
-    wakeSpeechV423();
-    var target=eligibleTarget(e);
-    if(!target)return;
+    if(!e.target||!e.target.closest)return;
+    var target=eligibleTarget(e);if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
-    active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV400(target);
+    active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchActionDoneV456=false;
+    touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV400(target);
     timer=setTimeout(function(){
-      if(active){
-        touchReadyV395=true;
-
-        toast('🔊 Relâchez pour écouter');
-      }
+      if(!active)return;
+      touchReadyV395=true;fired=true;touchActionDoneV456=true;
+      suppressClickTarget=active;suppressClickUntil=Date.now()+2200;
+      try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
+      resumeTouchSpeechV400(active);
     },PRESS_MS);
   }
   function touchMoveV394(e){
     if(touchReadyV395)return;
     if(!active)return;
     var t=e.touches&&e.touches[0];
-    if(!t){cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;return}
+    if(!t){cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchActionDoneV456=false;touchStartedAtV395=0;return}
     var dx=Math.abs(t.clientX-startX),dy=Math.abs(t.clientY-startY);
-    if(dx>28||dy>28){cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;}
+    if(dx>28||dy>28){cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchActionDoneV456=false;touchStartedAtV395=0}
   }
   function blockLongPressReleaseV397(e){
     try{if(e&&e.cancelable)e.preventDefault()}catch(_){}
@@ -330,47 +331,33 @@
     var isLong=!!(target&&(touchReadyV395||held>=PRESS_MS));
     clearTimeout(timer);timer=0;active=null;
     if(isLong){
-      fired=true;
-      suppressClickTarget=target;
-      suppressClickUntil=Date.now()+2500;
-
+      fired=true;suppressClickTarget=target;suppressClickUntil=Date.now()+2200;
       blockLongPressReleaseV397(e);
-      resumeTouchSpeechV400(target);
-    }
-    if(!isLong)cancelTouchSpeechV400();
-    touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;
+      if(!touchActionDoneV456){touchActionDoneV456=true;resumeTouchSpeechV400(target)}
+    }else cancelTouchSpeechV400();
+    touchTargetV398=null;touchReadyV395=false;touchActionDoneV456=false;touchStartedAtV395=0;
     setTimeout(function(){fired=false},160);
   }
   function syncSetting(){
-    var oldFallback=document.getElementById('voiceTapFallbackV400');if(oldFallback)oldFallback.remove();
-    var t=document.getElementById('voiceAssistToggle'),s=document.getElementById('voiceAssistStatus'),on=enabled();
-    document.documentElement.classList.toggle('carplayVoiceEnabled',on);
-    if(t)t.checked=on;
-    if(s)s.textContent=on?'🔊 Voix activée — appui long 1,20 seconde sur une fiche ou un bouton.':'🔇 Voix désactivée.';
+    document.documentElement.classList.add('carplayVoiceEnabled');
+    var s=document.getElementById('voiceAssistStatus');
+    if(s)s.textContent='🔊 Appui long 1,20 seconde sur un bouton pour écouter.';
   }
   function initSetting(){
-    loadPreferredVoice();
-    syncSetting();
-    var t=document.getElementById('voiceAssistToggle');
-    if(t&&!t.dataset.voiceWired){
-      if(window.voiceSettingsDirect){
-        t.dataset.voiceWired='direct';
-      }else{
-        t.dataset.voiceWired='1';
-        t.addEventListener('change',function(){setEnabled(t.checked);if(t.checked)speak('Lecture vocale activée.')});
-      }
-    }
+    try{localStorage.setItem(KEY,'1')}catch(_){}
+    try{document.cookie='carplay_voice_enabled=1; path=/; max-age=31536000; SameSite=Lax'}catch(_){}
+    loadPreferredVoice();syncSetting();
   }
   installNoSelectV389();
-  document.addEventListener('selectstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
-  document.addEventListener('dragstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
+  document.addEventListener('selectstart',function(e){if(e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
+  document.addEventListener('dragstart',function(e){if(e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
   document.addEventListener('click',function(e){
-    if(!enabled()||!e.target||e.target.tagName!=='SELECT')return;
+    if(!e.target||e.target.tagName!=='SELECT')return;
     e.preventDefault();e.stopImmediatePropagation();
     openVoiceSelectV396(e.target);
   },true);
   document.addEventListener('change',function voiceSelectChangeV396(e){
-    if(!enabled()||!e.target||e.target.tagName!=='SELECT')return;
+    if(!e.target||e.target.tagName!=='SELECT')return;
     var opt=e.target.options&&e.target.selectedIndex>=0?e.target.options[e.target.selectedIndex]:null;
     var txt=clean(opt&&opt.textContent||'');
     if(txt)speak(txt.replace(/\s*[—–-]\s*/g,', '));
@@ -390,7 +377,7 @@
   document.addEventListener('touchend',touchEndV394,{capture:true,passive:false});
   document.addEventListener('touchcancel',function(){cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;},{capture:true,passive:true});
   document.addEventListener('pointerdown',begin,true);document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',cancel,true);
-  document.addEventListener('contextmenu',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
+  document.addEventListener('contextmenu',function(e){if(e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSetting);else initSetting();
   window.addEventListener('storage',syncSetting);if(window.speechSynthesis)window.speechSynthesis.addEventListener&&window.speechSynthesis.addEventListener('voiceschanged',loadPreferredVoice);
   window.addEventListener('pageshow',function(){resetSpeechV423()});

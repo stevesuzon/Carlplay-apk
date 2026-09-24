@@ -970,7 +970,6 @@ Si Android le demande, autorise l’installation d’applications provenant de c
 <button type="button" onclick="importMyAddressesText()">📲 RÉCUPÉRER DEPUIS UN MESSAGE / WHATSAPP</button>
 </div>
 </div>
-<div class="settingRow"><button class="settingHead" onclick="toggleSection('voiceMenu',this)"><span>🔊 Lecture vocale des fiches</span><span>⌄</span></button><div class="settingBody" id="voiceMenu"><label style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px;color:#fff;font-size:20px;font-weight:900">ACTIVER LA VOIX <input id="voiceAssistToggle" type="checkbox" onchange="window.voiceSettingsDirect&&window.voiceSettingsDirect(this.checked)" style="width:34px;height:34px"></label><div class="settingNote" id="voiceAssistStatus">🔇 Voix désactivée.</div><button id="voiceAssistTestBtn" type="button" style="margin:8px 14px 12px;width:calc(100% - 28px);min-height:52px;border:2px solid #65c7ff;border-radius:14px;background:#0b668d;color:#fff;font-size:18px;font-weight:950">🔊 TESTER LA VOIX</button><div class="settingNote">Quand la voix est activée, maintenez le doigt <b>1,20 seconde sur une fiche ou un bouton</b>. Une fiche lit ses informations utiles. Un bouton explique brièvement à quoi il sert. Les informations vérifiées sont lues en priorité.</div></div></div>
 <div class="settingRow"><button class="settingHead" onclick="toggleSection('notificationMenu',this)"><span>🔔 Notifications de l’application</span><span>⌄</span></button><div class="settingBody" id="notificationMenu"><div style="margin:10px 8px 14px;padding:16px;border:4px solid #ff9f13;border-radius:16px;background:#321400;color:#fff;text-align:center;font-size:19px;font-weight:1000;line-height:1.35">⚠️ IMPORTANT<br>SI LA CASE N’EST PAS COCHÉE, VOUS NE RECEVREZ PLUS AUCUNE NOTIFICATION DE L’APPLICATION : MÉTÉO, MARCHÉS, MISES À JOUR ET DEMANDES ADMINISTRATEUR.</div><label style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px;color:#fff;font-size:20px;font-weight:900">RECEVOIR TOUTES LES NOTIFICATIONS <input id="appNotificationToggle" type="checkbox" style="width:34px;height:34px"></label><div class="settingNote" id="appNotificationStatus">🔕 Aucune notification ne sera reçue sur ce téléphone.</div><div class="settingNote">Une seule case commande toutes les notifications. Cochez-la pour tout recevoir ; décochez-la pour tout arrêter.</div></div></div>
 <div class="settingRow" id="adminSettingRow">
 <button class="settingHead" onclick="location.href='/admin.html'">
@@ -1364,7 +1363,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications.');
     await check('/contest-v188.js?v=434-legacy-purge');
     setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique et événements.');
-    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=431-gps-photo'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=454-touch-fallback'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=431-gps-distance'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
+    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=431-gps-photo'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=456-center-unlock'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=431-gps-distance'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
     setProgress(48,'Vérification des champignons…','Contrôle des fiches Champignons et des coins enregistrés.');
     await Promise.allSettled([check('/champignons.html'),check('/champignons.js?v=300-concours-auto')]);
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
@@ -1374,7 +1373,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(82,'Recherche de la nouvelle version…','Seuls les fichiers de l’application sont actualisés.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=434-legacy-purge',{updateViaCache:'none'})]}catch(_){regs=[]}}
+      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=456-stable-update',{updateViaCache:'none'})]}catch(_){regs=[]}}
       for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){}
       var reg=regs[0];
       if(reg&&reg.waiting){
@@ -1948,7 +1947,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 })();
 </script>
 
-<script src="/cache-cleanup-v20260910.js?v=283-modules"></script>
+<script src="/cache-cleanup-v20260910.js?v=456-stable-update"></script>
 <script src="/christmas-market-updater.js"></script>
 
 <script id="removeOldUsersConnectedBoxV2">
@@ -2716,69 +2715,8 @@ window.addEventListener('load',function(){
 <!-- V426 téléphone : ancien écran de licence 8 chiffres retiré ; abonnement géré par subscription-web.js -->
 <script src="/notification-settings.js?v=282-onboarding-notification-detail"></script><script src="/admin-approval-overlay.js?v=302-d1"></script><script src="/sanction-guard-v161.js?v=302-d1"></script><script src="/user-stats-v285.js?v=328-stations-verifiees"></script><script src="/auto-market-counter-v204.js?v=204" defer></script>
 <script src="/trial-home-banner-v292.js?v=292"></script>
-<script id="voiceSettingsDirectV393">
-(function(){
-  var KEY='carplay_voice_enabled_v387';
-  function status(on){
-    var t=document.getElementById('voiceAssistToggle');
-    var s=document.getElementById('voiceAssistStatus');
-    if(t)t.checked=!!on;
-    document.documentElement.classList.toggle('carplayVoiceEnabled',!!on);
-    if(s)s.textContent=on?'🔊 Voix activée — appui long 1,20 seconde sur une fiche ou un bouton.':'🔇 Voix désactivée.';
-  }
-  function say(text){
-    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){
-      var s=document.getElementById('voiceAssistStatus');
-      if(s)s.textContent='🔇 Lecture vocale indisponible sur cet iPhone.';
-      return false;
-    }
-    try{
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.resume();
-      var u=new SpeechSynthesisUtterance(String(text||''));
-      u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;
-      try{
-        var vv=window.speechSynthesis.getVoices()||[];
-        var fr=vv.find(function(v){return /^fr(?:-|_)/i.test(v.lang||'')})||vv.find(function(v){return /français|french/i.test(v.name||'')});
-        if(fr)u.voice=fr;
-      }catch(_){}
-      u.onerror=function(){
-        var s=document.getElementById('voiceAssistStatus');
-        if(s)s.textContent='⚠️ Voix activée, mais aucun son n’est sorti.';
-      };
-      window.speechSynthesis.speak(u);
-      return true;
-    }catch(_){return false}
-  }
-  window.voiceSettingsDirect=function(on){
-    try{localStorage.setItem(KEY,on?'1':'0')}catch(_){}try{document.cookie='carplay_voice_enabled='+(on?'1':'0')+'; path=/; max-age=31536000; SameSite=Lax'}catch(_){}
-    status(on);
-    if(on){
-      say('Lecture vocale activée.');
-    }else{
-      try{window.speechSynthesis.cancel()}catch(_){}
-    }
-    try{window.dispatchEvent(new CustomEvent('carplay-voice-change',{detail:{enabled:!!on}}))}catch(_){}
-  };
-  function init(){
-    var on=false;
-    try{on=localStorage.getItem(KEY)==='1'}catch(_){}if(!on){try{on=/(?:^|;\s*)carplay_voice_enabled=1(?:;|$)/.test(document.cookie||'')}catch(_){}}
-    status(on);
-    var test=document.getElementById('voiceAssistTestBtn');
-    if(test&&!test.dataset.wired){
-      test.dataset.wired='1';
-      test.addEventListener('click',function(e){
-        e.preventDefault();e.stopPropagation();
-        var t=document.getElementById('voiceAssistToggle');
-        if(!(t&&t.checked)){window.voiceSettingsDirect(true);}
-        say('La lecture vocale fonctionne.');
-      },true);
-    }
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-})();
-</script>
-<script src="/voice-assist-v388.js?v=454-touch-fallback"></script>
+
+<script src="/voice-assist-v388.js?v=456-center-unlock"></script>
 </body>
 </html>
 
