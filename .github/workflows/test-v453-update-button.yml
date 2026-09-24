@@ -1,0 +1,112 @@
+name: Test V453 Update Button
+
+on:
+  push:
+    branches: ["test-v453-update-button"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-v453-update-button
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install test tools
+        run: |
+          npm install
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps webkit
+
+      - name: Static update safety checks
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const html=fs.readFileSync('public/index.html','utf8');
+          const a=html.indexOf('async function forceAppUpdate(){');
+          const b=html.indexOf('function _addressBackupArray',a);
+          if(a<0||b<0)throw new Error('forceAppUpdate not found');
+          const fn=html.slice(a,b);
+          if(/caches\.delete/.test(fn))throw new Error('Update button still deletes caches');
+          if(/Promise\.allSettled\(\[check\(/.test(fn))throw new Error('Update button still mass-downloads app files');
+          if(/location\.replace\([^)]*maj/.test(fn))throw new Error('Update button still forces cache-busting URL');
+          if(!/reg\.update\(\)/.test(fn))throw new Error('Service worker update missing');
+          if(!/location\.reload\(\)/.test(fn))throw new Error('Final reload missing');
+          const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m=>m[1]).filter(s=>s.trim());
+          scripts.forEach((s,i)=>{try{new Function(s)}catch(e){throw new Error('inline '+i+': '+e.message)}});
+          console.log('Static update checks OK');
+          NODE
+
+      - name: Start local Worker
+        shell: bash
+        run: |
+          set -e
+          npx wrangler dev --local --ip 127.0.0.1 --port 8787 > /tmp/v453-wrangler.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8787/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/v453-wrangler.log
+          exit 1
+
+      - name: Runtime cache-preservation test
+        shell: bash
+        run: |
+          cat > test-v453.mjs <<'EOF'
+          import { webkit } from 'playwright';
+          function assert(x,m){if(!x)throw new Error(m)}
+          const browser=await webkit.launch({headless:true});
+          const context=await browser.newContext({
+            viewport:{width:390,height:844},
+            isMobile:true,
+            hasTouch:true,
+            userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile Safari/604.1',
+            serviceWorkers:'block'
+          });
+          const page=await context.newPage();
+          await page.route('**/*',async route=>{
+            const req=route.request(),u=req.url(),type=req.resourceType();
+            if(type==='script')return route.fulfill({status:200,contentType:'application/javascript',body:''});
+            if(type==='image'||type==='font'||type==='media')return route.abort();
+            return route.continue();
+          });
+          await page.goto('http://127.0.0.1:8787/?v453='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000});
+          await page.evaluate(async()=>{
+            localStorage.setItem('v453-test-data','KEEP-ME');
+            const c=await caches.open('v453-sentinel-cache');
+            await c.put('/v453-sentinel',new Response('KEEP-ME'));
+          });
+          const navPromise=page.waitForNavigation({waitUntil:'domcontentloaded',timeout:12000});
+          await page.evaluate(()=>forceAppUpdate());
+          await navPromise;
+          const result=await page.evaluate(async()=>{
+            const names=await caches.keys();
+            const c=await caches.open('v453-sentinel-cache');
+            const r=await c.match('/v453-sentinel');
+            return {
+              local:localStorage.getItem('v453-test-data'),
+              cachePresent:names.includes('v453-sentinel-cache'),
+              value:r?await r.text():null
+            };
+          });
+          assert(result.local==='KEEP-ME','Local data changed');
+          assert(result.cachePresent,'Sentinel cache was deleted');
+          assert(result.value==='KEEP-ME','Sentinel cache entry disappeared');
+          console.log(JSON.stringify({ok:true,result},null,2));
+          await browser.close();
+          EOF
+          node test-v453.mjs
+
+      - name: Show Worker log on failure
+        if: failure()
+        run: cat /tmp/v453-wrangler.log || true
