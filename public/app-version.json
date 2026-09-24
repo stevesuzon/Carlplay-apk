@@ -1,4 +1,4 @@
 {
-  "version": "V434",
-  "message": "V434 : nettoyage définitif des anciens affichages. Le vieux bouton MAIL et son ancien formulaire ont été retirés du site, les anciens fichiers d’affichage et correctifs inutilisés ont été supprimés, et les caches effacent maintenant ces anciennes ressources. CONCOURS et ABONNEMENT restent sur l’affichage actuel."
+  "version": "V454-TEST",
+  "message": "V454 test voix : base stable conservée. Après un appui long de 1,20 seconde, la lecture vocale est tentée. Si iOS bloque le son, le bouton bleu « TOUCHER POUR ÉCOUTER » apparaît comme dans l’ancienne version qui fonctionnait, afin de déclencher la voix avec un geste utilisateur."
 }
