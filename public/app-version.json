@@ -1,4 +1,4 @@
 {
-  "version": "V430",
-  "message": "V430 : la page des marchés à moins de 150 km recharge maintenant les mêmes marchés que la rubrique Marchés, ajoute les marchés récupérés du serveur Jours-de-Marché, utilise les coordonnées d’un autre marché de la même ville quand une fiche n’a pas encore son GPS exact, agrandit le nombre de résultats et le texte brocantes/braderies/foires/Noël, et passe à demain à 17 h."
+  "version": "V431",
+  "message": "V431 : après Vérifier localisation GPS, la distance des marchés est recalculée immédiatement avec la position GPS récente. Dans Marchés à moins de 150 km, les fiches s’affichent d’abord et les photos ne se chargent qu’à proximité de l’écran pour accélérer l’affichage."
 }
