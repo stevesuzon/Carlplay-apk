@@ -1,0 +1,165 @@
+name: Test V452 Global Long Press
+
+on:
+  push:
+    branches: ["test-v452-global-longpress"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-v452-global-longpress
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install test tools
+        run: |
+          npm install
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps webkit
+
+      - name: Syntax checks
+        run: |
+          node --check public/voice-assist-v388.js
+
+      - name: Start local Worker
+        shell: bash
+        run: |
+          set -e
+          npx wrangler dev --local --ip 127.0.0.1 --port 8787 > /tmp/v452-wrangler.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8787/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/v452-wrangler.log
+          exit 1
+
+      - name: Test 1.20 second voice versus normal tap
+        shell: bash
+        run: |
+          cat > test-v452.mjs <<'EOF'
+          import { webkit } from 'playwright';
+          function assert(x,m){if(!x)throw new Error(m)}
+          const browser=await webkit.launch({headless:true});
+          const context=await browser.newContext({
+            viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:3,
+            userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1',
+            serviceWorkers:'block'
+          });
+          await context.addInitScript(()=>{
+            localStorage.setItem('carplay_voice_enabled_v387','1');
+            localStorage.setItem('carplay_admin_here','1');
+            window.__spokenV452=[];
+            class U{
+              constructor(t){this.text=String(t||'');this.lang='';this.rate=1;this.pitch=1;this.volume=1;this.voice=null;this.onstart=null;this.onend=null;this.onerror=null;}
+            }
+            const synth={
+              getVoices(){return[{lang:'fr-FR',name:'Français test'}]},addEventListener(){},cancel(){},resume(){},pause(){},
+              speak(u){window.__spokenV452.push(String(u.text||''));if(u.onstart)u.onstart();setTimeout(()=>u.onend&&u.onend(),5)}
+            };
+            try{Object.defineProperty(window,'SpeechSynthesisUtterance',{configurable:true,value:U})}catch(_){window.SpeechSynthesisUtterance=U}
+            try{Object.defineProperty(window,'speechSynthesis',{configurable:true,value:synth})}catch(_){window.speechSynthesis=synth}
+          });
+          const page=await context.newPage();
+          await page.route('**/*',async route=>{
+            const req=route.request(),u=req.url(),type=req.resourceType();
+            if(type==='script'){
+              if(u.includes('voice-assist-v388.js'))return route.continue();
+              return route.fulfill({status:200,contentType:'application/javascript',body:''});
+            }
+            if(type==='image'||type==='font'||type==='media')return route.abort();
+            return route.continue();
+          });
+          await page.goto('http://127.0.0.1:8787/?v452='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000});
+          await page.waitForFunction(()=>!!window.CouteauVoice,{timeout:6000});
+
+          await page.evaluate(()=>{
+            window.__activatedV452=0;
+            const box=document.createElement('div');
+            box.id='v452Harness';
+            box.innerHTML='<button id="v452Back" aria-label="Retour">←</button>'+
+              '<div id="v452Address" role="button" tabindex="0" aria-label="Adresse" onclick="window.__activatedV452++">ADRESSE</div>'+
+              '<a id="v452Link" href="/v452-should-not-open" aria-label="Ouvrir test">Ouvrir test</a>'+
+              '<button id="v452Normal" aria-label="Bouton normal" onclick="window.__activatedV452++">Bouton normal</button>';
+            document.body.appendChild(box);
+          });
+
+          async function hold(sel,ms=1320){
+            await page.evaluate(async ({sel,ms})=>{
+              const el=document.querySelector(sel); if(!el)throw new Error('Missing '+sel);
+              const r=el.getBoundingClientRect(),p={clientX:r.left+r.width/2,clientY:r.top+r.height/2,pageX:r.left+r.width/2,pageY:r.top+r.height/2};
+              const a=new Event('touchstart',{bubbles:true,cancelable:true});
+              Object.defineProperty(a,'touches',{value:[p]});Object.defineProperty(a,'targetTouches',{value:[p]});Object.defineProperty(a,'changedTouches',{value:[p]});
+              el.dispatchEvent(a);
+              await new Promise(ok=>setTimeout(ok,ms));
+              const z=new Event('touchend',{bubbles:true,cancelable:true});
+              Object.defineProperty(z,'touches',{value:[]});Object.defineProperty(z,'targetTouches',{value:[]});Object.defineProperty(z,'changedTouches',{value:[p]});
+              el.dispatchEvent(z);
+              // Simulate the synthetic click WebKit normally emits after a touch.
+              el.click();
+              await new Promise(ok=>setTimeout(ok,120));
+            },{sel,ms});
+          }
+
+          async function speechSince(before){return await page.evaluate(b=>window.__spokenV452.slice(b).map(String).filter(x=>x.trim()),before)}
+
+          const tests=[
+            ['#v452Back',/retour/i],
+            ['#v452Address',/adresse/i],
+            ['#v452Link',/ouvrir test/i],
+            ['.marketHomeFast',/marchés.*foires.*noël.*brocantes/i],
+            ['#nearby80Button',/marchés.*150/i],
+            ['#contestHomeButton',/concours/i],
+            ['#housePhotoButton',/maison/i]
+          ];
+          for(const [sel,rx] of tests){
+            const url=page.url(),act=await page.evaluate(()=>window.__activatedV452),before=await page.evaluate(()=>window.__spokenV452.length);
+            await hold(sel,1320);
+            const spoken=await speechSince(before);
+            assert(spoken.some(x=>rx.test(x)),'No correct speech for '+sel+': '+JSON.stringify(spoken));
+            assert(page.url()===url,'Long press navigated for '+sel+': '+page.url());
+            assert(await page.evaluate(()=>window.__activatedV452)===act,'Long press activated action for '+sel);
+          }
+
+          // Native long-press UI must be blocked on the market card.
+          const blocked=await page.evaluate(()=>{
+            const el=document.querySelector('.marketHomeFast');
+            const ev=new Event('contextmenu',{bubbles:true,cancelable:true});
+            const ok=el.dispatchEvent(ev);
+            return ev.defaultPrevented||ok===false;
+          });
+          assert(blocked,'Context menu/white long-press UI not blocked');
+
+          // A short tap must NOT speak and MUST activate.
+          const beforeShort=await page.evaluate(()=>window.__spokenV452.length);
+          const act0=await page.evaluate(()=>window.__activatedV452);
+          await hold('#v452Normal',120);
+          assert(await page.evaluate(()=>window.__activatedV452)===act0+1,'Short tap did not activate exactly once');
+          const shortSpoken=await speechSince(beforeShort);
+          assert(shortSpoken.length===0,'Short tap spoke: '+JSON.stringify(shortSpoken));
+
+          // Real Marchés normal tap must enter the page.
+          await page.goto('http://127.0.0.1:8787/?v452normal='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000});
+          await page.waitForFunction(()=>!!window.CouteauVoice,{timeout:6000});
+          await page.locator('.marketHomeFast').tap({timeout:3000});
+          await page.waitForURL(/choix-marches-v409\.html/,{timeout:3000});
+
+          console.log(JSON.stringify({ok:true,longPressTargets:tests.map(x=>x[0]),shortTap:'activates without speech',marketNormalTap:'navigates'},null,2));
+          await browser.close();
+          EOF
+          node test-v452.mjs
+
+      - name: Show Worker log on failure
+        if: failure()
+        run: cat /tmp/v452-wrangler.log || true
