@@ -1,4 +1,4 @@
 {
-  "version": "V451",
-  "message": "V451 : correction du bouton Marchés. Le cadre blanc iPhone a été supprimé, le bouton n’est plus traité comme un lien Safari lors de l’appui long, et la lecture vocale annonce « Marchés. Foires, Noël et brocantes. » après 1,20 seconde."
+  "version": "V452",
+  "message": "V452 : appui long vocal généralisé. Après 1,20 seconde, tous les boutons et cartes lisibles parlent sans ouvrir leur action. Un appui normal ouvre le bouton normalement. Les boutons Retour, Adresse, Marchés, Marchés 150 km, Concours, Mesurer une maison et les autres contrôles utilisent la même règle."
 }
