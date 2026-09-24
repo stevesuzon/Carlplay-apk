@@ -1,13 +1,13 @@
 const VERSION = "V438-STABLE-MARKET-KEY";
 const BASE_CACHE = "couteau-suisse-module-base-v438-stable-market-key";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
-const CONTEST_CACHE = "couteau-suisse-module-contest-v434-current";
-const ADMIN_CACHE = "couteau-suisse-module-admin-v437-market-preview";
+const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";
+const ADMIN_CACHE = "couteau-suisse-module-admin-v439-market-list";
 const DATA_CACHE = "couteau-suisse-module-data-v426-current";
 const INSTALL_CACHE = "couteau-suisse-module-install-v426-current";
 const STATS_CACHE = "couteau-suisse-module-stats-v362";
 const MUSHROOM_CACHE = "couteau-suisse-module-mushroom-v300";
-const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v436-hard-reset";
+const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v439-direct";
 const AUTORADIO_CACHE = "couteau-suisse-module-autoradio-v386-responsive-images";
 const PHONE_UI_CACHE = "couteau-suisse-module-phone-ui-v432-home-clean";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
@@ -17,13 +17,13 @@ async function saveNotificationPreference(enabled){const cache=await caches.open
 const BASE_CORE=["/index.html","/stations-carburant.html?v=388-voix","/voice-assist-v388.js?v=427-ios-sound","/mobile-overrides.css?v=432-home-clean","/weather-all-pages.js?v=68-notifications-globales","/notification-settings.js?v=282-onboarding-notification-detail","/market-update-notifications-v281.js?v=282","/home-work.css?v=432-home-clean","/home-work.js?v=432-home-clean","/markets-final.css?v=126-favori-fluide","/choix-marches-v409.html","/special-marches.html?v=388-voix","/nearby-markets.html?v=438-stable-market-key","/traveller-markets.html?v=388-voix","/verification-v9.html?v=438-stable-market-key","/market-consensus.js?v=320-verification-speciale","/special-market-server-v157.js?v=320-verification-speciale","/brocante-crosscheck-v316.js?v=316","/market-auto-update-v319.js?v=320","/market-attendance-v317.js?v=320","/market-navigation-confirm-v189.js?v=320"];
 const MODULES={
  [ICON_CACHE]:["/manifest.webmanifest?v=283-icons","/couteau-suisse-v283-152.png?v=283","/couteau-suisse-v283-167.png?v=283","/couteau-suisse-v283-180.png?v=283","/couteau-suisse-v283-192.png?v=283","/couteau-suisse-v283-512.png?v=283","/couteau-suisse-v283-1024.png?v=283","/couteau-suisse-v283-maskable-192.png?v=283","/couteau-suisse-v283-maskable-512.png?v=283"],
- [CONTEST_CACHE]:["/contest-v188.js?v=434-legacy-purge","/cadeau-concours-v417.svg?v=422"],
- [ADMIN_CACHE]:["/admin.html","/contest-admin-v188.js?v=302-d1"],
+ [CONTEST_CACHE]:["/contest-v188.js?v=439-direct","/cadeau-concours-v417.svg?v=422"],
+ [ADMIN_CACHE]:["/admin.html?v=439","/contest-admin-v188.js?v=302-d1"],
  [DATA_CACHE]:["/persistent-user-data-v283.js?v=426-current"],
  [INSTALL_CACHE]:["/installer.html","/visitor-register-v361.js","/app-access-gate-v240.js?v=426-current","/cache-cleanup-v20260910.js?v=283-modules"],
  [STATS_CACHE]:["/user-stats-v285.js?v=328-stations-verifiees"],
  [MUSHROOM_CACHE]:["/champignons.html","/champignons.js?v=300-concours-auto","/champignons.css?v=300-concours-auto"],
- [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=436-hard-reset"],
+ [SUBSCRIPTION_CACHE]:["/subscription-web.js?v=439-direct"],
  [AUTORADIO_CACHE]:["/autoradio-home-v386.js?v=386-responsive-images","/autoradio-subscription-v381.js?v=381","/autoradio-version.json?v=386-responsive-images","/autoradio-assets-v386/fuel.svg?v=386","/autoradio-assets-v386/market.svg?v=386","/autoradio-assets-v386/map.svg?v=386","/autoradio-assets-v386/return.svg?v=386","/autoradio-assets-v386/address.svg?v=386","/autoradio-assets-v386/trash.svg?v=386"],
  [PHONE_UI_CACHE]:["/phone-loading-v384.js?v=432-home-clean"]
 };

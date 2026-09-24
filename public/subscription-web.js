@@ -1,4 +1,6 @@
 (function () {
+  if(window.__subscriptionWebV439Loaded)return;
+  window.__subscriptionWebV439Loaded=1;
   if ("serviceWorker" in navigator) {
     var swLastCheck = 0;
     var swReloading = false;
@@ -526,6 +528,11 @@
   }
 
   window.CarPlayEnsureSubscriptionSettings=settingsPanel;
+  window.CarPlayOpenSubscriptionSettings=function(){
+    try{settingsPanel()}catch(_){}
+    var body=document.getElementById("subscriptionMenu");
+    if(body)body.classList.add("open");
+  };
   window.addEventListener("carplay:identity-ready",function(event){
     if(window.CarPlaySyncIdentityToSubscriptionSettings)window.CarPlaySyncIdentityToSubscriptionSettings(event&&event.detail||{});
   });
@@ -619,11 +626,13 @@
     document.head.appendChild(recoveryStyle);
     if(localStorage.getItem('carplay_device_type')==='autoradio'||window.__COUTEAU_AUTORADIO__===true)document.body.classList.add('autoradio-subscription-ui');
     // Afficher ABONNEMENT immédiatement dans Réglages, même si le contrôle serveur prend du temps.
-    settingsPanel();
+    try{settingsPanel()}catch(e){try{var b=document.getElementById("subscriptionMenu");if(b)b.innerHTML='<div class="settingNote" style="padding:12px;color:#ffcf7a">Touchez de nouveau ABONNEMENT pour recharger.</div>'}catch(_){}}
     verifySaved(function () {
-      var oldSubscriptionPanel=document.getElementById("subscriptionSettings");
-      if(oldSubscriptionPanel)oldSubscriptionPanel.remove();
-      settingsPanel();
+      try{
+        var oldSubscriptionPanel=document.getElementById("subscriptionSettings");
+        if(oldSubscriptionPanel)oldSubscriptionPanel.remove();
+        settingsPanel();
+      }catch(_){}
       homeStatus();
       maybeShowSubscriptionExpiryReminder(false);
       addAdminMessageCounter();

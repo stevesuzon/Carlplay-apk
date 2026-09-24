@@ -1706,7 +1706,7 @@ async function ensureMarketVerificationTables(env) {
     market_key TEXT PRIMARY KEY, latitude REAL NOT NULL, longitude REAL NOT NULL, address TEXT NOT NULL DEFAULT '',
     confirmations INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`).run();
-  await migrateMarketKeysV438(env);
+  // V439 : ne jamais bloquer une fiche ou l’admin avec une grosse migration.
 }
 
 function stableMarketKeyValue(value){
@@ -1739,11 +1739,12 @@ async function migrateOneLegacyMarketKeyV438(env,oldKey){
   }
   return true;
 }
-async function migrateMarketKeysV438(env){
+async function migrateMarketKeysV438(env,limit=12){
   try{
     await env.DB.prepare("CREATE TABLE IF NOT EXISTS market_schema_migrations(key TEXT PRIMARY KEY,done_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
     const done=await env.DB.prepare("SELECT key FROM market_schema_migrations WHERE key='stable-market-key-v438' LIMIT 1").first();
-    if(done)return;
+    if(done)return {done:true,count:0};
+    const n=Math.max(1,Math.min(25,Number(limit)||12));
     const rows=await env.DB.prepare(`SELECT market_key FROM (
       SELECT market_key FROM market_verification_consensus
       UNION SELECT market_key FROM market_verification_votes
@@ -1752,10 +1753,14 @@ async function migrateMarketKeysV438(env){
       UNION SELECT market_key FROM market_photo_uploads
       UNION SELECT market_key FROM market_location_consensus
       UNION SELECT market_key FROM market_location_votes
-    ) LIMIT 5000`).all();
-    for(const row of rows.results||[])await migrateOneLegacyMarketKeyV438(env,row.market_key);
-    await env.DB.prepare("INSERT OR REPLACE INTO market_schema_migrations(key,done_at) VALUES('stable-market-key-v438',CURRENT_TIMESTAMP)").run();
-  }catch(_){}
+    ) WHERE market_key LIKE 'marketVerifyV9:%' OR
+      (length(market_key)-length(replace(market_key,'|','')))>=5
+      LIMIT ?`).bind(n).all();
+    let moved=0;
+    for(const row of rows.results||[])if(await migrateOneLegacyMarketKeyV438(env,row.market_key))moved++;
+    if(!(rows.results||[]).length)await env.DB.prepare("INSERT OR REPLACE INTO market_schema_migrations(key,done_at) VALUES('stable-market-key-v438',CURRENT_TIMESTAMP)").run();
+    return {done:!(rows.results||[]).length,count:moved};
+  }catch(_){return {done:false,count:0}}
 }
 
 function normalizedVerification(field, raw) {
@@ -2070,7 +2075,7 @@ async function adminMarketVerificationForms(request, env) {
   if (!env.DB) return json({ok:false,error:"DB_INDISPONIBLE"},503);
   await ensureMarketTable(env);
   await ensureMarketVerificationTables(env);
-  const url=new URL(request.url),limit=Math.max(50,Math.min(300,Number(url.searchParams.get('limit')||200)||200)),offset=Math.max(0,Number(url.searchParams.get('offset')||0)||0);
+  const url=new URL(request.url),limit=Math.max(20,Math.min(50,Number(url.searchParams.get('limit')||50)||50)),offset=Math.max(0,Number(url.searchParams.get('offset')||0)||0);
 
   const totalRow=await env.DB.prepare("SELECT COUNT(*) AS n FROM imported_markets").first();
   const currentKeySql="lower(COALESCE(country,''))||'|'||COALESCE(area,'')||'|'||COALESCE(name,'')||'|'||COALESCE(city,'')||'|'||COALESCE(day,'')";
@@ -4439,7 +4444,7 @@ async function mushroomPhoto(url,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append(`<script>(function(){window.__phoneHomeV436=1;function cleanOldHome(){["autoradioHomeV381Web","autoradioHomeV382Web","autoradioHomeV383Web","autoradioHomeV385Web","autoradioDisplaySettingV381","autoradioDisplaySettingV382","autoradioDisplaySettingV383","autoradioDisplaySettingV385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});["autoradioHomeStyleV381","autoradioHomeStyleV382","autoradioHomeStyleV383","autoradioHomeStyleV385","autoradio-boot-hide-v381","autoradio-boot-hide-v382","autoradio-boot-hide-v383","autoradio-boot-hide-v385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});var oldMail=document.getElementById("contactMailButton");if(oldMail){oldMail.id="contestHomeButton";oldMail.className=String(oldMail.className||"").replace(/\bmailTopButton\b/g,"homeTopButton");oldMail.removeAttribute("onclick");oldMail.textContent="🏆 CONCOURS"}var oldOverlay=document.getElementById("contactMailOverlay");if(oldOverlay)oldOverlay.remove();var maps=document.getElementById("offlineMapsSettingRow")||document.getElementById("mapsMenu");if(maps){var mr=maps.id==="offlineMapsSettingRow"?maps:(maps.closest?maps.closest(".settingRow"):maps.parentNode);if(mr)mr.remove()}if(window.CarPlayEnsureSubscriptionSettings)try{window.CarPlayEnsureSubscriptionSettings()}catch(_){};document.documentElement.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385");if(document.body)document.body.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385")}cleanOldHome();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",cleanOldHome,{once:true});var mo=new MutationObserver(cleanOldHome);try{mo.observe(document.documentElement,{childList:true,subtree:true})}catch(_){}setTimeout(function(){try{mo.disconnect()}catch(_){}cleanOldHome()},5000)})();</script><script src="/phone-loading-v384.js?v=432-home-clean"></script><link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=426-current"></script><link rel="stylesheet" href="/mobile-overrides.css?v=432-home-clean"><link rel="stylesheet" href="/subscription-locks.css?v=426-current"><link rel="stylesheet" href="/home-work.css?v=432-home-clean"><script src="/weather-all-pages.js?v=426-current" defer></script><script src="/subscription-web.js?v=436-hard-reset" defer></script><script defer>(function(){function fix(){var maps=document.getElementById("offlineMapsSettingRow")||document.getElementById("mapsMenu");if(maps){var row=maps.id==="offlineMapsSettingRow"?maps:(maps.closest?maps.closest(".settingRow"):maps.parentNode);if(row)row.remove()}if(window.CarPlayEnsureSubscriptionSettings)try{window.CarPlayEnsureSubscriptionSettings()}catch(_){}}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){fix();setTimeout(fix,120);setTimeout(fix,900)});else{fix();setTimeout(fix,120);setTimeout(fix,900)}})();</script><script src="/market-update-notifications-v281.js?v=426-current" defer></script><script src="/notification-detail-v282.js?v=426-current" defer></script><script src="/home-work.js?v=432-home-clean" defer></script><script src="/market-presence-global.js?v=426-current" defer></script><script src="/market-auto-update-v319.js?v=426-current" defer></script><script src="/market-attendance-v317.js?v=426-current" defer></script><script src="/market-navigation-confirm-v189.js?v=426-current" defer></script><script src="/contest-v188.js?v=434-legacy-purge" defer></script><script src="/referral-v232.js?v=426-current" defer></script><script src="/app-access-gate-v240.js?v=426-current" defer></script><script src="/sanction-guard-v161.js?v=426-current" defer></script>`, { html: true });
+    element.append(`<script>(function(){window.__phoneHomeV439=1;function cleanOldHome(){["autoradioHomeV381Web","autoradioHomeV382Web","autoradioHomeV383Web","autoradioHomeV385Web","autoradioDisplaySettingV381","autoradioDisplaySettingV382","autoradioDisplaySettingV383","autoradioDisplaySettingV385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});["autoradioHomeStyleV381","autoradioHomeStyleV382","autoradioHomeStyleV383","autoradioHomeStyleV385","autoradio-boot-hide-v381","autoradio-boot-hide-v382","autoradio-boot-hide-v383","autoradio-boot-hide-v385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});var oldMail=document.getElementById("contactMailButton");if(oldMail){oldMail.id="contestHomeButton";oldMail.className=String(oldMail.className||"").replace(/\bmailTopButton\b/g,"homeTopButton");oldMail.removeAttribute("onclick");oldMail.textContent="🏆 CONCOURS"}var oldOverlay=document.getElementById("contactMailOverlay");if(oldOverlay)oldOverlay.remove();var maps=document.getElementById("offlineMapsSettingRow")||document.getElementById("mapsMenu");if(maps){var mr=maps.id==="offlineMapsSettingRow"?maps:(maps.closest?maps.closest(".settingRow"):maps.parentNode);if(mr)mr.remove()}if(window.CarPlayEnsureSubscriptionSettings)try{window.CarPlayEnsureSubscriptionSettings()}catch(_){};document.documentElement.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385");if(document.body)document.body.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385")}cleanOldHome();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",cleanOldHome,{once:true});var mo=new MutationObserver(cleanOldHome);try{mo.observe(document.documentElement,{childList:true,subtree:true})}catch(_){}setTimeout(function(){try{mo.disconnect()}catch(_){}cleanOldHome()},5000)})();</script><script src="/phone-loading-v384.js?v=432-home-clean"></script><link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=426-current"></script><link rel="stylesheet" href="/mobile-overrides.css?v=432-home-clean"><link rel="stylesheet" href="/subscription-locks.css?v=426-current"><link rel="stylesheet" href="/home-work.css?v=432-home-clean"><script src="/weather-all-pages.js?v=426-current" defer></script><script src="/subscription-web.js?v=439-direct" defer></script><script defer>(function(){function fix(){var maps=document.getElementById("offlineMapsSettingRow")||document.getElementById("mapsMenu");if(maps){var row=maps.id==="offlineMapsSettingRow"?maps:(maps.closest?maps.closest(".settingRow"):maps.parentNode);if(row)row.remove()}if(window.CarPlayEnsureSubscriptionSettings)try{window.CarPlayEnsureSubscriptionSettings()}catch(_){}}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){fix();setTimeout(fix,120);setTimeout(fix,900)});else{fix();setTimeout(fix,120);setTimeout(fix,900)}})();</script><script src="/market-update-notifications-v281.js?v=426-current" defer></script><script src="/notification-detail-v282.js?v=426-current" defer></script><script src="/home-work.js?v=432-home-clean" defer></script><script src="/market-presence-global.js?v=426-current" defer></script><script src="/market-auto-update-v319.js?v=426-current" defer></script><script src="/market-attendance-v317.js?v=426-current" defer></script><script src="/market-navigation-confirm-v189.js?v=426-current" defer></script><script src="/contest-v188.js?v=439-direct" defer></script><script src="/referral-v232.js?v=426-current" defer></script><script src="/app-access-gate-v240.js?v=426-current" defer></script><script src="/sanction-guard-v161.js?v=426-current" defer></script>`, { html: true });
   }
 }
 
@@ -4718,6 +4723,7 @@ export default {
     // Brocante / braderie / foire : 90 jours par zone. Voyageurs : 60 jours par zone.
     if (String(env.MARKET_AUTO_REFRESH || "1") === "0") return;
     ctx.waitUntil(runSpecialEventRefresh(env));
+    ctx.waitUntil(migrateMarketKeysV438(env,12));
   },
   async fetch(request, env) {
     const url = new URL(request.url);

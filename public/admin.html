@@ -62,14 +62,14 @@ function renderAdminMarketForms(){
     const gps=f.hasLocation?'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:7px"><span style="color:#55e58c;font-weight:900">📍 GPS confirmé</span><button type="button" style="min-height:30px;padding:4px 7px;border:1px solid #ffb14a;border-radius:8px;background:#3b2607;color:#ffdca1;font-size:10px;font-weight:950" onclick="unlockAdminMarketField('+i+',\'gps\')">🔓 DÉBLOQUER GPS</button></div>':'';
     return '<div style="margin:9px 0;padding:12px;border:2px solid '+(f.informed?'#55d98b':'#4c6b88')+';border-radius:13px;background:#0a1725"><div style="font-size:17px;font-weight:950;color:#fff">'+safeHtml(marketFormLabel(f))+'</div>'+(meta?'<div style="margin-top:4px;color:#a9c5dc;font-size:12px">'+meta+'</div>':'')+sourceInfo+photo+gps+(lines||'<div style="margin-top:7px;color:#b7c8d7">Aucun renseignement utilisateur confirmé pour le moment.</div>')+'<button type="button" style="width:100%;min-height:45px;margin-top:9px;border:0;border-radius:10px;background:#f39b19;color:#111;font-weight:950" onclick="openAdminMarketForm('+i+')">✏️ OUVRIR / MODIFIER — ADMIN</button></div>';
   }).join('')||'<p class="note">Aucune fiche disponible.</p>';
-  if(adminMarketHasMore)marketFormsList.insertAdjacentHTML('beforeend','<button type="button" class="refresh" style="margin-top:12px" onclick="loadMoreMarketVerificationForms()">AFFICHER 200 FICHES DE PLUS</button>');
+  if(adminMarketHasMore)marketFormsList.insertAdjacentHTML('beforeend','<button type="button" class="refresh" style="margin-top:12px" onclick="loadMoreMarketVerificationForms()">AFFICHER 50 FICHES DE PLUS</button>');
 }
 async function loadMarketVerificationForms(openAfter,append){
   if(localStorage.getItem('carplay_admin_here')!=='1'||!marketFormsBox)return;
   try{
     if(marketFormsStatus){marketFormsStatus.style.display='block';marketFormsStatus.textContent='Chargement des fiches…';}
     const offset=append?adminMarketForms.length:0;
-    const r=await fetch('/api/admin/market-verification-forms?limit=200&offset='+offset,{headers:{authorization:'Bearer '+secret.value},cache:'no-store'}),j=await r.json();
+    const r=await fetch('/api/admin/market-verification-forms?limit=50&offset='+offset,{headers:{authorization:'Bearer '+secret.value},cache:'no-store'}),j=await r.json();
     if(!r.ok||!j.ok)throw new Error(j.error||'Chargement impossible');
     adminMarketTotal=Number(j.totalCount||0);adminMarketInformed=Number(j.informedCount||0);adminMarketHasMore=!!j.hasMore;
     adminMarketForms=append?adminMarketForms.concat(j.forms||[]):(j.forms||[]);
@@ -80,7 +80,7 @@ async function loadMarketVerificationForms(openAfter,append){
     if(marketFormsStatus)marketFormsStatus.textContent='✅ '+adminMarketForms.length+' fiche(s) affichée(s) sur '+adminMarketTotal+'.';
     if(openAfter&&marketFormsList)marketFormsList.style.display='block';
   }catch(e){
-    if(marketFormsStatus){marketFormsStatus.style.display='block';marketFormsStatus.textContent='⚠️ '+(e.message||'Chargement impossible');}
+    if(marketFormsStatus){marketFormsStatus.style.display='block';marketFormsStatus.textContent='⚠️ Chargement des fiches impossible. Réessayez dans quelques secondes.';console.error('market forms',e);}
   }
 }
 function loadMoreMarketVerificationForms(){loadMarketVerificationForms(true,true)}

@@ -824,8 +824,33 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
 .homeTopHelp{max-width:350px;padding:7px 10px;border-radius:12px;background:#07111ddd;color:#fff;font:800 13px/1.25 Arial;text-align:right}
 </style>
 <script id="hardCacheResetV436">
-(function(){try{var k='couteau_cache_reset_v436';if(localStorage.getItem(k)==='1')return;localStorage.setItem(k,'1');if('caches'in window)caches.keys().then(function(names){return Promise.all(names.filter(function(n){return n!=='carplay-notification-preference-v1'}).map(function(n){return caches.delete(n)}))}).catch(function(){});if('serviceWorker'in navigator)navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(r){try{r.update()}catch(_){}})}).catch(function(){})}catch(_){}})();
+(function(){try{var k='couteau_cache_reset_v439';if(localStorage.getItem(k)==='1')return;localStorage.setItem(k,'1');if('caches'in window)caches.keys().then(function(names){return Promise.all(names.filter(function(n){return n!=='carplay-notification-preference-v1'}).map(function(n){return caches.delete(n)}))}).catch(function(){});if('serviceWorker'in navigator)navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(r){try{r.update()}catch(_){}})}).catch(function(){})}catch(_){}})();
 </script>
+<script id="criticalModulesV439">
+(function(){
+  window.openSubscriptionSettingsV439=function(){
+    var body=document.getElementById('subscriptionMenu');
+    if(body)body.classList.add('open');
+    function ready(){
+      try{if(window.CarPlayEnsureSubscriptionSettings)window.CarPlayEnsureSubscriptionSettings()}catch(_){}
+      var b=document.getElementById('subscriptionMenu');if(b)b.classList.add('open');
+    }
+    if(window.CarPlayEnsureSubscriptionSettings){ready();return}
+    if(!document.getElementById('subscriptionLoaderV439')){
+      var s=document.createElement('script');s.id='subscriptionLoaderV439';s.src='/subscription-web.js?v=439-direct-'+Date.now();s.onload=ready;s.onerror=function(){var b=document.getElementById('subscriptionMenu');if(b)b.innerHTML='<div class="settingNote" style="padding:12px;color:#ffb2b2">Impossible de charger l’abonnement. Appuyez sur MISE À JOUR puis réessayez.</div>'};document.head.appendChild(s);
+    }
+  };
+  window.openContestV439=function(){
+    function ready(){try{if(window.CarPlayOpenContest)window.CarPlayOpenContest()}catch(_){}}
+    if(window.CarPlayOpenContest){ready();return}
+    if(!document.getElementById('contestLoaderV439')){
+      var s=document.createElement('script');s.id='contestLoaderV439';s.src='/contest-v188.js?v=439-direct-'+Date.now();s.onload=ready;document.head.appendChild(s);
+    }
+  };
+})();
+</script>
+<script src="/subscription-web.js?v=439-direct" defer></script>
+<script src="/contest-v188.js?v=439-direct" defer></script>
 </head>
 <body class="homePage">
 
@@ -859,7 +884,7 @@ opacity:.9;
 <div id="network" class="status">Vérification Internet…</div>
 <div class="homeTopActions">
   <div class="homeTopHelp">Concours Couteau Suisse : points, bonus et classement.</div>
-  <button id="contestHomeButton" class="homeTopButton" type="button">🏆 CONCOURS</button>
+  <button id="contestHomeButton" class="homeTopButton" type="button" onclick="openContestV439()">🏆 CONCOURS</button>
   <button id="housePhotoButton" class="homeTopButton housePhotoTopButton" type="button" aria-label="Mesurer une maison"><span class="houseBtnIcon">📐</span><span class="houseBtnText">MESURER UNE MAISON</span></button>
   <div class="gear" onclick="toggleSettings()">⚙</div>
 </div>
@@ -905,7 +930,7 @@ opacity:.9;
 <div class="settingNote" style="padding:0 16px 14px">Charger la dernière version de l’application.</div>
 </div>
 <div class="settingRow" id="subscriptionSettings">
-<button class="settingHead" type="button" onclick="var x=document.getElementById('subscriptionMenu');if(x)x.classList.toggle('open')">
+<button class="settingHead" type="button" onclick="openSubscriptionSettingsV439()">
 <span>🔐 ABONNEMENT</span>
 <span>⌄</span>
 </button>
@@ -1372,7 +1397,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(10,'Vérification de l’application…','Contrôle de la page d’accueil et des réglages.');
     await check('/index.html');
     setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications.');
-    await check('/contest-v188.js?v=434-legacy-purge');
+    await check('/contest-v188.js?v=439-direct');
     setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique et événements.');
     await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=438-stable-market-key'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=427-ios-sound'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=438-stable-market-key'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
     setProgress(48,'Vérification des champignons…','Contrôle des fiches Champignons et des coins enregistrés.');
@@ -1380,11 +1405,11 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
     await Promise.allSettled([check('/notification-settings.js?v=282-onboarding-notification-detail'),check('/market-update-notifications-v281.js?v=282')]);
     setProgress(72,'Vérification du compte…','Contrôle de l’abonnement, de l’identité et des réglages.');
-    await Promise.allSettled([check('/subscription-web.js?v=436-hard-reset'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
+    await Promise.allSettled([check('/subscription-web.js?v=439-direct'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
     setProgress(82,'Recherche de la nouvelle version…','Seuls les fichiers de l’application sont actualisés.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=438-stable-market-key',{updateViaCache:'none'})]}catch(_){regs=[]}}
+      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=439-critical-fixes',{updateViaCache:'none'})]}catch(_){regs=[]}}
       for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){}
       var reg=regs[0];
       if(reg&&reg.waiting){

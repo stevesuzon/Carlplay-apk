@@ -1,4 +1,4 @@
 {
-  "version": "V438",
-  "message": "V438 : les fiches marché utilisent maintenant une identité stable qui ne dépend plus de l’adresse. Les GPS, photos, horaires et renseignements déjà confirmés sont migrés sur cette identité stable et restent retrouvables après les mises à jour de données. Les fonctions V437 restent actives : horaires Jours-de-Marché -30 min, verrouillage des champs, aperçu photo et déblocage administrateur, compteur renseigné / total."
+  "version": "V439",
+  "message": "V439 : correction prioritaire des trois problèmes signalés. ABONNEMENT se charge directement et peut être rechargé au toucher, CONCOURS possède maintenant un bouton direct qui recharge son module si nécessaire, et Voir les fiches de marché charge les fiches par petits lots pour éviter l’erreur iPhone. La migration des anciennes fiches se fait progressivement en arrière-plan sans bloquer l’administration."
 }
