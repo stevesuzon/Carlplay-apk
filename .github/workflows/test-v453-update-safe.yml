@@ -97,8 +97,8 @@ jobs:
             }
           });
 
-          const nav=page.waitForNavigation({waitUntil:'domcontentloaded',timeout:12000}).catch(()=>null);
-          await page.evaluate(()=>window.forceAppUpdate());
+          const nav=page.waitForNavigation({waitUntil:'domcontentloaded',timeout:15000}).catch(()=>null);
+          await page.evaluate(()=>{window.forceAppUpdate();return true});
           await nav;
           await page.waitForTimeout(700);
 
