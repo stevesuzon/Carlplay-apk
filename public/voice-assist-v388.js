@@ -169,18 +169,17 @@
   function wakeSpeechV423(){
     if(!enabled()||voiceAwakeV423||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
     try{
-      window.speechSynthesis.cancel();
       window.speechSynthesis.resume();
       loadPreferredVoice();
-      var u=new SpeechSynthesisUtterance('\u00a0');
+      var u=new SpeechSynthesisUtterance('a');
       primeUtteranceV396=u;
-      u.lang='fr-FR';u.volume=0.01;u.rate=10;
+      u.lang='fr-FR';u.volume=0.001;u.rate=10;u.pitch=1;
       if(preferredVoice)u.voice=preferredVoice;
-      u.onend=function(){primeUtteranceV396=null};
-      u.onerror=function(){primeUtteranceV396=null};
+      u.onstart=function(){voiceAwakeV423=true};
+      u.onend=function(){primeUtteranceV396=null;voiceAwakeV423=true};
+      u.onerror=function(){primeUtteranceV396=null;voiceAwakeV423=false};
       window.speechSynthesis.speak(u);
-      voiceAwakeV423=true;
-    }catch(_){}
+    }catch(_){voiceAwakeV423=false}
   }
   function resetSpeechV423(){
     voiceAwakeV423=false;
@@ -243,11 +242,34 @@
       currentUtteranceV396=u;
       u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;
       if(preferredVoice)u.voice=preferredVoice;
-      var started=false;
-      u.onstart=function(){started=true;toast('🔊 '+text)};
+      var started=false,retried=false;
+      u.onstart=function(){started=true;voiceAwakeV423=true;toast('🔊 '+text)};
       u.onend=function(){currentUtteranceV396=null};
-      u.onerror=function(){currentUtteranceV396=null;toast('🔇 La lecture vocale n’a pas démarré. Réessayez l’appui long.');};
+      u.onerror=function(){
+        currentUtteranceV396=null;
+        if(!retried){
+          retried=true;
+          try{
+            window.speechSynthesis.resume();
+            var u2=new SpeechSynthesisUtterance(text);
+            currentUtteranceV396=u2;
+            u2.lang='fr-FR';u2.rate=.92;u2.pitch=1;u2.volume=1;
+            if(preferredVoice)u2.voice=preferredVoice;
+            u2.onstart=function(){voiceAwakeV423=true;toast('🔊 '+text)};
+            u2.onend=function(){currentUtteranceV396=null};
+            u2.onerror=function(){currentUtteranceV396=null;toast('🔇 La lecture vocale n’a pas démarré. Réessayez l’appui long.')};
+            window.speechSynthesis.speak(u2);
+            return;
+          }catch(_){}
+        }
+        toast('🔇 La lecture vocale n’a pas démarré. Réessayez l’appui long.');
+      };
       window.speechSynthesis.speak(u);
+      setTimeout(function(){
+        if(!started&&currentUtteranceV396===u){
+          try{window.speechSynthesis.resume()}catch(_){}
+        }
+      },450);
       return true;
     }catch(_){toast('🔇 La lecture vocale n’a pas démarré. Réessayez l’appui long.');return false}
   }
