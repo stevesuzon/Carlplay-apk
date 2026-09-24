@@ -848,6 +848,8 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
   };
 })();
 </script>
+
+
 <style id="homeStabilityV448">
 body.homePage #weatherBubble{pointer-events:none!important;z-index:4!important}
 body.homePage .homeTopActions{position:relative!important;z-index:6!important}
@@ -855,10 +857,7 @@ body.homePage button,body.homePage a,body.homePage [role="button"],body.homePage
 body.homePage .card img,body.homePage .returnPlaceTraficImg{pointer-events:none!important}
 .addressFallbackV448,.returnFallbackV448{position:absolute;inset:12px;z-index:0;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;font:950 clamp(18px,5vw,30px)/1.05 Arial,sans-serif;text-shadow:0 3px 8px #0009;pointer-events:none}
 .addressButtonFull,.returnPlaceTraficImg{position:relative;z-index:1}
-@media(max-width:720px){
- body.homePage .homeTopActions{margin-top:10px!important}
- body.homePage #homeDepartmentSearch{margin-top:14px!important}
-}
+@media(max-width:720px){body.homePage .homeTopActions{margin-top:10px!important}body.homePage #homeDepartmentSearch{margin-top:14px!important}}
 @media(min-width:721px){body.homePage .homeTopActions{margin-top:10px!important}}
 </style>
 </head>
@@ -2830,6 +2829,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
+
 </body>
 </html>
 
