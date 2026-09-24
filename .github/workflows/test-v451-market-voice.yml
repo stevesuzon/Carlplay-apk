@@ -1,0 +1,129 @@
+name: Test V451 Market Voice
+
+on:
+  push:
+    branches: ["test-v451-market-voice"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-v451-market-voice
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install test tools
+        run: |
+          npm install
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps webkit
+
+      - name: Syntax checks
+        run: |
+          node --check public/voice-assist-v388.js
+          node - <<'NODE'
+          const fs=require('fs');
+          const html=fs.readFileSync('public/index.html','utf8');
+          if(/<a class="card blue marketHomeFast"/.test(html)) throw new Error('Marchés is still an anchor');
+          if(!/data-voice-text="Marchés\. Foires, Noël et brocantes\."/.test(html)) throw new Error('Missing exact market voice text');
+          const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m=>m[1]).filter(s=>s.trim());
+          scripts.forEach((s,i)=>{try{new Function(s)}catch(e){throw new Error('inline '+i+': '+e.message)}});
+          console.log('Static checks OK');
+          NODE
+
+      - name: Start local Worker
+        shell: bash
+        run: |
+          set -e
+          npx wrangler dev --local --ip 127.0.0.1 --port 8787 > /tmp/v451-wrangler.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8787/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/v451-wrangler.log
+          exit 1
+
+      - name: Test no white frame and long-press speech
+        shell: bash
+        run: |
+          cat > test-v451.mjs <<'EOF'
+          import { webkit } from 'playwright';
+          function assert(x,m){if(!x)throw new Error(m)}
+          const browser=await webkit.launch({headless:true});
+          const context=await browser.newContext({
+            viewport:{width:390,height:844},
+            isMobile:true,
+            hasTouch:true,
+            deviceScaleFactor:3,
+            userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1',
+            serviceWorkers:'block'
+          });
+          await context.addInitScript(()=>{
+            localStorage.setItem('carplay_voice_enabled_v387','1');
+            window.__spokenV451=[];
+            class U{constructor(t){this.text=String(t||'');this.lang='';this.rate=1;this.pitch=1;this.volume=1;this.voice=null;this.onstart=null;this.onend=null;this.onerror=null;}}
+            const synth={getVoices(){return[{lang:'fr-FR',name:'Français test'}]},addEventListener(){},cancel(){},resume(){},pause(){},speak(u){window.__spokenV451.push(String(u.text||''));if(u.onstart)u.onstart();setTimeout(()=>u.onend&&u.onend(),5)}};
+            try{Object.defineProperty(window,'SpeechSynthesisUtterance',{configurable:true,value:U})}catch(_){window.SpeechSynthesisUtterance=U}
+            try{Object.defineProperty(window,'speechSynthesis',{configurable:true,value:synth})}catch(_){window.speechSynthesis=synth}
+          });
+          const page=await context.newPage();
+          await page.route('**/*',async route=>{
+            const req=route.request(),url=req.url(),type=req.resourceType();
+            if(type==='script'){
+              if(url.includes('voice-assist-v388.js')) return route.continue();
+              return route.fulfill({status:200,contentType:'application/javascript',body:''});
+            }
+            if(type==='image'||type==='font'||type==='media') return route.abort();
+            return route.continue();
+          });
+          await page.goto('http://127.0.0.1:8787/?v451='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000});
+          await page.waitForFunction(()=>!!window.CouteauVoice,{timeout:5000});
+          const info=await page.evaluate(()=>{
+            const el=document.querySelector('.marketHomeFast');
+            const cs=getComputedStyle(el);
+            return {
+              tag:el.tagName,
+              outline:cs.outlineStyle,
+              outlineWidth:cs.outlineWidth,
+              background:cs.backgroundColor,
+              role:el.getAttribute('role'),
+              voice:el.getAttribute('data-voice-text')
+            };
+          });
+          assert(info.tag==='DIV','Marchés is still '+info.tag);
+          assert(info.outline==='none'||info.outlineWidth==='0px','Visible focus outline '+JSON.stringify(info));
+          assert(info.role==='button','Missing button role');
+
+          await page.evaluate(async()=>{
+            const el=document.querySelector('.marketHomeFast'),r=el.getBoundingClientRect();
+            const point={clientX:r.left+r.width/2,clientY:r.top+r.height/2,pageX:r.left+r.width/2,pageY:r.top+r.height/2};
+            const s=new Event('touchstart',{bubbles:true,cancelable:true});
+            Object.defineProperty(s,'touches',{value:[point]});Object.defineProperty(s,'targetTouches',{value:[point]});Object.defineProperty(s,'changedTouches',{value:[point]});
+            el.dispatchEvent(s);
+            await new Promise(ok=>setTimeout(ok,1320));
+            const e=new Event('touchend',{bubbles:true,cancelable:true});
+            Object.defineProperty(e,'touches',{value:[]});Object.defineProperty(e,'targetTouches',{value:[]});Object.defineProperty(e,'changedTouches',{value:[point]});
+            el.dispatchEvent(e);
+            await new Promise(ok=>setTimeout(ok,80));
+          });
+          const spoken=await page.evaluate(()=>window.__spokenV451.filter(x=>String(x).trim()));
+          assert(spoken.some(x=>/Marchés\. Foires, Noël et brocantes\./i.test(x)),'Market did not speak exact phrase: '+JSON.stringify(spoken));
+          console.log(JSON.stringify({ok:true,info,spoken},null,2));
+          await browser.close();
+          EOF
+          node test-v451.mjs
+
+      - name: Show Worker log on failure
+        if: failure()
+        run: cat /tmp/v451-wrangler.log || true
