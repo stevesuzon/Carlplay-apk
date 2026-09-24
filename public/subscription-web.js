@@ -473,12 +473,7 @@
     var settings = document.getElementById("settings");
     if (!settings) return;
     var existingPanel = document.getElementById("subscriptionSettings");
-    var updateRow = document.getElementById("updateSettingRow");
-    if (existingPanel) {
-      if (updateRow && updateRow.parentNode && updateRow.nextSibling !== existingPanel) updateRow.parentNode.insertBefore(existingPanel, updateRow.nextSibling);
-      cleanupOldSettingDuplicates(settings, existingPanel);
-      return;
-    }
+    if (existingPanel) { cleanupOldSettingDuplicates(settings, existingPanel); return; }
     var panel = document.createElement("div");
     panel.className = "settingRow";
     panel.id = "subscriptionSettings";
@@ -503,12 +498,8 @@
     };
     if(emailField&&emailField.value&&firstNameField.value.trim().length>=2&&lastNameField.value.trim().length>=2&&s&&s.email&&s.firstName&&s.lastName){showConfirmed(emailField.value);}
     window.CarPlaySyncIdentityToSubscriptionSettings(s||{});
-    var updateRow = document.getElementById("updateSettingRow");
-    if (updateRow && updateRow.parentNode) updateRow.parentNode.insertBefore(panel, updateRow.nextSibling);
-    else {
-      var firstSetting = settings.querySelector(".settingRow");
-      if (firstSetting) settings.insertBefore(panel, firstSetting); else settings.appendChild(panel);
-    }
+    var firstSetting = settings.querySelector(".settingRow");
+    if (firstSetting) settings.insertBefore(panel, firstSetting); else settings.appendChild(panel);
     cleanupOldSettingDuplicates(settings, panel);
     panel.querySelector(".settingHead").onclick = function () { panel.querySelector(".settingBody").classList.toggle("open"); };
     var settingsCodeInput = panel.querySelector(".sub-setting-code");
@@ -533,7 +524,6 @@
     };
   }
 
-  window.CarPlayEnsureSubscriptionSettings=settingsPanel;
   window.addEventListener("carplay:identity-ready",function(event){
     if(window.CarPlaySyncIdentityToSubscriptionSettings)window.CarPlaySyncIdentityToSubscriptionSettings(event&&event.detail||{});
   });
@@ -543,7 +533,7 @@
     var mapsMenu = document.getElementById("mapsMenu");
     if (mapsMenu) {
       var row = mapsMenu.closest ? mapsMenu.closest(".settingRow") : mapsMenu.parentNode;
-      if (row) row.remove();
+      if (row) row.style.display = "none";
     }
   }
 
