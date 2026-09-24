@@ -9,7 +9,7 @@
     if(document.getElementById('carplayVoiceNoSelectV389'))return;
     var st=document.createElement('style');
     st.id='carplayVoiceNoSelectV389';
-    st.textContent='.carplayVoiceEnabled [data-voice-card],.carplayVoiceEnabled [data-voice-card] *,.carplayVoiceEnabled button,.carplayVoiceEnabled a,.carplayVoiceEnabled [onclick],.carplayVoiceEnabled [role="button"]{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}.carplayVoiceEnabled [data-voice-card]{touch-action:pan-y}';
+    st.textContent='.carplayVoiceEnabled [data-voice-card],.carplayVoiceEnabled [data-voice-card] *,.carplayVoiceEnabled button,.carplayVoiceEnabled button *,.carplayVoiceEnabled a,.carplayVoiceEnabled a *,.carplayVoiceEnabled [onclick],.carplayVoiceEnabled [onclick] *,.carplayVoiceEnabled [role="button"],.carplayVoiceEnabled [role="button"] *,.carplayVoiceEnabled .card,.carplayVoiceEnabled .card *,.carplayVoiceEnabled .small,.carplayVoiceEnabled .small *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;-webkit-tap-highlight-color:transparent!important}.carplayVoiceEnabled img{-webkit-user-drag:none!important;user-drag:none!important}.carplayVoiceEnabled button,.carplayVoiceEnabled a,.carplayVoiceEnabled [onclick],.carplayVoiceEnabled [role="button"]{touch-action:manipulation}.carplayVoiceEnabled [data-voice-card]{touch-action:pan-y}';
     (document.head||document.documentElement).appendChild(st);
   }
   function enabled(){
@@ -218,12 +218,16 @@
       window.speechSynthesis.speak(currentUtteranceV396);return true;
     }catch(_){toast('🔇 La voix ne fonctionne pas sur cet appareil.');return false}
   }
-  function eligibleTarget(e){
-    if(!enabled()||!e.target||!e.target.closest)return null;
-    var selector='button,a,select,[onclick],[role="button"],[data-voice-help],[data-voice-card],#homeAddressBookBtn,.addressBookTile,.card,.small,.settingHead,.market,.market-card,.marketCard,.station-card,.stationCard,.result-card,.resultCard,.tile';
-    var target=e.target.closest(selector);
+  function voiceTargetFrom(node){
+    if(!node||!node.closest)return null;
+    var selector='button,a,select,[onclick],[role="button"],[data-voice-help],[data-voice-card],#homeAddressBookBtn,.addressBookTile,.card,.small,.settingHead,.market,.market-card,.marketCard,.station-card,.stationCard,.result-card,.resultCard,.tile,.directBtn,.homeTopButton';
+    var target=node.closest(selector);
     if(!target||target.matches('input,textarea,label'))return null;
     return target;
+  }
+  function eligibleTarget(e){
+    if(!enabled()||!e||!e.target)return null;
+    return voiceTargetFrom(e.target);
   }
   function cancel(){clearTimeout(timer);timer=0;active=null;fired=false}
   function fireLongPress(target){
@@ -329,17 +333,18 @@
   }
   function touchBeginV394(e){
     if(!enabled()||!e.target||!e.target.closest)return;
-    primeFromGestureV442();
     var target=eligibleTarget(e);if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
-    active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchSpeechStartedV442=false;touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV400(target);
+    // Une amorce minuscule au premier geste suffit pour iOS, sans préparer une phrase à chaque simple clic.
+    primeFromGestureV442();
+    active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchSpeechStartedV442=false;
+    touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV400(target);
     timer=setTimeout(function(){
-      if(active){
-        touchReadyV395=true;fired=true;suppressClickTarget=active;
-        suppressClickUntil=Date.now()+1800;suppressAllClicksUntilV398=Date.now()+1800;
-        try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
-        touchSpeechStartedV442=!!resumeTouchSpeechV400(active);
-      }
+      if(!active)return;
+      touchReadyV395=true;fired=true;suppressClickTarget=active;
+      suppressClickUntil=Date.now()+1800;suppressAllClicksUntilV398=Date.now()+1800;
+      try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
+      touchSpeechStartedV442=!!resumeTouchSpeechV400(active);
     },PRESS_MS);
   }
   function touchMoveV394(e){
@@ -391,8 +396,12 @@
     }
   }
   installNoSelectV389();
-  document.addEventListener('selectstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
-  document.addEventListener('dragstart',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
+  function blockNativeLongPressV448(e){
+    if(!enabled()||!e||!e.target)return;
+    if(voiceTargetFrom(e.target))e.preventDefault();
+  }
+  document.addEventListener('selectstart',blockNativeLongPressV448,true);
+  document.addEventListener('dragstart',blockNativeLongPressV448,true);
   document.addEventListener('click',function(e){
     if(!enabled()||!e.target||e.target.tagName!=='SELECT')return;
     e.preventDefault();e.stopImmediatePropagation();
@@ -422,11 +431,16 @@
   document.addEventListener('touchend',touchEndV394,{capture:true,passive:false});
   document.addEventListener('touchcancel',function(){cancel();cancelTouchSpeechV400();cancelArmedTouchSpeechV444();touchTargetV398=null;touchReadyV395=false;touchSpeechStartedV442=false;touchStartedAtV395=0;},{capture:true,passive:true});
   document.addEventListener('pointerdown',begin,true);document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',cancel,true);
-  document.addEventListener('contextmenu',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
+  document.addEventListener('contextmenu',blockNativeLongPressV448,true);
+  function disableImageDragV448(root){
+    try{(root||document).querySelectorAll('img').forEach(function(img){img.draggable=false;img.setAttribute('draggable','false')})}catch(_){}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){disableImageDragV448(document)},{once:true});else disableImageDragV448(document);
+  try{new MutationObserver(function(list){list.forEach(function(m){m.addedNodes&&m.addedNodes.forEach(function(n){if(n&&n.nodeType===1){if(n.tagName==='IMG'){n.draggable=false;n.setAttribute('draggable','false')}disableImageDragV448(n)}})})}).observe(document.documentElement,{childList:true,subtree:true})}catch(_){};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSetting);else initSetting();
   window.addEventListener('storage',syncSetting);if(window.speechSynthesis)window.speechSynthesis.addEventListener&&window.speechSynthesis.addEventListener('voiceschanged',loadPreferredVoice);
   window.addEventListener('pageshow',function(){resetSpeechV423();if(enabled())setTimeout(primeVoiceV396,0)});
   document.addEventListener('visibilitychange',function(){if(!document.hidden){resetSpeechV423();if(enabled())setTimeout(primeVoiceV396,0)}});
   window.addEventListener('focus',function(){if(enabled()){resetSpeechV423();setTimeout(primeVoiceV396,0)}});
-  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,prime:primeFromGestureV442,pressMs:PRESS_MS};
+  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,prime:primeFromGestureV442,pressMs:PRESS_MS,_target:voiceTargetFrom};
 })();
