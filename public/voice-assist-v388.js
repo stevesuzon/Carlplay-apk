@@ -306,7 +306,7 @@
     timer=setTimeout(function(){
       if(active){
         touchReadyV395=true;
-        suppressAllClicksUntilV398=Date.now()+4000;
+
         toast('🔊 Relâchez pour écouter');
       }
     },PRESS_MS);
@@ -333,7 +333,7 @@
       fired=true;
       suppressClickTarget=target;
       suppressClickUntil=Date.now()+2500;
-      suppressAllClicksUntilV398=Date.now()+2500;
+
       blockLongPressReleaseV397(e);
       resumeTouchSpeechV400(target);
     }
@@ -376,10 +376,7 @@
     if(txt)speak(txt.replace(/\s*[—–-]\s*/g,', '));
   },true);
   document.addEventListener('click',function(e){
-    if(suppressAllClicksUntilV398&&Date.now()<suppressAllClicksUntilV398){
-      e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
-      return;
-    }
+    if(e.target&&e.target.closest&&e.target.closest('#voiceTapFallbackV400'))return;
     if(suppressClickUntil&&Date.now()<suppressClickUntil&&suppressClickTarget){
       var hit=(e.target===suppressClickTarget)||(suppressClickTarget.contains&&suppressClickTarget.contains(e.target))||(e.target&&e.target.contains&&e.target.contains(suppressClickTarget));
       if(hit){
