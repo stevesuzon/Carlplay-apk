@@ -1,5 +1,7 @@
 (function(){
   'use strict';
+  if(window.__carplayVoiceGlobalV445Loaded)return;
+  window.__carplayVoiceGlobalV445Loaded=true;
   var KEY='carplay_voice_enabled_v387';
   var PRESS_MS=1200;
   var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='',voiceAwakeV423=false,gesturePrimedV442=false,touchSpeechStartedV442=false,touchSpeechArmedV444=false,touchSpeechUtteranceV444=null;
@@ -218,10 +220,10 @@
   }
   function eligibleTarget(e){
     if(!enabled()||!e.target||!e.target.closest)return null;
-    var clickable=e.target.closest('button,a,select,[onclick],[role="button"],[data-voice-help],#homeAddressBookBtn,.addressBookTile');
-    if(clickable&&!clickable.matches('input,textarea,label'))return clickable;
-    var card=e.target.closest('[data-voice-card]');
-    return card||null;
+    var selector='button,a,select,[onclick],[role="button"],[data-voice-help],[data-voice-card],#homeAddressBookBtn,.addressBookTile,.card,.small,.settingHead,.market,.market-card,.marketCard,.station-card,.stationCard,.result-card,.resultCard,.tile';
+    var target=e.target.closest(selector);
+    if(!target||target.matches('input,textarea,label'))return null;
+    return target;
   }
   function cancel(){clearTimeout(timer);timer=0;active=null;fired=false}
   function fireLongPress(target){

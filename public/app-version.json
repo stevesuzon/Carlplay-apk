@@ -1,4 +1,4 @@
 {
-  "version": "V444",
-  "message": "V444 : stabilisation de l’accueil et du son iPhone. Les grandes images de l’accueil sont rechargées avec un nouveau cache et gardent un libellé visible. La lecture vocale est armée dès le toucher puis démarre après l’appui long de 1,20 seconde afin d’éviter le blocage audio iOS."
+  "version": "V445",
+  "message": "V445 : allègement de l’application et voix généralisée. Le texte ajouté sur les images Carnet d’adresses et Retourner sur la place a été retiré. Les modules lourds de l’accueil ne sont plus chargés sur toutes les pages, les grosses images ne sont plus préchargées par le service worker, et l’appui long de 1,20 seconde est disponible sur les boutons et cartes de toutes les pages téléphone."
 }
