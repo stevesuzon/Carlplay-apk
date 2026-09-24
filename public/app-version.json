@@ -1,4 +1,4 @@
 {
-  "version": "V458",
-  "message": "Réglages administrateur : total des marchés enregistrés et nombre issu de Jours-de-Marché, avec détail par département."
+  "version": "V459",
+  "message": "Recherche progressive activée chaque heure et compteurs administrateur distinguant catalogue intégré et base dynamique."
 }
