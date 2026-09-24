@@ -204,6 +204,7 @@
   }
   function eligibleTarget(e){
     if(!enabled()||!e.target||!e.target.closest)return null;
+    if(e.target.closest('#voiceTapFallbackV400'))return null;
     var clickable=e.target.closest('button,a,select,[onclick],[role="button"],[data-voice-help],#homeAddressBookBtn,.addressBookTile');
     if(clickable&&!clickable.matches('input,textarea,label'))return clickable;
     var card=e.target.closest('[data-voice-card]');
@@ -227,11 +228,31 @@
   function move(e){if(!active)return;var dx=Math.abs(Number(e.clientX||0)-startX),dy=Math.abs(Number(e.clientY||0)-startY);if(dx>18||dy>18)cancel()}
   function end(){clearTimeout(timer);timer=0;active=null;setTimeout(function(){fired=false},80)}
   function showTapFallbackV400(text){
-    var old=document.getElementById('voiceTapFallbackV400');
-    if(old)old.remove();
-    return false;
+    text=clean(text);if(!text||!enabled())return false;
+    var old=document.getElementById('voiceTapFallbackV400');if(old)old.remove();
+    var b=document.createElement('button');
+    b.id='voiceTapFallbackV400';b.type='button';
+    b.setAttribute('aria-label','Toucher pour écouter');
+    b.textContent='🔊 TOUCHER POUR ÉCOUTER';
+    b.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147483647;width:min(92vw,430px);min-height:62px;padding:12px 16px;border:3px solid #f39b19;border-radius:18px;background:#0b668d;color:#fff;font:950 19px Arial,sans-serif;box-shadow:0 10px 30px #000b;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation';
+    var used=false;
+    function play(e){
+      if(used)return;used=true;
+      try{if(e&&e.cancelable)e.preventDefault()}catch(_){}
+      try{if(e)e.stopPropagation()}catch(_){}
+      suppressAllClicksUntilV398=0;suppressClickTarget=null;suppressClickUntil=0;
+      try{window.speechSynthesis&&window.speechSynthesis.cancel()}catch(_){}
+      try{window.speechSynthesis&&window.speechSynthesis.resume()}catch(_){}
+      b.remove();
+      setTimeout(function(){speakImmediateV400(text,true)},0);
+    }
+    b.addEventListener('click',play,true);
+    b.addEventListener('touchend',play,{capture:true,passive:false});
+    document.body.appendChild(b);
+    setTimeout(function(){if(b&&b.parentNode)b.remove()},8000);
+    return true;
   }
-  function speakImmediateV400(text){
+  function speakImmediateV400(text,fromFallback){
     text=clean(text);if(!text||!enabled())return false;
     if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){toast('🔇 Lecture vocale indisponible.');return false}
     try{
@@ -257,21 +278,22 @@
             if(preferredVoice)u2.voice=preferredVoice;
             u2.onstart=function(){voiceAwakeV423=true;toast('🔊 '+text)};
             u2.onend=function(){currentUtteranceV396=null};
-            u2.onerror=function(){currentUtteranceV396=null;toast('🔇 La lecture vocale n’a pas démarré. Réessayez l’appui long.')};
+            u2.onerror=function(){currentUtteranceV396=null;if(!fromFallback)showTapFallbackV400(text);else toast('🔇 La lecture vocale n’a pas démarré.')};
             window.speechSynthesis.speak(u2);
             return;
           }catch(_){}
         }
-        toast('🔇 La lecture vocale n’a pas démarré. Réessayez l’appui long.');
+        if(!fromFallback)showTapFallbackV400(text);else toast('🔇 La lecture vocale n’a pas démarré.');
       };
       window.speechSynthesis.speak(u);
       setTimeout(function(){
         if(!started&&currentUtteranceV396===u){
           try{window.speechSynthesis.resume()}catch(_){}
+          if(!fromFallback)showTapFallbackV400(text);
         }
-      },450);
+      },900);
       return true;
-    }catch(_){toast('🔇 La lecture vocale n’a pas démarré. Réessayez l’appui long.');return false}
+    }catch(_){if(!fromFallback)showTapFallbackV400(text);else toast('🔇 La lecture vocale n’a pas démarré.');return false}
   }
   function prepareTouchSpeechV400(target){
     queuedTouchTextV400=target?clean(buildSpeech(target)):'';
@@ -364,6 +386,7 @@
     if(txt)speak(txt.replace(/\s*[—–-]\s*/g,', '));
   },true);
   document.addEventListener('click',function(e){
+    if(e.target&&e.target.closest&&e.target.closest('#voiceTapFallbackV400'))return;
     if(suppressAllClicksUntilV398&&Date.now()<suppressAllClicksUntilV398){
       e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
       return;
