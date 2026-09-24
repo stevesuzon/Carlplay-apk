@@ -1,0 +1,126 @@
+name: Test V453 Safe Manual Update
+
+on:
+  push:
+    branches: ["test-v453-update-safe"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-v453-update-safe
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install test tools
+        run: |
+          npm install
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Static checks
+        run: |
+          node --check public/notification-settings.js
+          node --check public/sw.js
+          node - <<'NODE'
+          const fs=require('fs');
+          const html=fs.readFileSync('public/index.html','utf8');
+          const a=html.indexOf('async function forceAppUpdate(){');
+          const b=html.indexOf('function _addressBackupArray',a);
+          if(a<0||b<0)throw new Error('forceAppUpdate not found');
+          const fn=html.slice(a,b);
+          if(/caches\.delete\s*\(/.test(fn))throw new Error('Manual update still deletes caches');
+          if(/caches\.keys\s*\(/.test(fn))throw new Error('Manual update still enumerates caches');
+          if(!/serviceWorker\.getRegistration\(\)/.test(fn))throw new Error('Manual update does not reuse SW registration');
+          if(/sw\.js\?v=/.test(fn))throw new Error('Manual update still pins an old SW query');
+          const ns=fs.readFileSync('public/notification-settings.js','utf8');
+          if(/registration\.update\(\)/.test(ns))throw new Error('Notifications still trigger SW update');
+          if(/SKIP_WAITING/.test(ns))throw new Error('Notifications still force SW activation');
+          console.log('Static update checks OK');
+          NODE
+
+      - name: Start local Worker
+        shell: bash
+        run: |
+          set -e
+          npx wrangler dev --local --ip 127.0.0.1 --port 8787 > /tmp/v453-wrangler.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8787/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/v453-wrangler.log
+          exit 1
+
+      - name: Test pressing Mise à jour preserves cache and user data
+        shell: bash
+        run: |
+          cat > test-v453.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          function assert(x,m){if(!x)throw new Error(m)}
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'allow'});
+          const page=await context.newPage();
+
+          // Keep the page light: forceAppUpdate is inline; unrelated modules are not needed for this test.
+          await page.route('**/*',async route=>{
+            const req=route.request(),u=req.url(),type=req.resourceType();
+            if(type==='script'){
+              if(u.includes('/sw.js'))return route.continue();
+              return route.fulfill({status:200,contentType:'application/javascript',body:''});
+            }
+            if(type==='image'||type==='font'||type==='media')return route.abort();
+            return route.continue();
+          });
+
+          await page.goto('http://127.0.0.1:8787/?v453='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000});
+          await page.waitForFunction(()=>typeof window.forceAppUpdate==='function',{timeout:5000});
+
+          await page.evaluate(async()=>{
+            localStorage.setItem('v453_user_data_sentinel','KEEP-ME');
+            const c=await caches.open('couteau-suisse-module-data-v426-current');
+            await c.put('/v453-cache-sentinel',new Response('KEEP-CACHE'));
+            if('serviceWorker' in navigator){
+              let r=await navigator.serviceWorker.getRegistration();
+              if(!r)r=await navigator.serviceWorker.register('/sw.js',{updateViaCache:'none'});
+              await navigator.serviceWorker.ready;
+            }
+          });
+
+          const nav=page.waitForNavigation({waitUntil:'domcontentloaded',timeout:12000}).catch(()=>null);
+          await page.evaluate(()=>window.forceAppUpdate());
+          await nav;
+          await page.waitForTimeout(700);
+
+          const result=await page.evaluate(async()=>{
+            const keys=await caches.keys();
+            const c=await caches.open('couteau-suisse-module-data-v426-current');
+            const r=await c.match('/v453-cache-sentinel');
+            return {
+              user:localStorage.getItem('v453_user_data_sentinel'),
+              cacheExists:keys.includes('couteau-suisse-module-data-v426-current'),
+              sentinel:r?await r.text():null,
+              running:!!window.__manualUpdateV368Running
+            };
+          });
+          assert(result.user==='KEEP-ME','Manual update lost localStorage user data');
+          assert(result.cacheExists,'Manual update deleted current data cache');
+          assert(result.sentinel==='KEEP-CACHE','Manual update deleted cached data');
+          console.log(JSON.stringify({ok:true,result},null,2));
+          await browser.close();
+          EOF
+          node test-v453.mjs
+
+      - name: Show Worker log on failure
+        if: failure()
+        run: cat /tmp/v453-wrangler.log || true
