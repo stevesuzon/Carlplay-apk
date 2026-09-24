@@ -1,4 +1,4 @@
 {
-  "version": "V434",
-  "message": "V434 : nettoyage définitif des anciens affichages. Le vieux bouton MAIL et son ancien formulaire ont été retirés du site, les anciens fichiers d’affichage et correctifs inutilisés ont été supprimés, et les caches effacent maintenant ces anciennes ressources. CONCOURS et ABONNEMENT restent sur l’affichage actuel."
+  "version": "V435",
+  "message": "V435 : sur téléphone, Cartes hors ligne est supprimé des Réglages. ABONNEMENT est forcé juste sous MISE À JOUR et remis à sa place automatiquement s’il manque ou s’il est déplacé par un ancien cache."
 }

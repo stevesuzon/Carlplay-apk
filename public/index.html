@@ -894,7 +894,7 @@ opacity:.9;
 </div>
 <div id="settings" class="settings">
 <h2>⚙️ Réglages</h2>
-<div class="settingRow">
+<div class="settingRow" id="updateSettingRow">
 <button class="settingHead" onclick="forceAppUpdate()">
 <span>🔄 MISE À JOUR</span>
 <span>›</span>
@@ -916,7 +916,7 @@ opacity:.9;
 </div>
 </div>
 </div>
-<div class="settingRow">
+<div class="settingRow" id="offlineMapsSettingRow">
 <button class="settingHead" onclick="toggleSection('mapsMenu',this)">
 <span>🗺️ Cartes hors ligne</span>
 <span>⌄</span>
@@ -1370,11 +1370,11 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
     await Promise.allSettled([check('/notification-settings.js?v=282-onboarding-notification-detail'),check('/market-update-notifications-v281.js?v=282')]);
     setProgress(72,'Vérification du compte…','Contrôle de l’abonnement, de l’identité et des réglages.');
-    await Promise.allSettled([check('/subscription-web.js?v=434-settings'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
+    await Promise.allSettled([check('/subscription-web.js?v=435-settings-order'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
     setProgress(82,'Recherche de la nouvelle version…','Seuls les fichiers de l’application sont actualisés.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=434-legacy-purge',{updateViaCache:'none'})]}catch(_){regs=[]}}
+      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=435-settings-order',{updateViaCache:'none'})]}catch(_){regs=[]}}
       for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){}
       var reg=regs[0];
       if(reg&&reg.waiting){
