@@ -1,4 +1,4 @@
 {
-  "version": "V443",
-  "message": "V443 : correction des notifications en double. Une mise à jour ne génère plus plusieurs notifications système, et une même notification de marché n’est affichée qu’une seule fois sur le téléphone."
+  "version": "V444",
+  "message": "V444 : stabilisation de l’accueil et du son iPhone. Les grandes images de l’accueil sont rechargées avec un nouveau cache et gardent un libellé visible. La lecture vocale est armée dès le toucher puis démarre après l’appui long de 1,20 seconde afin d’éviter le blocage audio iOS."
 }

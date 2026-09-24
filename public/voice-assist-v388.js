@@ -2,7 +2,7 @@
   'use strict';
   var KEY='carplay_voice_enabled_v387';
   var PRESS_MS=1200;
-  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='',voiceAwakeV423=false,gesturePrimedV442=false,touchSpeechStartedV442=false;
+  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='',voiceAwakeV423=false,gesturePrimedV442=false,touchSpeechStartedV442=false,touchSpeechArmedV444=false,touchSpeechUtteranceV444=null;
   function installNoSelectV389(){
     if(document.getElementById('carplayVoiceNoSelectV389'))return;
     var st=document.createElement('style');
@@ -298,18 +298,46 @@
     queuedTouchTextV400='';
     return speakImmediateV400(text);
   }
+  function cancelArmedTouchSpeechV444(){
+    if(!touchSpeechArmedV444)return;
+    touchSpeechArmedV444=false;touchSpeechUtteranceV444=null;
+    try{if(window.speechSynthesis)window.speechSynthesis.cancel()}catch(_){}
+    currentUtteranceV396=null;
+  }
+  function armTouchSpeechV444(target){
+    var text=target?clean(buildSpeech(target)):'';
+    if(!text||!enabled()||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return false;
+    try{
+      window.speechSynthesis.cancel();window.speechSynthesis.resume();loadPreferredVoice();
+      var u=new SpeechSynthesisUtterance(text);
+      u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;if(preferredVoice)u.voice=preferredVoice;
+      touchSpeechUtteranceV444=u;currentUtteranceV396=u;touchSpeechArmedV444=true;
+      u.onstart=function(){if(touchSpeechArmedV444&&!touchReadyV395){try{window.speechSynthesis.pause()}catch(_){}}else{voiceAwakeV423=true;toast('🔊 '+text)}};
+      u.onend=function(){if(touchSpeechUtteranceV444===u){touchSpeechUtteranceV444=null;touchSpeechArmedV444=false}if(currentUtteranceV396===u)currentUtteranceV396=null};
+      u.onerror=function(){if(touchSpeechUtteranceV444===u){touchSpeechUtteranceV444=null;touchSpeechArmedV444=false}if(currentUtteranceV396===u)currentUtteranceV396=null};
+      window.speechSynthesis.speak(u);window.speechSynthesis.pause();return true;
+    }catch(_){touchSpeechArmedV444=false;touchSpeechUtteranceV444=null;return false}
+  }
+  function startArmedTouchSpeechV444(target){
+    if(touchSpeechArmedV444&&touchSpeechUtteranceV444){
+      touchSpeechArmedV444=false;
+      try{window.speechSynthesis.resume();voiceAwakeV423=true;return true}catch(_){}
+    }
+    return resumeTouchSpeechV400(target);
+  }
   function touchBeginV394(e){
     if(!enabled()||!e.target||!e.target.closest)return;
     primeFromGestureV442();wakeSpeechV423();
     var target=eligibleTarget(e);if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
     active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchSpeechStartedV442=false;touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV400(target);
+    armTouchSpeechV444(target);
     timer=setTimeout(function(){
       if(active){
         touchReadyV395=true;fired=true;suppressClickTarget=active;
         suppressClickUntil=Date.now()+2500;suppressAllClicksUntilV398=Date.now()+2500;
         try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
-        touchSpeechStartedV442=!!resumeTouchSpeechV400(active);
+        touchSpeechStartedV442=!!startArmedTouchSpeechV444(active);
       }
     },PRESS_MS);
   }
@@ -317,9 +345,9 @@
     if(touchReadyV395)return;
     if(!active)return;
     var t=e.touches&&e.touches[0];
-    if(!t){cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;return}
+    if(!t){cancel();cancelTouchSpeechV400();cancelArmedTouchSpeechV444();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;return}
     var dx=Math.abs(t.clientX-startX),dy=Math.abs(t.clientY-startY);
-    if(dx>28||dy>28){cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;}
+    if(dx>28||dy>28){cancel();cancelTouchSpeechV400();cancelArmedTouchSpeechV444();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;}
   }
   function blockLongPressReleaseV397(e){
     try{if(e&&e.cancelable)e.preventDefault()}catch(_){}
@@ -334,9 +362,10 @@
     if(isLong){
       fired=true;suppressClickTarget=target;suppressClickUntil=Date.now()+2500;suppressAllClicksUntilV398=Date.now()+2500;
       blockLongPressReleaseV397(e);
-      if(!touchSpeechStartedV442)touchSpeechStartedV442=!!resumeTouchSpeechV400(target);
+      if(!touchSpeechStartedV442)touchSpeechStartedV442=!!startArmedTouchSpeechV444(target);
+    }else{
+      cancelTouchSpeechV400();cancelArmedTouchSpeechV444();
     }
-    if(!isLong)cancelTouchSpeechV400();
     touchTargetV398=null;touchReadyV395=false;touchSpeechStartedV442=false;touchStartedAtV395=0;
     setTimeout(function(){fired=false},160);
   }
@@ -390,7 +419,7 @@
   document.addEventListener('touchstart',touchBeginV394,{capture:true,passive:true});
   document.addEventListener('touchmove',touchMoveV394,{capture:true,passive:true});
   document.addEventListener('touchend',touchEndV394,{capture:true,passive:false});
-  document.addEventListener('touchcancel',function(){cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchSpeechStartedV442=false;touchStartedAtV395=0;},{capture:true,passive:true});
+  document.addEventListener('touchcancel',function(){cancel();cancelTouchSpeechV400();cancelArmedTouchSpeechV444();touchTargetV398=null;touchReadyV395=false;touchSpeechStartedV442=false;touchStartedAtV395=0;},{capture:true,passive:true});
   document.addEventListener('pointerdown',begin,true);document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',cancel,true);
   document.addEventListener('contextmenu',function(e){if(enabled()&&e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSetting);else initSetting();
