@@ -1,4 +1,4 @@
 {
-  "version": "V432",
-  "message": "V432 : supprime l’ancien affichage téléphone/autoradio qui pouvait se remettre par-dessus l’accueil, force le chargement du design actuel et recharge le module Concours. Les corrections GPS et le chargement rapide des photos à moins de 150 km restent conservés."
+  "version": "V433",
+  "message": "V433 : le bouton MAIL a été supprimé de l’accueil et remplacé par le bouton CONCOURS. Le bouton ABONNEMENT est restauré immédiatement dans Réglages, puis actualisé après vérification du compte. Les corrections GPS, photos 150 km et nettoyage de l’ancien affichage restent conservés."
 }

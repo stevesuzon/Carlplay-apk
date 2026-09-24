@@ -616,10 +616,14 @@
     recoveryStyle.textContent=".sub-full-email{box-sizing:border-box!important;width:100%!important;min-width:0!important;font-size:16px!important}.sub-email-complete{max-width:100%!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:break-word!important}.sub-recovery-help{display:block!important;margin:6px 0 12px!important;line-height:1.35!important}.sub-setting-recover-code,#subRecoverCode{background:#0867d1!important;color:#fff!important;font-weight:950!important}body.autoradio-subscription-ui #subscriptionSettings .settingBody{font-size:20px!important;padding:18px!important}body.autoradio-subscription-ui #subscriptionSettings input{min-height:66px!important;font-size:25px!important;padding:12px 15px!important}body.autoradio-subscription-ui #subscriptionSettings .sub-setting-code{min-height:78px!important;font-size:34px!important;font-weight:950!important;letter-spacing:7px!important;text-align:center!important}body.autoradio-subscription-ui #subscriptionSettings button{min-height:66px!important;font-size:21px!important;font-weight:950!important}body.autoradio-subscription-ui #subscriptionSettings label{font-size:20px!important;line-height:1.3!important}body.autoradio-subscription-ui #subscriptionSettings .sub-settings-message{font-size:20px!important;line-height:1.35!important;font-weight:900!important;margin-top:10px!important}";
     document.head.appendChild(recoveryStyle);
     if(localStorage.getItem('carplay_device_type')==='autoradio'||window.__COUTEAU_AUTORADIO__===true)document.body.classList.add('autoradio-subscription-ui');
+    // Afficher ABONNEMENT immédiatement dans Réglages, même si le contrôle serveur prend du temps.
+    settingsPanel();
     verifySaved(function () {
+      var oldSubscriptionPanel=document.getElementById("subscriptionSettings");
+      if(oldSubscriptionPanel)oldSubscriptionPanel.remove();
+      settingsPanel();
       homeStatus();
       maybeShowSubscriptionExpiryReminder(false);
-      settingsPanel();
       addAdminMessageCounter();
       adaptPhoneSettings();
       protectFeatures();

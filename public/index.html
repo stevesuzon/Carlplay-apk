@@ -275,7 +275,7 @@ body.homePage.homeChromeHidden #directArticle{opacity:1!important;pointer-events
   .homeTopActions{max-width:100%!important;width:100%!important;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:10px!important;padding:0 12px!important}
   .homeTopActions .mailHelpText{display:none!important}
   .homeTopActions .gear{position:fixed!important;top:8px!important;right:14px!important}
-  #contactMailButton,#housePhotoButton{box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:none!important;height:60px!important;min-height:60px!important;margin:0!important;padding:8px 10px!important;border-radius:18px!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;white-space:normal!important;font-size:18px!important;line-height:1.08!important;overflow:hidden!important}
+  #contestHomeButton,#housePhotoButton{box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:none!important;height:60px!important;min-height:60px!important;margin:0!important;padding:8px 10px!important;border-radius:18px!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;white-space:normal!important;font-size:18px!important;line-height:1.08!important;overflow:hidden!important}
   #housePhotoButton{gap:8px!important}
   #housePhotoButton .houseBtnIcon{font-size:20px!important;flex:0 0 auto!important}
   #housePhotoButton .houseBtnText{font-size:15px!important;line-height:1.08!important;font-weight:950!important;text-align:center!important;white-space:normal!important;overflow-wrap:normal!important}
@@ -368,8 +368,8 @@ body.house-measure-open #weatherBubble,body.house-measure-open .gear,body.house-
 .homeTopActions{margin-bottom:0!important;position:relative!important;z-index:2!important}
 @media(max-width:720px){
   .homeTopActions{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:8px!important;padding:0 10px!important}
-  #contactMailButton,#housePhotoButton{height:54px!important;min-height:54px!important;max-height:54px!important;padding:5px 8px!important;border-radius:16px!important;overflow:hidden!important}
-  #contactMailButton{font-size:17px!important}
+  #contestHomeButton,#housePhotoButton{height:54px!important;min-height:54px!important;max-height:54px!important;padding:5px 8px!important;border-radius:16px!important;overflow:hidden!important}
+  #contestHomeButton{font-size:17px!important}
   #housePhotoButton .houseBtnIcon{font-size:17px!important}
   #housePhotoButton .houseBtnText{font-size:13px!important;line-height:1.02!important}
   #homeDepartmentSearch{margin:12px 10px 14px!important}
@@ -850,8 +850,8 @@ opacity:.9;
 <div class="top">
 <div id="network" class="status">Vérification Internet…</div>
 <div class="homeTopActions">
-  <div class="mailHelpText">Si l’appli bugue ou si vous voulez ajouter un marché, envoyez-moi un message.</div>
-  <button id="contactMailButton" class="mailTopButton" type="button" onclick="openContactMail()">✉️ MAIL</button>
+  <div class="mailHelpText">Concours Couteau Suisse : points, bonus et classement.</div>
+  <button id="contestHomeButton" class="mailTopButton" type="button">🏆 CONCOURS</button>
   <button id="housePhotoButton" class="mailTopButton housePhotoTopButton" type="button" aria-label="Mesurer une maison"><span class="houseBtnIcon">📐</span><span class="houseBtnText">MESURER UNE MAISON</span></button>
   <div class="gear" onclick="toggleSettings()">⚙</div>
 </div>
@@ -1379,7 +1379,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(10,'Vérification de l’application…','Contrôle de la page d’accueil et des réglages.');
     await check('/index.html');
     setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications.');
-    await check('/contest-v188.js?v=432-contest');
+    await check('/contest-v188.js?v=433-contest');
     setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique et événements.');
     await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=431-gps-photo'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=427-ios-sound'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=431-gps-distance'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
     setProgress(48,'Vérification des champignons…','Contrôle des fiches Champignons et des coins enregistrés.');
@@ -1387,11 +1387,11 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
     await Promise.allSettled([check('/notification-settings.js?v=282-onboarding-notification-detail'),check('/market-update-notifications-v281.js?v=282')]);
     setProgress(72,'Vérification du compte…','Contrôle de l’abonnement, de l’identité et des réglages.');
-    await Promise.allSettled([check('/subscription-web.js?v=414-cumul'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
+    await Promise.allSettled([check('/subscription-web.js?v=433-settings'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
     setProgress(82,'Recherche de la nouvelle version…','Seuls les fichiers de l’application sont actualisés.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=432-home-clean',{updateViaCache:'none'})]}catch(_){regs=[]}}
+      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=433-mail-subscription',{updateViaCache:'none'})]}catch(_){regs=[]}}
       for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){}
       var reg=regs[0];
       if(reg&&reg.waiting){
