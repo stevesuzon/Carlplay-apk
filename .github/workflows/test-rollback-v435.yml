@@ -1,0 +1,80 @@
+name: Test rollback V435
+
+on:
+  push:
+    branches: ["test-rollback-v435"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps webkit
+
+      - name: Static checks
+        run: |
+          node --check public/sw.js
+          node - <<'NODE'
+          const fs=require('fs');
+          const html=fs.readFileSync('public/index.html','utf8');
+          const a=html.indexOf('async function forceAppUpdate(){');
+          const b=html.indexOf('}function _addressBackupArray',a);
+          if(a<0||b<0)throw new Error('forceAppUpdate missing');
+          const fn=html.slice(a,b+1);
+          if(/cacheNames=await caches\.keys/.test(fn)||/caches\.delete\(/.test(fn))throw new Error('V435 update button deletes caches');
+          const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m=>m[1]).filter(s=>s.trim());
+          scripts.forEach((s,i)=>{try{new Function(s)}catch(e){throw new Error('inline '+i+': '+e.message)}});
+          console.log('V435 static checks OK');
+          NODE
+
+      - name: Start local Worker
+        run: |
+          npx wrangler dev --local --ip 127.0.0.1 --port 8787 > /tmp/v435.log 2>&1 &
+          for i in $(seq 1 35); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8787/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/v435.log
+          exit 1
+
+      - name: WebKit home smoke test
+        run: |
+          cat > test-v435.mjs <<'EOF'
+          import { webkit } from 'playwright';
+          function assert(x,m){if(!x)throw new Error(m)}
+          const browser=await webkit.launch({headless:true});
+          const context=await browser.newContext({
+            viewport:{width:390,height:844},isMobile:true,hasTouch:true,
+            userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile Safari/604.1',
+            serviceWorkers:'block'
+          });
+          const page=await context.newPage();
+          await page.route('**/*',async route=>{
+            const req=route.request(),type=req.resourceType();
+            if(type==='script')return route.fulfill({status:200,contentType:'application/javascript',body:''});
+            if(type==='image'||type==='font'||type==='media')return route.abort();
+            return route.continue();
+          });
+          await page.goto('http://127.0.0.1:8787/?rollbacktest='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000});
+          assert(await page.locator('#updateSettingRow').count()===1,'Update settings missing');
+          assert(await page.locator('#nearby80Button').count()===1,'Nearby markets button missing');
+          assert(await page.locator('#homeAddressBookBtn').count()===1,'Address book button missing');
+          const fn=await page.evaluate(()=>typeof forceAppUpdate);
+          assert(fn==='function','forceAppUpdate missing');
+          console.log(JSON.stringify({ok:true,url:page.url()},null,2));
+          await browser.close();
+          EOF
+          node test-v435.mjs
