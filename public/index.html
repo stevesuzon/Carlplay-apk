@@ -555,11 +555,6 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
 @media print{body>*:not(#genericQuoteModal){display:none!important}#genericQuoteModal{display:block!important;position:static;background:#fff;padding:0}.gqPanel{border:0;margin:0;width:100%;color:#111;background:#fff}.gqTop,.gqClient,.gqLogoRow,#gqLines,#gqAddLine,.gqSummary,.gqNotes,.gqExtraOptions,.gqActions,#gqSignatureArea{display:none!important}#gqDocPreview{display:block!important}}
 </style>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
- integrity="sha256-p4NxAoJBhIINfQ3yn5nR3b8kRib5+CMf6eKzQq6u0lQ=" crossorigin="">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
- integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
 <style id="roofSatelliteSlopeStyle">
 #roofSatelliteOverlay{position:fixed;inset:0;z-index:2147483646;background:#000;color:#fff;display:none;overflow:auto;font-family:Arial,sans-serif}
 #roofSatelliteOverlay.open{display:block}
@@ -814,7 +809,7 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
 #locationPermissionBtn:disabled{opacity:.72}
 #locationPermissionNote{font-size:14px;line-height:1.45}
 </style>
-<script src="/persistent-user-data-v283.js?v=416-admin-session"></script><style id="voiceNoCopyV391">
+<style id="voiceNoCopyV391">
 [data-voice-card],[data-voice-card] *,button,button *,a,a *,[onclick],[onclick] *{
   -webkit-user-select:none!important;
   user-select:none!important;
@@ -853,18 +848,18 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
   };
 })();
 </script>
-<script src="/subscription-web.js?v=441-syntax-fix" defer></script>
-<script src="/contest-v188.js?v=439-direct" defer></script>
-<style id="homeTopWeatherFixV447">
+<style id="homeStabilityV448">
 body.homePage #weatherBubble{pointer-events:none!important;z-index:4!important}
 body.homePage .homeTopActions{position:relative!important;z-index:6!important}
+body.homePage button,body.homePage a,body.homePage [role="button"],body.homePage [onclick]{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+body.homePage .card img,body.homePage .returnPlaceTraficImg{pointer-events:none!important}
+.addressFallbackV448,.returnFallbackV448{position:absolute;inset:12px;z-index:0;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;font:950 clamp(18px,5vw,30px)/1.05 Arial,sans-serif;text-shadow:0 3px 8px #0009;pointer-events:none}
+.addressButtonFull,.returnPlaceTraficImg{position:relative;z-index:1}
 @media(max-width:720px){
-  body.homePage .homeTopActions{margin-top:72px!important}
-  body.homePage #homeDepartmentSearch{margin-top:14px!important}
+ body.homePage .homeTopActions{margin-top:10px!important}
+ body.homePage #homeDepartmentSearch{margin-top:14px!important}
 }
-@media(min-width:721px){
-  body.homePage .homeTopActions{margin-top:58px!important}
-}
+@media(min-width:721px){body.homePage .homeTopActions{margin-top:10px!important}}
 </style>
 </head>
 <body class="homePage">
@@ -912,11 +907,12 @@ opacity:.9;
 </section><div class="grid homeDesignGrid">
   <a class="card blue marketHomeFast" href="choix-marches-v409.html" aria-label="Marchés, foires, Noël et brocantes">
     <div class="tag">FRANCE + BELGIQUE</div>
-    <div class="vehicleVisual"><img src="master-front-transparent.png?v=447-home-images" alt="Marchés" loading="eager" decoding="async" fetchpriority="high" onerror="this.onerror=null;this.src='master-front.png?v=447-fallback'"></div>
+    <div class="vehicleVisual"><img src="master-front-transparent.png?v=448-stable" alt="Marchés" loading="lazy" decoding="async" fetchpriority="low" onerror="this.onerror=null;this.src='master-front.jpg?v=448-fallback'"></div>
     <div class="marketText"><div class="title">MARCHÉS</div><div class="marketKinds">FOIRES • NOËL • BROCANTES</div></div>
   </a>
   <div id="homeAddressBookBtn" class="card orange addressBookTile" role="button" tabindex="0" aria-label="Adresse. Ouvrir le carnet d’adresses" data-voice-help="Adresse. Ouvrir le carnet d’adresses.">
-    <img class="addressButtonFull" src="address-button.png?v=447-home-images" alt="Adresse" loading="eager" decoding="async" fetchpriority="high" onerror="this.onerror=null;this.src='/autoradio-assets-v386/address.svg?v=447-fallback'">
+    <span class="addressFallbackV448">📒<br>CARNET D’ADRESSES</span>
+    <img class="addressButtonFull" src="address-button.png?v=448-stable" alt="Adresse" loading="lazy" decoding="async" fetchpriority="low" onerror="this.onerror=null;this.src='/autoradio-assets-v386/address.svg?v=448-fallback'">
   </div>
 
   <a class="directBtn place homeBigTile" href="mes-papiers.html">
@@ -929,7 +925,8 @@ opacity:.9;
   </a>
 
   <div class="small green returnPlaceTrafic" onclick="returnPlace()" aria-label="Retourner sur la place">
-    <img class="returnPlaceTraficImg" src="retourner-place-trafic-2025.png?v=447-home-images" alt="Retourner sur la place - Renault Trafic 2025 et caravane" loading="eager" decoding="async" fetchpriority="high" onerror="this.onerror=null;this.src='/autoradio-assets-v386/return.svg?v=447-fallback'">
+    <span class="returnFallbackV448">🚐<br>RETOURNER SUR LA PLACE</span>
+    <img class="returnPlaceTraficImg" src="retourner-place-trafic-2025.png?v=448-stable" alt="Retourner sur la place - Renault Trafic 2025 et caravane" loading="lazy" decoding="async" fetchpriority="low" onerror="this.onerror=null;this.src='/autoradio-assets-v386/return.svg?v=448-fallback'">
   </div>
   <div class="small red eraseTile" onclick="clearReturnPlace()">
     <span class="eraseTitle">EFFACER EMPLACEMENT</span><span class="eraseIcon">🗑️</span>
@@ -1414,7 +1411,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications.');
     await check('/contest-v188.js?v=439-direct');
     setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique et événements.');
-    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=438-stable-market-key'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=447-layout-fix'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=438-stable-market-key'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
+    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=438-stable-market-key'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=448-stable'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=438-stable-market-key'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
     setProgress(48,'Vérification des champignons…','Contrôle des fiches Champignons et des coins enregistrés.');
     await Promise.allSettled([check('/champignons.html'),check('/champignons.js?v=300-concours-auto')]);
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
@@ -1503,8 +1500,8 @@ function importMyAddressesText(){
 }
 function importMyAddresses(file){if(!file)return;var r=new FileReader();r.onload=function(){_importMyAddressesPayload(String(r.result||''))};r.onerror=function(){alert('Impossible de lire ce fichier.')};r.readAsText(file)}
 function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
-<script src="/location-permission-v20260911.js?v=20260911"></script>
-<script src="/gps-apple-plans-v141.js?v=316-confirm-clear-location"></script>
+<script src="/location-permission-v20260911.js?v=20260911" defer></script>
+<script src="/gps-apple-plans-v141.js?v=316-confirm-clear-location" defer></script>
 <script id="paperWorkRequestForm">
 (function(){
   var modal=document.getElementById('directArticleModal');
@@ -2000,8 +1997,8 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 })();
 </script>
 
-<script src="/cache-cleanup-v20260910.js?v=283-modules"></script>
-<script src="/christmas-market-updater.js"></script>
+<script src="/cache-cleanup-v20260910.js?v=283-modules" defer></script>
+<script src="/christmas-market-updater.js" defer></script>
 
 <script id="removeOldUsersConnectedBoxV2">
 (function(){
@@ -2393,7 +2390,8 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 </script>
 
 <script id="cleanHomeNavigation">
-window.addEventListener('load',function(){
+(function initHomeNavigationV448(){
+ function wire(){
   var house=document.getElementById('housePhotoButton');
   if(house){
     house.onclick=function(){
@@ -2417,7 +2415,9 @@ window.addEventListener('load',function(){
       }
     };
   }
-});
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',wire,{once:true});else wire();
+})();
 </script>
 
 <script id="roofSatelliteSlopeScript">
@@ -2763,11 +2763,11 @@ window.addEventListener('load',function(){
   },true);
 })();
 </script>
-<script src="/devis-personnalises-v2.js?v=238-admin-email-devis"></script>
-<script src="/brocante-fiche-achat-v1.js?v=238-compat"></script>
+<script src="/devis-personnalises-v2.js?v=238-admin-email-devis" defer></script>
+<script src="/brocante-fiche-achat-v1.js?v=238-compat" defer></script>
 <!-- V426 téléphone : ancien écran de licence 8 chiffres retiré ; abonnement géré par subscription-web.js -->
-<script src="/notification-settings.js?v=282-onboarding-notification-detail"></script><script src="/admin-approval-overlay.js?v=302-d1"></script><script src="/sanction-guard-v161.js?v=302-d1"></script><script src="/user-stats-v285.js?v=328-stations-verifiees"></script><script src="/auto-market-counter-v204.js?v=204" defer></script>
-<script src="/trial-home-banner-v292.js?v=292"></script>
+<script src="/admin-approval-overlay.js?v=302-d1" defer></script><script src="/user-stats-v285.js?v=328-stations-verifiees" defer></script><script src="/auto-market-counter-v204.js?v=204" defer></script>
+<script src="/trial-home-banner-v292.js?v=292" defer></script>
 <script id="voiceSettingsDirectV393">
 (function(){
   var KEY='carplay_voice_enabled_v387';
@@ -2830,7 +2830,6 @@ window.addEventListener('load',function(){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
-<script src="/voice-assist-v388.js?v=447-layout-fix"></script>
 </body>
 </html>
 
