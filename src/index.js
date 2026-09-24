@@ -1408,12 +1408,58 @@ async function refreshJdmArea(env,state){
   const brocUrl=`https://www.jours-de-marche.fr/vide-greniers/${area}-${slug}/`,brocHtml=await jdmFetch(brocUrl);if(brocHtml){pages++;events.push(...parseJdmVideGreniers(brocHtml,area,brocUrl))}
   // Les mêmes marchés présents sur plusieurs jours restent plusieurs entrées (une par jour),
   // mais un doublon strict de même marché / ville / jour n'est enregistré qu'une fois par fingerprint D1.
-  let count=0;for(const e of events){if(await upsertAutoMarket(env,e))count++}
+  await ensureMarketMilestones(env);
+  let count=0;const checked=new Map();
+  for(const e of events){
+    const m=normalizeMarket(e);if(!m)continue;
+    const key=[m.country,m.area,m.kind,m.city.trim().toLowerCase(),m.name.trim().toLowerCase()].join('|');
+    if(!checked.has(key)){
+      const existing=await env.DB.prepare('SELECT 1 FROM imported_markets WHERE country=? AND area=? AND kind=? AND lower(trim(city))=? AND lower(trim(name))=? LIMIT 1').bind(m.country,m.area,m.kind,m.city.trim().toLowerCase(),m.name.trim().toLowerCase()).first();
+      checked.set(key,!existing);
+    }
+    if(await upsertAutoMarket(env,m)){
+      count++;
+      if(checked.get(key)){
+        await env.DB.prepare('INSERT OR IGNORE INTO market_milestone_additions(market_key,area,kind,added_at) VALUES(?,?,?,?)').bind(key,m.area,m.kind,Date.now()).run();
+        checked.set(key,false);
+      }
+    }
+  }
+  await publishMarketMilestones(env);
   const consumed=cityUrls.length?Math.min(batchSize,cityUrls.length):0,nextCursor=cityUrls.length?(start+consumed)%cityUrls.length:0,wrapped=!cityUrls.length||start+consumed>=cityUrls.length;
   const next=Date.now()+(wrapped?30*86400000:2*3600000),msg=`Jours-de-Marché: ${count} fiches · ${pages} pages · villes ${cityUrls.length}`;
   await env.DB.prepare('UPDATE market_jdm_refresh_state SET city_cursor=?,city_count=?,next_check_at=?,last_check_at=?,last_found=?,last_pages=?,last_message=? WHERE area=?').bind(nextCursor,cityUrls.length,next,Date.now(),count,pages,msg,area).run();
   return{area,count,pages,pending:!wrapped,message:msg};
 }
+async function ensureMarketMilestones(env){
+  await ensureMarketTable(env);
+  await env.DB.prepare('CREATE TABLE IF NOT EXISTS market_milestone_additions (id INTEGER PRIMARY KEY AUTOINCREMENT,market_key TEXT NOT NULL UNIQUE,area TEXT NOT NULL,kind TEXT NOT NULL,added_at INTEGER NOT NULL)').run();
+  await env.DB.prepare('CREATE TABLE IF NOT EXISTS market_milestone_events (milestone INTEGER PRIMARY KEY,breakdown_json TEXT NOT NULL,created_at INTEGER NOT NULL)').run();
+  await env.DB.prepare('CREATE TABLE IF NOT EXISTS market_milestone_meta (key TEXT PRIMARY KEY,value TEXT NOT NULL)').run();
+  const meta=await env.DB.prepare("SELECT value FROM market_milestone_meta WHERE key='baseline'").first();
+  if(!meta){
+    await env.DB.prepare("INSERT OR IGNORE INTO market_milestone_additions(market_key,area,kind,added_at) SELECT lower(country)||'|'||area||'|'||kind||'|'||lower(trim(city))||'|'||lower(trim(name)),area,kind,? FROM imported_markets WHERE kind IN ('marche','brocante','voyageur') AND lower(source_url) LIKE '%jours-de-marche.fr%' GROUP BY lower(country)||'|'||area||'|'||lower(trim(city))||'|'||lower(trim(name))").bind(Date.now()).run();
+    const total=await env.DB.prepare('SELECT count(*) AS n FROM market_milestone_additions').first();
+    await env.DB.prepare("INSERT OR IGNORE INTO market_milestone_meta(key,value) VALUES('baseline',?)").bind(String(total.n||0)).run();
+  }
+}
+async function publishMarketMilestones(env){
+  const total=Number((await env.DB.prepare('SELECT count(*) AS n FROM market_milestone_additions').first()).n||0);
+  const baseline=Number((await env.DB.prepare("SELECT value FROM market_milestone_meta WHERE key='baseline'").first()).value||0);
+  for(let milestone=(Math.floor(baseline/50)+1)*50;milestone<=total;milestone+=50){
+    const rows=await env.DB.prepare('SELECT area,kind,count(*) AS count FROM (SELECT area,kind FROM market_milestone_additions ORDER BY id LIMIT 50 OFFSET ?) GROUP BY area,kind ORDER BY area,kind').bind(milestone-50).all();
+    await env.DB.prepare('INSERT OR IGNORE INTO market_milestone_events(milestone,breakdown_json,created_at) VALUES(?,?,?)').bind(milestone,JSON.stringify(rows.results||[]),Date.now()).run();
+  }
+}
+async function marketMilestoneFeed(url,env){
+  if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
+  await ensureMarketMilestones(env);
+  const after=Math.max(0,Math.floor(Number(url.searchParams.get('after'))||0));
+  const result=await env.DB.prepare('SELECT milestone,breakdown_json,created_at FROM market_milestone_events WHERE milestone>? ORDER BY milestone ASC LIMIT 20').bind(after).all();
+  return json({ok:true,milestones:(result.results||[]).map(row=>({milestone:row.milestone,breakdown:JSON.parse(row.breakdown_json),createdAt:row.created_at}))});
+}
+
+
 async function runJdmIncremental(env){
   await seedJdmRefreshQueue(env);
   const results=[];
@@ -4538,6 +4584,7 @@ export default {
     // Brocante / braderie / foire : 90 jours par zone. Voyageurs : 60 jours par zone.
     if (String(env.MARKET_AUTO_REFRESH || "1") === "0") return;
     ctx.waitUntil(runSpecialEventRefresh(env));
+    ctx.waitUntil(runJdmIncremental(env));
   },
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -4590,6 +4637,7 @@ export default {
     if (url.pathname === "/api/event-registration-info" && request.method === "GET") return eventRegistrationInfo(request);
     if (url.pathname === "/api/markets" && request.method === "GET") return listMarkets(env);
     if (url.pathname === "/api/markets/refresh-status" && request.method === "GET") return marketRefreshStatus(env);
+    if (url.pathname === "/api/markets/milestones" && request.method === "GET") return marketMilestoneFeed(url, env);
     if (url.pathname === "/api/admin/markets/import" && request.method === "POST") return importMarkets(request, env);
     if (url.pathname === "/api/admin/market-verification-forms" && request.method === "GET") return adminMarketVerificationForms(request, env);
     if (url.pathname === "/api/market-verifications" && request.method === "GET") return getMarketVerification(url, env);
