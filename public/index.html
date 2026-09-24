@@ -823,6 +823,9 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
 .homeTopButton{min-height:58px;padding:10px 17px;border:3px solid #66d9ff;border-radius:18px;background:#087fd4;color:#fff;font:950 18px Arial;box-shadow:0 5px 15px #0008;cursor:pointer;white-space:nowrap}
 .homeTopHelp{max-width:350px;padding:7px 10px;border-radius:12px;background:#07111ddd;color:#fff;font:800 13px/1.25 Arial;text-align:right}
 </style>
+<script id="hardCacheResetV436">
+(function(){try{var k='couteau_cache_reset_v436';if(localStorage.getItem(k)==='1')return;localStorage.setItem(k,'1');if('caches'in window)caches.keys().then(function(names){return Promise.all(names.filter(function(n){return n!=='carplay-notification-preference-v1'}).map(function(n){return caches.delete(n)}))}).catch(function(){});if('serviceWorker'in navigator)navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(r){try{r.update()}catch(_){}})}).catch(function(){})}catch(_){}})();
+</script>
 </head>
 <body class="homePage">
 
@@ -901,6 +904,15 @@ opacity:.9;
 </button>
 <div class="settingNote" style="padding:0 16px 14px">Charger la dernière version de l’application.</div>
 </div>
+<div class="settingRow" id="subscriptionSettings">
+<button class="settingHead" type="button" onclick="var x=document.getElementById('subscriptionMenu');if(x)x.classList.toggle('open')">
+<span>🔐 ABONNEMENT</span>
+<span>⌄</span>
+</button>
+<div class="settingBody" id="subscriptionMenu">
+<div class="settingNote" style="padding:12px">Chargement de votre abonnement…</div>
+</div>
+</div>
 <div class="settingRow">
 <button class="settingHead" onclick="toggleSection('gpsMenu',this)">
 <span>🧭 GPS / navigation</span>
@@ -914,17 +926,6 @@ opacity:.9;
 <button id="gpsApple" onclick="saveGps('Plans Apple')">Plans Apple</button>
 <div class="settingNote" id="gpsStatus">
 </div>
-</div>
-</div>
-<div class="settingRow" id="offlineMapsSettingRow">
-<button class="settingHead" onclick="toggleSection('mapsMenu',this)">
-<span>🗺️ Cartes hors ligne</span>
-<span>⌄</span>
-</button>
-<div class="settingBody" id="mapsMenu">
-<button onclick="openExternal('https://www.google.com/maps/search/France')">🇫🇷 France</button>
-<button onclick="openExternal('https://www.google.com/maps/search/Belgique')">🇧🇪 Belgique</button>
-<div class="settingNote">Ouvre Google Maps pour préparer les cartes hors connexion.</div>
 </div>
 </div>
 <div class="settingRow">
@@ -1355,6 +1356,8 @@ Si Android le demande, autorise l’installation d’applications provenant de c
   try{
     if(window.CouteauUserDataSafety&&typeof window.CouteauUserDataSafety.save==='function'){try{await window.CouteauUserDataSafety.save()}catch(_){}}
     if(!navigator.onLine)throw new Error('Pas de connexion Internet.');
+    setProgress(2,'Nettoyage complet…','Suppression des anciens caches de l’application. Vos données personnelles restent conservées.');
+    if('caches' in window){try{var cacheNames=await caches.keys();await Promise.all(cacheNames.filter(function(n){return n!=='carplay-notification-preference-v1'}).map(function(n){return caches.delete(n)}))}catch(_){}}
     setProgress(3,'Connexion au serveur…','Recherche de la dernière version disponible.');
     var versionInfo=null;
     try{versionInfo=await (await check('/app-version.json')).json()}catch(_){versionInfo=null}
@@ -1370,11 +1373,11 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
     await Promise.allSettled([check('/notification-settings.js?v=282-onboarding-notification-detail'),check('/market-update-notifications-v281.js?v=282')]);
     setProgress(72,'Vérification du compte…','Contrôle de l’abonnement, de l’identité et des réglages.');
-    await Promise.allSettled([check('/subscription-web.js?v=435-settings-order'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
+    await Promise.allSettled([check('/subscription-web.js?v=436-hard-reset'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
     setProgress(82,'Recherche de la nouvelle version…','Seuls les fichiers de l’application sont actualisés.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=435-settings-order',{updateViaCache:'none'})]}catch(_){regs=[]}}
+      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=436-hard-reset',{updateViaCache:'none'})]}catch(_){regs=[]}}
       for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){}
       var reg=regs[0];
       if(reg&&reg.waiting){

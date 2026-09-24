@@ -1,4 +1,4 @@
 {
-  "version": "V435",
-  "message": "V435 : sur téléphone, Cartes hors ligne est supprimé des Réglages. ABONNEMENT est forcé juste sous MISE À JOUR et remis à sa place automatiquement s’il manque ou s’il est déplacé par un ancien cache."
+  "version": "V436",
+  "message": "V436 : nettoyage complet des caches d’affichage. ABONNEMENT est maintenant écrit directement dans la page juste sous MISE À JOUR, puis son contenu est chargé et le bouton s’ouvre normalement. Cartes hors ligne est retiré."
 }
