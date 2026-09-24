@@ -980,6 +980,13 @@ Si Android le demande, autorise l’installation d’applications provenant de c
 </button>
 <div class="settingNote" style="padding:0 16px 14px">Accès privé : compteurs des demandes et gestion des abonnements.</div>
 </div>
+<div class="settingRow" id="adminMarketFormsSettingRow">
+<button class="settingHead" onclick="location.href='/admin.html#marketFormsBox'">
+<span>📝 VOIR LES FICHES DE MARCHÉ</span>
+<span>›</span>
+</button>
+<div class="settingNote" style="padding:0 16px 14px">Aperçu des photos, compteur renseigné / total, déblocage et modification administrateur.</div>
+</div>
 <div class="settingRow" id="adminBanSettingRow">
 <button class="settingHead" onclick="location.href='/admin.html#allUsersBox'">
 <span>⛔ BANNIR / DÉBANNIR</span>
@@ -1367,7 +1374,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications.');
     await check('/contest-v188.js?v=434-legacy-purge');
     setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique et événements.');
-    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=431-gps-photo'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=427-ios-sound'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=431-gps-distance'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
+    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=431-gps-photo'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=427-ios-sound'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=437-locks-admin'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
     setProgress(48,'Vérification des champignons…','Contrôle des fiches Champignons et des coins enregistrés.');
     await Promise.allSettled([check('/champignons.html'),check('/champignons.js?v=300-concours-auto')]);
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
@@ -1377,7 +1384,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(82,'Recherche de la nouvelle version…','Seuls les fichiers de l’application sont actualisés.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=436-hard-reset',{updateViaCache:'none'})]}catch(_){regs=[]}}
+      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=437-market-locks',{updateViaCache:'none'})]}catch(_){regs=[]}}
       for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){}
       var reg=regs[0];
       if(reg&&reg.waiting){
@@ -1641,8 +1648,9 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
   }
   function updateAdminVisibility(){
     const row=document.getElementById('adminSettingRow');
+    const marketFormsRow=document.getElementById('adminMarketFormsSettingRow');
     const banRow=document.getElementById('adminBanSettingRow');
-    if(!row&&!banRow)return;
+    if(!row&&!marketFormsRow&&!banRow)return;
     const email=currentAccountEmail();
     const hasAdminSession=localStorage.getItem('carplay_admin_here')==='1'||!!localStorage.getItem('carplay_admin_token');
     // La section admin appartient uniquement au compte Steve Suzon.
@@ -1650,6 +1658,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
     // ce statut pouvait rester actif après une ancienne session et masquer l'accès sur le téléphone de Steve.
     const visible=email===ADMIN_EMAIL||hasAdminSession;
     if(row)row.style.display=visible?'':'none';
+    if(marketFormsRow)marketFormsRow.style.display=visible?'':'none';
     if(banRow)banRow.style.display=visible?'':'none';
   }
   updateAdminVisibility();

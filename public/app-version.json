@@ -1,4 +1,4 @@
 {
-  "version": "V436",
-  "message": "V436 : nettoyage complet des caches d’affichage. ABONNEMENT est maintenant écrit directement dans la page juste sous MISE À JOUR, puis son contenu est chargé et le bouton s’ouvre normalement. Cartes hors ligne est retiré."
+  "version": "V437",
+  "message": "V437 : les données de fiches marché restent sur le serveur après les mises à jour. Les horaires récupérés sur Jours-de-Marché commencent 30 minutes plus tôt et, avec les nombres de commerçants disponibles, sont verrouillés pour les utilisateurs. Les champs confirmés restent visibles avec un bouton pour signaler un problème à l’administrateur. Dans Administration > Voir les fiches de marché : compteur renseigné / total, aperçu photo avant ouverture, déblocage photo/GPS/champs et modification administrateur."
 }

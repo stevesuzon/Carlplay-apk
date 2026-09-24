@@ -1093,7 +1093,7 @@ async function listMarkets(env) {
   const markets = (result.results || []).filter(m => {
     const key = [String(m.country || '').toLowerCase(),m.area,m.name,m.city,m.day,m.address || ''].join('|');
     return !disabled.has(key) && !storedMarketExpired(m);
-  });
+  }).map(m=>isJdmSource(m)?{...m,hours:jdmEffectiveHours(m)}:m);
   const latest = (result.results || []).reduce((m,r) => String(r.updated_at || '') > m ? String(r.updated_at || '') : m, '');
   return json({ ok: true, markets, updatedAt: latest || null, serverTime: Date.now() });
 }
@@ -1326,9 +1326,78 @@ function jdmDateRange(text){
   if(m){const d=`${m[3]}-${String(Number(m[2])).padStart(2,'0')}-${String(Number(m[1])).padStart(2,'0')}`;return{start:d,end:d,label:`${m[1]}/${m[2]}/${m[3]}`}}
   return{start:'',end:'',label:''};
 }
+function marketClockParts(token){
+  const m=String(token||'').trim().match(/^([0-2]?\d)(?:h|:)([0-5]?\d)?$/i);
+  if(!m)return null;
+  const h=Number(m[1]),min=Number(m[2]||0);
+  if(h>23||min>59)return null;
+  return{h,min};
+}
+function marketClockLabel(total){
+  total=(Number(total)%1440+1440)%1440;
+  const h=Math.floor(total/60),m=total%60;
+  return String(h).padStart(2,'0')+'h'+String(m).padStart(2,'0');
+}
+function marketHoursMinus30(raw){
+  const s=String(raw||'').trim();
+  const m=s.match(/^\s*([0-2]?\d(?:h|:)[0-5]?\d?)\s*[-–—]\s*([0-2]?\d(?:h|:)[0-5]?\d?)\s*$/i);
+  if(!m)return s;
+  const p=marketClockParts(m[1]);
+  if(!p)return s;
+  return marketClockLabel(p.h*60+p.min-30)+'-'+String(m[2]).trim();
+}
 function jdmHours(text){
   const t=String(text||'').replace(/\s+/g,' '),m=t.match(/\bde\s+([0-2]?\d(?:h|:)[0-5]?\d?)\s+(?:à|a)\s+([0-2]?\d(?:h|:)[0-5]?\d?)/i);
-  return m?`${m[1]}-${m[2]}`:'';
+  return m?marketHoursMinus30(`${m[1]}-${m[2]}`):'';
+}
+function isJdmSource(row){
+  return /jours-de-marche\.fr/i.test(String(row&&row.source_url||row&&row.sourceUrl||''))||
+    /Jours-de-March[eé]\.fr/i.test(String(row&&row.note||''));
+}
+function jdmEffectiveHours(row){
+  const raw=String(row&&row.hours||'').trim();
+  if(!raw||!isJdmSource(row))return raw;
+  // New imports are already shifted by jdmHours(). Old rows are shifted once on delivery.
+  return /D[eé]but affich[eé] 30 min avant/i.test(String(row&&row.note||''))?raw:marketHoursMinus30(raw);
+}
+function marketStartTimeValue(hours){
+  const m=String(hours||'').match(/([0-2]?\d)(?:h|:)([0-5]\d)/i);
+  if(!m)return'';
+  return String(Number(m[1])).padStart(2,'0')+':'+String(Number(m[2])).padStart(2,'0');
+}
+function marketPublishedCount(value){
+  const m=String(value||'').match(/\b(\d{1,4})\b/);
+  return m?String(Number(m[1])):'';
+}
+function marketSourceKeyParts(marketKey){
+  let raw=String(marketKey||'').replace(/^marketVerifyV9:/,'');
+  let legacyCountry='';
+  const c=raw.indexOf(':');
+  if(c>0&&/^(fr|be)$/i.test(raw.slice(0,c))){
+    legacyCountry=raw.slice(0,c).toUpperCase();
+    raw=raw.slice(c+1);
+  }
+  const p=raw.split('|');
+  if(legacyCountry){
+    if(p.length<5)return null;
+    return{country:legacyCountry,area:String(p[0]||''),name:String(p[2]||''),city:String(p[3]||''),day:String(p[4]||''),address:String(p[6]||'')};
+  }
+  if(p.length<5)return null;
+  return{country:String(p[0]||'').toUpperCase(),area:String(p[1]||''),name:String(p[2]||''),city:String(p[3]||''),day:String(p[4]||''),address:String(p.slice(5).join('|')||'')};
+}
+async function marketSourceLocks(env,marketKey){
+  const p=marketSourceKeyParts(marketKey);
+  if(!p||!p.country||!p.area||!p.name||!p.day)return{};
+  const row=await env.DB.prepare(`SELECT hours,merchants,note,source_url FROM imported_markets
+    WHERE upper(country)=? AND area=? AND name=? AND city=? AND day=?
+      AND (?='' OR address=?)
+    ORDER BY CASE WHEN source_url LIKE '%jours-de-marche.fr%' OR note LIKE '%Jours-de-Marché.fr%' THEN 0 ELSE 1 END,updated_at DESC LIMIT 1`)
+    .bind(p.country,p.area,p.name,p.city,p.day,p.address,p.address).first();
+  if(!row||!isJdmSource(row))return{};
+  const out={},time=marketStartTimeValue(jdmEffectiveHours(row)),count=marketPublishedCount(row.merchants);
+  if(time)out.time={value:time.slice(0,2)+'h'+(time.slice(3)==='00'?'':time.slice(3)),norm:time,source:'Jours-de-Marché.fr',locked:true};
+  if(count)out.count={value:count,norm:count,source:'Jours-de-Marché.fr',locked:true};
+  return out;
 }
 function jdmDays(text){
   const t=normMarketText(text),out=[];let m=t.match(/jours suivants\s*:\s*([^.;]+?)(?:\s+de\s+\d|\s+info\s*:|\s+adresse\s*:|$)/i);
@@ -1374,7 +1443,7 @@ function parseJdmMarketPage(html,area,pageUrl){
     const actualArea=jdmAreaForPostal(area,pc);
     const href=(h.raw.match(/href=["']([^"']+)["']/i)||[])[1]||'',sourceUrl=href?jdmDecodeUrl(href):String(pageUrl||'');
     const periodic=jdmPeriodic(body),phone=marketPhoneFromText(body,'FR'),merchants=marketCapacityFromText(body);
-    const note=(periodic?'Marché périodique — ':'')+'Source Jours-de-Marché.fr. '+String(body||'').slice(0,420);
+    const note=(periodic?'Marché périodique — ':'')+'Source Jours-de-Marché.fr. Début affiché 30 min avant l’horaire source. '+String(body||'').slice(0,420);
     if(range.end&&range.end<today)continue;
     if(kind==='noel'||range.start){
       const day=range.label||range.start||days.join(', ');
@@ -1391,7 +1460,7 @@ function parseJdmVideGreniers(html,area,pageUrl){
   for(const h of hs){if(h.level!==3)continue;const title=String(h.text||'').trim(),body=marketPlainText(h.after||''),combined=title+' '+body,n=normMarketText(combined);if(!title||!/vide[ -]?grenier|brocante|foire|braderie|bric ?a ?brac|bourse d.?echange|puces/.test(n))continue;
     const range=jdmDateRange(body),pc=jdmPostalCity(body);if(!range.start)continue;if(range.end&&range.end<today)continue;
     const href=(h.raw.match(/href=["']([^"']+)["']/i)||[])[1]||'',sourceUrl=href?jdmDecodeUrl(href):String(pageUrl||'');
-    out.push({country:'FR',area:jdmAreaForPostal(area,pc),kind:'brocante',name:title,city:pc.city,day:range.label,dateLabel:range.label,start:range.start,end:range.end||range.start,hours:jdmHours(body),address:[pc.postal,pc.city].filter(Boolean).join(' '),merchants:marketCapacityFromText(body),phone:marketPhoneFromText(body,'FR'),note:`${marketLabelFromKindText(combined)} — source Jours-de-Marché.fr. ${String(body||'').slice(0,380)}`,sourceUrl});
+    out.push({country:'FR',area:jdmAreaForPostal(area,pc),kind:'brocante',name:title,city:pc.city,day:range.label,dateLabel:range.label,start:range.start,end:range.end||range.start,hours:jdmHours(body),address:[pc.postal,pc.city].filter(Boolean).join(' '),merchants:marketCapacityFromText(body),phone:marketPhoneFromText(body,'FR'),note:`${marketLabelFromKindText(combined)} — source Jours-de-Marché.fr. Début affiché 30 min avant l’horaire source. ${String(body||'').slice(0,380)}`,sourceUrl});
   }
   return out;
 }
@@ -1731,6 +1800,10 @@ async function marketVerificationState(env, marketKey, includePhoto = true) {
   const values = {}, leaders = {};
   for (const row of consensus.results || []) values[row.field] = { value: row.value_display, confirmations: Number(row.confirmations || 1), updatedAt: row.updated_at, locked:true };
   for (const row of pending.results || []) if (!leaders[row.field] && !values[row.field]) leaders[row.field] = { value: row.value_display, confirmations: Number(row.confirmations), required: 1 };
+  try{
+    const sourceLocks=await marketSourceLocks(env,marketKey);
+    for(const field of ['time','count'])if(sourceLocks[field]&&!values[field])values[field]={value:sourceLocks[field].value,confirmations:1,updatedAt:'source',locked:true,source:sourceLocks[field].source};
+  }catch(_){}
   let photo = null;
   if (includePhoto) {
     const row = await env.DB.prepare("SELECT distance_meters,quality_score,stall_count,replacement_count,captured_at,updated_at FROM market_photo_metadata WHERE market_key=?").bind(marketKey).first();
@@ -1877,9 +1950,12 @@ async function submitMarketVerificationCore(request, env) {
   const existingPresence = await env.DB.prepare("SELECT value_norm,value_display FROM market_verification_consensus WHERE market_key=? AND field='exists' LIMIT 1").bind(marketKey).first();
   if(existingPresence && String(existingPresence.value_norm||'').toLowerCase()==='non' && !isAdminRequest) return json({ok:false,error:'MARCHE_SUPPRIME'},409);
   let confirmsPresence=false;
+  let sourceLocks={};try{sourceLocks=await marketSourceLocks(env,marketKey)}catch(_){}
   for (const field of ["time", "count", "draw", "clientModel", "welcome", "placer", "exists"]) {
     const locked = await env.DB.prepare("SELECT field,value_display,confirmations,updated_at FROM market_verification_consensus WHERE market_key=? AND field=?").bind(marketKey,field).first();
+    const sourceLocked=!isAdminRequest&&sourceLocks[field];
     const mayReplaceTime=locked&&isAdminRequest;
+    if(sourceLocked){results[field]={field,leadingValue:sourceLocked.value,confirmations:1,confirmed:{field,value_display:sourceLocked.value,confirmations:1,source:sourceLocked.source},locked:true,source:sourceLocked.source};continue;}
     if (locked&&!mayReplaceTime) { results[field]={field,leadingValue:locked.value_display,confirmations:Number(locked.confirmations||1),confirmed:locked,locked:true}; continue; }
     const value = normalizedVerification(field, data.values && data.values[field]);
     if (!value) continue;
@@ -1944,44 +2020,100 @@ async function getMarketVerification(url, env) {
 async function adminMarketVerificationForms(request, env) {
   if (!(await adminAuthorized(request, env))) return json({ok:false,error:"SECRET_INCORRECT"},401);
   if (!env.DB) return json({ok:false,error:"DB_INDISPONIBLE"},503);
+  await ensureMarketTable(env);
   await ensureMarketVerificationTables(env);
+  const url=new URL(request.url),limit=Math.max(50,Math.min(300,Number(url.searchParams.get('limit')||200)||200)),offset=Math.max(0,Number(url.searchParams.get('offset')||0)||0);
 
-  const rows=await env.DB.prepare(`
-    SELECT market_key,field,value_display,confirmations,updated_at
-    FROM market_verification_consensus
-    ORDER BY updated_at DESC
-    LIMIT 3000
-  `).all();
+  const totalRow=await env.DB.prepare("SELECT COUNT(*) AS n FROM imported_markets").first();
+  const currentKeySql="lower(COALESCE(country,''))||'|'||COALESCE(area,'')||'|'||COALESCE(name,'')||'|'||COALESCE(city,'')||'|'||COALESCE(day,'')||'|'||COALESCE(address,'')";
+  let informedCount=0;
+  try{
+    const informed=await env.DB.prepare(`SELECT COUNT(*) AS n FROM imported_markets
+      WHERE ${currentKeySql} IN (
+        SELECT market_key FROM market_verification_consensus
+        UNION SELECT market_key FROM market_photo_metadata
+        UNION SELECT market_key FROM market_location_consensus
+      )`).first();
+    informedCount=Number(informed&&informed.n||0);
+  }catch(_){}
 
-  const map=new Map();
-  const ensure=(key)=>{
-    key=String(key||"");
-    if(!map.has(key)){
-      let raw=key.replace(/^marketVerifyV9:/,""),country="",parts=[];
-      const c=raw.indexOf(":");
-      if(c>=0){country=raw.slice(0,c);raw=raw.slice(c+1)}
-      parts=raw.split("|");
-      const name=String(parts[2]||parts[0]||"Marché");
-      const city=String(parts[3]||"");
-      const day=String(parts[4]||"");
-      map.set(key,{marketKey:key,country,name,city,day,values:{},updatedAt:""});
+  const page=await env.DB.prepare(`SELECT country,area,kind,name,city,day,hours,address,merchants,source_url,note,updated_at
+    FROM imported_markets ORDER BY country,area,city,name,day LIMIT ? OFFSET ?`).bind(limit,offset).all();
+  const forms=(page.results||[]).map(row=>{
+    const marketKey=[String(row.country||'').toLowerCase(),row.area||'',row.name||'',row.city||'',row.day||'',row.address||''].join('|');
+    return{
+      marketKey,country:String(row.country||'').toLowerCase(),area:String(row.area||''),kind:String(row.kind||'marche'),
+      name:String(row.name||'Marché'),city:String(row.city||''),day:String(row.day||''),address:String(row.address||''),
+      hours:isJdmSource(row)?jdmEffectiveHours(row):String(row.hours||''),merchants:String(row.merchants||''),
+      source:String(row.source_url||''),values:{},updatedAt:String(row.updated_at||''),hasPhoto:false,hasLocation:false,informed:false
+    };
+  });
+  const byKey=new Map(forms.map(f=>[f.marketKey,f])),keys=forms.map(f=>f.marketKey);
+  if(keys.length){
+    const ph=keys.map(()=>'?').join(',');
+    const rows=await env.DB.prepare(`SELECT market_key,field,value_display,confirmations,updated_at FROM market_verification_consensus WHERE market_key IN (${ph})`).bind(...keys).all();
+    for(const row of rows.results||[]){
+      const item=byKey.get(String(row.market_key||''));if(!item)continue;
+      item.values[String(row.field||'')]=String(row.value_display||'');
+      item.informed=true;
+      if(!item.updatedAt||String(row.updated_at||'')>item.updatedAt)item.updatedAt=String(row.updated_at||'');
     }
-    return map.get(key);
-  };
+    const photos=await env.DB.prepare(`SELECT market_key,updated_at FROM market_photo_metadata WHERE market_key IN (${ph})`).bind(...keys).all();
+    for(const row of photos.results||[]){
+      const item=byKey.get(String(row.market_key||''));if(!item)continue;
+      item.hasPhoto=true;item.informed=true;
+      item.photoUrl=`/api/market-photo?marketKey=${encodeURIComponent(item.marketKey)}&v=${encodeURIComponent(row.updated_at||'')}`;
+      if(!item.updatedAt||String(row.updated_at||'')>item.updatedAt)item.updatedAt=String(row.updated_at||'');
+    }
+    const locs=await env.DB.prepare(`SELECT market_key,address,updated_at FROM market_location_consensus WHERE market_key IN (${ph})`).bind(...keys).all();
+    for(const row of locs.results||[]){
+      const item=byKey.get(String(row.market_key||''));if(!item)continue;
+      item.hasLocation=true;item.informed=true;item.verifiedAddress=String(row.address||'');
+      if(!item.updatedAt||String(row.updated_at||'')>item.updatedAt)item.updatedAt=String(row.updated_at||'');
+    }
+  }
+  forms.sort((a,b)=>(Number(b.informed)-Number(a.informed))||String(a.city||a.name).localeCompare(String(b.city||b.name),'fr'));
+  const totalCount=Number(totalRow&&totalRow.n||0);
+  return json({ok:true,forms,totalCount,informedCount,offset,limit,hasMore:offset+forms.length<totalCount});
+}
 
-  for(const row of rows.results||[]){
-    const item=ensure(row.market_key);
-    item.values[String(row.field||"")]=String(row.value_display||"");
-    if(!item.updatedAt||String(row.updated_at||"")>item.updatedAt)item.updatedAt=String(row.updated_at||"");
+async function adminMarketVerificationUnlock(request,env){
+  if (!(await adminAuthorized(request,env))) return json({ok:false,error:"SECRET_INCORRECT"},401);
+  if(!env.DB)return json({ok:false,error:"DB_INDISPONIBLE"},503);
+  await ensureMarketVerificationTables(env);
+  const data=await body(request),marketKey=cleanMarketKey(data.marketKey),field=String(data.field||'');
+  const allowed=new Set(['time','count','draw','clientModel','welcome','placer','exists','photo','gps']);
+  if(!marketKey||!allowed.has(field))return json({ok:false,error:'DEMANDE_INVALIDE'},400);
+
+  if(field==='photo'){
+    const row=await env.DB.prepare("SELECT object_key FROM market_photo_metadata WHERE market_key=?").bind(marketKey).first();
+    if(row&&env.MARKET_PHOTOS&&row.object_key&&!String(row.object_key).startsWith('d1:')){
+      try{await env.MARKET_PHOTOS.delete(String(row.object_key))}catch(_){}
+    }
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM market_photo_metadata WHERE market_key=?").bind(marketKey),
+      env.DB.prepare("DELETE FROM market_photo_blobs WHERE market_key=?").bind(marketKey),
+      env.DB.prepare("DELETE FROM market_photo_uploads WHERE market_key=?").bind(marketKey)
+    ]);
+    return json({ok:true,field,message:'PHOTO_DEBLOQUEE'});
+  }
+  if(field==='gps'){
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM market_location_consensus WHERE market_key=?").bind(marketKey),
+      env.DB.prepare("DELETE FROM market_location_votes WHERE market_key=?").bind(marketKey)
+    ]);
+    return json({ok:true,field,message:'GPS_DEBLOQUE'});
   }
 
-  const photos=await env.DB.prepare("SELECT market_key,updated_at FROM market_photo_metadata ORDER BY updated_at DESC LIMIT 1000").all();
-  for(const row of photos.results||[]){const item=ensure(row.market_key);item.hasPhoto=true;if(!item.updatedAt||String(row.updated_at||"")>item.updatedAt)item.updatedAt=String(row.updated_at||"")}
-  const locs=await env.DB.prepare("SELECT market_key,address,updated_at FROM market_location_consensus ORDER BY updated_at DESC LIMIT 1000").all();
-  for(const row of locs.results||[]){const item=ensure(row.market_key);item.address=String(row.address||"");if(!item.updatedAt||String(row.updated_at||"")>item.updatedAt)item.updatedAt=String(row.updated_at||"")}
-
-  const forms=[...map.values()].sort((a,b)=>String(b.updatedAt||"").localeCompare(String(a.updatedAt||""))).slice(0,500);
-  return json({ok:true,forms});
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM market_verification_consensus WHERE market_key=? AND field=?").bind(marketKey,field),
+    env.DB.prepare("DELETE FROM market_verification_votes WHERE market_key=? AND field=?").bind(marketKey,field)
+  ]);
+  let sourceLocked=false;
+  if(field==='time'||field==='count'){
+    try{sourceLocked=!!(await marketSourceLocks(env,marketKey))[field]}catch(_){}
+  }
+  return json({ok:true,field,sourceLocked,message:sourceLocked?'SOURCE_JOURS_DE_MARCHE_RESTE_VERROUILLEE':'CHAMP_DEBLOQUE'});
 }
 
 async function batchMarketVerifications(request, env) {
@@ -4592,6 +4724,7 @@ export default {
     if (url.pathname === "/api/markets/refresh-status" && request.method === "GET") return marketRefreshStatus(env);
     if (url.pathname === "/api/admin/markets/import" && request.method === "POST") return importMarkets(request, env);
     if (url.pathname === "/api/admin/market-verification-forms" && request.method === "GET") return adminMarketVerificationForms(request, env);
+    if (url.pathname === "/api/admin/market-verification-unlock" && request.method === "POST") return adminMarketVerificationUnlock(request, env);
     if (url.pathname === "/api/market-verifications" && request.method === "GET") return getMarketVerification(url, env);
     if (url.pathname === "/api/market-verifications" && request.method === "POST") return submitMarketVerification(request, env);
     if (url.pathname === "/api/market-verifications/batch" && request.method === "POST") return batchMarketVerifications(request, env);
