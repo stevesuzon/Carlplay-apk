@@ -1,4 +1,4 @@
-const VERSION = "V470-ZOOM-VOICE-FIX";
+const VERSION = "V471-SUBSCRIPTION-SETTINGS";
 const BASE_CACHE = "couteau-suisse-runtime-code-v1";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";

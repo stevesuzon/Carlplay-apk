@@ -1,4 +1,6 @@
 (function () {
+  if (window.__carplaySubscriptionWebV471Loaded) return;
+  window.__carplaySubscriptionWebV471Loaded = true;
   if ("serviceWorker" in navigator) {
     var swLastCheck = 0;
     var swReloading = false;
