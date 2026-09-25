@@ -1,4 +1,4 @@
 {
-  "version": "V504",
-  "message": "Moteur vocal restauré à partir de la V489, la version où l’activation du son fonctionnait sur iPhone. Chaque nouvelle page repart non activée : le premier appui long de 1,20 s dit « Son activé », puis les appuis longs suivants lisent les boutons et les fiches. Les phrases drôles et celles du 60 sont conservées."
+  "version": "V487",
+  "message": "Retour au moteur vocal V487, la version que vous avez confirmée comme fonctionnelle. Aucun des correctifs vocaux V488 à V504 n’est chargé."
 }
