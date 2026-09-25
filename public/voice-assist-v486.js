@@ -233,6 +233,7 @@
     }catch(_){}
   }
   function wakeSpeechV423(){
+    if(currentUtteranceV396)return;
     if(voiceAwakeV423||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
     try{
       window.speechSynthesis.resume();
@@ -248,10 +249,18 @@
     }catch(_){voiceAwakeV423=false}
   }
   function resetSpeechV423(){
+    // V489 : ne plus annuler la voix sur pageshow / focus / retour dans la page.
+    // Sur iPhone, ces événements peuvent arriver juste après un appui et coupaient
+    // l'utterance en cours, ce qui provoquait "La voix n'a pas démarré".
     voiceAwakeV423=false;
     preferredVoice=null;
-    try{if(window.speechSynthesis){window.speechSynthesis.cancel();window.speechSynthesis.resume()}}catch(_){}
+    try{if(window.speechSynthesis)window.speechSynthesis.resume()}catch(_){}
     loadPreferredVoice();
+    syncSetting();
+  }
+  function softResumeSpeechV489(){
+    try{if(window.speechSynthesis)window.speechSynthesis.resume()}catch(_){}
+    if(!preferredVoice)loadPreferredVoice();
     syncSetting();
   }
   function speak(text){
@@ -456,7 +465,7 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSetting);else initSetting();
   window.addEventListener('storage',syncSetting);if(window.speechSynthesis)window.speechSynthesis.addEventListener&&window.speechSynthesis.addEventListener('voiceschanged',loadPreferredVoice);
   window.addEventListener('pageshow',function(){resetSpeechV423()});
-  document.addEventListener('visibilitychange',function(){if(!document.hidden)resetSpeechV423()});
-  window.addEventListener('focus',function(){if(enabled())resetSpeechV423()});
-  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS,version:'V488'};
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)softResumeSpeechV489()});
+  window.addEventListener('focus',function(){if(enabled())softResumeSpeechV489()});
+  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS,version:'V489'};
 })();
