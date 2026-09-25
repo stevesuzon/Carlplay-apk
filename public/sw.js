@@ -1,5 +1,5 @@
-const VERSION = "V502-NO-IMAGE-DETACH";
-const BASE_CACHE = "couteau-suisse-runtime-code-v502";
+const VERSION = "V503-OLD-WORKING-ACTIVATION";
+const BASE_CACHE = "couteau-suisse-runtime-code-v503";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v439-market-list";
