@@ -12,7 +12,7 @@ function say(t){
 function arm(){if(armed||!on())return armed;armed=true;say('Son activé');return true}
 function target(n){
  if(!n||!n.closest)return null;
- return n.closest('[data-voice-card],[data-voice-read],[data-voice-help],button,a,select,input,summary,[onclick],[role="button"],[data-action],[data-target],.card,.small,.market,.market-card,.marketCard,.station-card,.stationCard,.result-card,.resultCard,.go,.open,.verify,.details,.register,.day,.dayBtn,.tab,.tile,.directBtn,.homeTopButton,.settingHead,.changeArea,.back,#status,.status,.sectionTitle,.heading,.marketPeriodMain,.marketPeriodCount,.marketPeriodExtra,h1,h2,h3,.specialBadge,.specialDate,.specialTimer,.tradeStatus');
+ return n.closest('[data-voice-card],[data-voice-read],[data-voice-help],button,a,select,input,summary,article,[onclick],[role="button"],[data-action],[data-target],.card,[class*="card"],.fiche,[class*="fiche"],.small,.market,.market-card,.marketCard,.station-card,.stationCard,.result-card,.resultCard,.go,.open,.verify,.details,.register,.day,.dayBtn,.tab,.tile,.directBtn,.homeTopButton,.settingHead,.changeArea,.back,#status,.status,.sectionTitle,.heading,.marketPeriodMain,.marketPeriodCount,.marketPeriodExtra,h1,h2,h3,.specialBadge,.specialDate,.specialTimer,.tradeStatus');
 }
 function pick(a){return a[Math.floor(Math.random()*a.length)]||''}
 function oise(el){
@@ -84,20 +84,25 @@ function move(e){
 function end(e){
  var el=active||target(e.target),held=started?Date.now()-started:0,long=!!(el&&(ready||held>=PRESS));reset();
  if(!armed){
-   arm();
-   if(el)suppress(el,1200);
-   stop(e);
+   // Premier appui de chaque page : il faut réellement rester 1,20 s.
+   if(el&&long){
+     arm();
+     suppress(el,1500);
+     stop(e);
+   }
    return;
  }
- if(el&&long){var s=text(el);if(s)say(s);suppress(el,1500);stop(e)}
+ if(el&&long){
+   var s=text(el);
+   if(s)say(s);
+   suppress(el,1500);
+   stop(e);
+ }
 }
 function click(e){
  if(blocked(e.target)){stop(e);block=null;return}
- if(armed||!on())return;
- var el=target(e.target);
- arm();
- if(el)suppress(el,600);
- stop(e);
+ // Un clic/appui court ne doit jamais activer la voix.
+ // L'activation de chaque page se fait uniquement après 1,20 s d'appui.
 }
 document.addEventListener('touchstart',start,{capture:true,passive:true});
 document.addEventListener('touchmove',move,{capture:true,passive:true});
@@ -105,5 +110,5 @@ document.addEventListener('touchend',end,{capture:true,passive:false});
 document.addEventListener('touchcancel',reset,{capture:true,passive:true});
 document.addEventListener('click',click,true);
 document.addEventListener('contextmenu',function(e){if(target(e.target))e.preventDefault()},true);
-window.CouteauVoice={enabled:on,setEnabled:setOn,speak:function(t){return armed?say(t):false},pageArmed:function(){return armed},activatePage:arm,buildMarket:market,version:'V497'};
+window.CouteauVoice={enabled:on,setEnabled:setOn,speak:function(t){return armed?say(t):false},pageArmed:function(){return armed},activatePage:arm,buildMarket:market,version:'V498'};
 })();
