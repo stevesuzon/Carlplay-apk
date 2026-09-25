@@ -277,10 +277,37 @@ function fastAsset(response,url){
   return response;
 }
 
+
+async function nearHlmV473(url){
+  const lat=Number(url.searchParams.get("lat")),lon=Number(url.searchParams.get("lon"));
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)
+    return json({ok:false,near:false,error:"COORDONNEES_INVALIDES"},400);
+  const q='[out:json][timeout:8];('+
+    'nwr(around:300,'+lat+','+lon+')["name"~"HLM|logement social|habitat social|cité HLM|résidence HLM|office public de l.habitat|OPH",i];'+
+    'nwr(around:300,'+lat+','+lon+')["description"~"HLM|logement social|habitat social|bailleur social",i];'+
+    'nwr(around:300,'+lat+','+lon+')["operator"~"HLM|logement social|bailleur social|office public de l.habitat|OPH",i];'+
+    ');out ids 1;';
+  const endpoints=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
+  for(const endpoint of endpoints){
+    try{
+      const r=await fetch(endpoint,{
+        method:"POST",
+        headers:{"content-type":"application/x-www-form-urlencoded;charset=UTF-8"},
+        body:"data="+encodeURIComponent(q)
+      });
+      if(!r.ok)continue;
+      const d=await r.json();
+      return json({ok:true,near:!!(d&&Array.isArray(d.elements)&&d.elements.length),radiusM:300,source:"OpenStreetMap"});
+    }catch(_){}
+  }
+  return json({ok:true,near:false,radiusM:300,source:"indisponible"});
+}
+
 export default{
   async fetch(request,env,ctx){
     const url=new URL(request.url);
     if(request.method==="OPTIONS")return new Response(null,{status:204,headers:cors});
+    if(url.pathname==="/api/near-hlm"&&request.method==="GET")return nearHlmV473(url);
     if(url.pathname==="/api/sanction/status"&&request.method==="POST")return userSanctionStatusV161(request,env);
     if(url.pathname==="/api/reactivation-request"&&request.method==="POST")return requestReactivationV161(request,env);
     if(url.pathname==="/api/admin/banned-users"&&(request.method==="GET"||request.method==="POST"))return adminBannedUsersV161(request,env);
