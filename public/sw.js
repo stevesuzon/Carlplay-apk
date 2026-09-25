@@ -1,5 +1,5 @@
-const VERSION = "V494-FORCE-NEW-VOICE-FILE";
-const BASE_CACHE = "couteau-suisse-runtime-code-v494";
+const VERSION = "V495-SIMPLE-VOICE";
+const BASE_CACHE = "couteau-suisse-runtime-code-v495";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v439-market-list";
