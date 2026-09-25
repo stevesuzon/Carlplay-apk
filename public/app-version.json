@@ -1,4 +1,4 @@
 {
-  "version": "V502",
-  "message": "Correction iPhone : les images ne reçoivent plus les appuis tactiles directement. L’appui est transmis au bouton ou à la fiche, afin d’empêcher l’image de se détacher pendant l’appui long vocal."
+  "version": "V503",
+  "message": "Activation vocale iPhone restaurée à partir de l’ancienne version qui arrivait réellement à activer le son. Après 1,20 s d’appui long, l’activation ou la lecture est lancée au relâchement du doigt, dans un vrai geste iPhone. Les images restent protégées contre le détachement."
 }
