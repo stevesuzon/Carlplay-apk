@@ -1,4 +1,4 @@
 {
-  "version": "V492",
-  "message": "Voix iPhone : avant chaque lecture, l’application ouvre maintenant un vrai canal média HTMLAudio, puis lance la synthèse vocale. Cela vise le cas où le texte se déclenche mais aucun son ne sort."
+  "version": "V493",
+  "message": "Voix iPhone : suppression du bip. L’application ouvre maintenant un flux média réellement silencieux et le garde actif pendant toute la lecture vocale, pour éviter le retour au canal Sonnerie."
 }
