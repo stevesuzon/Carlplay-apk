@@ -4337,7 +4337,7 @@ async function mushroomPhoto(url,env){
 class RemoveLegacyVoiceScripts {
   element(element) {
     const voiceSrc = element.getAttribute("src") || "";
-    if (/\/voice-assist-v(?:388|477|478|479|481)\.js(?:\?|$)/i.test(voiceSrc)) element.remove();
+    if (/\/voice-assist-v\d+\.js(?:\?|$)/i.test(voiceSrc)) element.remove();
   }
 }
 
