@@ -327,6 +327,7 @@
       if(e){try{e.preventDefault()}catch(_){}try{e.stopPropagation()}catch(_){}try{e.stopImmediatePropagation&&e.stopImmediatePropagation()}catch(_){}}
       if(busy)return;busy=true;
       unlockVoiceV456();
+      armAudioForGestureV491();
       try{
         if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')throw 0;
         window.speechSynthesis.cancel();window.speechSynthesis.resume();loadPreferredVoice();
@@ -346,33 +347,41 @@
     document.body.appendChild(b);
     return true;
   }
+  var mediaUnlockV492=null;
+  function mediaElementV492(){
+    if(mediaUnlockV492)return mediaUnlockV492;
+    try{
+      var a=document.createElement('audio');
+      a.setAttribute('playsinline','');
+      a.setAttribute('webkit-playsinline','');
+      a.preload='auto';a.loop=true;a.volume=0.015;
+      a.src='data:audio/wav;base64,UklGRiQFAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAFAAAAAKkAPgGuAesB7QG2AUoBuAAPAGb/zv5a/hn+EP5D/qr+Ov/h/4sAJQGdAeQB8QHEAWEB1AAvAIT/5/5s/iD+Df42/pT+Hv/C/20ACwGLAdsB8wHQAXcB8ABOAKP/Av9//ir+DP4q/n/+Av+j/04A8AB3AdAB8wHbAYsBCwFtAML/Hv+U/jb+Df4g/mz+5/6E/y8A1ABhAcQB8QHkAZ0BJQGLAOH/Ov+q/kP+EP4Z/lr+zv5m/w8AuABKAbYB7QHrAa4BPgGpAAAAV//C/lL+Ff4T/kr+tv5I//H/mgAyAaYB5wHwAb0BVgHGAB8Adf/b/mP+HP4P/jz+n/4s/9H/fAAZAZQB4AHzAcoBbAHiAD4Ak//1/nX+Jf4N/jD+if4Q/7L/XQD+AIEB1gH0AdYBgQH+AF0Asv8Q/4n+MP4N/iX+df71/pP/PgDiAGwBygHzAeABlAEZAXwA0f8s/5/+PP4P/hz+Y/7b/nX/HwDGAFYBvQHwAecBpgEyAZoA8f9I/7b+Sv4T/hX+Uv7C/lf/AACpAD4BrgHrAe0BtgFKAbgADwBm/87+Wv4Z/hD+Q/6q/jr/4f+LACUBnQHkAfEBxAFhAdQALwCE/+f+bP4g/g3+Nv6U/h7/wv9tAAsBiwHbAfMB0AF3AfAATgCj/wL/f/4q/gz+Kv5//gL/o/9OAPAAdwHQAfMB2wGLAQsBbQDC/x7/lP42/g3+IP5s/uf+hP8vANQAYQHEAfEB5AGdASUBiwDh/zr/qv5D/hD+Gf5a/s7+Zv8PALgASgG2Ae0B6wGuAT4BqQAAAFf/wv5S/hX+E/5K/rb+SP/x/5oAMgGmAecB8AG9AVYBxgAfAHX/2/5j/hz+D/48/p/+LP/R/3wAGQGUAeAB8wHKAWwB4gA+AJP/9f51/iX+Df4w/on+EP+y/10A/gCBAdYB9AHWAYEB/gBdALL/EP+J/jD+Df4l/nX+9f6T/z4A4gBsAcoB8wHgAZQBGQF8ANH/LP+f/jz+D/4c/mP+2/51/x8AxgBWAb0B8AHnAaYBMgGaAPH/SP+2/kr+E/4V/lL+wv5X/wAAqQA+Aa4B6wHtAbYBSgG4AA8AZv/O/lr+Gf4Q/kP+qv46/+H/iwAlAZ0B5AHxAcQBYQHUAC8AhP/n/mz+IP4N/jb+lP4e/8L/bQALAYsB2wHzAdABdwHwAE4Ao/8C/3/+Kv4M/ir+f/4C/6P/TgDwAHcB0AHzAdsBiwELAW0Awv8e/5T+Nv4N/iD+bP7n/oT/LwDUAGEBxAHxAeQBnQElAYsA4f86/6r+Q/4Q/hn+Wv7O/mb/DwC4AEoBtgHtAesBrgE+AakAAABX/8L+Uv4V/hP+Sv62/kj/8f+aADIBpgHnAfABvQFWAcYAHwB1/9v+Y/4c/g/+PP6f/iz/0f98ABkBlAHgAfMBygFsAeIAPgCT//X+df4l/g3+MP6J/hD/sv9dAP4AgQHWAfQB1gGBAf4AXQCy/xD/if4w/g3+Jf51/vX+k/8+AOIAbAHKAfMB4AGUARkBfADR/yz/n/48/g/+HP5j/tv+df8fAMYAVgG9AfAB5wGmATIBmgDx/0j/tv5K/hP+Ff5S/sL+V/8AAKkAPgGuAesB7QG2AUoBuAAPAGb/zv5a/hn+EP5D/qr+Ov/h/4sAJQGdAeQB8QHEAWEB1AAvAIT/5/5s/iD+Df42/pT+Hv/C/20ACwGLAQ==';
+      a.style.display='none';
+      (document.body||document.documentElement).appendChild(a);
+      mediaUnlockV492=a;
+    }catch(_){mediaUnlockV492=null}
+    return mediaUnlockV492;
+  }
   function armAudioForGestureV491(){
-    // Réveille explicitement le canal audio iPhone pendant le geste utilisateur.
+    // V492 : on ouvre un vrai canal MEDIA HTMLAudio.
+    // C'est volontairement différent de WebAudio, qui peut rester "running" mais silencieux sur iPhone/PWA.
     try{
-      var AC=window.AudioContext||window.webkitAudioContext;
-      if(AC){
-        var ac=window.__carplayVoiceAudioContextV491;
-        if(!ac||ac.state==='closed'){ac=new AC();window.__carplayVoiceAudioContextV491=ac}
-        try{ac.resume()}catch(_){}
-        try{
-          var osc=ac.createOscillator(),gain=ac.createGain();
-          gain.gain.value=0.00001;
-          osc.connect(gain);gain.connect(ac.destination);
-          osc.start();osc.stop(ac.currentTime+0.025);
-        }catch(_){}
+      var a=mediaElementV492();
+      if(a){
+        try{a.pause()}catch(_){}
+        try{a.currentTime=0}catch(_){}
+        var p=a.play();
+        if(p&&p.catch)p.catch(function(){});
       }
     }catch(_){}
-    try{
-      if(!currentUtteranceV396&&window.speechSynthesis&&typeof SpeechSynthesisUtterance!=='undefined'){
-        window.speechSynthesis.cancel();
-        var prime=new SpeechSynthesisUtterance('.');
-        primeUtteranceV396=prime;
-        prime.lang='fr-FR';prime.volume=0.01;prime.rate=10;prime.pitch=1;
-        prime.onend=function(){if(primeUtteranceV396===prime)primeUtteranceV396=null};
-        prime.onerror=function(){if(primeUtteranceV396===prime)primeUtteranceV396=null};
-        window.speechSynthesis.speak(prime);
-      }
-    }catch(_){}
+  }
+  function releaseMediaV492(delay){
+    setTimeout(function(){
+      try{
+        var a=mediaUnlockV492;if(!a)return;
+        a.pause();a.currentTime=0;
+      }catch(_){}
+    },delay||1200);
   }
   function speakDirectFromGestureV491(text){
     text=spokenText(text);if(!text)return false;
@@ -384,13 +393,14 @@
       currentUtteranceV396=u;
       u.lang='fr-FR';u.rate=.90;u.pitch=1;u.volume=1;
       var started=false;
-      u.onstart=function(){started=true;voiceAwakeV423=true;toast('🔊 '+text)};
-      u.onend=function(){if(currentUtteranceV396===u)currentUtteranceV396=null};
-      u.onerror=function(){if(currentUtteranceV396===u)currentUtteranceV396=null};
+      u.onstart=function(){started=true;voiceAwakeV423=true;toast('🔊 '+text);releaseMediaV492(450)};
+      u.onend=function(){if(currentUtteranceV396===u)currentUtteranceV396=null;releaseMediaV492(50)};
+      u.onerror=function(){if(currentUtteranceV396===u)currentUtteranceV396=null;releaseMediaV492(50)};
       window.speechSynthesis.speak(u);
       setTimeout(function(){
         if(!started&&currentUtteranceV396===u){
           currentUtteranceV396=null;
+          releaseMediaV492(50);
           toast('🔇 La voix n’a pas démarré.');
         }
       },1800);
@@ -520,5 +530,5 @@
   window.addEventListener('pageshow',function(){resetSpeechV423()});
   document.addEventListener('visibilitychange',function(){if(!document.hidden)softResumeSpeechV489()});
   window.addEventListener('focus',function(){if(enabled())softResumeSpeechV489()});
-  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS,version:'V491'};
+  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS,version:'V492'};
 })();
