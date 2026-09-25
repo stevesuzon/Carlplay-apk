@@ -1,1 +1,1 @@
-(function(){if(window.__carplayVoiceV479Loaded)return;var s=document.createElement('script');s.src='/voice-assist-v479.js?v=479-market-actions';s.defer=true;(document.head||document.documentElement).appendChild(s)})();
+(function(){if(window.__carplayVoiceV481Loaded)return;var s=document.createElement('script');s.src='/voice-assist-v481.js?v=481-more-market-lines';s.defer=true;(document.head||document.documentElement).appendChild(s)})();

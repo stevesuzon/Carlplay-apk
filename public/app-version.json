@@ -1,4 +1,4 @@
 {
-  "version": "V480",
-  "message": "Appui court sur « Aller au marché » : confirmation normale avec le nom du marché et la concurrence du même métier quand elle existe. Appui long 1,20 s : lecture vocale uniquement, sans confirmation, sans GPS et sans ouverture."
+  "version": "V481",
+  "message": "Davantage de petites phrases humoristiques aléatoires sur les fiches marchés, surtout en France. Les phrases de proximité, la remarque HLM, les commentaires de distance et les protections d’appui long restent actifs."
 }
