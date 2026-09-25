@@ -1,5 +1,5 @@
-const VERSION = "V498-LONG-FIRST-PRESS";
-const BASE_CACHE = "couteau-suisse-runtime-code-v498";
+const VERSION = "V499-LONG-PRESS-FIX";
+const BASE_CACHE = "couteau-suisse-runtime-code-v499";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v439-market-list";
