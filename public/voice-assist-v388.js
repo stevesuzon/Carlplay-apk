@@ -3,6 +3,7 @@
   if(window.__carplayVoiceV456Loaded)return;
   window.__carplayVoiceV456Loaded=true;
   var KEY='carplay_voice_enabled_v387';
+  var PROMPT_KEY_V474='carplay_voice_prompt_confirmed_v474';
   var PRESS_MS=1200;
   var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='',voiceAwakeV423=false,touchActionDoneV456=false,multiTouchV466=false;
   function installNoSelectV389(){
@@ -13,7 +14,9 @@
     (document.head||document.documentElement).appendChild(st);
   }
   function enabled(){return true}
-  function voiceUnlockedV456(){try{return sessionStorage.getItem('carplay_voice_unlocked_v456')==='1'}catch(_){return false}}
+  function promptConfirmedV474(){try{return sessionStorage.getItem(PROMPT_KEY_V474)==='1'}catch(_){return false}}
+  function markPromptConfirmedV474(){try{sessionStorage.setItem(PROMPT_KEY_V474,'1')}catch(_){}}
+  function voiceUnlockedV456(){try{return sessionStorage.getItem('carplay_voice_unlocked_v456')==='1'||promptConfirmedV474()}catch(_){return false}}
   function unlockVoiceV456(){
     voiceAwakeV423=true;
     try{sessionStorage.setItem('carplay_voice_unlocked_v456','1')}catch(_){}
@@ -65,8 +68,62 @@
   }
 
   var hlmCacheV473={};
+  function marketDistanceKmV474(card){
+    if(!card)return NaN;
+    var d=card.dataset||{};
+    var raw=d.distanceKm||d.distance||d.km||d.voiceDistance||'';
+    var n=Number(String(raw).replace(',','.').replace(/[^0-9.\-]/g,''));
+    if(Number.isFinite(n)&&n>=0&&n<1000)return n;
+    var txt=clean(card.innerText||card.textContent||'');
+    var m=txt.match(/(\d+(?:[,.]\d+)?)\s*km\b/i);
+    return m?Number(m[1].replace(',','.')):NaN;
+  }
+  function isFiveNearestMarketV474(card){
+    var cards=[].slice.call(document.querySelectorAll('[data-voice-card="market"]'));
+    var ranked=cards.map(function(c){return {card:c,km:marketDistanceKmV474(c)}})
+      .filter(function(x){return Number.isFinite(x.km)})
+      .sort(function(a,b){return a.km-b.km});
+    return ranked.slice(0,5).some(function(x){return x.card===card});
+  }
+  function pickV474(lines){return lines[Math.floor(Math.random()*lines.length)]||''}
+  function nearbyMarketCommentV474(card){
+    if(!isFiveNearestMarketV474(card))return '';
+    var km=marketDistanceKmV474(card);
+    if(!Number.isFinite(km))return '';
+    if(km<=8)return pickV474([
+      "Celui-là est juste à côté, pratique si tu veux partir tranquille.",
+      "Celui-là, pas besoin de faire chauffer le moteur longtemps.",
+      "Si tu veux rester vraiment près, celui-là fait l'affaire."
+    ]);
+    if(km<=15)return pickV474([
+      "Bon choix si tu veux pas aller loin.",
+      "Celui-là est encore tout près, tu peux partir tranquille.",
+      "Marché pratique si tu veux économiser les kilomètres."
+    ]);
+    if(km<=27)return pickV474([
+      "Marché de dépannage si tu te lèves tard.",
+      "Celui-là, si tu pars un peu tard, ça peut te sauver la matinée.",
+      "Pas trop loin, pratique pour un départ de dernière minute."
+    ]);
+    if(km<=35)return pickV474([
+      "Bon marché si tu veux pas aller loin.",
+      "Une trentaine de kilomètres, ça reste raisonnable.",
+      "Celui-là, pas besoin de partir à l'aube."
+    ]);
+    if(km<=50)return pickV474([
+      "Celui-là reste dans les plus proches, ça se tente.",
+      "Un peu de route, mais ça reste raisonnable.",
+      "Celui-là peut faire l'affaire si tu veux éviter un grand trajet."
+    ]);
+    return pickV474([
+      "C'est quand même un des cinq plus proches aujourd'hui.",
+      "Celui-là est dans les plus proches, même s'il faut rouler un peu.",
+      "Pas le plus près du monde, mais il reste dans ton top cinq."
+    ]);
+  }
   function marketJokeV473(card){
     if(card&&card.dataset&&card.dataset.nearHlmV473==='1')return "Ah celui-là, c'est un bon marché à matelas !";
+    var nearby=nearbyMarketCommentV474(card);if(nearby)return nearby;
     var lines=[
       "Celui-là, je le sens bien.",
       "Ce marché-là, je le sens pas du tout.",
@@ -81,54 +138,7 @@
       "Ce marché-là, je le sens pas, mais alors pas du tout.",
       "Celui-là, il pourrait bien faire l'affaire."
     ];
-    return lines[Math.floor(Math.random()*lines.length)]||"";
-  }
-  function cardCoordsV473(card){
-    if(!card)return null;
-    function num(v){v=String(v==null?'':v).replace(',','.').trim();var n=Number(v);return Number.isFinite(n)?n:null}
-    var ds=card.dataset||{};
-    var lat=num(ds.lat||ds.latitude||ds.voiceLat||ds.marketLat),lon=num(ds.lon||ds.lng||ds.long||ds.longitude||ds.voiceLon||ds.marketLon);
-    if(lat!==null&&lon!==null&&Math.abs(lat)<=90&&Math.abs(lon)<=180)return {lat:lat,lon:lon};
-    var nodes=[card].concat([].slice.call(card.querySelectorAll('a,button,[onclick],[href],[data-lat],[data-lon],[data-lng]')).slice(0,12));
-    for(var i=0;i<nodes.length;i++){
-      var e=nodes[i],d=e.dataset||{};
-      lat=num(d.lat||d.latitude);lon=num(d.lon||d.lng||d.long||d.longitude);
-      if(lat!==null&&lon!==null&&Math.abs(lat)<=90&&Math.abs(lon)<=180)return {lat:lat,lon:lon};
-      var raw='';
-      try{raw=[e.getAttribute('href')||'',e.getAttribute('onclick')||'',e.getAttribute('data-url')||''].join(' ');raw=decodeURIComponent(raw)}catch(_){}
-      var m=raw.match(/(-?\d{1,2}\.\d{4,})\s*[,; ]\s*(-?\d{1,3}\.\d{4,})/);
-      if(m){lat=Number(m[1]);lon=Number(m[2]);if(Math.abs(lat)<=90&&Math.abs(lon)<=180)return {lat:lat,lon:lon}}
-    }
-    return null;
-  }
-  function prefetchHlmV473(card){
-    if(!card||!card.dataset)return;
-    if(card.dataset.nearHlmV473==='1'||card.dataset.nearHlmV473==='0'||card.dataset.nearHlmV473==='pending')return;
-    var c=cardCoordsV473(card);if(!c)return;
-    var key=c.lat.toFixed(4)+','+c.lon.toFixed(4);
-    if(hlmCacheV473[key]!==undefined){card.dataset.nearHlmV473=hlmCacheV473[key]?'1':'0';return}
-    card.dataset.nearHlmV473='pending';
-    fetch('/api/near-hlm?lat='+encodeURIComponent(c.lat)+'&lon='+encodeURIComponent(c.lon),{cache:'force-cache'})
-      .then(function(r){return r.ok?r.json():{near:false}})
-      .then(function(d){var near=!!(d&&d.near);hlmCacheV473[key]=near;card.dataset.nearHlmV473=near?'1':'0'})
-      .catch(function(){card.dataset.nearHlmV473='0'});
-  }
-  function installHlmObserverV473(){
-    function watch(root){
-      var list=[];
-      if(root&&root.matches&&root.matches('[data-voice-card="market"],.market,.market-card,.marketCard,.result-card,.resultCard,.card'))list.push(root);
-      if(root&&root.querySelectorAll)list=list.concat([].slice.call(root.querySelectorAll('[data-voice-card="market"],.market,.market-card,.marketCard,.result-card,.resultCard,.card')));
-      list.forEach(function(card){
-        if(card.__hlmObservedV473)return;
-        card.__hlmObservedV473=1;
-        if('IntersectionObserver' in window){
-          var io=new IntersectionObserver(function(entries){entries.forEach(function(en){if(en.isIntersecting){prefetchHlmV473(card);try{io.disconnect()}catch(_){}}})},{rootMargin:'250px'});
-          try{io.observe(card)}catch(_){prefetchHlmV473(card)}
-        }else prefetchHlmV473(card);
-      });
-    }
-    watch(document);
-    try{new MutationObserver(function(ms){ms.forEach(function(m){[].forEach.call(m.addedNodes,function(n){if(n&&n.nodeType===1)watch(n)})})}).observe(document.documentElement,{childList:true,subtree:true})}catch(_){}
+    return pickV474(lines);
   }
   function buildMarket(card){
     var city=clean(card.dataset.voiceCity||'');
@@ -304,6 +314,7 @@
   function end(){var target=active,shouldSpeak=!!(target&&fired);clearTimeout(timer);timer=0;active=null;if(shouldSpeak)resumeTouchSpeechV400(target);setTimeout(function(){fired=false},80)}
   function showTapFallbackV400(text){
     text=spokenText(text);if(!text)return false;
+    if(promptConfirmedV474()){toast('🔇 La voix n’a pas démarré. Relâche puis refais un appui long.');return false;}
     var old=document.getElementById('voiceTapFallbackV400');if(old)old.remove();
     var b=document.createElement('button');
     b.id='voiceTapFallbackV400';b.type='button';
@@ -314,6 +325,7 @@
     function play(e){
       if(e){try{e.preventDefault()}catch(_){}try{e.stopPropagation()}catch(_){}try{e.stopImmediatePropagation&&e.stopImmediatePropagation()}catch(_){}}
       if(busy)return;busy=true;
+      markPromptConfirmedV474();
       unlockVoiceV456();
       try{
         if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')throw 0;
@@ -349,17 +361,17 @@
       var started=false,finished=false;
       u.onstart=function(){started=true;voiceAwakeV423=true;toast('🔊 '+text)};
       u.onend=function(){finished=true;currentUtteranceV396=null};
-      u.onerror=function(){if(currentUtteranceV396!==u)return;finished=true;currentUtteranceV396=null;showTapFallbackV400(text)};
+      u.onerror=function(){if(currentUtteranceV396!==u)return;finished=true;currentUtteranceV396=null;if(promptConfirmedV474())toast('🔇 Réessaie avec un appui long.');else showTapFallbackV400(text)};
       window.speechSynthesis.speak(u);
       setTimeout(function(){
         if(!started&&!finished&&currentUtteranceV396===u){
           currentUtteranceV396=null;
           try{window.speechSynthesis.cancel()}catch(_){}
-          showTapFallbackV400(text);
+          if(promptConfirmedV474())toast('🔇 Réessaie avec un appui long.');else showTapFallbackV400(text);
         }
       },2500);
       return true;
-    }catch(_){showTapFallbackV400(text);return false}
+    }catch(_){if(promptConfirmedV474())toast('🔇 Réessaie avec un appui long.');else showTapFallbackV400(text);return false}
   }
   function prepareTouchSpeechV400(target){queuedTouchTextV400=target?clean(buildSpeech(target)):''}
   function cancelTouchSpeechV400(){queuedTouchTextV400=''}

@@ -1,4 +1,4 @@
 {
-  "version": "V473",
-  "message": "Voix plus naturelle et expressive. Une remarque humoristique est lue juste après le nom du marché. Si une proximité HLM explicite est détectée dans les données cartographiques, la voix peut dire : « Ah celui-là, c'est un bon marché à matelas ! »."
+  "version": "V474",
+  "message": "Voix : « Toucher pour écouter » une seule fois par ouverture de l’application. Ensuite l’appui long parle directement. Les 5 marchés les plus proches reçoivent aussi des remarques humoristiques adaptées à leur distance."
 }
