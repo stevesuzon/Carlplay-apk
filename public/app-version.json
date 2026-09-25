@@ -1,4 +1,4 @@
 {
-  "version": "V488",
-  "message": "Correction voix iPhone : après un changement de page, le premier nouvel appui long réveille silencieusement le moteur vocal. Le carré ACTIVER LE SON reste limité à une seule fois par session."
+  "version": "V489",
+  "message": "Correction iPhone : la voix n’est plus annulée par les événements focus, retour de page ou visibilité. Après avoir activé le son une fois, les appuis longs doivent continuer à parler après navigation sans réactivation."
 }
