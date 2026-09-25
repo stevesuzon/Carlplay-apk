@@ -1,4 +1,4 @@
 {
-  "version": "V497",
-  "message": "Synthèse vocale entièrement reconstruite. Chaque page repart proprement : le premier appui active le son de la page et annonce « Son activé ». Ensuite les appuis longs de 1,20 s lisent les boutons, fiches et éléments. En changeant de page, le premier appui réactive la voix. Les phrases drôles des marchés et les phrases spéciales du 60 sont conservées."
+  "version": "V498",
+  "message": "Voix page par page : sur chaque nouvelle page, le premier appui long de 1,20 seconde sur n’importe quel bouton ou fiche active le son et dit « Son activé ». Les appuis courts n’activent rien. Ensuite les appuis longs de 1,20 seconde lisent les éléments de la page."
 }
