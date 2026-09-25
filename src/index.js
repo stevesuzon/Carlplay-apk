@@ -3329,10 +3329,13 @@ async function contestAddScoreWithActiveBonus(env,subscriptionId,sourceType,sour
   return {added,multiplier,awardedPoints};
 }
 
-const REFERRAL_SPONSOR_POINTS=320,REFERRAL_FRIEND_POINTS=96,ADMIN_REFERRAL_FRIEND_POINTS=250,REFERRAL_INVITE_MS=30*86400000,REFERRAL_EMAIL_MS=24*60*60000;
+const REFERRAL_SPONSOR_POINTS=280,REFERRAL_FRIEND_POINTS=190,ADMIN_REFERRAL_FRIEND_POINTS=150,REFERRAL_INVITE_MS=30*86400000,REFERRAL_EMAIL_MS=24*60*60000;
 async function referralRewardProfile(env,sponsorSubscriptionId){
   const sponsor=await env.DB.prepare("SELECT recovery_email_mask FROM subscriptions WHERE id=? LIMIT 1").bind(sponsorSubscriptionId).first();
-  const adminSponsor=normalizeEmail(sponsor&&sponsor.recovery_email_mask||"")===ONLY_ADMIN_EMAIL;
+  const participant=await env.DB.prepare("SELECT device_id,email_hash FROM contest_participants WHERE subscription_id=? LIMIT 1").bind(sponsorSubscriptionId).first();
+  const adminHash=await sha256Text(ONLY_ADMIN_EMAIL);
+  const trialAdminHash=participant&&participant.device_id?await sha256Text("contest-trial-email:"+participant.device_id+":"+ONLY_ADMIN_EMAIL):"";
+  const adminSponsor=normalizeEmail(sponsor&&sponsor.recovery_email_mask||"")===ONLY_ADMIN_EMAIL||!!participant&&(participant.email_hash===adminHash||!!trialAdminHash&&participant.email_hash===trialAdminHash);
   return {adminSponsor,sponsorPoints:adminSponsor?0:REFERRAL_SPONSOR_POINTS,friendPoints:adminSponsor?ADMIN_REFERRAL_FRIEND_POINTS:REFERRAL_FRIEND_POINTS};
 }
 function referralToken(){const b=new Uint8Array(24);crypto.getRandomValues(b);let x="";for(const n of b)x+=String.fromCharCode(n);return btoa(x).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")}
@@ -3354,9 +3357,9 @@ async function sendReferralEmail(env,email,confirmUrl,firstName,friendPoints=REF
 async function sendReferralSponsorEmail(env,email,friendName,rewarded){
   const safeFriend=String(friendName||"votre ami").replace(/[<>&"']/g,"");
   const subject="🎉 Bravo ! Votre ami a installé Couteau Suisse";
-  const pointsText=rewarded?"Vos 320 points ont été ajoutés au concours.":"Vos 320 points sont réservés et seront ajoutés dès votre inscription au concours.";
+  const pointsText=rewarded?"Vos ${REFERRAL_SPONSOR_POINTS} points ont été ajoutés au concours.":"Vos ${REFERRAL_SPONSOR_POINTS} points sont réservés et seront ajoutés dès votre inscription au concours.";
   const text=`Bravo ! ${safeFriend} a installé Couteau Suisse et a validé son parrainage. ${pointsText}`;
-  const html=`<div style="margin:0;background:#07182d;padding:24px;font-family:Arial,sans-serif;color:#fff"><div style="max-width:620px;margin:auto;background:linear-gradient(180deg,#0d2f5a,#06172d);border:3px solid #f7c94b;border-radius:24px;padding:28px;text-align:center"><div style="font-size:48px">🏆</div><h1 style="color:#ffd85a;margin:8px 0">BRAVO !</h1><p style="font-size:19px;line-height:1.5"><b>${safeFriend}</b> a installé Couteau Suisse et a validé votre parrainage.</p><div style="margin:22px auto;padding:18px;border-radius:18px;background:#0b7a42;font-size:22px;font-weight:900">+320 POINTS POUR VOUS</div><p style="font-size:16px;line-height:1.5">${pointsText}</p><p style="font-size:14px;color:#b8c7d9">Continuez à partager l’application depuis Réglages → Partager à un ami.</p></div></div>`;
+  const html=`<div style="margin:0;background:#07182d;padding:24px;font-family:Arial,sans-serif;color:#fff"><div style="max-width:620px;margin:auto;background:linear-gradient(180deg,#0d2f5a,#06172d);border:3px solid #f7c94b;border-radius:24px;padding:28px;text-align:center"><div style="font-size:48px">🏆</div><h1 style="color:#ffd85a;margin:8px 0">BRAVO !</h1><p style="font-size:19px;line-height:1.5"><b>${safeFriend}</b> a installé Couteau Suisse et a validé votre parrainage.</p><div style="margin:22px auto;padding:18px;border-radius:18px;background:#0b7a42;font-size:22px;font-weight:900">+${REFERRAL_SPONSOR_POINTS} POINTS POUR VOUS</div><p style="font-size:16px;line-height:1.5">${pointsText}</p><p style="font-size:14px;color:#b8c7d9">Continuez à partager l’application depuis Réglages → Partager à un ami.</p></div></div>`;
   return brevoSendHtml(env,email,subject,text,html);
 }
 async function referralCreate(request,env){
@@ -3451,24 +3454,18 @@ async function applyReferralRewards(env,row){
       await env.DB.prepare("UPDATE contest_referrals SET sponsor_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();
       sponsorRewarded=true;
     }else if(await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE subscription_id=? AND banned=0 AND COALESCE(contest_excluded,0)=0 LIMIT 1").bind(row.sponsor_subscription_id).first()){
-      const gain=await contestAddScoreWithActiveBonus(env,row.sponsor_subscription_id,"referral-sponsor",row.id,"Parrainage validé",profile.sponsorPoints);
+      const added=await contestAddScoreEvent(env,row.sponsor_subscription_id,"referral-sponsor",row.id,"Parrainage validé",profile.sponsorPoints,1,profile.sponsorPoints);
       await env.DB.prepare("UPDATE contest_referrals SET sponsor_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();
       sponsorRewarded=true;
-      await contestPushMessage(env,row.sponsor_subscription_id,`🎁 Parrainage validé : +${contestNumberText(gain.awardedPoints)} points${gain.multiplier>1?` (bonus ×${gain.multiplier})`:''}.`,"referral");
+      if(added)await contestPushMessage(env,row.sponsor_subscription_id,`🎁 Parrainage validé : +${contestNumberText(profile.sponsorPoints)} points.`,"referral");
     }
   }
 
   if(!refereeRewarded&&await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE subscription_id=? AND banned=0 AND COALESCE(contest_excluded,0)=0 LIMIT 1").bind(row.referee_subscription_id).first()){
-    let gain;
-    if(profile.adminSponsor){
-      const added=await contestAddScoreEvent(env,row.referee_subscription_id,"referral-friend",row.id,"Bienvenue par partage administrateur",profile.friendPoints,1,profile.friendPoints);
-      gain={added,multiplier:1,awardedPoints:profile.friendPoints};
-    }else{
-      gain=await contestAddScoreWithActiveBonus(env,row.referee_subscription_id,"referral-friend",row.id,"Bienvenue par parrainage",profile.friendPoints);
-    }
+    const added=await contestAddScoreEvent(env,row.referee_subscription_id,"referral-friend",row.id,profile.adminSponsor?"Bienvenue par partage administrateur":"Bienvenue par parrainage",profile.friendPoints,1,profile.friendPoints);
     await env.DB.prepare("UPDATE contest_referrals SET referee_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();
     refereeRewarded=true;
-    await contestPushMessage(env,row.referee_subscription_id,`🎁 Bienvenue ! Parrainage validé : +${contestNumberText(gain.awardedPoints)} points${gain.multiplier>1?` (bonus ×${gain.multiplier})`:''}.`,"referral");
+    if(added)await contestPushMessage(env,row.referee_subscription_id,`🎁 Bienvenue ! Parrainage validé : +${contestNumberText(profile.friendPoints)} points.`,"referral");
   }
   return {sponsorRewarded,refereeRewarded,sponsorPoints:profile.sponsorPoints,friendPoints:profile.friendPoints,adminSponsor:profile.adminSponsor};
 }
