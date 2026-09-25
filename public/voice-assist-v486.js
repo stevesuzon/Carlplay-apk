@@ -233,7 +233,6 @@
     }catch(_){}
   }
   function wakeSpeechV423(){
-    if(currentUtteranceV396)return;
     if(voiceAwakeV423||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
     try{
       window.speechSynthesis.resume();
@@ -249,18 +248,10 @@
     }catch(_){voiceAwakeV423=false}
   }
   function resetSpeechV423(){
-    // V489 : ne plus annuler la voix sur pageshow / focus / retour dans la page.
-    // Sur iPhone, ces événements peuvent arriver juste après un appui et coupaient
-    // l'utterance en cours, ce qui provoquait "La voix n'a pas démarré".
     voiceAwakeV423=false;
     preferredVoice=null;
-    try{if(window.speechSynthesis)window.speechSynthesis.resume()}catch(_){}
+    try{if(window.speechSynthesis){window.speechSynthesis.cancel();window.speechSynthesis.resume()}}catch(_){}
     loadPreferredVoice();
-    syncSetting();
-  }
-  function softResumeSpeechV489(){
-    try{if(window.speechSynthesis)window.speechSynthesis.resume()}catch(_){}
-    if(!preferredVoice)loadPreferredVoice();
     syncSetting();
   }
   function speak(text){
@@ -381,10 +372,6 @@
     var target=eligibleTarget(e);if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
     active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchActionDoneV456=false;
-    // V488 : après un changement de page, iOS peut rendormir le moteur vocal.
-    // Si le son a déjà été activé dans cette session, on le réveille silencieusement
-    // dès le début du nouvel appui long, sans réafficher le carré ACTIVER LE SON.
-    if(voiceUnlockedV456())wakeSpeechV423();
     touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV400(target);
     timer=setTimeout(function(){
       if(!active)return;
@@ -465,7 +452,7 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSetting);else initSetting();
   window.addEventListener('storage',syncSetting);if(window.speechSynthesis)window.speechSynthesis.addEventListener&&window.speechSynthesis.addEventListener('voiceschanged',loadPreferredVoice);
   window.addEventListener('pageshow',function(){resetSpeechV423()});
-  document.addEventListener('visibilitychange',function(){if(!document.hidden)softResumeSpeechV489()});
-  window.addEventListener('focus',function(){if(enabled())softResumeSpeechV489()});
-  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS,version:'V489'};
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)resetSpeechV423()});
+  window.addEventListener('focus',function(){if(enabled())resetSpeechV423()});
+  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS,version:'V487'};
 })();
