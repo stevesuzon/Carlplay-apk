@@ -1,4 +1,4 @@
 {
-  "version": "V487",
-  "message": "Lecture vocale : le carré ACTIVER LE SON ne s’affiche qu’une seule fois par session. Ensuite la navigation reste vocale sans refaire l’activation. Les fiches annoncent maintenant d’abord Aujourd’hui / le jour choisi, puis le marché."
+  "version": "V488",
+  "message": "Correction voix iPhone : après un changement de page, le premier nouvel appui long réveille silencieusement le moteur vocal. Le carré ACTIVER LE SON reste limité à une seule fois par session."
 }
