@@ -1,5 +1,5 @@
-const VERSION = "V492-HTMLAUDIO-MEDIA";
-const BASE_CACHE = "couteau-suisse-runtime-code-v492";
+const VERSION = "V493-SILENT-MEDIA";
+const BASE_CACHE = "couteau-suisse-runtime-code-v493";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v439-market-list";
