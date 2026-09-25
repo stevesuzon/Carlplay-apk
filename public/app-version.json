@@ -1,4 +1,4 @@
 {
-  "version": "V477",
-  "message": "Moteur vocal nettoyé : un seul script de voix est chargé. Les anciennes versions vocales et leur cache sont neutralisés. Appui long 1,20 s = lecture uniquement, sans ouvrir le bouton ni la page. « Toucher pour écouter » apparaît une seule fois après ouverture de l’application."
+  "version": "V478",
+  "message": "Voix globale sur toute l’application : accueil, retour, départements et provinces, catégories, réglages, stations, marchés à 150 km et fiches marchés. Appui long 1,20 s = lecture seulement, sans ouvrir la page. Les anciens moteurs vocaux sont neutralisés."
 }
