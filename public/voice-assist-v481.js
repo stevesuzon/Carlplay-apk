@@ -118,8 +118,8 @@ function isOiseMarketV482(card){
   }catch(_){}
   return false;
 }
-function oiseCommentV482(){
-  return pick([
+function oiseCommentV482(card){
+  var options=[
     "Attention, vous êtes sur un marché à Jonathan, le vaqueso du 60. S'il est déjà passé, il a peut-être pris tous les clients.",
     "Jonathan, le vaqueso du 60, connaît peut-être déjà celui-là. S'il est passé avant vous, il va falloir trouver les clients qui restent.",
     "Attention, Jonathan pourrait être sur ce marché. Le vaqueso du 60 aime bien arriver avant tout le monde et prendre les clients.",
@@ -129,11 +129,14 @@ function oiseCommentV482(){
     "Attention, ce marché pourrait avoir Jonathan et Isaac, les deux vaqueso du 60. S'ils sont passés avant vous, bon courage pour récupérer les clients.",
     "Jonathan et Isaac sur le même marché, les deux vaqueso du 60. Là, il vaut mieux arriver avant eux si vous voulez les clients.",
     "Attention, ce marché pourrait être dans le secteur de Jonathan et Isaac, les deux vaqueso du 60. S'ils ont déjà travaillé dessus, il va falloir chercher les clients qui restent."
-  ]);
+  ];
+  var blob=clean(((card&&card.dataset&&card.dataset.voiceCity)||'')+' '+((card&&card.dataset&&card.dataset.voiceName)||'')).toLowerCase();
+  if(blob.indexOf('senlis')>=0)options.push("Attention, vous êtes dans le quartier à Isaac. C'est un garçon qui n'est pas du genre à donner un bâton pour se faire battre. Mais si vous voulez y aller, alors");
+  return pick(options);
 }
 function marketJoke(card){
   if(card&&card.dataset&&card.dataset.nearHlmV473==='1')return "Ah celui-là, c'est un bon marché à matelas !";
-  if(isOiseMarketV482(card))return oiseCommentV482();
+  if(isOiseMarketV482(card))return oiseCommentV482(card);
   var near=nearbyComment(card);if(near)return near;
   var common=[
     "Celui-là, je le sens bien.",
