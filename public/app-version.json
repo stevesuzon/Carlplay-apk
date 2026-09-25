@@ -1,4 +1,4 @@
 {
-  "version": "V501",
-  "message": "Correction iPhone : le premier appui long de 1,20 s active le son de la page. Les images et cartes ne doivent plus se détacher ni afficher l’aperçu natif pendant l’appui long, et les appuis longs ne doivent pas ouvrir la page."
+  "version": "V502",
+  "message": "Correction iPhone : les images ne reçoivent plus les appuis tactiles directement. L’appui est transmis au bouton ou à la fiche, afin d’empêcher l’image de se détacher pendant l’appui long vocal."
 }
