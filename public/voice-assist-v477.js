@@ -1,1 +1,1 @@
-(function(){if(window.__carplayVoiceV486Loaded)return;var s=document.createElement('script');s.src='/voice-assist-v495.js?v=495-simple-iphone';s.defer=true;(document.head||document.documentElement).appendChild(s)})();
+(function(){if(window.__carplayVoiceV486Loaded)return;var s=document.createElement('script');s.src='/voice-assist-v496.js?v=496-page-first-tap';s.defer=true;(document.head||document.documentElement).appendChild(s)})();
