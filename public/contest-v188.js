@@ -1,5 +1,7 @@
 (function(){
 'use strict';
+if(window.__carplayContestV472Loaded)return;
+window.__carplayContestV472Loaded=true;
 var KEY='carplay_shared_subscription';
 function deviceId(){var v=localStorage.getItem('carplay_device_id');if(!v){v=crypto.randomUUID?crypto.randomUUID():'dev-'+Date.now()+'-'+Math.random().toString(36).slice(2);localStorage.setItem('carplay_device_id',v)}return v}
 function subCode(){try{var s=JSON.parse(localStorage.getItem(KEY)||'null');return s&&s.code||''}catch(_){return ''}}
