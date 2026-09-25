@@ -1,5 +1,5 @@
-const VERSION = "V479-MARKET-VOICE-ACTIONS";
-const BASE_CACHE = "couteau-suisse-runtime-code-v479";
+const VERSION = "V480-LONGPRESS-CONFIRM-GUARD";
+const BASE_CACHE = "couteau-suisse-runtime-code-v480";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v439-market-list";

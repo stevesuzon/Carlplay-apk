@@ -1,4 +1,4 @@
 {
-  "version": "V479",
-  "message": "Voix corrigée sur les fiches marchés, brocantes, foires, Noël et voyageurs. Appui long sur la fiche lit la fiche. Appui long sur Aller au marché, Vérifier/Voir la fiche ou Inscription lit le bouton sans ouvrir. Le GPS ne part plus au touchstart."
+  "version": "V480",
+  "message": "Appui court sur « Aller au marché » : confirmation normale avec le nom du marché et la concurrence du même métier quand elle existe. Appui long 1,20 s : lecture vocale uniquement, sans confirmation, sans GPS et sans ouverture."
 }

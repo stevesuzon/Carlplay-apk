@@ -438,6 +438,7 @@
     });
   }
   function goDirect(index) {
+    if(window.__carplayVoiceSuppressUntil&&Date.now()<window.__carplayVoiceSuppressUntil)return false;
     var r = marketRows()[index],
       trade = currentTrade(),
       date;
@@ -465,6 +466,7 @@
       gps(r);
     }
     function ask(count) {
+      if(window.__carplayVoiceSuppressUntil&&Date.now()<window.__carplayVoiceSuppressUntil)return;
       var city = String(r[3] || r[2] || "ce marché"),
         warning = Number(count) > 0
           ? '<p style="color:#ffd36d;font-weight:950">⚠️ Il y a déjà <b>' + Number(count) + '</b> marchand' + (Number(count)>1?'s':'') + ' de <b>' + esc(trade) + '</b> inscrit' + (Number(count)>1?'s':'') + ' pour ce marché.</p>'
