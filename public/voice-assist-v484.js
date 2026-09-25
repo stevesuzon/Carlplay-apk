@@ -201,12 +201,16 @@ function visibleControlText(el){
     var o=el.options&&el.selectedIndex>=0?el.options[el.selectedIndex]:null;
     return stripIcons(o&&o.textContent||'');
   }
+  var type=String(el.type||'').toLowerCase();
+  if(type==='checkbox'||type==='radio'){
+    var label=el.closest&&el.closest('label');
+    if(!label&&el.id){
+      try{label=document.querySelector('label[for="'+String(el.id).replace(/"/g,'\\\"')+'"]')}catch(_){}
+    }
+    return stripIcons(label&&(label.innerText||label.textContent)||'');
+  }
   var text=stripIcons(el.innerText||el.textContent||'');
   if(!text&&el.value)text=stripIcons(el.value);
-  if(!text&&el.id){
-    var label=document.querySelector('label[for="'+CSS.escape(el.id)+'"]');
-    if(label)text=stripIcons(label.innerText||label.textContent||'');
-  }
   return text;
 }
 
