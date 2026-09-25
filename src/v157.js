@@ -278,27 +278,35 @@ function fastAsset(response,url){
 }
 
 
+async function fetchOverpassV473(endpoint,q){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),3500);
+  try{
+    const r=await fetch(endpoint,{
+      method:"POST",
+      headers:{"content-type":"application/x-www-form-urlencoded;charset=UTF-8"},
+      body:"data="+encodeURIComponent(q),
+      signal:controller.signal
+    });
+    if(!r.ok)return null;
+    const d=await r.json();
+    return !!(d&&Array.isArray(d.elements)&&d.elements.length);
+  }catch(_){return null}
+  finally{clearTimeout(timer)}
+}
 async function nearHlmV473(url){
   const lat=Number(url.searchParams.get("lat")),lon=Number(url.searchParams.get("lon"));
   if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)
     return json({ok:false,near:false,error:"COORDONNEES_INVALIDES"},400);
-  const q='[out:json][timeout:8];('+
+  const q='[out:json][timeout:3];('+
     'nwr(around:300,'+lat+','+lon+')["name"~"HLM|logement social|habitat social|cité HLM|résidence HLM|office public de l.habitat|OPH",i];'+
     'nwr(around:300,'+lat+','+lon+')["description"~"HLM|logement social|habitat social|bailleur social",i];'+
     'nwr(around:300,'+lat+','+lon+')["operator"~"HLM|logement social|bailleur social|office public de l.habitat|OPH",i];'+
     ');out ids 1;';
   const endpoints=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
   for(const endpoint of endpoints){
-    try{
-      const r=await fetch(endpoint,{
-        method:"POST",
-        headers:{"content-type":"application/x-www-form-urlencoded;charset=UTF-8"},
-        body:"data="+encodeURIComponent(q)
-      });
-      if(!r.ok)continue;
-      const d=await r.json();
-      return json({ok:true,near:!!(d&&Array.isArray(d.elements)&&d.elements.length),radiusM:300,source:"OpenStreetMap"});
-    }catch(_){}
+    const near=await fetchOverpassV473(endpoint,q);
+    if(near!==null)return json({ok:true,near,radiusM:300,source:"OpenStreetMap"});
   }
   return json({ok:true,near:false,radiusM:300,source:"indisponible"});
 }
