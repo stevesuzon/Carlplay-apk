@@ -300,10 +300,16 @@
     if(e&&e.pointerType==='touch')return;
     var card=eligibleTarget(e);if(!card)return;
     active=card;fired=false;startX=Number(e.clientX||0);startY=Number(e.clientY||0);clearTimeout(timer);
-    timer=setTimeout(function(){if(active)fireLongPress(active)},PRESS_MS);
+    timer=setTimeout(function(){
+      if(!active)return;
+      fireLongPress(active);
+      var text=clean(buildSpeech(active));
+      if(voiceUnlockedV456())speakImmediateV400(text);else showTapFallbackV400(text);
+      touchActionDoneV456=true;
+    },PRESS_MS);
   }
   function move(e){if(!active)return;var dx=Math.abs(Number(e.clientX||0)-startX),dy=Math.abs(Number(e.clientY||0)-startY);if(dx>18||dy>18)cancel()}
-  function end(){var target=active,shouldSpeak=!!(target&&fired);clearTimeout(timer);timer=0;active=null;if(shouldSpeak)resumeTouchSpeechV400(target);setTimeout(function(){fired=false},80)}
+  function end(){clearTimeout(timer);timer=0;active=null;setTimeout(function(){fired=false;touchActionDoneV456=false},80)}
   function showTapFallbackV400(text){
     text=spokenText(text);if(!text)return false;
     if(voiceUnlockedV456()){
@@ -345,27 +351,20 @@
     if(!voiceUnlockedV456()){showTapFallbackV400(text);return false}
     if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){toast('🔇 Lecture vocale indisponible sur cet appareil.');return false}
     try{
+      // V490 : retour au moteur simple qui fonctionnait sur iPhone.
+      // Pas de wake silencieux, pas de resume forcé, pas de voix imposée.
+      // La lecture est lancée pendant que le doigt est encore posé.
       window.speechSynthesis.cancel();
-      window.speechSynthesis.resume();
-      loadPreferredVoice();
       var u=new SpeechSynthesisUtterance(text);
       currentUtteranceV396=u;
-      u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;
-      if(preferredVoice)u.voice=preferredVoice;
-      var started=false,finished=false;
-      u.onstart=function(){started=true;voiceAwakeV423=true;toast('🔊 '+text)};
-      u.onend=function(){finished=true;currentUtteranceV396=null};
-      u.onerror=function(){if(currentUtteranceV396!==u)return;finished=true;currentUtteranceV396=null;toast('🔇 La voix n’a pas démarré. Refaites un appui long.')};
+      u.lang='fr-FR';u.rate=.90;u.pitch=1;u.volume=1;
+      u.onstart=function(){voiceAwakeV423=true};
+      u.onend=function(){if(currentUtteranceV396===u)currentUtteranceV396=null};
+      u.onerror=function(){if(currentUtteranceV396===u)currentUtteranceV396=null};
       window.speechSynthesis.speak(u);
-      setTimeout(function(){
-        if(!started&&!finished&&currentUtteranceV396===u){
-          currentUtteranceV396=null;
-          try{window.speechSynthesis.cancel()}catch(_){}
-          toast('🔇 La voix n’a pas démarré. Refaites un appui long.');
-        }
-      },2500);
+      toast('🔊 '+text);
       return true;
-    }catch(_){toast('🔇 La voix n’a pas démarré. Refaites un appui long.');return false}
+    }catch(_){return false}
   }
   function prepareTouchSpeechV400(target){queuedTouchTextV400=target?clean(buildSpeech(target)):''}
   function cancelTouchSpeechV400(){queuedTouchTextV400=''}
@@ -381,17 +380,21 @@
     var target=eligibleTarget(e);if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
     active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchActionDoneV456=false;
-    // V488 : après un changement de page, iOS peut rendormir le moteur vocal.
-    // Si le son a déjà été activé dans cette session, on le réveille silencieusement
-    // dès le début du nouvel appui long, sans réafficher le carré ACTIVER LE SON.
-    if(voiceUnlockedV456())wakeSpeechV423();
     touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV400(target);
     timer=setTimeout(function(){
       if(!active)return;
       touchReadyV395=true;fired=true;
       suppressClickTarget=active;suppressClickUntil=Date.now()+2200;
       try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
-      // Attendre touchend : il fournit un geste actif au moteur vocal iOS.
+      // V490 : comme l'ancien test iPhone qui fonctionnait, on parle ici,
+      // pendant que le doigt est encore posé, au lieu d'attendre touchend.
+      if(!touchActionDoneV456){
+        touchActionDoneV456=true;
+        var text=queuedTouchTextV400||clean(buildSpeech(active));
+        queuedTouchTextV400='';
+        if(voiceUnlockedV456())speakImmediateV400(text);
+        else showTapFallbackV400(text);
+      }
     },PRESS_MS);
   }
   function touchMoveV394(e){
@@ -417,7 +420,7 @@
     if(isLong){
       fired=true;suppressClickTarget=target;suppressClickUntil=Date.now()+2200;
       blockLongPressReleaseV397(e);
-      if(!touchActionDoneV456){touchActionDoneV456=true;resumeTouchSpeechV400(target)}
+      // V490 : la lecture a déjà été lancée au bout de 1,20 s pendant l'appui.
     }else cancelTouchSpeechV400();
     touchTargetV398=null;touchReadyV395=false;touchActionDoneV456=false;touchStartedAtV395=0;
     setTimeout(function(){fired=false},160);
@@ -467,5 +470,5 @@
   window.addEventListener('pageshow',function(){resetSpeechV423()});
   document.addEventListener('visibilitychange',function(){if(!document.hidden)softResumeSpeechV489()});
   window.addEventListener('focus',function(){if(enabled())softResumeSpeechV489()});
-  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS,version:'V489'};
+  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS,version:'V490'};
 })();
