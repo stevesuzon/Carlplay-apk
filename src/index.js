@@ -4336,7 +4336,7 @@ async function mushroomPhoto(url,env){
 
 class InjectAppFiles {
   element(element) {
-    element.append(`<script>(function(){window.__phoneHomeV434=1;function cleanOldHome(){["autoradioHomeV381Web","autoradioHomeV382Web","autoradioHomeV383Web","autoradioHomeV385Web","autoradioDisplaySettingV381","autoradioDisplaySettingV382","autoradioDisplaySettingV383","autoradioDisplaySettingV385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});["autoradioHomeStyleV381","autoradioHomeStyleV382","autoradioHomeStyleV383","autoradioHomeStyleV385","autoradio-boot-hide-v381","autoradio-boot-hide-v382","autoradio-boot-hide-v383","autoradio-boot-hide-v385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});var oldMail=document.getElementById("contactMailButton");if(oldMail){oldMail.id="contestHomeButton";oldMail.className=String(oldMail.className||"").replace(/\bmailTopButton\b/g,"homeTopButton");oldMail.removeAttribute("onclick");oldMail.textContent="🏆 CONCOURS"}var oldOverlay=document.getElementById("contactMailOverlay");if(oldOverlay)oldOverlay.remove();document.documentElement.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385");if(document.body)document.body.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385")}cleanOldHome();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",cleanOldHome,{once:true});var mo=new MutationObserver(cleanOldHome);try{mo.observe(document.documentElement,{childList:true,subtree:true})}catch(_){}setTimeout(function(){try{mo.disconnect()}catch(_){}cleanOldHome()},5000)})();</script><script src="/accessibility-zoom-v466.js?v=469-all-pages"></script><script src="/phone-loading-v384.js?v=455-single-loader"></script><link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=426-current"></script><link rel="stylesheet" href="/mobile-overrides.css?v=432-home-clean"><link rel="stylesheet" href="/subscription-locks.css?v=426-current"><link rel="stylesheet" href="/home-work.css?v=432-home-clean"><script src="/weather-all-pages.js?v=426-current" defer></script><script src="/subscription-web.js?v=434-settings" defer></script><script src="/voice-assist-v388.js?v=467-voice-on-release" defer></script><script src="/market-update-notifications-v281.js?v=426-current" defer></script><script src="/notification-detail-v282.js?v=426-current" defer></script><script src="/home-work.js?v=432-home-clean" defer></script><script src="/market-presence-global.js?v=426-current" defer></script><script src="/market-auto-update-v319.js?v=426-current" defer></script><script src="/market-attendance-v317.js?v=426-current" defer></script><script src="/market-navigation-confirm-v189.js?v=426-current" defer></script><script src="/contest-v188.js?v=464-referral-celebration" defer></script><script src="/referral-v232.js?v=464-referral-celebration" defer></script><script src="/app-access-gate-v240.js?v=426-current" defer></script><script src="/sanction-guard-v161.js?v=426-current" defer></script>`, { html: true });
+    element.append(`<script>(function(){window.__phoneHomeV434=1;function cleanOldHome(){["autoradioHomeV381Web","autoradioHomeV382Web","autoradioHomeV383Web","autoradioHomeV385Web","autoradioDisplaySettingV381","autoradioDisplaySettingV382","autoradioDisplaySettingV383","autoradioDisplaySettingV385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});["autoradioHomeStyleV381","autoradioHomeStyleV382","autoradioHomeStyleV383","autoradioHomeStyleV385","autoradio-boot-hide-v381","autoradio-boot-hide-v382","autoradio-boot-hide-v383","autoradio-boot-hide-v385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});var oldMail=document.getElementById("contactMailButton");if(oldMail){oldMail.id="contestHomeButton";oldMail.className=String(oldMail.className||"").replace(/\bmailTopButton\b/g,"homeTopButton");oldMail.removeAttribute("onclick");oldMail.textContent="🏆 CONCOURS"}var oldOverlay=document.getElementById("contactMailOverlay");if(oldOverlay)oldOverlay.remove();document.documentElement.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385");if(document.body)document.body.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385")}cleanOldHome();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",cleanOldHome,{once:true});var mo=new MutationObserver(cleanOldHome);try{mo.observe(document.documentElement,{childList:true,subtree:true})}catch(_){}setTimeout(function(){try{mo.disconnect()}catch(_){}cleanOldHome()},5000)})();</script><script src="/accessibility-zoom-v466.js?v=469-all-pages"></script><script src="/phone-loading-v384.js?v=455-single-loader"></script><link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=426-current"></script><link rel="stylesheet" href="/mobile-overrides.css?v=432-home-clean"><link rel="stylesheet" href="/subscription-locks.css?v=426-current"><link rel="stylesheet" href="/home-work.css?v=432-home-clean"><script src="/weather-all-pages.js?v=426-current" defer></script><script src="/subscription-web.js?v=434-settings" defer></script><script src="/voice-assist-v388.js?v=473-natural-humour-hlm" defer></script><script src="/market-update-notifications-v281.js?v=426-current" defer></script><script src="/notification-detail-v282.js?v=426-current" defer></script><script src="/home-work.js?v=432-home-clean" defer></script><script src="/market-presence-global.js?v=426-current" defer></script><script src="/market-auto-update-v319.js?v=426-current" defer></script><script src="/market-attendance-v317.js?v=426-current" defer></script><script src="/market-navigation-confirm-v189.js?v=426-current" defer></script><script src="/contest-v188.js?v=464-referral-celebration" defer></script><script src="/referral-v232.js?v=464-referral-celebration" defer></script><script src="/app-access-gate-v240.js?v=426-current" defer></script><script src="/sanction-guard-v161.js?v=426-current" defer></script>`, { html: true });
   }
 }
 
@@ -4615,6 +4615,27 @@ async function submitFuelStationVerification(request, env) {
   }
 }
 
+
+async function nearHlmV473(url) {
+  const lat=Number(url.searchParams.get("lat")),lon=Number(url.searchParams.get("lon"));
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return json({ok:false,near:false,error:"COORDONNEES_INVALIDES"},400);
+  const q='[out:json][timeout:8];('+
+    'nwr(around:300,'+lat+','+lon+')["name"~"HLM|logement social|habitat social|cité HLM|résidence HLM|office public de l.habitat|OPH",i];'+
+    'nwr(around:300,'+lat+','+lon+')["description"~"HLM|logement social|habitat social|bailleur social",i];'+
+    'nwr(around:300,'+lat+','+lon+')["operator"~"HLM|logement social|bailleur social|office public de l.habitat|OPH",i];'+
+    ');out ids 1;';
+  const endpoints=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
+  for(const endpoint of endpoints){
+    try{
+      const r=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded;charset=UTF-8"},body:"data="+encodeURIComponent(q),cf:{cacheTtl:21600,cacheEverything:true}});
+      if(!r.ok)continue;
+      const d=await r.json();
+      return json({ok:true,near:!!(d&&Array.isArray(d.elements)&&d.elements.length),radiusM:300,source:"OpenStreetMap"});
+    }catch(_){}
+  }
+  return json({ok:true,near:false,radiusM:300,source:"indisponible"});
+}
+
 export default {
   async scheduled(controller, env, ctx) {
     // V343 : uniquement événements spéciaux. Les marchés hebdomadaires ne sont pas touchés.
@@ -4640,6 +4661,7 @@ export default {
     if (url.pathname === "/api/installations" && request.method === "POST") return installations(request, env);
     if (url.pathname === "/api/user-stats" && request.method === "GET") return publicUserStats(env);
     if (url.pathname === "/api/fuel-stations" && request.method === "GET") return fuelStationsNearby(request);
+    if (url.pathname === "/api/near-hlm" && request.method === "GET") return nearHlmV473(url);
     if (url.pathname === "/api/fuel-station-verifications/batch" && request.method === "POST") return fuelStationVerificationBatch(request, env);
     if (url.pathname === "/api/fuel-station-verifications" && request.method === "POST") return submitFuelStationVerification(request, env);
     if (url.pathname === "/api/app-identity/start" && request.method === "POST") return appIdentityStart(request, env);

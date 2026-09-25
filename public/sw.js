@@ -1,4 +1,4 @@
-const VERSION = "V472-CONTEST-VOICE-RECOVERY";
+const VERSION = "V473-NATURAL-HUMOUR-HLM";
 const BASE_CACHE = "couteau-suisse-runtime-code-v1";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";

@@ -63,6 +63,73 @@
     var start=firstStartTime(time);
     return start?('il faut être là à '+start):"heure d'arrivée inconnue";
   }
+
+  var hlmCacheV473={};
+  function marketJokeV473(card){
+    if(card&&card.dataset&&card.dataset.nearHlmV473==='1')return "Ah celui-là, c'est un bon marché à matelas !";
+    var lines=[
+      "Celui-là, je le sens bien.",
+      "Ce marché-là, je le sens pas du tout.",
+      "Celui-là, il est pas mal.",
+      "Celui-là, aujourd'hui, je le sens moyen.",
+      "Ah celui-là, ça peut être une bonne surprise.",
+      "Celui-là, il a l'air de valoir le détour.",
+      "Celui-là, c'est pas le marché du siècle.",
+      "Celui-là, aujourd'hui, il est bon à rien.",
+      "Sur celui-là, je connais des gars qui ont travaillé dessus.",
+      "Celui-là, je sais pas pourquoi, mais il me plaît bien.",
+      "Ce marché-là, je le sens pas, mais alors pas du tout.",
+      "Celui-là, il pourrait bien faire l'affaire."
+    ];
+    return lines[Math.floor(Math.random()*lines.length)]||"";
+  }
+  function cardCoordsV473(card){
+    if(!card)return null;
+    function num(v){v=String(v==null?'':v).replace(',','.').trim();var n=Number(v);return Number.isFinite(n)?n:null}
+    var ds=card.dataset||{};
+    var lat=num(ds.lat||ds.latitude||ds.voiceLat||ds.marketLat),lon=num(ds.lon||ds.lng||ds.long||ds.longitude||ds.voiceLon||ds.marketLon);
+    if(lat!==null&&lon!==null&&Math.abs(lat)<=90&&Math.abs(lon)<=180)return {lat:lat,lon:lon};
+    var nodes=[card].concat([].slice.call(card.querySelectorAll('a,button,[onclick],[href],[data-lat],[data-lon],[data-lng]')).slice(0,12));
+    for(var i=0;i<nodes.length;i++){
+      var e=nodes[i],d=e.dataset||{};
+      lat=num(d.lat||d.latitude);lon=num(d.lon||d.lng||d.long||d.longitude);
+      if(lat!==null&&lon!==null&&Math.abs(lat)<=90&&Math.abs(lon)<=180)return {lat:lat,lon:lon};
+      var raw='';
+      try{raw=[e.getAttribute('href')||'',e.getAttribute('onclick')||'',e.getAttribute('data-url')||''].join(' ');raw=decodeURIComponent(raw)}catch(_){}
+      var m=raw.match(/(-?\d{1,2}\.\d{4,})\s*[,; ]\s*(-?\d{1,3}\.\d{4,})/);
+      if(m){lat=Number(m[1]);lon=Number(m[2]);if(Math.abs(lat)<=90&&Math.abs(lon)<=180)return {lat:lat,lon:lon}}
+    }
+    return null;
+  }
+  function prefetchHlmV473(card){
+    if(!card||!card.dataset)return;
+    if(card.dataset.nearHlmV473==='1'||card.dataset.nearHlmV473==='0'||card.dataset.nearHlmV473==='pending')return;
+    var c=cardCoordsV473(card);if(!c)return;
+    var key=c.lat.toFixed(4)+','+c.lon.toFixed(4);
+    if(hlmCacheV473[key]!==undefined){card.dataset.nearHlmV473=hlmCacheV473[key]?'1':'0';return}
+    card.dataset.nearHlmV473='pending';
+    fetch('/api/near-hlm?lat='+encodeURIComponent(c.lat)+'&lon='+encodeURIComponent(c.lon),{cache:'force-cache'})
+      .then(function(r){return r.ok?r.json():{near:false}})
+      .then(function(d){var near=!!(d&&d.near);hlmCacheV473[key]=near;card.dataset.nearHlmV473=near?'1':'0'})
+      .catch(function(){card.dataset.nearHlmV473='0'});
+  }
+  function installHlmObserverV473(){
+    function watch(root){
+      var list=[];
+      if(root&&root.matches&&root.matches('[data-voice-card="market"],.market,.market-card,.marketCard,.result-card,.resultCard,.card'))list.push(root);
+      if(root&&root.querySelectorAll)list=list.concat([].slice.call(root.querySelectorAll('[data-voice-card="market"],.market,.market-card,.marketCard,.result-card,.resultCard,.card')));
+      list.forEach(function(card){
+        if(card.__hlmObservedV473)return;
+        card.__hlmObservedV473=1;
+        if('IntersectionObserver' in window){
+          var io=new IntersectionObserver(function(entries){entries.forEach(function(en){if(en.isIntersecting){prefetchHlmV473(card);try{io.disconnect()}catch(_){}}})},{rootMargin:'250px'});
+          try{io.observe(card)}catch(_){prefetchHlmV473(card)}
+        }else prefetchHlmV473(card);
+      });
+    }
+    watch(document);
+    try{new MutationObserver(function(ms){ms.forEach(function(m){[].forEach.call(m.addedNodes,function(n){if(n&&n.nodeType===1)watch(n)})})}).observe(document.documentElement,{childList:true,subtree:true})}catch(_){}
+  }
   function buildMarket(card){
     var city=clean(card.dataset.voiceCity||'');
     var name=clean(card.dataset.voiceName||'');
@@ -81,6 +148,7 @@
     if(city)parts.push('Le marché de '+city);
     else parts.push('Le marché');
     if(name&&clean(name).toLowerCase()!==clean(city).toLowerCase())parts.push(name);
+    parts.push(marketJokeV473(card));
     parts.push(marketCount(card));
     var time=marketTime(card);
     if(unknownTime(time))parts.push('horaire inconnu');
@@ -154,7 +222,11 @@
   function loadPreferredVoice(){
     try{
       var vv=window.speechSynthesis&&window.speechSynthesis.getVoices?window.speechSynthesis.getVoices():[];
-      preferredVoice=vv.find(function(v){return /^fr(?:-|_)/i.test(v.lang||'')})||vv.find(function(v){return /français|french/i.test(v.name||'')})||null;
+      preferredVoice=vv.find(function(v){return /^fr[-_]FR$/i.test(v.lang||'')&&/Thomas/i.test(v.name||'')})
+        ||vv.find(function(v){return /^fr[-_]FR$/i.test(v.lang||'')&&/Thierry|Nicolas|Alexandre|Male/i.test(v.name||'')})
+        ||vv.find(function(v){return /^fr[-_]FR$/i.test(v.lang||'')})
+        ||vv.find(function(v){return /^fr(?:-|_)/i.test(v.lang||'')})
+        ||vv.find(function(v){return /français|french/i.test(v.name||'')})||null;
     }catch(_){preferredVoice=null}
   }
   function primeVoiceV396(){
@@ -196,7 +268,7 @@
     try{
       window.speechSynthesis.cancel();window.speechSynthesis.resume();
       currentUtteranceV396=new SpeechSynthesisUtterance(text);
-      currentUtteranceV396.lang='fr-FR';currentUtteranceV396.rate=.92;currentUtteranceV396.pitch=1;currentUtteranceV396.volume=1;
+      currentUtteranceV396.lang='fr-FR';currentUtteranceV396.rate=1.12;currentUtteranceV396.pitch=1.15;currentUtteranceV396.volume=1;
       if(!preferredVoice)loadPreferredVoice();if(preferredVoice)currentUtteranceV396.voice=preferredVoice;
       currentUtteranceV396.onstart=function(){toast('🔊 '+text)};
       currentUtteranceV396.onend=function(){currentUtteranceV396=null};
@@ -247,7 +319,7 @@
         if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')throw 0;
         window.speechSynthesis.cancel();window.speechSynthesis.resume();loadPreferredVoice();
         var u=new SpeechSynthesisUtterance(text);
-        currentUtteranceV396=u;u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;
+        currentUtteranceV396=u;u.lang='fr-FR';u.rate=1.12;u.pitch=1.15;u.volume=1;
         if(preferredVoice)u.voice=preferredVoice;
         var started=false,finished=false;
         u.onstart=function(){started=true;voiceAwakeV423=true;toast('🔊 '+text);if(b&&b.parentNode)b.remove()};
@@ -272,7 +344,7 @@
       loadPreferredVoice();
       var u=new SpeechSynthesisUtterance(text);
       currentUtteranceV396=u;
-      u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;
+      u.lang='fr-FR';u.rate=1.12;u.pitch=1.15;u.volume=1;
       if(preferredVoice)u.voice=preferredVoice;
       var started=false,finished=false;
       u.onstart=function(){started=true;voiceAwakeV423=true;toast('🔊 '+text)};
@@ -301,6 +373,7 @@
     if(e.touches&&e.touches.length>1){multiTouchV466=true;cancel();cancelTouchSpeechV400();touchTargetV398=null;touchStartedAtV395=0;touchReadyV395=false;return}
     if(multiTouchV466||!e.target||!e.target.closest)return;
     var target=eligibleTarget(e);if(!target)return;
+    prefetchHlmV473(target);
     var t=e.touches&&e.touches[0];if(!t)return;
     active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchActionDoneV456=false;
     touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV400(target);
@@ -348,7 +421,7 @@
   function initSetting(){
     try{localStorage.setItem(KEY,'1')}catch(_){}
     try{document.cookie='carplay_voice_enabled=1; path=/; max-age=31536000; SameSite=Lax'}catch(_){}
-    loadPreferredVoice();syncSetting();
+    loadPreferredVoice();syncSetting();installHlmObserverV473();
   }
   installNoSelectV389();
   document.addEventListener('selectstart',function(e){if(e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);

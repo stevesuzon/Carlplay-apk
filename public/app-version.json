@@ -1,4 +1,4 @@
 {
-  "version": "V472",
-  "message": "Concours et parrainage rétablis. La voix redemande un geste si le son ne démarre pas. L'abonnement reste accessible dans les réglages."
+  "version": "V473",
+  "message": "Voix plus naturelle et expressive. Une remarque humoristique est lue juste après le nom du marché. Si une proximité HLM explicite est détectée dans les données cartographiques, la voix peut dire : « Ah celui-là, c'est un bon marché à matelas ! »."
 }
