@@ -1,4 +1,4 @@
 {
-  "version": "V490",
-  "message": "Voix iPhone : retour au comportement du test qui fonctionnait. La lecture démarre au bout de 1,20 s pendant que le doigt est encore posé, y compris après changement de page, sans redemander d’activer le son."
+  "version": "V491",
+  "message": "Voix iPhone : le canal audio est désormais réarmé à chaque nouvel appui long sur une page, puis la vraie lecture est lancée directement au relâchement du doigt. L’activation générale du son reste unique par session."
 }
