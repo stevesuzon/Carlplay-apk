@@ -71,9 +71,10 @@
  function openSpecial(url){ if(!url) return; try{ overlay.classList.add('show'); }catch(e){} setTimeout(function(){ location.assign(url); }, 40); }
  document.querySelectorAll('.specialBtn').forEach(function(btn){
    function handle(ev){ ev.preventDefault(); ev.stopPropagation(); openSpecial(btn.getAttribute('data-target')||btn.getAttribute('href')); return false; }
+   // Le clic natif est annulé par le navigateur lorsqu'un geste sert à faire défiler la page.
+   // Un écouteur touchend ouvrirait la catégorie même pendant le défilement.
    btn.addEventListener('click',handle);
-   btn.addEventListener('touchend',handle,{passive:false});
-   btn.addEventListener('keydown',function(ev){ if(ev.key==='Enter'||ev.key===' '){ handle(ev); } });
+   btn.addEventListener('keydown',function(ev){ if(ev.key===' '){ handle(ev); } });
  });
 })();
 </script>
