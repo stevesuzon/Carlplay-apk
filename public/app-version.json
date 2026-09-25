@@ -1,4 +1,4 @@
 {
-  "version": "V493",
-  "message": "Voix iPhone : suppression du bip. L’application ouvre maintenant un flux média réellement silencieux et le garde actif pendant toute la lecture vocale, pour éviter le retour au canal Sonnerie."
+  "version": "V494",
+  "message": "Mise à jour forcée hors cache : nouveau fichier vocal V494 et nouveau service worker. Cette version remplace explicitement la V492/V493 conservée par certains iPhone."
 }
