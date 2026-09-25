@@ -13,7 +13,7 @@
     (document.head||document.documentElement).appendChild(st);
   }
   function enabled(){return true}
-  function voiceUnlockedV456(){try{if(localStorage.getItem('carplay_voice_activated_v467')==='1')return true}catch(_){}try{return sessionStorage.getItem('carplay_voice_unlocked_v456')==='1'}catch(_){return false}}
+  function voiceUnlockedV456(){try{return sessionStorage.getItem('carplay_voice_unlocked_v456')==='1'}catch(_){return false}}
   function unlockVoiceV456(){
     voiceAwakeV423=true;
     try{sessionStorage.setItem('carplay_voice_unlocked_v456','1')}catch(_){}
@@ -22,7 +22,7 @@
     document.documentElement.classList.add('carplayVoiceEnabled');
   }
   function setEnabled(){
-    unlockVoiceV456();
+    try{localStorage.setItem(KEY,'1')}catch(_){}
     syncSetting();
     try{window.dispatchEvent(new CustomEvent('carplay-voice-change',{detail:{enabled:true}}))}catch(_){}
   }
@@ -192,7 +192,7 @@
   }
   function speak(text){
     text=spokenText(text);if(!text||!enabled())return false;
-    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){toast('🔇 Lecture vocale indisponible sur cet appareil.');return false}
+    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){showTapFallbackV400(text);return false}
     try{
       window.speechSynthesis.cancel();window.speechSynthesis.resume();
       currentUtteranceV396=new SpeechSynthesisUtterance(text);
@@ -249,12 +249,12 @@
         var u=new SpeechSynthesisUtterance(text);
         currentUtteranceV396=u;u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;
         if(preferredVoice)u.voice=preferredVoice;
-        u.onstart=function(){voiceAwakeV423=true;toast('🔊 '+text)};
-        u.onend=function(){currentUtteranceV396=null;if(b&&b.parentNode)b.remove()};
-        u.onerror=function(){currentUtteranceV396=null;busy=false;toast('🔇 Lecture vocale indisponible. Réessayez avec un appui long.')};
+        var started=false,finished=false;
+        u.onstart=function(){started=true;voiceAwakeV423=true;toast('🔊 '+text);if(b&&b.parentNode)b.remove()};
+        u.onend=function(){finished=true;if(currentUtteranceV396===u)currentUtteranceV396=null;if(started){if(b&&b.parentNode)b.remove()}else{busy=false;toast('🔇 Touchez pour réessayer.')}};
+        u.onerror=function(){if(currentUtteranceV396!==u)return;finished=true;currentUtteranceV396=null;busy=false;toast('🔇 La voix n’a pas démarré. Touchez pour réessayer.')};
         window.speechSynthesis.speak(u);
-        try{localStorage.setItem('carplay_voice_activated_v467','1')}catch(_){}
-        if(b&&b.parentNode)b.remove();
+        setTimeout(function(){if(!started&&!finished&&currentUtteranceV396===u){currentUtteranceV396=null;try{window.speechSynthesis.cancel()}catch(_){}busy=false;toast('🔇 Touchez pour réessayer.')}},3500);
       }catch(_){busy=false;toast('🔇 Lecture vocale indisponible.')}
     }
     b.addEventListener('click',play,true);
@@ -277,17 +277,17 @@
       var started=false,finished=false;
       u.onstart=function(){started=true;voiceAwakeV423=true;toast('🔊 '+text)};
       u.onend=function(){finished=true;currentUtteranceV396=null};
-      u.onerror=function(){finished=true;currentUtteranceV396=null;toast('🔇 Lecture vocale indisponible. Réessayez avec un appui long.')};
+      u.onerror=function(){if(currentUtteranceV396!==u)return;finished=true;currentUtteranceV396=null;showTapFallbackV400(text)};
       window.speechSynthesis.speak(u);
       setTimeout(function(){
         if(!started&&!finished&&currentUtteranceV396===u){
-          try{window.speechSynthesis.cancel()}catch(_){}
           currentUtteranceV396=null;
-          toast('🔇 La voix ne répond pas. Réessayez avec un appui long.');
+          try{window.speechSynthesis.cancel()}catch(_){}
+          showTapFallbackV400(text);
         }
       },2500);
       return true;
-    }catch(_){toast('🔇 Lecture vocale indisponible.');return false}
+    }catch(_){showTapFallbackV400(text);return false}
   }
   function prepareTouchSpeechV400(target){queuedTouchTextV400=target?clean(buildSpeech(target)):''}
   function cancelTouchSpeechV400(){queuedTouchTextV400=''}
