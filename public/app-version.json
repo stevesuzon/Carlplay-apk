@@ -1,4 +1,4 @@
 {
-  "version": "V489",
-  "message": "Correction iPhone : la voix n’est plus annulée par les événements focus, retour de page ou visibilité. Après avoir activé le son une fois, les appuis longs doivent continuer à parler après navigation sans réactivation."
+  "version": "V490",
+  "message": "Voix iPhone : retour au comportement du test qui fonctionnait. La lecture démarre au bout de 1,20 s pendant que le doigt est encore posé, y compris après changement de page, sans redemander d’activer le son."
 }
