@@ -1,1 +1,1 @@
-(function(){if(window.__couteauVoiceV484Loaded)return;var s=document.createElement('script');s.src='/voice-assist-v484.js?v=484-clean-global';s.defer=true;(document.head||document.documentElement).appendChild(s)})();
+(function(){if(window.__couteauVoiceV485Loaded)return;var s=document.createElement('script');s.src='/voice-assist-v485.js?v=485-ios-release';s.defer=true;(document.head||document.documentElement).appendChild(s)})();
