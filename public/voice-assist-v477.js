@@ -1,1 +1,1 @@
-(function(){if(window.__carplayVoiceV486Loaded)return;var s=document.createElement('script');s.src='/voice-assist-v486.js?v=487-session-once-day-first';s.defer=true;(document.head||document.documentElement).appendChild(s)})();
+(function(){if(window.__carplayVoiceV486Loaded)return;var s=document.createElement('script');s.src='/voice-assist-v486.js?v=489-no-focus-cancel';s.defer=true;(document.head||document.documentElement).appendChild(s)})();
