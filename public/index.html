@@ -1390,7 +1390,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(82,'Recherche de la nouvelle version…','Seuls les fichiers de l’application sont actualisés.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=503-old-working-activation',{updateViaCache:'none'})]}catch(_){regs=[]}}
+      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=504-v489-restored',{updateViaCache:'none'})]}catch(_){regs=[]}}
       for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){}
       var reg=regs[0];
       if(reg&&reg.waiting){
@@ -1628,7 +1628,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
     clearTimeout(window.__updateNotifTimer);window.__updateNotifTimer=setTimeout(function(){box.style.display='none'},7000);
   }
   box.onclick=function(){box.style.display='none';clearTimeout(window.__updateNotifTimer)};
-  fetch('/app-version.json?v=503&_='+Date.now(),{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){
+  fetch('/app-version.json?v=504&_='+Date.now(),{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){
     var v=String(j.version||'').trim();if(!v)return;var old=localStorage.getItem('carplay.lastSeenVersion');
     if(old!==v){
       show(v,j.message);
