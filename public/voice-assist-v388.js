@@ -5,7 +5,7 @@
   var KEY='carplay_voice_enabled_v387';
   var PROMPT_KEY_V474='carplay_voice_prompt_confirmed_v474';
   var PRESS_MS=1200;
-  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='',voiceAwakeV423=false,touchActionDoneV456=false,multiTouchV466=false;
+  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='',voiceAwakeV423=false,touchActionDoneV456=false,multiTouchV466=false,suppressAllClicksUntilV476=0,longPressTargetV476=null;
   function installNoSelectV389(){
     if(document.getElementById('carplayVoiceNoSelectV389'))return;
     var st=document.createElement('style');
@@ -266,11 +266,23 @@
     }catch(_){voiceAwakeV423=false}
   }
   function resetSpeechV423(){
+    if(currentUtteranceV396)return;
     voiceAwakeV423=false;
     preferredVoice=null;
-    try{if(window.speechSynthesis){window.speechSynthesis.cancel();window.speechSynthesis.resume()}}catch(_){}
+    try{if(window.speechSynthesis)window.speechSynthesis.resume()}catch(_){}
     loadPreferredVoice();
     syncSetting();
+  }
+  function armVoiceV476(){
+    if(!voiceUnlockedV456()||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
+    try{window.speechSynthesis.resume();loadPreferredVoice();wakeSpeechV423()}catch(_){}
+  }
+  function blockAfterLongPressV476(e,target){
+    suppressAllClicksUntilV476=Date.now()+1800;
+    longPressTargetV476=target||longPressTargetV476;
+    suppressClickTarget=target||suppressClickTarget;
+    suppressClickUntil=Date.now()+2200;
+    blockLongPressReleaseV397(e);
   }
   function speak(text){
     text=spokenText(text);if(!text||!enabled())return false;
@@ -307,11 +319,12 @@
   function begin(e){
     if(e&&e.pointerType==='touch')return;
     var card=eligibleTarget(e);if(!card)return;
+    armVoiceV476();
     active=card;fired=false;startX=Number(e.clientX||0);startY=Number(e.clientY||0);clearTimeout(timer);
     timer=setTimeout(function(){if(active)fireLongPress(active)},PRESS_MS);
   }
   function move(e){if(!active)return;var dx=Math.abs(Number(e.clientX||0)-startX),dy=Math.abs(Number(e.clientY||0)-startY);if(dx>18||dy>18)cancel()}
-  function end(){var target=active,shouldSpeak=!!(target&&fired);clearTimeout(timer);timer=0;active=null;if(shouldSpeak)resumeTouchSpeechV400(target);setTimeout(function(){fired=false},80)}
+  function end(e){var target=active,shouldSpeak=!!(target&&fired);clearTimeout(timer);timer=0;active=null;if(shouldSpeak){blockAfterLongPressV476(e,target);resumeTouchSpeechV400(target)}setTimeout(function(){fired=false},120)}
   function showTapFallbackV400(text){
     text=spokenText(text);if(!text)return false;
     if(promptConfirmedV474()){toast('🔇 La voix n’a pas démarré. Relâche puis refais un appui long.');return false;}
@@ -348,6 +361,7 @@
   }
   function speakImmediateV400(text){
     text=spokenText(text);if(!text)return false;
+    try{if(window.speechSynthesis)window.speechSynthesis.resume()}catch(_){};
     if(!voiceUnlockedV456()){showTapFallbackV400(text);return false}
     if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){toast('🔇 Lecture vocale indisponible sur cet appareil.');return false}
     try{
@@ -366,10 +380,17 @@
       setTimeout(function(){
         if(!started&&!finished&&currentUtteranceV396===u){
           currentUtteranceV396=null;
-          try{window.speechSynthesis.cancel()}catch(_){}
-          if(promptConfirmedV474())toast('🔇 Réessaie avec un appui long.');else showTapFallbackV400(text);
+          try{
+            window.speechSynthesis.cancel();window.speechSynthesis.resume();loadPreferredVoice();
+            var r=new SpeechSynthesisUtterance(text);currentUtteranceV396=r;
+            r.lang='fr-FR';r.rate=1.12;r.pitch=1.15;r.volume=1;if(preferredVoice)r.voice=preferredVoice;
+            r.onstart=function(){started=true;voiceAwakeV423=true;toast('🔊 '+text)};
+            r.onend=function(){finished=true;if(currentUtteranceV396===r)currentUtteranceV396=null};
+            r.onerror=function(){if(currentUtteranceV396===r)currentUtteranceV396=null;toast('🔇 Refais un appui long.')};
+            window.speechSynthesis.speak(r);
+          }catch(_){toast('🔇 Refais un appui long.')}
         }
-      },2500);
+      },1800);
       return true;
     }catch(_){if(promptConfirmedV474())toast('🔇 Réessaie avec un appui long.');else showTapFallbackV400(text);return false}
   }
@@ -385,6 +406,7 @@
     if(e.touches&&e.touches.length>1){multiTouchV466=true;cancel();cancelTouchSpeechV400();touchTargetV398=null;touchStartedAtV395=0;touchReadyV395=false;return}
     if(multiTouchV466||!e.target||!e.target.closest)return;
     var target=eligibleTarget(e);if(!target)return;
+    armVoiceV476();
     prefetchHlmV473(target);
     var t=e.touches&&e.touches[0];if(!t)return;
     active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchActionDoneV456=false;
@@ -392,7 +414,8 @@
     timer=setTimeout(function(){
       if(!active)return;
       touchReadyV395=true;fired=true;
-      suppressClickTarget=active;suppressClickUntil=Date.now()+2200;
+      longPressTargetV476=active;suppressAllClicksUntilV476=Date.now()+3000;
+      suppressClickTarget=active;suppressClickUntil=Date.now()+3000;
       try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
       // Attendre touchend : il fournit un geste actif au moteur vocal iOS.
     },PRESS_MS);
@@ -418,8 +441,8 @@
     var isLong=!!(target&&(touchReadyV395||held>=PRESS_MS));
     clearTimeout(timer);timer=0;active=null;
     if(isLong){
-      fired=true;suppressClickTarget=target;suppressClickUntil=Date.now()+2200;
-      blockLongPressReleaseV397(e);
+      fired=true;
+      blockAfterLongPressV476(e,target);
       if(!touchActionDoneV456){touchActionDoneV456=true;resumeTouchSpeechV400(target)}
     }else cancelTouchSpeechV400();
     touchTargetV398=null;touchReadyV395=false;touchActionDoneV456=false;touchStartedAtV395=0;
@@ -451,6 +474,10 @@
   },true);
   document.addEventListener('click',function(e){
     if(e.target&&e.target.closest&&e.target.closest('#voiceTapFallbackV400'))return;
+    if(suppressAllClicksUntilV476&&Date.now()<suppressAllClicksUntilV476){
+      e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+      return false;
+    }
     if(suppressClickUntil&&Date.now()<suppressClickUntil&&suppressClickTarget){
       var hit=(e.target===suppressClickTarget)||(suppressClickTarget.contains&&suppressClickTarget.contains(e.target))||(e.target&&e.target.contains&&e.target.contains(suppressClickTarget));
       if(hit){
@@ -459,6 +486,7 @@
       }
     }
   },true);
+  document.addEventListener('submit',function(e){if(suppressAllClicksUntilV476&&Date.now()<suppressAllClicksUntilV476){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation()}},true);
   document.addEventListener('touchstart',touchBeginV394,{capture:true,passive:true});
   document.addEventListener('touchmove',touchMoveV394,{capture:true,passive:true});
   document.addEventListener('touchend',touchEndV394,{capture:true,passive:false});

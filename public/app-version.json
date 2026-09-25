@@ -1,4 +1,4 @@
 {
-  "version": "V475",
-  "message": "Déploiement fiabilisé : la configuration Cloudflare utilise maintenant la même version que GitHub. Le bouton « Toucher pour écouter » reste limité à une seule confirmation par ouverture, puis l’appui long parle directement. Les remarques des 5 marchés les plus proches sont actives."
+  "version": "V476",
+  "message": "Voix corrigée sur les boutons. Un appui long de 1,20 seconde ou plus lit le bouton et bloque son action : aucune page ne doit s’ouvrir. Un appui court garde son fonctionnement normal. Le son n’est plus annulé quand l’application reprend le focus."
 }
