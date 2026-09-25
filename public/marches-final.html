@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta
       name="viewport"
-      content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes,viewport-fit=cover"
+      content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes"
     />
     <title>MARCHÉS DE FRANCE</title>
     <link
@@ -17,8 +17,11 @@
   user-select:none!important;
   -webkit-touch-callout:none!important;
 }
-[data-voice-card]{touch-action:pan-y!important}
+[data-voice-card]{touch-action:pan-y pinch-zoom!important}
 </style>
+<script defer src="/accessibility-zoom-v466.js?v=470-direct-load"></script>
+<link rel="stylesheet" href="/subscription-locks.css?v=471-restore">
+<script defer src="/subscription-web.js?v=471-restore"></script>
 </head>
   <body>
     <img class="bg" src="route66-bg.jpg" alt="" />
@@ -64,10 +67,9 @@
     <!-- V159 : seulement la liste des départements est chargée au départ.
          Les marchés du département + du jour choisi sont chargés ensuite. -->
     <script src="market-areas-fr-v159.js?v=159"></script>
-    <script src="market-final.js?v=402-voice-order"></script>
-    <script src="market-consensus.js?v=302-d1"></script>
+    <script src="market-final.js?v=480-longpress-guard"></script>
+    <script src="market-consensus.js?v=461-gps"></script>
     <script src="new-feature-bubbles.js?v=20260912-allmarkets-v149"></script>
-  <script src="voice-assist-v388.js?v=462-voix-globale-oise"></script>
-<script src="/accessibility-zoom-v459.js?v=459"></script>
+  <script src="voice-assist-v388.js?v=410"></script>
 </body>
 </html>

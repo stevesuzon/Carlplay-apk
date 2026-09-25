@@ -1406,7 +1406,12 @@ function parseJdmVideGreniers(html,area,pageUrl){
   }
   return out;
 }
-async function ensureJdmRefreshTable(env){await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_jdm_refresh_state(area TEXT PRIMARY KEY,city_cursor INTEGER NOT NULL DEFAULT 0,city_count INTEGER NOT NULL DEFAULT 0,next_check_at INTEGER NOT NULL DEFAULT 0,last_check_at INTEGER NOT NULL DEFAULT 0,last_found INTEGER NOT NULL DEFAULT 0,last_pages INTEGER NOT NULL DEFAULT 0,last_message TEXT NOT NULL DEFAULT '')`).run();try{await env.DB.prepare('CREATE INDEX IF NOT EXISTS market_jdm_due ON market_jdm_refresh_state(next_check_at)').run()}catch(_){} }
+async function ensureJdmRefreshTable(env){
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_jdm_refresh_state(area TEXT PRIMARY KEY,city_cursor INTEGER NOT NULL DEFAULT 0,city_count INTEGER NOT NULL DEFAULT 0,next_check_at INTEGER NOT NULL DEFAULT 0,last_check_at INTEGER NOT NULL DEFAULT 0,last_found INTEGER NOT NULL DEFAULT 0,last_pages INTEGER NOT NULL DEFAULT 0,last_message TEXT NOT NULL DEFAULT '',first_scan_done INTEGER NOT NULL DEFAULT 0)`).run();
+  try{await env.DB.prepare('ALTER TABLE market_jdm_refresh_state ADD COLUMN first_scan_done INTEGER NOT NULL DEFAULT 0').run()}catch(_){}
+  await env.DB.prepare('UPDATE market_jdm_refresh_state SET first_scan_done=1 WHERE first_scan_done=0 AND last_check_at>0 AND next_check_at-last_check_at>=?').bind(7*86400000).run();
+  try{await env.DB.prepare('CREATE INDEX IF NOT EXISTS market_jdm_due ON market_jdm_refresh_state(next_check_at)').run()}catch(_){}
+}
 async function seedJdmRefreshQueue(env){await ensureJdmRefreshTable(env);const now=Date.now(),jobs=[];for(const area of Object.keys(JDM_FR_SLUGS))jobs.push(env.DB.prepare('INSERT OR IGNORE INTO market_jdm_refresh_state(area,next_check_at) VALUES(?,?)').bind(area,now));for(let i=0;i<jobs.length;i+=40)await env.DB.batch(jobs.slice(i,i+40))}
 async function jdmFetch(url){try{const r=await fetch(url,{headers:{'user-agent':'Mozilla/5.0 (compatible; Couteau-Suisse/324; +https://carplay-telephone.appli-suzon.workers.dev/)','accept-language':'fr-FR,fr;q=0.9','accept':'text/html,application/xhtml+xml'},cf:{cacheTtl:3600}});if(!r.ok)return'';return await r.text()}catch(_){return''}}
 async function refreshJdmArea(env,state){
@@ -1422,7 +1427,7 @@ async function refreshJdmArea(env,state){
   let count=0;for(const e of events){if(await upsertAutoMarket(env,e))count++}
   const consumed=cityUrls.length?Math.min(batchSize,cityUrls.length):0,nextCursor=cityUrls.length?(start+consumed)%cityUrls.length:0,wrapped=!cityUrls.length||start+consumed>=cityUrls.length;
   const next=Date.now()+(wrapped?30*86400000:2*3600000),msg=`Jours-de-Marché: ${count} fiches · ${pages} pages · villes ${cityUrls.length}`;
-  await env.DB.prepare('UPDATE market_jdm_refresh_state SET city_cursor=?,city_count=?,next_check_at=?,last_check_at=?,last_found=?,last_pages=?,last_message=? WHERE area=?').bind(nextCursor,cityUrls.length,next,Date.now(),count,pages,msg,area).run();
+  await env.DB.prepare('UPDATE market_jdm_refresh_state SET city_cursor=?,city_count=?,next_check_at=?,last_check_at=?,last_found=?,last_pages=?,last_message=?,first_scan_done=CASE WHEN ?=1 THEN 1 ELSE first_scan_done END WHERE area=?').bind(nextCursor,cityUrls.length,next,Date.now(),count,pages,msg,wrapped?1:0,area).run();
   return{area,count,pages,pending:!wrapped,message:msg};
 }
 const marketMilestoneReady=new WeakSet();
@@ -1471,7 +1476,15 @@ async function runJdmIncremental(env){
   const results=[];
   // Deux lots par passage : assez rapide pour remplir la France, sans lancer tout le pays d'un coup.
   for(let i=0;i<2;i++){
-    const row=await env.DB.prepare('SELECT area,city_cursor,city_count,next_check_at FROM market_jdm_refresh_state WHERE next_check_at<=? ORDER BY next_check_at ASC,area ASC LIMIT 1').bind(Date.now()).first();
+    const idf=['75','77','78','91','92','93','94','95'];
+    const idfPending=await env.DB.prepare("SELECT 1 FROM market_jdm_refresh_state WHERE area IN ('75','77','78','91','92','93','94','95') AND first_scan_done=0 LIMIT 1").first();
+    const firstPassPending=!idfPending&&await env.DB.prepare('SELECT 1 FROM market_jdm_refresh_state WHERE first_scan_done=0 LIMIT 1').first();
+    const query=idfPending
+      ?"SELECT area,city_cursor,city_count,next_check_at FROM market_jdm_refresh_state WHERE area IN ('75','77','78','91','92','93','94','95') AND first_scan_done=0 AND next_check_at<=? ORDER BY area ASC LIMIT 1"
+      :firstPassPending
+        ?"SELECT area,city_cursor,city_count,next_check_at FROM market_jdm_refresh_state WHERE first_scan_done=0 AND next_check_at<=? ORDER BY area ASC LIMIT 1"
+        :"SELECT area,city_cursor,city_count,next_check_at FROM market_jdm_refresh_state WHERE next_check_at<=? ORDER BY next_check_at ASC,area ASC LIMIT 1";
+    const row=await env.DB.prepare(query).bind(Date.now()).first();
     if(!row)break;
     try{results.push(await refreshJdmArea(env,row))}
     catch(e){await env.DB.prepare('UPDATE market_jdm_refresh_state SET next_check_at=?,last_check_at=?,last_message=? WHERE area=?').bind(Date.now()+6*3600000,Date.now(),String(e&&e.message||e).slice(0,250),row.area).run()}
@@ -3316,10 +3329,13 @@ async function contestAddScoreWithActiveBonus(env,subscriptionId,sourceType,sour
   return {added,multiplier,awardedPoints};
 }
 
-const REFERRAL_SPONSOR_POINTS=320,REFERRAL_FRIEND_POINTS=96,ADMIN_REFERRAL_FRIEND_POINTS=250,REFERRAL_INVITE_MS=30*86400000,REFERRAL_EMAIL_MS=24*60*60000;
+const REFERRAL_SPONSOR_POINTS=280,REFERRAL_FRIEND_POINTS=190,ADMIN_REFERRAL_FRIEND_POINTS=150,REFERRAL_INVITE_MS=30*86400000,REFERRAL_EMAIL_MS=24*60*60000;
 async function referralRewardProfile(env,sponsorSubscriptionId){
   const sponsor=await env.DB.prepare("SELECT recovery_email_mask FROM subscriptions WHERE id=? LIMIT 1").bind(sponsorSubscriptionId).first();
-  const adminSponsor=normalizeEmail(sponsor&&sponsor.recovery_email_mask||"")===ONLY_ADMIN_EMAIL;
+  const participant=await env.DB.prepare("SELECT device_id,email_hash FROM contest_participants WHERE subscription_id=? LIMIT 1").bind(sponsorSubscriptionId).first();
+  const adminHash=await sha256Text(ONLY_ADMIN_EMAIL);
+  const trialAdminHash=participant&&participant.device_id?await sha256Text("contest-trial-email:"+participant.device_id+":"+ONLY_ADMIN_EMAIL):"";
+  const adminSponsor=normalizeEmail(sponsor&&sponsor.recovery_email_mask||"")===ONLY_ADMIN_EMAIL||!!participant&&(participant.email_hash===adminHash||!!trialAdminHash&&participant.email_hash===trialAdminHash);
   return {adminSponsor,sponsorPoints:adminSponsor?0:REFERRAL_SPONSOR_POINTS,friendPoints:adminSponsor?ADMIN_REFERRAL_FRIEND_POINTS:REFERRAL_FRIEND_POINTS};
 }
 function referralToken(){const b=new Uint8Array(24);crypto.getRandomValues(b);let x="";for(const n of b)x+=String.fromCharCode(n);return btoa(x).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")}
@@ -3341,9 +3357,9 @@ async function sendReferralEmail(env,email,confirmUrl,firstName,friendPoints=REF
 async function sendReferralSponsorEmail(env,email,friendName,rewarded){
   const safeFriend=String(friendName||"votre ami").replace(/[<>&"']/g,"");
   const subject="🎉 Bravo ! Votre ami a installé Couteau Suisse";
-  const pointsText=rewarded?"Vos 320 points ont été ajoutés au concours.":"Vos 320 points sont réservés et seront ajoutés dès votre inscription au concours.";
+  const pointsText=rewarded?"Vos ${REFERRAL_SPONSOR_POINTS} points ont été ajoutés au concours.":"Vos ${REFERRAL_SPONSOR_POINTS} points sont réservés et seront ajoutés dès votre inscription au concours.";
   const text=`Bravo ! ${safeFriend} a installé Couteau Suisse et a validé son parrainage. ${pointsText}`;
-  const html=`<div style="margin:0;background:#07182d;padding:24px;font-family:Arial,sans-serif;color:#fff"><div style="max-width:620px;margin:auto;background:linear-gradient(180deg,#0d2f5a,#06172d);border:3px solid #f7c94b;border-radius:24px;padding:28px;text-align:center"><div style="font-size:48px">🏆</div><h1 style="color:#ffd85a;margin:8px 0">BRAVO !</h1><p style="font-size:19px;line-height:1.5"><b>${safeFriend}</b> a installé Couteau Suisse et a validé votre parrainage.</p><div style="margin:22px auto;padding:18px;border-radius:18px;background:#0b7a42;font-size:22px;font-weight:900">+320 POINTS POUR VOUS</div><p style="font-size:16px;line-height:1.5">${pointsText}</p><p style="font-size:14px;color:#b8c7d9">Continuez à partager l’application depuis Réglages → Partager à un ami.</p></div></div>`;
+  const html=`<div style="margin:0;background:#07182d;padding:24px;font-family:Arial,sans-serif;color:#fff"><div style="max-width:620px;margin:auto;background:linear-gradient(180deg,#0d2f5a,#06172d);border:3px solid #f7c94b;border-radius:24px;padding:28px;text-align:center"><div style="font-size:48px">🏆</div><h1 style="color:#ffd85a;margin:8px 0">BRAVO !</h1><p style="font-size:19px;line-height:1.5"><b>${safeFriend}</b> a installé Couteau Suisse et a validé votre parrainage.</p><div style="margin:22px auto;padding:18px;border-radius:18px;background:#0b7a42;font-size:22px;font-weight:900">+${REFERRAL_SPONSOR_POINTS} POINTS POUR VOUS</div><p style="font-size:16px;line-height:1.5">${pointsText}</p><p style="font-size:14px;color:#b8c7d9">Continuez à partager l’application depuis Réglages → Partager à un ami.</p></div></div>`;
   return brevoSendHtml(env,email,subject,text,html);
 }
 async function referralCreate(request,env){
@@ -3438,26 +3454,34 @@ async function applyReferralRewards(env,row){
       await env.DB.prepare("UPDATE contest_referrals SET sponsor_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();
       sponsorRewarded=true;
     }else if(await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE subscription_id=? AND banned=0 AND COALESCE(contest_excluded,0)=0 LIMIT 1").bind(row.sponsor_subscription_id).first()){
-      const gain=await contestAddScoreWithActiveBonus(env,row.sponsor_subscription_id,"referral-sponsor",row.id,"Parrainage validé",profile.sponsorPoints);
+      const added=await contestAddScoreEvent(env,row.sponsor_subscription_id,"referral-sponsor",row.id,"Parrainage validé",profile.sponsorPoints,1,profile.sponsorPoints);
       await env.DB.prepare("UPDATE contest_referrals SET sponsor_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();
       sponsorRewarded=true;
-      await contestPushMessage(env,row.sponsor_subscription_id,`🎁 Parrainage validé : +${contestNumberText(gain.awardedPoints)} points${gain.multiplier>1?` (bonus ×${gain.multiplier})`:''}.`,"referral");
+      if(added)await contestPushMessage(env,row.sponsor_subscription_id,`🎁 Parrainage validé : +${contestNumberText(profile.sponsorPoints)} points.`,"referral");
     }
   }
 
   if(!refereeRewarded&&await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE subscription_id=? AND banned=0 AND COALESCE(contest_excluded,0)=0 LIMIT 1").bind(row.referee_subscription_id).first()){
-    let gain;
-    if(profile.adminSponsor){
-      const added=await contestAddScoreEvent(env,row.referee_subscription_id,"referral-friend",row.id,"Bienvenue par partage administrateur",profile.friendPoints,1,profile.friendPoints);
-      gain={added,multiplier:1,awardedPoints:profile.friendPoints};
-    }else{
-      gain=await contestAddScoreWithActiveBonus(env,row.referee_subscription_id,"referral-friend",row.id,"Bienvenue par parrainage",profile.friendPoints);
-    }
+    const added=await contestAddScoreEvent(env,row.referee_subscription_id,"referral-friend",row.id,profile.adminSponsor?"Bienvenue par partage administrateur":"Bienvenue par parrainage",profile.friendPoints,1,profile.friendPoints);
     await env.DB.prepare("UPDATE contest_referrals SET referee_rewarded=1,updated_at=? WHERE id=?").bind(Date.now(),row.id).run();
     refereeRewarded=true;
-    await contestPushMessage(env,row.referee_subscription_id,`🎁 Bienvenue ! Parrainage validé : +${contestNumberText(gain.awardedPoints)} points${gain.multiplier>1?` (bonus ×${gain.multiplier})`:''}.`,"referral");
+    if(added)await contestPushMessage(env,row.referee_subscription_id,`🎁 Bienvenue ! Parrainage validé : +${contestNumberText(profile.friendPoints)} points.`,"referral");
   }
   return {sponsorRewarded,refereeRewarded,sponsorPoints:profile.sponsorPoints,friendPoints:profile.friendPoints,adminSponsor:profile.adminSponsor};
+}
+async function referralCelebrationDetails(env,row,rewards){
+  const sponsor=await env.DB.prepare("SELECT account_first_name FROM subscriptions WHERE id=? LIMIT 1").bind(row.sponsor_subscription_id).first();
+  const friend=await env.DB.prepare("SELECT account_first_name FROM subscriptions WHERE id=? LIMIT 1").bind(row.referee_subscription_id).first();
+  const clean=name=>String(name||"").trim().slice(0,50);
+  return {referralId:row.id,sponsorName:clean(sponsor&&sponsor.account_first_name)||"Votre parrain",friendName:clean(friend&&friend.account_first_name)||"Votre ami",sponsorPoints:rewards.sponsorPoints,friendPoints:rewards.friendPoints,friendRewarded:rewards.refereeRewarded};
+}
+function referralCelebrationParams(details){
+  return "&referralId="+encodeURIComponent(details.referralId)+"&sponsorName="+encodeURIComponent(details.sponsorName)+"&friendName="+encodeURIComponent(details.friendName);
+}
+async function sendReferralCelebration(env,row,details){
+  const message=JSON.stringify(details);
+  await contestPushMessage(env,row.sponsor_subscription_id,message,"referral-celebration");
+  await contestPushMessage(env,row.referee_subscription_id,message,"referral-celebration");
 }
 async function applyPendingReferralRewards(env,subscriptionId){const rows=(await env.DB.prepare("SELECT * FROM contest_referrals WHERE status='verified' AND ((sponsor_subscription_id=? AND sponsor_rewarded=0) OR (referee_subscription_id=? AND referee_rewarded=0)) LIMIT 20").bind(subscriptionId,subscriptionId).all()).results||[];for(const r of rows)await applyReferralRewards(env,r)}
 async function referralConfirm(request,env){
@@ -3467,13 +3491,14 @@ async function referralConfirm(request,env){
   if(!id||!token)return go("invalid");
   const row=await env.DB.prepare("SELECT * FROM contest_referrals WHERE id=? LIMIT 1").bind(id).first();
   if(!row)return go("invalid");
-  if(row.status==="verified"){const rewards=await applyReferralRewards(env,row);return go("ok","friendPoints="+encodeURIComponent(rewards.friendPoints)+"&sponsorPoints="+encodeURIComponent(rewards.sponsorPoints)+"&friendRewarded="+(rewards.refereeRewarded?"1":"0")+"&sponsorRewarded="+(rewards.sponsorRewarded?"1":"0"));}
+  if(row.status==="verified"){const rewards=await applyReferralRewards(env,row),details=await referralCelebrationDetails(env,row,rewards);return go("ok","friendPoints="+encodeURIComponent(rewards.friendPoints)+"&sponsorPoints="+encodeURIComponent(rewards.sponsorPoints)+"&friendRewarded="+(rewards.refereeRewarded?"1":"0")+"&sponsorRewarded="+(rewards.sponsorRewarded?"1":"0")+referralCelebrationParams(details));}
   if(row.status!=="email_link_pending")return go("invalid");
   if(Number(row.sms_expires_at||0)<Date.now())return go("expired");
   const expected=String(row.sms_code_hash||""),actual=await referralMagicHash(id,token,env);if(!expected||actual!==expected)return go("invalid");
   const now=Date.now();
-  await env.DB.prepare("UPDATE contest_referrals SET status='verified',verified_at=?,sms_code_hash='',updated_at=? WHERE id=? AND status='email_link_pending'").bind(now,now,id).run();
-  const fresh=await env.DB.prepare("SELECT * FROM contest_referrals WHERE id=? LIMIT 1").bind(id).first(),rewards=await applyReferralRewards(env,fresh);
+  const confirmed=await env.DB.prepare("UPDATE contest_referrals SET status='verified',verified_at=?,sms_code_hash='',updated_at=? WHERE id=? AND status='email_link_pending'").bind(now,now,id).run();
+  const fresh=await env.DB.prepare("SELECT * FROM contest_referrals WHERE id=? LIMIT 1").bind(id).first(),rewards=await applyReferralRewards(env,fresh),details=await referralCelebrationDetails(env,fresh,rewards);
+  if(confirmed.meta&&Number(confirmed.meta.changes)>0)await sendReferralCelebration(env,fresh,details);
   try{
     const sponsor=await env.DB.prepare("SELECT recovery_email_mask,account_first_name FROM subscriptions WHERE id=? LIMIT 1").bind(fresh.sponsor_subscription_id).first();
     const friend=await env.DB.prepare("SELECT account_first_name,account_last_name FROM subscriptions WHERE id=? LIMIT 1").bind(fresh.referee_subscription_id).first();
@@ -3481,13 +3506,13 @@ async function referralConfirm(request,env){
     const friendName=[String(friend&&friend.account_first_name||"").trim(),String(friend&&friend.account_last_name||"").trim()].filter(Boolean).join(" ")||"Votre ami";
     if(rewards.sponsorPoints>0&&validEmail(sponsorEmail)){const sent=await sendReferralSponsorEmail(env,sponsorEmail,friendName,rewards.sponsorRewarded);if(sent){const day=parisDay();await env.DB.prepare("INSERT INTO brevo_daily_usage(day,sent_count) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET sent_count=sent_count+1").bind(day).run();}}
   }catch(_){}
-  return go("ok","friendPoints="+encodeURIComponent(rewards.friendPoints)+"&sponsorPoints="+encodeURIComponent(rewards.sponsorPoints)+"&friendRewarded="+(rewards.refereeRewarded?"1":"0")+"&sponsorRewarded="+(rewards.sponsorRewarded?"1":"0"));
+  return go("ok","friendPoints="+encodeURIComponent(rewards.friendPoints)+"&sponsorPoints="+encodeURIComponent(rewards.sponsorPoints)+"&friendRewarded="+(rewards.refereeRewarded?"1":"0")+"&sponsorRewarded="+(rewards.sponsorRewarded?"1":"0")+referralCelebrationParams(details));
 }
 async function referralVerify(request,env){
   await ensureContestTables(env);const d=await body(request),deviceId=String(d.deviceId||"").trim(),id=String(d.referralId||"").trim(),code=String(d.code||"").replace(/\D/g,"").slice(0,6);if(!validDevice(deviceId)||!id||code.length!==6)return json({ok:false,error:"CODE_EMAIL_INVALIDE"},400);
   const row=await env.DB.prepare("SELECT * FROM contest_referrals WHERE id=? AND referee_device_id=? LIMIT 1").bind(id,deviceId).first();if(!row)return json({ok:false,error:"PARRAINAGE_INTROUVABLE"},404);if(row.status==="verified"){const r=await applyReferralRewards(env,row);return json({ok:true,alreadyVerified:true,...r,sponsorPoints:r.sponsorPoints,friendPoints:r.friendPoints})}if(Number(row.sms_expires_at||0)<Date.now())return json({ok:false,error:"CODE_EMAIL_EXPIRE"},410);if(Number(row.sms_attempts||0)>=5)return json({ok:false,error:"CODE_EMAIL_TROP_ESSAIS"},429);
   const h=await emailCodeHash("referral:"+id,code,env);if(h!==String(row.sms_code_hash||"")){await env.DB.prepare("UPDATE contest_referrals SET sms_attempts=sms_attempts+1,updated_at=? WHERE id=?").bind(Date.now(),id).run();return json({ok:false,error:"CODE_EMAIL_INCORRECT"},400)}
-  await env.DB.prepare("UPDATE contest_referrals SET status='verified',verified_at=?,sms_code_hash='',updated_at=? WHERE id=?").bind(Date.now(),Date.now(),id).run();const fresh=await env.DB.prepare("SELECT * FROM contest_referrals WHERE id=?").bind(id).first(),r=await applyReferralRewards(env,fresh);return json({ok:true,...r,sponsorPoints:r.sponsorPoints,friendPoints:r.friendPoints});
+  await env.DB.prepare("UPDATE contest_referrals SET status='verified',verified_at=?,sms_code_hash='',updated_at=? WHERE id=?").bind(Date.now(),Date.now(),id).run();const fresh=await env.DB.prepare("SELECT * FROM contest_referrals WHERE id=?").bind(id).first(),r=await applyReferralRewards(env,fresh),details=await referralCelebrationDetails(env,fresh,r);await sendReferralCelebration(env,fresh,details);return json({ok:true,...r,...details});
 }
 async function contestScoreSummary(env,subscriptionId){
   const events=(await env.DB.prepare("SELECT source_type,base_points,multiplier,awarded_points FROM contest_score_events WHERE subscription_id=?").bind(subscriptionId).all()).results||[];
@@ -4309,9 +4334,22 @@ async function mushroomPhoto(url,env){
 }
 // ===== FIN V244 ACCÈS GLOBAL + CHAMPIGNONS =====
 
+class RemoveLegacyVoiceScripts {
+  element(element) {
+    const voiceSrc = element.getAttribute("src") || "";
+    if (/\/voice-assist-v(?:388|477|478|479|481)\.js(?:\?|$)/i.test(voiceSrc)) element.remove();
+  }
+}
+
 class InjectAppFiles {
   element(element) {
-    element.append(`<script>(function(){window.__phoneHomeV434=1;function cleanOldHome(){["autoradioHomeV381Web","autoradioHomeV382Web","autoradioHomeV383Web","autoradioHomeV385Web","autoradioDisplaySettingV381","autoradioDisplaySettingV382","autoradioDisplaySettingV383","autoradioDisplaySettingV385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});["autoradioHomeStyleV381","autoradioHomeStyleV382","autoradioHomeStyleV383","autoradioHomeStyleV385","autoradio-boot-hide-v381","autoradio-boot-hide-v382","autoradio-boot-hide-v383","autoradio-boot-hide-v385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});var oldMail=document.getElementById("contactMailButton");if(oldMail){oldMail.id="contestHomeButton";oldMail.className=String(oldMail.className||"").replace(/\bmailTopButton\b/g,"homeTopButton");oldMail.removeAttribute("onclick");oldMail.textContent="🏆 CONCOURS"}var oldOverlay=document.getElementById("contactMailOverlay");if(oldOverlay)oldOverlay.remove();document.documentElement.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385");if(document.body)document.body.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385")}cleanOldHome();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",cleanOldHome,{once:true});var mo=new MutationObserver(cleanOldHome);try{mo.observe(document.documentElement,{childList:true,subtree:true})}catch(_){}setTimeout(function(){try{mo.disconnect()}catch(_){}cleanOldHome()},5000)})();</script><script src="/phone-loading-v384.js?v=455-single-loader"></script><link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=426-current"></script><link rel="stylesheet" href="/mobile-overrides.css?v=432-home-clean"><link rel="stylesheet" href="/subscription-locks.css?v=426-current"><link rel="stylesheet" href="/home-work.css?v=432-home-clean"><script src="/weather-all-pages.js?v=426-current" defer></script><script src="/subscription-web.js?v=434-settings" defer></script><script src="/voice-assist-v388.js?v=456-center-unlock" defer></script><script src="/market-update-notifications-v281.js?v=426-current" defer></script><script src="/notification-detail-v282.js?v=426-current" defer></script><script src="/home-work.js?v=432-home-clean" defer></script><script src="/market-presence-global.js?v=426-current" defer></script><script src="/market-auto-update-v319.js?v=426-current" defer></script><script src="/market-attendance-v317.js?v=426-current" defer></script><script src="/market-navigation-confirm-v189.js?v=426-current" defer></script><script src="/contest-v188.js?v=434-legacy-purge" defer></script><script src="/referral-v232.js?v=426-current" defer></script><script src="/app-access-gate-v240.js?v=426-current" defer></script><script src="/sanction-guard-v161.js?v=426-current" defer></script>`, { html: true });
+    element.append(`<script>(function(){window.__phoneHomeV434=1;function cleanOldHome(){["autoradioHomeV381Web","autoradioHomeV382Web","autoradioHomeV383Web","autoradioHomeV385Web","autoradioDisplaySettingV381","autoradioDisplaySettingV382","autoradioDisplaySettingV383","autoradioDisplaySettingV385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});["autoradioHomeStyleV381","autoradioHomeStyleV382","autoradioHomeStyleV383","autoradioHomeStyleV385","autoradio-boot-hide-v381","autoradio-boot-hide-v382","autoradio-boot-hide-v383","autoradio-boot-hide-v385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});var oldMail=document.getElementById("contactMailButton");if(oldMail){oldMail.id="contestHomeButton";oldMail.className=String(oldMail.className||"").replace(/\bmailTopButton\b/g,"homeTopButton");oldMail.removeAttribute("onclick");oldMail.textContent="🏆 CONCOURS"}var oldOverlay=document.getElementById("contactMailOverlay");if(oldOverlay)oldOverlay.remove();document.documentElement.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385");if(document.body)document.body.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385")}cleanOldHome();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",cleanOldHome,{once:true});var mo=new MutationObserver(cleanOldHome);try{mo.observe(document.documentElement,{childList:true,subtree:true})}catch(_){}setTimeout(function(){try{mo.disconnect()}catch(_){}cleanOldHome()},5000)})();</script><script src="/accessibility-zoom-v466.js?v=469-all-pages"></script><script src="/phone-loading-v384.js?v=455-single-loader"></script><link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=426-current"></script><link rel="stylesheet" href="/mobile-overrides.css?v=432-home-clean"><link rel="stylesheet" href="/subscription-locks.css?v=426-current"><link rel="stylesheet" href="/home-work.css?v=432-home-clean"><script src="/weather-all-pages.js?v=426-current" defer></script><script src="/subscription-web.js?v=434-settings" defer></script><script src="/voice-assist-v481.js?v=481-more-market-lines" defer></script><script src="/market-update-notifications-v281.js?v=426-current" defer></script><script src="/notification-detail-v282.js?v=426-current" defer></script><script src="/home-work.js?v=432-home-clean" defer></script><script src="/market-presence-global.js?v=426-current" defer></script><script src="/market-auto-update-v319.js?v=426-current" defer></script><script src="/market-attendance-v317.js?v=426-current" defer></script><script src="/market-navigation-confirm-v189.js?v=480-longpress-guard" defer></script><script src="/contest-v188.js?v=464-referral-celebration" defer></script><script src="/referral-v232.js?v=464-referral-celebration" defer></script><script src="/app-access-gate-v240.js?v=426-current" defer></script><script src="/sanction-guard-v161.js?v=426-current" defer></script>`, { html: true });
+  }
+}
+
+class InjectZoomOnlyFiles {
+  element(element) {
+    element.append('<script src="/accessibility-zoom-v466.js?v=469-all-pages"></script><script src="/voice-assist-v481.js?v=481-more-market-lines" defer></script>', { html: true });
   }
 }
 
@@ -4319,7 +4357,7 @@ class InjectAutoradioFiles {
   element(element) {
     // Autoradio : accueil dédié léger + compte, notifications et navigation.
     // Les modules téléphone/pro et le concours ne sont pas chargés.
-    element.append('<style id="autoradio-boot-hide-v386">html,body{margin:0!important;padding:0!important;background:#07111f!important}.wrap,#connectedUsersBadge,#weatherBubble,#unifiedTop,.subscription-home-status,.gear,#fuelStationsQuickBtn,#fuelStationsQuickStyle,#fuelStationsQuickPosition{display:none!important}</style><script src="/persistent-user-data-v283.js?v=364-persist"></script><link rel="stylesheet" href="/subscription-locks.css?v=62"><script src="/subscription-web.js?v=377-abonnement-fix" defer></script><script src="/autoradio-home-v386.js?v=386-responsive-images" defer></script><script src="/autoradio-subscription-v381.js?v=381" defer></script><script src="/autoradio-notifications-v376.js?v=376" defer></script><script src="/market-update-notifications-v281.js?v=376-shared-devices" defer></script><script src="/notification-detail-v282.js?v=376" defer></script><script src="/market-attendance-v317.js?v=317" defer></script><script src="/market-navigation-confirm-v189.js?v=317" defer></script><script src="/app-access-gate-v240.js?v=375-install-step" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+    element.append('<style id="autoradio-boot-hide-v386">html,body{margin:0!important;padding:0!important;background:#07111f!important}.wrap,#connectedUsersBadge,#weatherBubble,#unifiedTop,.subscription-home-status,.gear,#fuelStationsQuickBtn,#fuelStationsQuickStyle,#fuelStationsQuickPosition{display:none!important}</style><script src="/persistent-user-data-v283.js?v=364-persist"></script><script src="/voice-assist-v481.js?v=481-more-market-lines" defer></script><link rel="stylesheet" href="/subscription-locks.css?v=62"><script src="/subscription-web.js?v=377-abonnement-fix" defer></script><script src="/autoradio-home-v386.js?v=386-responsive-images" defer></script><script src="/autoradio-subscription-v381.js?v=381" defer></script><script src="/autoradio-notifications-v376.js?v=376" defer></script><script src="/market-update-notifications-v281.js?v=376-shared-devices" defer></script><script src="/notification-detail-v282.js?v=376" defer></script><script src="/market-attendance-v317.js?v=317" defer></script><script src="/market-navigation-confirm-v189.js?v=480-longpress-guard" defer></script><script src="/app-access-gate-v240.js?v=375-install-step" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
   }
 }
 
@@ -4584,6 +4622,40 @@ async function submitFuelStationVerification(request, env) {
   }
 }
 
+
+async function fetchOverpassV473(endpoint,q){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),3500);
+  try{
+    const r=await fetch(endpoint,{
+      method:"POST",
+      headers:{"content-type":"application/x-www-form-urlencoded;charset=UTF-8"},
+      body:"data="+encodeURIComponent(q),
+      signal:controller.signal
+    });
+    if(!r.ok)return null;
+    const d=await r.json();
+    return !!(d&&Array.isArray(d.elements)&&d.elements.length);
+  }catch(_){return null}
+  finally{clearTimeout(timer)}
+}
+async function nearHlmV473(url){
+  const lat=Number(url.searchParams.get("lat")),lon=Number(url.searchParams.get("lon"));
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)
+    return json({ok:false,near:false,error:"COORDONNEES_INVALIDES"},400);
+  const q='[out:json][timeout:3];('+
+    'nwr(around:300,'+lat+','+lon+')["name"~"HLM|logement social|habitat social|cité HLM|résidence HLM|office public de l.habitat|OPH",i];'+
+    'nwr(around:300,'+lat+','+lon+')["description"~"HLM|logement social|habitat social|bailleur social",i];'+
+    'nwr(around:300,'+lat+','+lon+')["operator"~"HLM|logement social|bailleur social|office public de l.habitat|OPH",i];'+
+    ');out ids 1;';
+  const endpoints=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
+  for(const endpoint of endpoints){
+    const near=await fetchOverpassV473(endpoint,q);
+    if(near!==null)return json({ok:true,near,radiusM:300,source:"OpenStreetMap"});
+  }
+  return json({ok:true,near:false,radiusM:300,source:"indisponible"});
+}
+
 export default {
   async scheduled(controller, env, ctx) {
     // V343 : uniquement événements spéciaux. Les marchés hebdomadaires ne sont pas touchés.
@@ -4609,6 +4681,7 @@ export default {
     if (url.pathname === "/api/installations" && request.method === "POST") return installations(request, env);
     if (url.pathname === "/api/user-stats" && request.method === "GET") return publicUserStats(env);
     if (url.pathname === "/api/fuel-stations" && request.method === "GET") return fuelStationsNearby(request);
+    if (url.pathname === "/api/near-hlm" && request.method === "GET") return nearHlmV473(url);
     if (url.pathname === "/api/fuel-station-verifications/batch" && request.method === "POST") return fuelStationVerificationBatch(request, env);
     if (url.pathname === "/api/fuel-station-verifications" && request.method === "POST") return submitFuelStationVerification(request, env);
     if (url.pathname === "/api/app-identity/start" && request.method === "POST") return appIdentityStart(request, env);
@@ -4685,7 +4758,7 @@ export default {
     // Ne pas réécrire "/" en "/index.html" ici : avec html_handling automatique,
     // cela peut créer une boucle / <-> /index.html.
     let response = await env.ASSETS.fetch(request);
-    if (url.pathname === "/sw.js" || url.pathname === "/app-version.json" || url.pathname === "/autoradio-version.json") {
+    if (url.pathname === "/sw.js" || url.pathname === "/app-version.json" || url.pathname === "/autoradio-version.json" || url.pathname === "/voice-assist-v388.js" || url.pathname === "/voice-assist-v477.js" || url.pathname === "/voice-assist-v478.js" || url.pathname === "/voice-assist-v479.js" || url.pathname === "/voice-assist-v481.js" || url.pathname === "/voice-assist-v478.js") {
       const h = new Headers(response.headers);
       h.set("cache-control", "no-store, no-cache, must-revalidate, max-age=0");
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers: h });
@@ -4693,7 +4766,13 @@ export default {
     const type = response.headers.get("content-type") || "";
     if (type.includes("text/html") && url.pathname !== "/admin.html" && url.pathname !== "/admin" && url.pathname !== "/import-marches.html" && url.pathname !== "/installer.html" && url.pathname !== "/installer") {
       const autoradio = /CouteauSuisseAutoradio/i.test(request.headers.get("user-agent") || "");
-      const transformed = new HTMLRewriter().on("head", autoradio ? new InjectAutoradioFiles() : new InjectAppFiles()).on("a", new FixAndroidLinks()).on("script", new InjectMarketLive()).transform(response);
+      const transformed = new HTMLRewriter().on("head", autoradio ? new InjectAutoradioFiles() : new InjectAppFiles()).on("a", new FixAndroidLinks()).on("script[src]", new RemoveLegacyVoiceScripts()).on("script", new InjectMarketLive()).transform(response);
+      const headers = new Headers(transformed.headers);
+      headers.set("cache-control", "no-store, no-cache, must-revalidate");
+      return new Response(transformed.body, { status: transformed.status, statusText: transformed.statusText, headers });
+    }
+    if (type.includes("text/html") && ["/admin.html", "/admin", "/import-marches.html", "/installer.html", "/installer"].includes(url.pathname)) {
+      const transformed = new HTMLRewriter().on("head", new InjectZoomOnlyFiles()).on("script[src]", new RemoveLegacyVoiceScripts()).transform(response);
       const headers = new Headers(transformed.headers);
       headers.set("cache-control", "no-store, no-cache, must-revalidate");
       return new Response(transformed.body, { status: transformed.status, statusText: transformed.statusText, headers });
