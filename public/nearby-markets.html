@@ -466,13 +466,6 @@
     status.setAttribute('data-voice-help',voice);
     status.setAttribute('aria-label',voice);
   }
-  function speakStatus(){
-    const txt=status.getAttribute('data-voice-help')||status.innerText||'';
-    if(window.CouteauVoice&&typeof window.CouteauVoice.speak==='function')window.CouteauVoice.speak(txt);
-  }
-  status.addEventListener('click',speakStatus);
-  status.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();speakStatus();}});
-
   function render(list){
     const period=showTomorrow?'demain':'aujourd’hui';
     if(!list.length){status.textContent='Aucun marché du jour ni événement prévu dans les 30 prochains jours à moins de '+LIMIT_KM+' km.';cards.innerHTML='';return;}
@@ -596,6 +589,6 @@
   },30000);
 })();
 </script>
-<script src="new-feature-bubbles.js?v=20260905"></script><script src="voice-assist-v388.js?v=427-ios-sound"></script>
+<script src="new-feature-bubbles.js?v=20260905"></script><script src="voice-assist-v484.js?v=484-clean-global"></script>
 </body>
 </html>

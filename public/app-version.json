@@ -1,4 +1,4 @@
 {
-  "version": "V483",
-  "message": "Appui long 1,20 s : tous les boutons lisent leur texte affiché sans lire les logos. Les fiches marchés lisent à nouveau toutes leurs informations et leurs phrases spéciales."
+  "version": "V484",
+  "message": "Lecture vocale entièrement remise à zéro : premier appui long 1,20 s affiche le carré d’activation, puis tous les boutons lisent leur texte sans les icônes. Les fiches marchés gardent leur lecture complète et les phrases Jonathan / Isaac dans le 60."
 }
