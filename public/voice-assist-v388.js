@@ -13,7 +13,7 @@
     (document.head||document.documentElement).appendChild(st);
   }
   function enabled(){return true}
-  function voiceUnlockedV456(){try{return sessionStorage.getItem('carplay_voice_unlocked_v456')==='1'}catch(_){return false}}
+  function voiceUnlockedV456(){try{if(localStorage.getItem('carplay_voice_activated_v467')==='1')return true}catch(_){}try{return sessionStorage.getItem('carplay_voice_unlocked_v456')==='1'}catch(_){return false}}
   function unlockVoiceV456(){
     voiceAwakeV423=true;
     try{sessionStorage.setItem('carplay_voice_unlocked_v456','1')}catch(_){}
@@ -209,6 +209,7 @@
   }
   function eligibleTarget(e){
     if(!e.target||!e.target.closest)return null;
+    if(e.target.closest('#voiceTapFallbackV400'))return null;
     var clickable=e.target.closest('button,a,select,input[type="button"],input[type="submit"],summary,[onclick],[role="button"],[data-voice-help],[data-voice-card],#homeAddressBookBtn,.addressBookTile,.card,.small,.settingHead,.market,.market-card,.marketCard,.station-card,.stationCard,.result-card,.resultCard,.tile,.directBtn,.homeTopButton');
     if(clickable&&!clickable.matches('input,textarea,label'))return clickable;
     var card=e.target.closest('[data-voice-card]');
@@ -221,9 +222,8 @@
     suppressClickTarget=target;
     suppressClickUntil=Date.now()+1800;
     try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
-    var text=clean(buildSpeech(target));
-    if(voiceUnlockedV456())speakImmediateV400(text);
-    else showTapFallbackV400(text);
+    // La synthèse vocale démarre sur pointerup, pendant le geste utilisateur.
+    // Un setTimeout d'appui long n'a pas toujours le droit de lancer la voix sur iPhone.
   }
   function begin(e){
     if(e&&e.pointerType==='touch')return;
@@ -232,7 +232,7 @@
     timer=setTimeout(function(){if(active)fireLongPress(active)},PRESS_MS);
   }
   function move(e){if(!active)return;var dx=Math.abs(Number(e.clientX||0)-startX),dy=Math.abs(Number(e.clientY||0)-startY);if(dx>18||dy>18)cancel()}
-  function end(){clearTimeout(timer);timer=0;active=null;setTimeout(function(){fired=false},80)}
+  function end(){var target=active,shouldSpeak=!!(target&&fired);clearTimeout(timer);timer=0;active=null;if(shouldSpeak)resumeTouchSpeechV400(target);setTimeout(function(){fired=false},80)}
   function showTapFallbackV400(text){
     text=clean(text);if(!text)return false;
     var old=document.getElementById('voiceTapFallbackV400');if(old)old.remove();
@@ -252,7 +252,7 @@
         var u=new SpeechSynthesisUtterance(text);
         currentUtteranceV396=u;u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;
         if(preferredVoice)u.voice=preferredVoice;
-        u.onstart=function(){voiceAwakeV423=true;toast('🔊 '+text);if(b&&b.parentNode)b.remove()};
+        u.onstart=function(){voiceAwakeV423=true;try{localStorage.setItem('carplay_voice_activated_v467','1')}catch(_){}toast('🔊 '+text);if(b&&b.parentNode)b.remove()};
         u.onend=function(){currentUtteranceV396=null;if(b&&b.parentNode)b.remove()};
         u.onerror=function(){currentUtteranceV396=null;busy=false;toast('🔇 Touchez encore une fois pour écouter.')};
         window.speechSynthesis.speak(u);
@@ -286,7 +286,7 @@
           currentUtteranceV396=null;
           showTapFallbackV400(text);
         }
-      },700);
+      },2500);
       return true;
     }catch(_){showTapFallbackV400(text);return false}
   }
@@ -307,10 +307,10 @@
     touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV400(target);
     timer=setTimeout(function(){
       if(!active)return;
-      touchReadyV395=true;fired=true;touchActionDoneV456=true;
+      touchReadyV395=true;fired=true;
       suppressClickTarget=active;suppressClickUntil=Date.now()+2200;
       try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
-      resumeTouchSpeechV400(active);
+      // Attendre touchend : il fournit un geste actif au moteur vocal iOS.
     },PRESS_MS);
   }
   function touchMoveV394(e){
