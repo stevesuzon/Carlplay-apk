@@ -13,9 +13,17 @@
     (document.head||document.documentElement).appendChild(st);
   }
   function enabled(){return true}
-  function voiceUnlockedV456(){try{return sessionStorage.getItem('carplay_voice_unlocked_v456')==='1'}catch(_){return false}}
+  function voiceUnlockedV456(){
+    if(window.__carplayVoiceSessionUnlockedV487===true)return true;
+    try{
+      var ok=sessionStorage.getItem('carplay_voice_unlocked_v456')==='1';
+      if(ok)window.__carplayVoiceSessionUnlockedV487=true;
+      return ok;
+    }catch(_){return window.__carplayVoiceSessionUnlockedV487===true}
+  }
   function unlockVoiceV456(){
     voiceAwakeV423=true;
+    window.__carplayVoiceSessionUnlockedV487=true;
     try{sessionStorage.setItem('carplay_voice_unlocked_v456','1')}catch(_){}
     try{localStorage.setItem(KEY,'1')}catch(_){}
     try{document.cookie='carplay_voice_enabled=1; path=/; max-age=31536000; SameSite=Lax'}catch(_){}
@@ -121,13 +129,16 @@
         if(mt&&!/^🕒|^👥|^Tirage|^Humeur|^Responsable|^Modèle/i.test(mt)){name=mt;break}
       }
     }
-    var parts=[];
-    if(name&&city&&name.toLowerCase()!==city.toLowerCase())parts.push(name+', '+city);
-    else if(name)parts.push(name);
-    else if(city)parts.push('Marché de '+city);
-    else parts.push('Marché');
-    parts.push(marketHumorV486(card));
+    var parts=[],marketLabel='';
+    var genericName=/^(?:marché|marche)(?:\s+hebdomadaire)?$/i.test(name);
+    if(city&&(!name||name.toLowerCase()===city.toLowerCase()||genericName))marketLabel='Marché de '+city;
+    else if(name&&city)marketLabel=name+', '+city;
+    else if(name)marketLabel=name;
+    else if(city)marketLabel='Marché de '+city;
+    else marketLabel='Marché';
     if(day)parts.push(day);
+    parts.push(marketLabel);
+    parts.push(marketHumorV486(card));
     if(distance)parts.push(distance);
     parts.push(marketCount(card));
     var time=marketTime(card);
@@ -286,6 +297,10 @@
   function end(){var target=active,shouldSpeak=!!(target&&fired);clearTimeout(timer);timer=0;active=null;if(shouldSpeak)resumeTouchSpeechV400(target);setTimeout(function(){fired=false},80)}
   function showTapFallbackV400(text){
     text=spokenText(text);if(!text)return false;
+    if(voiceUnlockedV456()){
+      toast('🔇 La voix n’a pas démarré. Refaites un appui long.');
+      return false;
+    }
     var old=document.getElementById('voiceTapFallbackV400');if(old)old.remove();
     var b=document.createElement('button');
     b.id='voiceTapFallbackV400';b.type='button';
@@ -331,17 +346,17 @@
       var started=false,finished=false;
       u.onstart=function(){started=true;voiceAwakeV423=true;toast('🔊 '+text)};
       u.onend=function(){finished=true;currentUtteranceV396=null};
-      u.onerror=function(){if(currentUtteranceV396!==u)return;finished=true;currentUtteranceV396=null;showTapFallbackV400(text)};
+      u.onerror=function(){if(currentUtteranceV396!==u)return;finished=true;currentUtteranceV396=null;toast('🔇 La voix n’a pas démarré. Refaites un appui long.')};
       window.speechSynthesis.speak(u);
       setTimeout(function(){
         if(!started&&!finished&&currentUtteranceV396===u){
           currentUtteranceV396=null;
           try{window.speechSynthesis.cancel()}catch(_){}
-          showTapFallbackV400(text);
+          toast('🔇 La voix n’a pas démarré. Refaites un appui long.');
         }
       },2500);
       return true;
-    }catch(_){showTapFallbackV400(text);return false}
+    }catch(_){toast('🔇 La voix n’a pas démarré. Refaites un appui long.');return false}
   }
   function prepareTouchSpeechV400(target){queuedTouchTextV400=target?clean(buildSpeech(target)):''}
   function cancelTouchSpeechV400(){queuedTouchTextV400=''}
@@ -439,5 +454,5 @@
   window.addEventListener('pageshow',function(){resetSpeechV423()});
   document.addEventListener('visibilitychange',function(){if(!document.hidden)resetSpeechV423()});
   window.addEventListener('focus',function(){if(enabled())resetSpeechV423()});
-  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS,version:'V486'};
+  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS,version:'V487'};
 })();
