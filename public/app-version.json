@@ -1,4 +1,4 @@
 {
-  "version": "V500",
-  "message": "Voix corrigée : à 1,20 seconde, la voix se déclenche pendant que le doigt est encore posé. Le premier appui long active le son de la page, les suivants lisent l’élément, et aucun appui long ne doit ouvrir le bouton ou la fiche."
+  "version": "V501",
+  "message": "Correction iPhone : le premier appui long de 1,20 s active le son de la page. Les images et cartes ne doivent plus se détacher ni afficher l’aperçu natif pendant l’appui long, et les appuis longs ne doivent pas ouvrir la page."
 }
