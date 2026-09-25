@@ -1,4 +1,4 @@
 {
-  "version": "V494",
-  "message": "Mise à jour forcée hors cache : nouveau fichier vocal V494 et nouveau service worker. Cette version remplace explicitement la V492/V493 conservée par certains iPhone."
+  "version": "V495",
+  "message": "Voix iPhone simplifiée : suppression des réveils audio, bips, délais de contrôle et tests onstart. La lecture utilise désormais le même principe simple que la page de test qui fonctionnait."
 }
