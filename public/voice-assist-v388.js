@@ -4,12 +4,12 @@
   window.__carplayVoiceV456Loaded=true;
   var KEY='carplay_voice_enabled_v387';
   var PRESS_MS=1200;
-  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='',voiceAwakeV423=false,touchActionDoneV456=false;
+  var active=null,timer=0,startX=0,startY=0,fired=false,suppressClickTarget=null,suppressClickUntil=0,preferredVoice=null,touchStartedAtV395=0,touchReadyV395=false,currentUtteranceV396=null,primeUtteranceV396=null,touchTargetV398=null,suppressAllClicksUntilV398=0,queuedTouchTextV400='',voiceAwakeV423=false,touchActionDoneV456=false,multiTouchV466=false;
   function installNoSelectV389(){
     if(document.getElementById('carplayVoiceNoSelectV389'))return;
     var st=document.createElement('style');
     st.id='carplayVoiceNoSelectV389';
-    st.textContent='.carplayVoiceEnabled [data-voice-card],.carplayVoiceEnabled [data-voice-card] *,.carplayVoiceEnabled button,.carplayVoiceEnabled a,.carplayVoiceEnabled [onclick],.carplayVoiceEnabled [role="button"]{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}.carplayVoiceEnabled [data-voice-card]{touch-action:pan-y}';
+    st.textContent='.carplayVoiceEnabled [data-voice-card],.carplayVoiceEnabled [data-voice-card] *,.carplayVoiceEnabled button,.carplayVoiceEnabled a,.carplayVoiceEnabled [onclick],.carplayVoiceEnabled [role="button"]{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}.carplayVoiceEnabled [data-voice-card]{touch-action:pan-y pinch-zoom}';
     (document.head||document.documentElement).appendChild(st);
   }
   function enabled(){return true}
@@ -299,7 +299,8 @@
     return showTapFallbackV400(text);
   }
   function touchBeginV394(e){
-    if(!e.target||!e.target.closest)return;
+    if(e.touches&&e.touches.length>1){multiTouchV466=true;cancel();cancelTouchSpeechV400();touchTargetV398=null;touchStartedAtV395=0;touchReadyV395=false;return}
+    if(multiTouchV466||!e.target||!e.target.closest)return;
     var target=eligibleTarget(e);if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
     active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchActionDoneV456=false;
@@ -313,7 +314,8 @@
     },PRESS_MS);
   }
   function touchMoveV394(e){
-    if(touchReadyV395)return;
+    if(e.touches&&e.touches.length>1){multiTouchV466=true;cancel();cancelTouchSpeechV400();touchTargetV398=null;touchStartedAtV395=0;touchReadyV395=false;return}
+    if(multiTouchV466||touchReadyV395)return;
     if(!active)return;
     var t=e.touches&&e.touches[0];
     if(!t){cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchActionDoneV456=false;touchStartedAtV395=0;return}
@@ -326,6 +328,7 @@
     try{if(e&&e.stopImmediatePropagation)e.stopImmediatePropagation()}catch(_){}
   }
   function touchEndV394(e){
+    if(multiTouchV466){if(!e.touches||!e.touches.length)multiTouchV466=false;cancel();cancelTouchSpeechV400();touchTargetV398=null;touchStartedAtV395=0;touchReadyV395=false;return}
     var target=active||touchTargetV398;
     var held=touchStartedAtV395?Date.now()-touchStartedAtV395:0;
     var isLong=!!(target&&(touchReadyV395||held>=PRESS_MS));
@@ -375,7 +378,7 @@
   document.addEventListener('touchstart',touchBeginV394,{capture:true,passive:true});
   document.addEventListener('touchmove',touchMoveV394,{capture:true,passive:true});
   document.addEventListener('touchend',touchEndV394,{capture:true,passive:false});
-  document.addEventListener('touchcancel',function(){cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;},{capture:true,passive:true});
+  document.addEventListener('touchcancel',function(){multiTouchV466=false;cancel();cancelTouchSpeechV400();touchTargetV398=null;touchReadyV395=false;touchStartedAtV395=0;},{capture:true,passive:true});
   document.addEventListener('pointerdown',begin,true);document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',cancel,true);
   document.addEventListener('contextmenu',function(e){if(e.target.closest&&e.target.closest('[data-voice-card],button,a,select,[onclick],[role="button"]'))e.preventDefault()},true);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSetting);else initSetting();
