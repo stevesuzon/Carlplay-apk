@@ -816,7 +816,7 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
   user-select:none!important;
   -webkit-touch-callout:none!important;
 }
-[data-voice-card]{touch-action:pan-y!important}
+[data-voice-card]{touch-action:pan-y pinch-zoom!important}
 </style>
 <style id="homeTopActionsV434">
 .homeTopActions{display:flex;align-items:center;justify-content:flex-end;gap:10px;max-width:72%}
@@ -892,8 +892,22 @@ opacity:.9;
     <span class="eraseTitle">EFFACER EMPLACEMENT</span><span class="eraseIcon">🗑️</span>
   </div>
 </div>
+<style id="zoomSettingsV466">#zoomSettingRow .zoomChoices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:8px}#zoomSettingRow .zoomChoices button{min-width:0;min-height:55px;padding:8px 4px;font-size:clamp(11px,2.8vw,16px);line-height:1.2;font-weight:900;border:2px solid #75bdff;border-radius:12px;background:#142d48;color:#fff}#zoomSettingRow .zoomChoices button[aria-pressed="true"]{background:#137cc5;border-color:#ffcb55;box-shadow:0 0 0 2px #ffcb5577}#zoomSettingRow .settingNote{padding:10px 12px 15px}</style>
 <div id="settings" class="settings">
 <h2>⚙️ Réglages</h2>
+<div class="settingRow" id="zoomSettingRow">
+<button class="settingHead" onclick="toggleSection('zoomMenu',this)">
+<span>🔎 MODE ZOOM / LISIBILITÉ</span><span>⌄</span>
+</button>
+<div class="settingBody" id="zoomMenu">
+<div class="zoomChoices" role="group" aria-label="Choisir la taille d’affichage">
+<button type="button" data-carplay-zoom="normal" onclick="CarPlayZoom.set('normal')">1 · NORMAL</button>
+<button type="button" data-carplay-zoom="large" onclick="CarPlayZoom.set('large')">2 · AGRANDI</button>
+<button type="button" data-carplay-zoom="extra" onclick="CarPlayZoom.set('extra')">3 · TRÈS AGRANDI</button>
+</div>
+<div class="settingNote" id="zoomSettingStatus" aria-live="polite">Tu peux aussi zoomer et dézoomer avec deux doigts.</div>
+</div>
+</div>
 <div class="settingRow">
 <button class="settingHead" onclick="forceAppUpdate()">
 <span>🔄 MISE À JOUR</span>
