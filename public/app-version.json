@@ -1,4 +1,4 @@
 {
-  "version": "V478",
-  "message": "Voix globale sur toute l’application : accueil, retour, départements et provinces, catégories, réglages, stations, marchés à 150 km et fiches marchés. Appui long 1,20 s = lecture seulement, sans ouvrir la page. Les anciens moteurs vocaux sont neutralisés."
+  "version": "V479",
+  "message": "Voix corrigée sur les fiches marchés, brocantes, foires, Noël et voyageurs. Appui long sur la fiche lit la fiche. Appui long sur Aller au marché, Vérifier/Voir la fiche ou Inscription lit le bouton sans ouvrir. Le GPS ne part plus au touchstart."
 }

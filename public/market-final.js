@@ -294,6 +294,10 @@
     if (!node) return;
     function run(e) {
       var now = Date.now();
+      if(window.__carplayVoiceSuppressUntil&&now<window.__carplayVoiceSuppressUntil){
+        if(e){if(e.preventDefault)e.preventDefault();if(e.stopPropagation)e.stopPropagation()}
+        return false;
+      }
       if (now - (node.__lastDirectTap || 0) < 650) return false;
       node.__lastDirectTap = now;
       if (e) {
@@ -326,6 +330,10 @@
     };
     function run(e) {
       var now = Date.now();
+      if(window.__carplayVoiceSuppressUntil&&now<window.__carplayVoiceSuppressUntil){
+        if(e){if(e.preventDefault)e.preventDefault();if(e.stopPropagation)e.stopPropagation()}
+        return false;
+      }
       if (moved || now - (node.__marketTapAt || 0) < 650) return false;
       node.__marketTapAt = now;
       if (e) {
@@ -722,9 +730,7 @@
         i +
         '" style="margin-top:10px;padding:12px;border:3px solid #f39b19;border-radius:14px;background:#05090f;color:#fff;font-size:18px;font-weight:950">Concurrence : chargement…</div><div class="actions"><button type="button" class="go" data-market="' +
         i +
-        '" ontouchstart="window.goMarket(' +
-        i +
-        ');return false" onclick="window.goMarket(' +
+        '" onclick="window.goMarket(' +
         i +
         ');return false">ALLER AU MARCHÉ</button><a class="verify" href="' +
         url +
