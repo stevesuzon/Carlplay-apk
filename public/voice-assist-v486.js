@@ -372,6 +372,10 @@
     var target=eligibleTarget(e);if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
     active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchActionDoneV456=false;
+    // V488 : après un changement de page, iOS peut rendormir le moteur vocal.
+    // Si le son a déjà été activé dans cette session, on le réveille silencieusement
+    // dès le début du nouvel appui long, sans réafficher le carré ACTIVER LE SON.
+    if(voiceUnlockedV456())wakeSpeechV423();
     touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV400(target);
     timer=setTimeout(function(){
       if(!active)return;
@@ -454,5 +458,5 @@
   window.addEventListener('pageshow',function(){resetSpeechV423()});
   document.addEventListener('visibilitychange',function(){if(!document.hidden)resetSpeechV423()});
   window.addEventListener('focus',function(){if(enabled())resetSpeechV423()});
-  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS,version:'V487'};
+  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS,version:'V488'};
 })();
