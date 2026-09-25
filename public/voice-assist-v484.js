@@ -1,1 +1,1 @@
-(function(){if(window.__carplayVoiceV486Loaded)return;var s=document.createElement('script');s.src='/voice-assist-v486.js?v=490-speak-during-hold';s.defer=true;(document.head||document.documentElement).appendChild(s)})();
+(function(){if(window.__carplayVoiceV486Loaded)return;var s=document.createElement('script');s.src='/voice-assist-v486.js?v=491-audio-arm-touchend';s.defer=true;(document.head||document.documentElement).appendChild(s)})();
