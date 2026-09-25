@@ -1,4 +1,4 @@
 {
-  "version": "V491",
-  "message": "Voix iPhone : le canal audio est désormais réarmé à chaque nouvel appui long sur une page, puis la vraie lecture est lancée directement au relâchement du doigt. L’activation générale du son reste unique par session."
+  "version": "V492",
+  "message": "Voix iPhone : avant chaque lecture, l’application ouvre maintenant un vrai canal média HTMLAudio, puis lance la synthèse vocale. Cela vise le cas où le texte se déclenche mais aucun son ne sort."
 }
