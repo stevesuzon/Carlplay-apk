@@ -27,6 +27,7 @@
     try{window.dispatchEvent(new CustomEvent('carplay-voice-change',{detail:{enabled:true}}))}catch(_){}
   }
   function clean(s){return String(s||'').replace(/\s+/g,' ').trim()}
+  function spokenText(s){return clean(String(s||'').replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu,' '))}
   function hourText(s){return clean(s).replace(/(\d{1,2})[:h.](\d{2})/g,function(_,h,m){return Number(m)?(Number(h)+' heures '+Number(m)):(Number(h)+' heures')}).replace(/\b(\d{1,2})h\b/g,'$1 heures').replace(/–|—/g,' à ')}
   function unknownTime(s){s=clean(s).toLowerCase();return !s||/à vérifier|a verifier|à confirmer|a confirmer|non précisé|non precise|non publié|non publie|inconnu/.test(s)}
   function marketTime(card){
@@ -126,28 +127,24 @@
     if(!el)return '';
     if(el.tagName==='SELECT'){
       var opt=el.options&&el.selectedIndex>=0?el.options[el.selectedIndex]:null;
-      var txt=clean(opt&&opt.textContent||el.getAttribute('aria-label')||'Menu');
+      var txt=spokenText(opt&&opt.textContent||el.getAttribute('aria-label')||'Menu');
       return txt.replace(/\s*[—–-]\s*/g,', ').replace(/\bKM\b/gi,'kilomètres')+'.';
     }
-    var txt=clean(el.innerText||el.textContent||'');
-    if(!txt&&el.getAttribute)txt=clean(el.getAttribute('aria-label')||el.getAttribute('title')||el.getAttribute('data-voice-help')||'');
-    if(!txt&&el.querySelector){
-      var img=el.querySelector('img[alt]');
-      if(img)txt=clean(img.getAttribute('alt')||'');
-    }
+    var txt=spokenText(el.innerText||el.textContent||'');
+    if(!txt&&el.getAttribute)txt=spokenText(el.getAttribute('aria-label')||el.getAttribute('title')||el.getAttribute('data-voice-help')||'');
     if(!txt&&el.classList&&el.classList.contains('gear'))txt='Réglages';
     txt=txt.replace(/[←→›⌄⚙️⚙]/g,' ').replace(/[•·]/g,', ').replace(/\bKM\b/gi,'kilomètres').replace(/\s+/g,' ').trim();
-    if(!txt)return 'Bouton.';
+    if(!txt)return '';
     if(txt.length>160)txt=txt.slice(0,160);
     return txt+'.';
   }
   function buildSpeech(card){
     if(!card)return '';
     if(!card.dataset.voiceCard)return buttonSpeech(card);
-    if(card.dataset.voiceText)return clean(card.dataset.voiceText);
+    if(card.dataset.voiceText)return spokenText(card.dataset.voiceText);
     var kind=card.dataset.voiceCard||'market';
     if(kind==='market')return buildMarket(card);
-    return clean(card.innerText||card.textContent||'');
+    return spokenText(card.innerText||card.textContent||'');
   }
   function toast(msg){
     var id='carplayVoiceToastV387',el=document.getElementById(id);
@@ -194,7 +191,7 @@
     syncSetting();
   }
   function speak(text){
-    text=clean(text);if(!text||!enabled())return false;
+    text=spokenText(text);if(!text||!enabled())return false;
     if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){toast('🔇 Lecture vocale indisponible sur cet appareil.');return false}
     try{
       window.speechSynthesis.cancel();window.speechSynthesis.resume();
@@ -234,7 +231,7 @@
   function move(e){if(!active)return;var dx=Math.abs(Number(e.clientX||0)-startX),dy=Math.abs(Number(e.clientY||0)-startY);if(dx>18||dy>18)cancel()}
   function end(){var target=active,shouldSpeak=!!(target&&fired);clearTimeout(timer);timer=0;active=null;if(shouldSpeak)resumeTouchSpeechV400(target);setTimeout(function(){fired=false},80)}
   function showTapFallbackV400(text){
-    text=clean(text);if(!text)return false;
+    text=spokenText(text);if(!text)return false;
     var old=document.getElementById('voiceTapFallbackV400');if(old)old.remove();
     var b=document.createElement('button');
     b.id='voiceTapFallbackV400';b.type='button';
@@ -252,10 +249,12 @@
         var u=new SpeechSynthesisUtterance(text);
         currentUtteranceV396=u;u.lang='fr-FR';u.rate=.92;u.pitch=1;u.volume=1;
         if(preferredVoice)u.voice=preferredVoice;
-        u.onstart=function(){voiceAwakeV423=true;try{localStorage.setItem('carplay_voice_activated_v467','1')}catch(_){}toast('🔊 '+text);if(b&&b.parentNode)b.remove()};
+        u.onstart=function(){voiceAwakeV423=true;toast('🔊 '+text)};
         u.onend=function(){currentUtteranceV396=null;if(b&&b.parentNode)b.remove()};
-        u.onerror=function(){currentUtteranceV396=null;busy=false;toast('🔇 Touchez encore une fois pour écouter.')};
+        u.onerror=function(){currentUtteranceV396=null;busy=false;toast('🔇 Lecture vocale indisponible. Réessayez avec un appui long.')};
         window.speechSynthesis.speak(u);
+        try{localStorage.setItem('carplay_voice_activated_v467','1')}catch(_){}
+        if(b&&b.parentNode)b.remove();
       }catch(_){busy=false;toast('🔇 Lecture vocale indisponible.')}
     }
     b.addEventListener('click',play,true);
@@ -264,9 +263,9 @@
     return true;
   }
   function speakImmediateV400(text){
-    text=clean(text);if(!text)return false;
+    text=spokenText(text);if(!text)return false;
     if(!voiceUnlockedV456()){showTapFallbackV400(text);return false}
-    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){showTapFallbackV400(text);return false}
+    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){toast('🔇 Lecture vocale indisponible sur cet appareil.');return false}
     try{
       window.speechSynthesis.cancel();
       window.speechSynthesis.resume();
@@ -278,17 +277,17 @@
       var started=false,finished=false;
       u.onstart=function(){started=true;voiceAwakeV423=true;toast('🔊 '+text)};
       u.onend=function(){finished=true;currentUtteranceV396=null};
-      u.onerror=function(){finished=true;currentUtteranceV396=null;showTapFallbackV400(text)};
+      u.onerror=function(){finished=true;currentUtteranceV396=null;toast('🔇 Lecture vocale indisponible. Réessayez avec un appui long.')};
       window.speechSynthesis.speak(u);
       setTimeout(function(){
         if(!started&&!finished&&currentUtteranceV396===u){
           try{window.speechSynthesis.cancel()}catch(_){}
           currentUtteranceV396=null;
-          showTapFallbackV400(text);
+          toast('🔇 La voix ne répond pas. Réessayez avec un appui long.');
         }
       },2500);
       return true;
-    }catch(_){showTapFallbackV400(text);return false}
+    }catch(_){toast('🔇 Lecture vocale indisponible.');return false}
   }
   function prepareTouchSpeechV400(target){queuedTouchTextV400=target?clean(buildSpeech(target)):''}
   function cancelTouchSpeechV400(){queuedTouchTextV400=''}
