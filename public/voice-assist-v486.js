@@ -346,6 +346,57 @@
     document.body.appendChild(b);
     return true;
   }
+  function armAudioForGestureV491(){
+    // Réveille explicitement le canal audio iPhone pendant le geste utilisateur.
+    try{
+      var AC=window.AudioContext||window.webkitAudioContext;
+      if(AC){
+        var ac=window.__carplayVoiceAudioContextV491;
+        if(!ac||ac.state==='closed'){ac=new AC();window.__carplayVoiceAudioContextV491=ac}
+        try{ac.resume()}catch(_){}
+        try{
+          var osc=ac.createOscillator(),gain=ac.createGain();
+          gain.gain.value=0.00001;
+          osc.connect(gain);gain.connect(ac.destination);
+          osc.start();osc.stop(ac.currentTime+0.025);
+        }catch(_){}
+      }
+    }catch(_){}
+    try{
+      if(!currentUtteranceV396&&window.speechSynthesis&&typeof SpeechSynthesisUtterance!=='undefined'){
+        window.speechSynthesis.cancel();
+        var prime=new SpeechSynthesisUtterance('.');
+        primeUtteranceV396=prime;
+        prime.lang='fr-FR';prime.volume=0.01;prime.rate=10;prime.pitch=1;
+        prime.onend=function(){if(primeUtteranceV396===prime)primeUtteranceV396=null};
+        prime.onerror=function(){if(primeUtteranceV396===prime)primeUtteranceV396=null};
+        window.speechSynthesis.speak(prime);
+      }
+    }catch(_){}
+  }
+  function speakDirectFromGestureV491(text){
+    text=spokenText(text);if(!text)return false;
+    if(!voiceUnlockedV456()){showTapFallbackV400(text);return false}
+    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return false;
+    try{
+      window.speechSynthesis.cancel();
+      var u=new SpeechSynthesisUtterance(text);
+      currentUtteranceV396=u;
+      u.lang='fr-FR';u.rate=.90;u.pitch=1;u.volume=1;
+      var started=false;
+      u.onstart=function(){started=true;voiceAwakeV423=true;toast('🔊 '+text)};
+      u.onend=function(){if(currentUtteranceV396===u)currentUtteranceV396=null};
+      u.onerror=function(){if(currentUtteranceV396===u)currentUtteranceV396=null};
+      window.speechSynthesis.speak(u);
+      setTimeout(function(){
+        if(!started&&currentUtteranceV396===u){
+          currentUtteranceV396=null;
+          toast('🔇 La voix n’a pas démarré.');
+        }
+      },1800);
+      return true;
+    }catch(_){return false}
+  }
   function speakImmediateV400(text){
     text=spokenText(text);if(!text)return false;
     if(!voiceUnlockedV456()){showTapFallbackV400(text);return false}
@@ -380,21 +431,14 @@
     var target=eligibleTarget(e);if(!target)return;
     var t=e.touches&&e.touches[0];if(!t)return;
     active=target;touchTargetV398=target;fired=false;touchReadyV395=false;touchActionDoneV456=false;
+    // V491 : chaque nouvel appui réarme le canal audio iPhone dans le geste utilisateur.
+    if(voiceUnlockedV456())armAudioForGestureV491();
     touchStartedAtV395=Date.now();startX=t.clientX;startY=t.clientY;clearTimeout(timer);prepareTouchSpeechV400(target);
     timer=setTimeout(function(){
       if(!active)return;
       touchReadyV395=true;fired=true;
       suppressClickTarget=active;suppressClickUntil=Date.now()+2200;
       try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
-      // V490 : comme l'ancien test iPhone qui fonctionnait, on parle ici,
-      // pendant que le doigt est encore posé, au lieu d'attendre touchend.
-      if(!touchActionDoneV456){
-        touchActionDoneV456=true;
-        var text=queuedTouchTextV400||clean(buildSpeech(active));
-        queuedTouchTextV400='';
-        if(voiceUnlockedV456())speakImmediateV400(text);
-        else showTapFallbackV400(text);
-      }
     },PRESS_MS);
   }
   function touchMoveV394(e){
@@ -419,8 +463,14 @@
     clearTimeout(timer);timer=0;active=null;
     if(isLong){
       fired=true;suppressClickTarget=target;suppressClickUntil=Date.now()+2200;
+      // V491 : lancer la vraie voix immédiatement dans touchend, avant preventDefault.
+      if(!touchActionDoneV456){
+        touchActionDoneV456=true;
+        var text=queuedTouchTextV400||clean(buildSpeech(target));
+        queuedTouchTextV400='';
+        speakDirectFromGestureV491(text);
+      }
       blockLongPressReleaseV397(e);
-      // V490 : la lecture a déjà été lancée au bout de 1,20 s pendant l'appui.
     }else cancelTouchSpeechV400();
     touchTargetV398=null;touchReadyV395=false;touchActionDoneV456=false;touchStartedAtV395=0;
     setTimeout(function(){fired=false},160);
@@ -470,5 +520,5 @@
   window.addEventListener('pageshow',function(){resetSpeechV423()});
   document.addEventListener('visibilitychange',function(){if(!document.hidden)softResumeSpeechV489()});
   window.addEventListener('focus',function(){if(enabled())softResumeSpeechV489()});
-  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS,version:'V490'};
+  window.CouteauVoice={enabled:enabled,setEnabled:setEnabled,speak:speak,buildMarket:buildMarket,pressMs:PRESS_MS,version:'V491'};
 })();
