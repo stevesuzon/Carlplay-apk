@@ -1,4 +1,4 @@
 {
-  "version": "V503",
-  "message": "Activation vocale iPhone restaurée à partir de l’ancienne version qui arrivait réellement à activer le son. Après 1,20 s d’appui long, l’activation ou la lecture est lancée au relâchement du doigt, dans un vrai geste iPhone. Les images restent protégées contre le détachement."
+  "version": "V504",
+  "message": "Moteur vocal restauré à partir de la V489, la version où l’activation du son fonctionnait sur iPhone. Chaque nouvelle page repart non activée : le premier appui long de 1,20 s dit « Son activé », puis les appuis longs suivants lisent les boutons et les fiches. Les phrases drôles et celles du 60 sont conservées."
 }
