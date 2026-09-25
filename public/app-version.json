@@ -1,4 +1,4 @@
 {
-  "version": "V496",
-  "message": "Voix iPhone par page : à chaque nouvelle page, le premier appui sur un bouton ou une fiche active le son de cette page et annonce « Son activé ». Ensuite les appuis longs de 1,20 s lisent les boutons et fiches jusqu’au prochain changement de page."
+  "version": "V497",
+  "message": "Synthèse vocale entièrement reconstruite. Chaque page repart proprement : le premier appui active le son de la page et annonce « Son activé ». Ensuite les appuis longs de 1,20 s lisent les boutons, fiches et éléments. En changeant de page, le premier appui réactive la voix. Les phrases drôles des marchés et les phrases spéciales du 60 sont conservées."
 }
