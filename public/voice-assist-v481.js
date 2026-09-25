@@ -1,7 +1,7 @@
 (function(){
 'use strict';
-if(window.__carplayVoiceV481Loaded)return;
-window.__carplayVoiceV481Loaded=true;
+if(window.__carplayVoiceV483Loaded)return;
+window.__carplayVoiceV483Loaded=true;
 
 var PRESS_MS=1200;
 var SESSION_KEY='carplay_voice_prompt_confirmed_v481';
@@ -13,8 +13,8 @@ function spoken(v){return clean(String(v==null?'':v).replace(/[\p{Extended_Picto
 function confirmed(){try{return sessionStorage.getItem(SESSION_KEY)==='1'}catch(_){return false}}
 function confirmSession(){try{sessionStorage.setItem(SESSION_KEY,'1')}catch(_){}}
 function toast(msg){
-  var el=document.getElementById('carplayVoiceToastV481');
-  if(!el){el=document.createElement('div');el.id='carplayVoiceToastV481';el.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147483646;max-width:88vw;padding:11px 15px;border-radius:14px;background:#07111df2;border:2px solid #f39b19;color:#fff;font:900 14px Arial,sans-serif;text-align:center;box-shadow:0 8px 24px #0009;pointer-events:none';document.body.appendChild(el)}
+  var el=document.getElementById('carplayVoiceToastV483');
+  if(!el){el=document.createElement('div');el.id='carplayVoiceToastV483';el.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147483646;max-width:88vw;padding:11px 15px;border-radius:14px;background:#07111df2;border:2px solid #f39b19;color:#fff;font:900 14px Arial,sans-serif;text-align:center;box-shadow:0 8px 24px #0009;pointer-events:none';document.body.appendChild(el)}
   el.textContent=msg;el.style.display='block';clearTimeout(el._hide);el._hide=setTimeout(function(){el.style.display='none'},1700);
 }
 function loadVoice(){
@@ -26,6 +26,17 @@ function loadVoice(){
       ||vv.find(function(v){return /^fr(?:-|_)/i.test(v.lang||'')})
       ||vv.find(function(v){return /français|french/i.test(v.name||'')})||null;
   }catch(_){preferredVoice=null}
+}
+function primeSpeech(){
+  try{
+    if(window.__carplayVoicePrimedV483)return;
+    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
+    var u=new SpeechSynthesisUtterance(' ');
+    u.lang='fr-FR';u.volume=0;u.rate=1;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+    window.__carplayVoicePrimedV483=true;
+  }catch(_){}
 }
 function speakNow(text){
   text=spoken(text);if(!text)return false;
@@ -43,22 +54,12 @@ function speakNow(text){
     return true;
   }catch(_){toast('🔇 Refais un appui long.');return false}
 }
-function showFirstPrompt(text){
-  var old=document.getElementById('voicePromptV481');if(old)old.remove();
-  var b=document.createElement('button');b.id='voicePromptV481';b.type='button';
-  b.innerHTML='<span style="display:block;font-size:42px;margin-bottom:10px">🔊</span><span style="display:block;font-size:21px">TOUCHER POUR ÉCOUTER</span><span style="display:block;margin-top:10px;font-size:13px">Une seule fois après ouverture de l’application.</span>';
-  b.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483647;width:min(74vw,290px);min-height:230px;padding:22px 18px;border:4px solid #f39b19;border-radius:26px;background:#0b668d;color:#fff;font:950 19px Arial,sans-serif;text-align:center;box-shadow:0 16px 46px #000d;touch-action:manipulation;-webkit-user-select:none;user-select:none';
-  var done=false;
-  function play(e){
-    if(done)return;done=true;
-    try{e&&e.preventDefault()}catch(_){}try{e&&e.stopPropagation()}catch(_){}
-    confirmSession();if(b.parentNode)b.remove();speakNow(text);
-  }
-  b.addEventListener('click',play,true);
-  b.addEventListener('touchend',play,{capture:true,passive:false});
-  document.body.appendChild(b);
+function say(text){
+  text=spoken(text);
+  if(!text)return false;
+  confirmSession();
+  return speakNow(text);
 }
-function say(text){text=spoken(text);if(!text)return;if(confirmed())speakNow(text);else showFirstPrompt(text)}
 
 function hourText(s){return clean(s).replace(/(\d{1,2})[:h.](\d{2})/g,function(_,h,m){return Number(m)?Number(h)+' heures '+Number(m):Number(h)+' heures'}).replace(/\b(\d{1,2})h\b/g,'$1 heures').replace(/–|—/g,' à ')}
 function unknown(s){s=clean(s).toLowerCase();return !s||/à vérifier|a verifier|à confirmer|a confirmer|non précisé|non precise|non publié|non publie|inconnu|indisponible/.test(s)}
@@ -215,28 +216,14 @@ function buttonSpeech(el){
   if(el.tagName==='SELECT'){
     var o=el.options&&el.selectedIndex>=0?el.options[el.selectedIndex]:null;
     var selected=spoken(o&&o.textContent||'');
-    var label=spoken(el.getAttribute('aria-label')||'');
-    if(el.id==='frInput')return (label||'Choisir un département français')+(selected?' ; '+selected:'')+'.';
-    if(el.id==='beProvince')return (label||'Choisir une province belge')+(selected?' ; '+selected:'')+'.';
-    return (label||selected||'Menu')+(label&&selected?' ; '+selected:'')+'.';
+    return selected?selected+'.':'';
   }
-  var raw=spoken(el.getAttribute&&el.getAttribute('aria-label')||'')||spoken(el.innerText||el.textContent||'')||spoken(el.getAttribute&&el.getAttribute('title')||'');
+  var raw=spoken(el.innerText||el.textContent||'');
   if(!raw&&el.value)raw=spoken(el.value);
-  var dep=el.getAttribute&&el.getAttribute('data-department-value');
-  if(dep){
-    var depText=spoken(el.innerText||el.textContent||dep).replace(/\s*[—–-]\s*/g,', ');
-    return 'Département '+depText+'.';
-  }
-  if(el.classList&&el.classList.contains('voiceSelectOptionV405')&&/^\d{2,3}\b/.test(raw)){
-    return 'Département '+raw.replace(/\s*[—–-]\s*/g,', ')+'.';
-  }
-  if(el.closest&&el.closest('#voiceSelectPanelV405')&&!/^\d{2,3}\b/.test(raw)&&raw){
-    return 'Province '+raw+'.';
-  }
-  var t=raw.replace(/\bKM\b/gi,'kilomètres').replace(/\s*[—–]\s*/g,', ');
-  if(/^←?\s*RETOUR$/i.test(t))t='Retour';
-  if(t.length>260)t=t.slice(0,260);
-  return t?t+'.':'';
+  // Un bouton purement graphique / logo ne doit pas être lu.
+  if(!raw)return '';
+  if(raw.length>320)raw=raw.slice(0,320);
+  return raw+'.';
 }
 function buildSpeech(target){
   if(!target)return '';
@@ -260,7 +247,7 @@ function buildSpeech(target){
 }
 function targetFromEvent(e){
   var el=e&&e.target;if(!el||!el.closest)return null;
-  if(el.closest('#voicePromptV481'))return null;
+  if(el.closest('#voicePromptV483'))return null;
   var card=el.closest('[data-voice-card]');
   var ctl=el.closest('button,a,select,summary,input[type="button"],input[type="submit"],input[type="checkbox"],input[type="radio"],[onclick],[role="button"],[role="menuitem"],[role="option"],[data-action],[data-target],[data-department-value],.go,.open,.verify,.details,.register,.voiceSelectOptionV405,.voiceSelectBackV405,.specialBtn,.back,.changeArea,.day,.dayBtn,.tab,.tile,.directBtn,.homeTopButton,.settingHead');
   if(ctl&&(!card||ctl!==card))return ctl;
@@ -281,16 +268,18 @@ function clearPress(){clearTimeout(timer);timer=0;press=null}
 function startPress(e){
   if(e.button!=null&&e.button!==0)return;
   if(e.isPrimary===false)return;
+  if(e.pointerType==='touch')return;
   var target=targetFromEvent(e);if(!target)return;
-  if(e.pointerType==='touch'&&e.width>80&&e.height>80)return;
+  primeSpeech();
   try{window.speechSynthesis&&window.speechSynthesis.resume()}catch(_){}
-  press={target:target,id:e.pointerId,start:Date.now(),x:Number(e.clientX||0),y:Number(e.clientY||0),long:false,pointerType:e.pointerType||'mouse'};
+  press={target:target,id:e.pointerId,start:Date.now(),x:Number(e.clientX||0),y:Number(e.clientY||0),long:false,spoken:false,pointerType:e.pointerType||'mouse'};
   prefetchHlm(target);
   clearTimeout(timer);
   timer=setTimeout(function(){
     if(!press)return;
     press.long=true;setSuppress(press.target);
     try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}
+    press.spoken=!!say(buildSpeech(press.target));
   },PRESS_MS);
 }
 function movePress(e){
@@ -303,7 +292,7 @@ function finishPress(e){
   clearTimeout(timer);timer=0;press=null;
   if(!isLong)return;
   setSuppress(p.target);stopEvent(e);
-  say(buildSpeech(p.target));
+  if(!p.spoken)say(buildSpeech(p.target));
 }
 function cancelPress(e){if(press&&(!e||e.pointerId==null||e.pointerId===press.id))clearPress()}
 
@@ -339,18 +328,19 @@ function startTouchFallback(e){
   if(press||!e.touches||e.touches.length!==1)return;
   var target=targetFromEvent(e);if(!target)return;
   var t=e.touches[0];
+  primeSpeech();
   try{window.speechSynthesis&&window.speechSynthesis.resume()}catch(_){}
-  press={target:target,id:'touch-fallback',start:Date.now(),x:Number(t.clientX||0),y:Number(t.clientY||0),long:false,pointerType:'touch-fallback'};
+  press={target:target,id:'touch-fallback',start:Date.now(),x:Number(t.clientX||0),y:Number(t.clientY||0),long:false,spoken:false,pointerType:'touch-fallback'};
   prefetchHlm(target);
   clearTimeout(timer);
-  timer=setTimeout(function(){if(!press)return;press.long=true;setSuppress(press.target);try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}},PRESS_MS);
+  timer=setTimeout(function(){if(!press)return;press.long=true;setSuppress(press.target);try{navigator.vibrate&&navigator.vibrate(35)}catch(_){}press.spoken=!!say(buildSpeech(press.target));},PRESS_MS);
 }
-function moveTouchV481(e){
+function moveTouchV483(e){
   if(!press||!e.touches||e.touches.length!==1||press.long)return;
   var t=e.touches[0];
   if(Math.abs(Number(t.clientX||0)-press.x)>30||Math.abs(Number(t.clientY||0)-press.y)>30)clearPress();
 }
-function finishTouchV481(e){
+function finishTouchV483(e){
   if(!press||String(press.pointerType).indexOf('touch')<0){
     if(Date.now()<suppressUntil&&relatedToSuppressed(e.target))stopEvent(e);
     return;
@@ -358,17 +348,17 @@ function finishTouchV481(e){
   var p=press,isLong=p.long||(Date.now()-p.start>=PRESS_MS);
   clearTimeout(timer);timer=0;press=null;
   if(!isLong)return;
-  setSuppress(p.target);stopEvent(e);say(buildSpeech(p.target));
+  setSuppress(p.target);stopEvent(e);if(!p.spoken)say(buildSpeech(p.target));
 }
 document.addEventListener('pointerdown',startPress,true);
 document.addEventListener('pointermove',movePress,true);
 document.addEventListener('pointerup',finishPress,true);
 document.addEventListener('pointercancel',cancelPress,true);
 document.addEventListener('touchstart',startTouchFallback,{capture:true,passive:true});
-document.addEventListener('touchmove',moveTouchV481,{capture:true,passive:true});
-document.addEventListener('touchend',finishTouchV481,{capture:true,passive:false});
+document.addEventListener('touchmove',moveTouchV483,{capture:true,passive:true});
+document.addEventListener('touchend',finishTouchV483,{capture:true,passive:false});
 document.addEventListener('click',function(e){
-  if(e.target&&e.target.closest&&e.target.closest('#voicePromptV481'))return;
+  if(e.target&&e.target.closest&&e.target.closest('#voicePromptV483'))return;
   if(Date.now()<suppressUntil&&relatedToSuppressed(e.target)){stopEvent(e);return false}
 },true);
 document.addEventListener('auxclick',function(e){if(Date.now()<suppressUntil&&relatedToSuppressed(e.target))stopEvent(e)},true);
@@ -382,8 +372,8 @@ document.addEventListener('selectstart',function(e){if(targetFromEvent(e))e.prev
 document.addEventListener('dragstart',function(e){if(targetFromEvent(e))e.preventDefault()},true);
 
 (function installGlobalVoiceStyleV478(){
-  if(document.getElementById('carplayVoiceGlobalStyleV481'))return;
-  var st=document.createElement('style');st.id='carplayVoiceGlobalStyleV481';
+  if(document.getElementById('carplayVoiceGlobalStyleV483'))return;
+  var st=document.createElement('style');st.id='carplayVoiceGlobalStyleV483';
   st.textContent='button,a,select,summary,[role="button"],[role="menuitem"],[role="option"],[data-action],[data-target],[data-department-value],.voiceSelectOptionV405,.voiceSelectBackV405,.specialBtn,.back{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}[data-voice-card],.card,.market-card,.station-card{touch-action:pan-y pinch-zoom}';
   (document.head||document.documentElement).appendChild(st);
 })();
