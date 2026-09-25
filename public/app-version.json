@@ -1,4 +1,4 @@
 {
-  "version": "V486",
-  "message": "Voix iPhone restaurée à partir de l’ancien moteur qui fonctionnait : premier appui long 1,20 s = carré ACTIVER LE SON, puis lecture des boutons au relâchement, titres Marchés à 150 km, fiches marchés complètes et humour Jonathan / Isaac dans le 60."
+  "version": "V487",
+  "message": "Lecture vocale : le carré ACTIVER LE SON ne s’affiche qu’une seule fois par session. Ensuite la navigation reste vocale sans refaire l’activation. Les fiches annoncent maintenant d’abord Aujourd’hui / le jour choisi, puis le marché."
 }
