@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "carplay-telephone",
-  "main": "src/v157.js",
+  "main": "src/index.js",
   "compatibility_date": "2026-08-01",
   "keep_vars": true,
   "assets": {
@@ -16,5 +16,8 @@
       "database_name": "carplay-metiers",
       "database_id": "8c139641-68af-44cc-aa8f-2a68af669c4a"
     }
-  ]
+  ],
+  "triggers": {
+    "crons": ["0 * * * *"]
+  }
 }

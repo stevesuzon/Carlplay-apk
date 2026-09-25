@@ -1,4 +1,4 @@
 {
-  "version": "V474",
-  "message": "Voix : « Toucher pour écouter » une seule fois par ouverture de l’application. Ensuite l’appui long parle directement. Les 5 marchés les plus proches reçoivent aussi des remarques humoristiques adaptées à leur distance."
+  "version": "V475",
+  "message": "Déploiement fiabilisé : la configuration Cloudflare utilise maintenant la même version que GitHub. Le bouton « Toucher pour écouter » reste limité à une seule confirmation par ouverture, puis l’appui long parle directement. Les remarques des 5 marchés les plus proches sont actives."
 }
