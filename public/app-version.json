@@ -1,4 +1,4 @@
 {
-  "version": "V469",
-  "message": "Le niveau de zoom reste actif sur toutes les pages du téléphone, y compris administration et installation."
+  "version": "V470",
+  "message": "Le zoom fonctionne sur toutes les pages. La voix garde son activation et ignore les logos."
 }
