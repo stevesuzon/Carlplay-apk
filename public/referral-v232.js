@@ -1,5 +1,7 @@
 (function(){
 'use strict';
+if(window.__carplayReferralV472Loaded)return;
+window.__carplayReferralV472Loaded=true;
 var PENDING='carplay_pending_referral',PENDING_ID='carplay_pending_referral_id',VERIFIED='carplay_referral_verified_v1',DISMISSED='carplay_referral_dismissed_v273',KEY='carplay_shared_subscription';
 function did(){var v=localStorage.getItem('carplay_device_id');if(!v){v=crypto.randomUUID?crypto.randomUUID():'dev-'+Date.now()+'-'+Math.random().toString(36).slice(2);localStorage.setItem('carplay_device_id',v)}return v}
 function freshReferralDevice(){var v=crypto.randomUUID?crypto.randomUUID():'ref-'+Date.now()+'-'+Math.random().toString(36).slice(2);localStorage.setItem('carplay_device_id',v);try{localStorage.removeItem(KEY);localStorage.removeItem('carplay_paid_activated');localStorage.removeItem('carplay_recovery_email');localStorage.removeItem('carplay_subscription_email');localStorage.removeItem('carplay_referral_verified_v1')}catch(_){}return v}
