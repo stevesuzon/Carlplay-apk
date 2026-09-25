@@ -1,4 +1,4 @@
 {
-  "version": "V468",
-  "message": "Le zoom à trois niveaux agrandit les textes et boutons en restant dans la largeur du téléphone."
+  "version": "V469",
+  "message": "Le niveau de zoom reste actif sur toutes les pages du téléphone, y compris administration et installation."
 }
