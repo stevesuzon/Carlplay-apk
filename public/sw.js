@@ -1,15 +1,16 @@
-const VERSION = "V481-MORE-MARKET-LINES";
-const BASE_CACHE = "couteau-suisse-runtime-code-v481";
+const VERSION = "V462-VOIX-GLOBALE-OISE";
+const BASE_CACHE = "couteau-suisse-runtime-code-v2";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
-const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";
+const CONTEST_CACHE = "couteau-suisse-module-contest-v459";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v439-market-list";
 const DATA_CACHE = "couteau-suisse-module-data-v426-current";
 const INSTALL_CACHE = "couteau-suisse-module-install-v426-current";
 const STATS_CACHE = "couteau-suisse-module-stats-v362";
 const MUSHROOM_CACHE = "couteau-suisse-module-mushroom-v300";
-const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v441-syntax-fix";
+const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v459";
 const AUTORADIO_CACHE = "couteau-suisse-module-autoradio-v386-responsive-images";
-const PHONE_UI_CACHE = "couteau-suisse-module-phone-ui-v432-home-clean";
+const PHONE_UI_CACHE = "couteau-suisse-module-phone-ui-v460";
+const VOICE_CACHE = "couteau-suisse-module-voice-v462";
 const NOTIFICATION_PREF_CACHE = "carplay-notification-preference-v1";
 const NOTIFICATION_PREF_URL = "/__carplay_notifications_enabled__";
 const NOTIFICATION_LAST_UPDATE_URL = "/__carplay_last_update_notification_version__";
@@ -17,7 +18,7 @@ const NOTIFICATION_LAST_UPDATE_URL = "/__carplay_last_update_notification_versio
 const CURRENT_CACHES = new Set([
   BASE_CACHE, ICON_CACHE, CONTEST_CACHE, ADMIN_CACHE, DATA_CACHE, INSTALL_CACHE,
   STATS_CACHE, MUSHROOM_CACHE, SUBSCRIPTION_CACHE, AUTORADIO_CACHE,
-  PHONE_UI_CACHE, NOTIFICATION_PREF_CACHE
+  PHONE_UI_CACHE, VOICE_CACHE, NOTIFICATION_PREF_CACHE
 ]);
 
 async function notificationsEnabled(){
@@ -30,6 +31,7 @@ async function saveNotificationPreference(enabled){
 }
 function moduleCacheFor(path){
   if(path==="/phone-loading-v384.js")return PHONE_UI_CACHE;
+  if(path==="/voice-assist-v388.js")return VOICE_CACHE;
   if(path.indexOf("/autoradio-assets-v386/")===0||path==="/autoradio-home-v386.js"||path==="/autoradio-subscription-v381.js"||path==="/autoradio-version.json")return AUTORADIO_CACHE;
   if(path==="/manifest.webmanifest"||/couteau-suisse-v283-/.test(path))return ICON_CACHE;
   if(path==="/contest-v188.js")return CONTEST_CACHE;

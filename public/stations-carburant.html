@@ -72,11 +72,8 @@
   user-select:none!important;
   -webkit-touch-callout:none!important;
 }
-[data-voice-card]{touch-action:pan-y pinch-zoom!important}
+[data-voice-card]{touch-action:pan-y!important}
 </style>
-<script defer src="/accessibility-zoom-v466.js?v=470-direct-load"></script>
-<link rel="stylesheet" href="/subscription-locks.css?v=471-restore">
-<script defer src="/subscription-web.js?v=471-restore"></script>
 </head>
 <body>
 <div class="wrap">
@@ -355,6 +352,7 @@
   fuelEl.addEventListener('change',function(){if(lastPos)loadAt(lastPos.lat,lastPos.lon);else locate(false)});document.getElementById('refresh').addEventListener('click',function(){locate(true)});document.addEventListener('visibilitychange',function(){if(!document.hidden&&Date.now()-lastLoadAt>120000)locate(true)});setInterval(function(){if(!document.hidden)locate(true)},300000);locate(false);
 })();
 </script>
-<script src="voice-assist-v388.js?v=410"></script>
+<script src="voice-assist-v388.js?v=462-voix-globale-oise"></script>
+<script src="/accessibility-zoom-v459.js?v=459"></script>
 </body>
 </html>

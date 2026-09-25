@@ -294,10 +294,6 @@
     if (!node) return;
     function run(e) {
       var now = Date.now();
-      if(window.__carplayVoiceSuppressUntil&&now<window.__carplayVoiceSuppressUntil){
-        if(e){if(e.preventDefault)e.preventDefault();if(e.stopPropagation)e.stopPropagation()}
-        return false;
-      }
       if (now - (node.__lastDirectTap || 0) < 650) return false;
       node.__lastDirectTap = now;
       if (e) {
@@ -330,10 +326,6 @@
     };
     function run(e) {
       var now = Date.now();
-      if(window.__carplayVoiceSuppressUntil&&now<window.__carplayVoiceSuppressUntil){
-        if(e){if(e.preventDefault)e.preventDefault();if(e.stopPropagation)e.stopPropagation()}
-        return false;
-      }
       if (moved || now - (node.__marketTapAt || 0) < 650) return false;
       node.__marketTapAt = now;
       if (e) {
@@ -347,8 +339,21 @@
     node.onclick = run;
   }
   function gps(r) {
-    var point=verifiedMarketPoint(r), lat=point?point.lat:NaN,lon=point?point.lon:NaN,
-      hasCoords=!!point,destination,q,pref=localStorage.getItem("gps_pref")||"Google Maps";
+    var rawLat = r[10],
+      rawLon = r[11],
+      hasCoords =
+        rawLat !== null &&
+        rawLat !== undefined &&
+        rawLat !== "" &&
+        rawLon !== null &&
+        rawLon !== undefined &&
+        rawLon !== "",
+      lat = hasCoords ? Number(rawLat) : NaN,
+      lon = hasCoords ? Number(rawLon) : NaN,
+      destination,
+      q,
+      pref = localStorage.getItem("gps_pref") || "Google Maps";
+    hasCoords = hasCoords && Number.isFinite(lat) && Number.isFinite(lon);
     if (hasCoords) {
       destination = lat + "," + lon;
     } else {
@@ -438,7 +443,6 @@
     });
   }
   function goDirect(index) {
-    if(window.__carplayVoiceSuppressUntil&&Date.now()<window.__carplayVoiceSuppressUntil)return false;
     var r = marketRows()[index],
       trade = currentTrade(),
       date;
@@ -466,7 +470,6 @@
       gps(r);
     }
     function ask(count) {
-      if(window.__carplayVoiceSuppressUntil&&Date.now()<window.__carplayVoiceSuppressUntil)return;
       var city = String(r[3] || r[2] || "ce marché"),
         warning = Number(count) > 0
           ? '<p style="color:#ffd36d;font-weight:950">⚠️ Il y a déjà <b>' + Number(count) + '</b> marchand' + (Number(count)>1?'s':'') + ' de <b>' + esc(trade) + '</b> inscrit' + (Number(count)>1?'s':'') + ' pour ce marché.</p>'
@@ -590,54 +593,22 @@
     if (city.indexOf("rennes") >= 0) return "Oui";
     return "À vérifier";
   }
-  var liveMarketPosition = null;
-  function verifiedMarketPoint(r) {
-    try {
-      var saved = JSON.parse(localStorage.getItem("marketLocalLocationV1:" + identity(r)) || "null");
-      var lat = Number(saved && saved.latitude), lon = Number(saved && saved.longitude);
-      if (saved && isFinite(lat) && isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && !(lat === 0 && lon === 0)) return {lat:lat,lon:lon};
-    } catch (e) {}
-    var lat = Number(r && r[10]), lon = Number(r && r[11]);
-    return r && r[10] != null && r[11] != null && String(r[10]).trim() !== "" && String(r[11]).trim() !== "" && isFinite(lat) && isFinite(lon) && !(lat === 0 && lon === 0) ? {lat:lat,lon:lon} : null;
-  }
-  function distanceReference() {
-    if (liveMarketPosition && Date.now()-liveMarketPosition.updatedAt < 120000) return liveMarketPosition;
-    try {
-      var recent=JSON.parse(localStorage.getItem("marketDistanceReferenceV1")||"null");
-      if (recent && Date.now()-Number(recent.updatedAt) < 300000 && Number(recent.accuracy) <= 150 && isFinite(Number(recent.latitude)) && isFinite(Number(recent.longitude))) return {lat:Number(recent.latitude),lon:Number(recent.longitude),source:"current"};
-    } catch (e) {}
-    var lat=parseFloat(localStorage.getItem("return_lat")),lon=parseFloat(localStorage.getItem("return_lon"));
-    return isFinite(lat)&&isFinite(lon)?{lat:lat,lon:lon,source:"saved"}:null;
-  }
   function marketDistanceText(r) {
-    var ref=distanceReference(),point=verifiedMarketPoint(r);
-    if (!ref || !point) return "";
-    var p=Math.PI/180,da=(point.lat-ref.lat)*p,db=(point.lon-ref.lon)*p,
-      x=Math.sin(da/2)**2+Math.cos(ref.lat*p)*Math.cos(point.lat*p)*Math.sin(db/2)**2,
-      km=2*6371*Math.asin(Math.sqrt(x));
-    if (km<0.1) return "à moins de 100 m";
-    if (km<1) return Math.round(km*1000)+" m";
-    return (km<10?km.toFixed(1):Math.round(km))+" km";
+    var a = parseFloat(localStorage.getItem("return_lat")),
+      b = parseFloat(localStorage.getItem("return_lon")),
+      c = parseFloat(r && r[10]),
+      d = parseFloat(r && r[11]);
+    if (!isFinite(a) || !isFinite(b) || !isFinite(c) || !isFinite(d)) return "";
+    var p = Math.PI / 180,
+      da = (c - a) * p,
+      db = (d - b) * p,
+      x =
+        Math.sin(da / 2) * Math.sin(da / 2) +
+        Math.cos(a * p) * Math.cos(c * p) * Math.sin(db / 2) * Math.sin(db / 2),
+      km = 2 * 6371 * Math.asin(Math.sqrt(x));
+    if (km < 1) return Math.round(km * 1000) + " m";
+    return (km < 10 ? km.toFixed(1) : Math.round(km)) + " km";
   }
-  function refreshVisibleMarketDistances() {
-    var cards=el("cards")&&el("cards").querySelectorAll("article.card"),rows=marketRows();
-    if (!cards) return;
-    for (var i=0;i<rows.length && i<cards.length;i++) {
-      var value=marketDistanceText(rows[i]),line=cards[i].querySelector('[data-feature="market-distance"]');
-      if (!line && value) {line=document.createElement("div");line.className="meta";line.dataset.feature="market-distance";line.style.cssText="color:#6fe0ff;font-size:18px;font-weight:950";var metas=cards[i].querySelectorAll(".meta");if(metas[1])cards[i].insertBefore(line,metas[1]);else cards[i].appendChild(line)}
-      if (line) {line.textContent=value;line.style.display=value?"":"none";line.title=distanceReference()&&distanceReference().source==="saved"?"Depuis votre place enregistrée":"Depuis votre position actuelle"}
-      cards[i].dataset.voiceDistance=value;
-    }
-  }
-  function refreshCurrentMarketPosition() {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(function(pos){
-      if (Number(pos.coords.accuracy)>150) return;
-      liveMarketPosition={lat:pos.coords.latitude,lon:pos.coords.longitude,updatedAt:Date.now(),source:"current"};
-      refreshVisibleMarketDistances();
-    },function(){},{enableHighAccuracy:true,maximumAge:15000,timeout:8000});
-  }
-  window.addEventListener("carplay-market-gps-updated",refreshVisibleMarketDistances);
   function voiceDayLabel(day){
     var names=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'],today=names[new Date().getDay()];
     return normSearch(day)===normSearch(today)?"Aujourd’hui":String(day||'');
@@ -695,7 +666,7 @@
             encodeURIComponent(currentDay),
         );
       html +=
-        '<article class="card" data-voice-card="market" data-voice-city="'+esc(place)+'" data-voice-name="'+esc(name)+'" data-voice-day="'+esc(voiceDayLabel(currentDay))+'" data-voice-distance="'+esc(marketDistanceText(r)||'')+'" data-voice-count="'+esc(count)+'" data-voice-count-label="commerçants">' + verificationDot(r, s) + '<button type="button" class="marketFavoriteStar ' +
+        '<article class="card" data-voice-card="market" data-voice-area="'+esc(r[0]||'')+'" data-voice-city="'+esc(place)+'" data-voice-name="'+esc(name)+'" data-voice-day="'+esc(voiceDayLabel(currentDay))+'" data-voice-distance="'+esc(marketDistanceText(r)||'')+'" data-voice-count="'+esc(count)+'" data-voice-count-label="commerçants">' + verificationDot(r, s) + '<button type="button" class="marketFavoriteStar ' +
         (fav ? "active" : "") +
         '" aria-label="' +
         (fav ? "Retirer des favoris" : "Ajouter aux favoris") +
@@ -732,7 +703,9 @@
         i +
         '" style="margin-top:10px;padding:12px;border:3px solid #f39b19;border-radius:14px;background:#05090f;color:#fff;font-size:18px;font-weight:950">Concurrence : chargement…</div><div class="actions"><button type="button" class="go" data-market="' +
         i +
-        '" onclick="window.goMarket(' +
+        '" ontouchstart="window.goMarket(' +
+        i +
+        ');return false" onclick="window.goMarket(' +
         i +
         ');return false">ALLER AU MARCHÉ</button><a class="verify" href="' +
         url +
@@ -744,8 +717,6 @@
       html ||
       '<article class="card empty">Aucun marché enregistré pour ce jour.</article>';
     loadCounts(rs);
-    refreshVisibleMarketDistances();
-    refreshCurrentMarketPosition();
   }
   function loadWeather(rs) {
     var date = nextDate(currentDay),

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes,viewport-fit=cover">
 <title>Couteau Suisse</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Couteau Suisse">
@@ -816,16 +816,13 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
   user-select:none!important;
   -webkit-touch-callout:none!important;
 }
-[data-voice-card]{touch-action:pan-y pinch-zoom!important}
+[data-voice-card]{touch-action:pan-y!important}
 </style>
 <style id="homeTopActionsV434">
 .homeTopActions{display:flex;align-items:center;justify-content:flex-end;gap:10px;max-width:72%}
 .homeTopButton{min-height:58px;padding:10px 17px;border:3px solid #66d9ff;border-radius:18px;background:#087fd4;color:#fff;font:950 18px Arial;box-shadow:0 5px 15px #0008;cursor:pointer;white-space:nowrap}
 .homeTopHelp{max-width:350px;padding:7px 10px;border-radius:12px;background:#07111ddd;color:#fff;font:800 13px/1.25 Arial;text-align:right}
 </style>
-<script defer src="/accessibility-zoom-v466.js?v=470-direct-load"></script>
-<link rel="stylesheet" href="/subscription-locks.css?v=471-restore">
-<script defer src="/subscription-web.js?v=471-restore"></script>
 </head>
 <body class="homePage">
 
@@ -895,22 +892,8 @@ opacity:.9;
     <span class="eraseTitle">EFFACER EMPLACEMENT</span><span class="eraseIcon">🗑️</span>
   </div>
 </div>
-<style id="zoomSettingsV466">#zoomSettingRow .zoomChoices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:8px}#zoomSettingRow .zoomChoices button{min-width:0;min-height:55px;padding:8px 4px;font-size:clamp(11px,2.8vw,16px);line-height:1.2;font-weight:900;border:2px solid #75bdff;border-radius:12px;background:#142d48;color:#fff}#zoomSettingRow .zoomChoices button[aria-pressed="true"]{background:#137cc5;border-color:#ffcb55;box-shadow:0 0 0 2px #ffcb5577}#zoomSettingRow .settingNote{padding:10px 12px 15px}</style>
 <div id="settings" class="settings">
 <h2>⚙️ Réglages</h2>
-<div class="settingRow" id="zoomSettingRow">
-<button class="settingHead" onclick="toggleSection('zoomMenu',this)">
-<span>🔎 MODE ZOOM / LISIBILITÉ</span><span>⌄</span>
-</button>
-<div class="settingBody" id="zoomMenu">
-<div class="zoomChoices" role="group" aria-label="Choisir la taille d’affichage">
-<button type="button" data-carplay-zoom="normal" onclick="CarPlayZoom.set('normal')">1 · NORMAL</button>
-<button type="button" data-carplay-zoom="large" onclick="CarPlayZoom.set('large')">2 · AGRANDI</button>
-<button type="button" data-carplay-zoom="extra" onclick="CarPlayZoom.set('extra')">3 · TRÈS AGRANDI</button>
-</div>
-<div class="settingNote" id="zoomSettingStatus" aria-live="polite">Tu peux aussi zoomer et dézoomer avec deux doigts.</div>
-</div>
-</div>
 <div class="settingRow">
 <button class="settingHead" onclick="forceAppUpdate()">
 <span>🔄 MISE À JOUR</span>
@@ -971,7 +954,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
 </button>
 <div class="settingBody" id="shareMenu">
 <button onclick="shareApp()">🎁 PARRAINER / ENVOYER L’APPLICATION</button>
-<div class="settingNote"><b>Parrainage :</b> ton ami ajoute l’application à son écran d’accueil, renseigne nom, prénom et e-mail puis valide le lien reçu par e-mail.<br><b>Si tu es administrateur :</b> ton ami reçoit 150 points et tu ne reçois aucun point.<br><b>Si tu es utilisateur :</b> tu reçois 280 points et ton ami 190 points.<br>Une adresse e-mail et un appareil ne peuvent être récompensés qu’une seule fois.</div>
+<div class="settingNote"><b>Parrainage :</b> ton ami ajoute l’application à son écran d’accueil, renseigne nom, prénom et e-mail puis reçoit un e-mail avec le bouton <b>ACTIVER MES 96 POINTS</b>. <b>Tu gagnes 320 points et ton ami 96 points.</b><br>Une adresse e-mail et un appareil ne peuvent être récompensés qu’une seule fois.</div>
 </div>
 </div>
 <div class="settingRow" id="addressBackupSettingRow">
@@ -987,6 +970,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
 <button type="button" onclick="importMyAddressesText()">📲 RÉCUPÉRER DEPUIS UN MESSAGE / WHATSAPP</button>
 </div>
 </div>
+<div class="settingRow" id="voiceSettingRow"><button class="settingHead" onclick="toggleSection('voiceMenu',this)"><span>🔊 Lecture vocale de l’application</span><span>⌄</span></button><div class="settingBody" id="voiceMenu"><label style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px;color:#fff;font-size:20px;font-weight:900">ACTIVER LA VOIX <input id="voiceAssistToggle" type="checkbox" onchange="window.voiceSettingsDirect&&window.voiceSettingsDirect(this.checked)" style="width:34px;height:34px"></label><div class="settingNote" id="voiceAssistStatus">🔇 Voix désactivée.</div><button id="voiceAssistTestBtn" type="button" onclick="window.CouteauVoice&&window.CouteauVoice.speak('La lecture vocale fonctionne.')" style="margin:8px 14px 12px;width:calc(100% - 28px);min-height:52px;border:2px solid #65c7ff;border-radius:14px;background:#0b668d;color:#fff;font-size:18px;font-weight:950">🔊 TESTER LA VOIX</button><div class="settingNote">Quand la voix est activée, maintenez le doigt <b>1,20 seconde</b> sur une fiche ou un bouton. La voix reste active dans toute l’application. Les icônes et logos ne sont pas lus.</div></div></div>
 <div class="settingRow"><button class="settingHead" onclick="toggleSection('notificationMenu',this)"><span>🔔 Notifications de l’application</span><span>⌄</span></button><div class="settingBody" id="notificationMenu"><div style="margin:10px 8px 14px;padding:16px;border:4px solid #ff9f13;border-radius:16px;background:#321400;color:#fff;text-align:center;font-size:19px;font-weight:1000;line-height:1.35">⚠️ IMPORTANT<br>SI LA CASE N’EST PAS COCHÉE, VOUS NE RECEVREZ PLUS AUCUNE NOTIFICATION DE L’APPLICATION : MÉTÉO, MARCHÉS, MISES À JOUR ET DEMANDES ADMINISTRATEUR.</div><label style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px;color:#fff;font-size:20px;font-weight:900">RECEVOIR TOUTES LES NOTIFICATIONS <input id="appNotificationToggle" type="checkbox" style="width:34px;height:34px"></label><div class="settingNote" id="appNotificationStatus">🔕 Aucune notification ne sera reçue sur ce téléphone.</div><div class="settingNote">Une seule case commande toutes les notifications. Cochez-la pour tout recevoir ; décochez-la pour tout arrêter.</div></div></div>
 <div class="settingRow" id="adminSettingRow">
 <button class="settingHead" onclick="location.href='/admin.html'">
@@ -995,6 +979,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
 </button>
 <div class="settingNote" style="padding:0 16px 14px">Accès privé : compteurs des demandes et gestion des abonnements.</div>
 </div>
+<div class="settingRow" id="adminMarketFormsSettingRow"><button class="settingHead" onclick="location.href='/admin.html#marketFormsBox'"><span>📝 VOIR LES FICHES DE MARCHÉ</span><span>›</span></button><div class="settingNote" style="padding:0 16px 14px">Aperçu des photos, compteur renseigné / total, déblocage et modification administrateur.</div></div>
 <div class="settingRow" id="adminBanSettingRow">
 <button class="settingHead" onclick="location.href='/admin.html#allUsersBox'">
 <span>⛔ BANNIR / DÉBANNIR</span>
@@ -1307,7 +1292,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     </div>
   </div>
 </div>
-<script>window.updateNetworkStatus=function(){let ok=false;try{ok=window.AndroidStatus?AndroidStatus.hasInternet():navigator.onLine}catch(e){ok=navigator.onLine}network.textContent=ok?'Internet disponible':'Réseau indisponible'};addEventListener('online',updateNetworkStatus);addEventListener('offline',updateNetworkStatus);setInterval(updateNetworkStatus,4000);updateNetworkStatus();function toggleSettings(){settings.classList.toggle('open');const open=settings.classList.contains('open');document.body.classList.toggle('settings-open',open);if(open&&window.CarPlayLocation)window.CarPlayLocation.refresh()}function toggleSection(id,btn){const b=document.getElementById(id),open=b.classList.contains('open');document.querySelectorAll('.settingBody').forEach(x=>x.classList.remove('open'));document.querySelectorAll('.settingHead span:last-child').forEach(x=>x.textContent='⌄');if(!open){b.classList.add('open');btn.querySelector('span:last-child').textContent='⌃'}}function saveGps(v){localStorage.setItem('gps_pref',v);refreshPrefs()}function refreshPrefs(){const g=localStorage.getItem('gps_pref')||'';gpsStatus.textContent=g?'GPS choisi : '+g:'Aucun GPS choisi';gpsWaze.classList.toggle('selected',g==='Waze');gpsGoogle.classList.toggle('selected',g==='Google Maps')}async function _returnPlaceAddress(lat,lon){try{const r=await fetch('/api/place-address?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{cache:'no-store'}),j=await r.json();if(r.ok&&j&&j.address)return String(j.address)}catch(e){}return 'Emplacement enregistré'}async function returnPlace(){let a=localStorage.getItem('return_lat'),o=localStorage.getItem('return_lon');if(!a||!o){if(!navigator.geolocation)return alert('GPS indisponible');navigator.geolocation.getCurrentPosition(async p=>{const lat=p.coords.latitude,lon=p.coords.longitude,address=await _returnPlaceAddress(lat,lon);if(!confirm('Êtes-vous sûr de vouloir enregistrer cet emplacement comme votre place ?\n\n'+address))return;localStorage.setItem('return_lat',lat);localStorage.setItem('return_lon',lon);localStorage.setItem('return_address',address);showStatuses();window.dispatchEvent(new CustomEvent('carplay-return-place-saved',{detail:{lat:lat,lon:lon,address:address}}));alert('✅ Emplacement enregistré\n\n'+address)},e=>{var m=window.CarPlayLocation?window.CarPlayLocation.showHelp(e):'Activez la localisation.';alert(m)},{enableHighAccuracy:true,timeout:15000,maximumAge:0});return}let address=localStorage.getItem('return_address')||'';if(!address||address==='Emplacement enregistré'){address=await _returnPlaceAddress(a,o);localStorage.setItem('return_address',address)}if(!confirm('Êtes-vous sûr de vouloir retourner sur la place ?\n\n'+address))return;const q=a+','+o,pref=localStorage.getItem('gps_pref')||'Google Maps';location.href=pref==='Waze'?'https://waze.com/ul?ll='+encodeURIComponent(q)+'&navigate=yes':'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(q)+'&travelmode=driving&dir_action=navigate'}function clearReturnPlace(){localStorage.removeItem('return_lat');localStorage.removeItem('return_lon');localStorage.removeItem('return_address');showStatuses();alert('Emplacement de retour effacé.')}function showStatuses(){const a=localStorage.getItem('return_address')||'';returnStatus.textContent=localStorage.getItem('return_lat')?(a?'Place enregistrée : '+a:'Place enregistrée.') : ''}async function shareApp(){let u=(location.origin&&location.origin!=='null')?location.origin+'/installer.html':'https://carplay-telephone.appli-suzon.workers.dev/installer.html';try{if(window.CarPlayReferralShareLink)u=await window.CarPlayReferralShareLink()}catch(e){}const data={title:'Couteau Suisse',text:'Je te parraine sur Couteau Suisse. Ajoute l’application à ton écran d’accueil, ouvre-la depuis l’icône puis renseigne nom, prénom et e-mail. Tu recevras un e-mail pour activer tes points de parrainage.',url:u};try{if(navigator.share){navigator.share(data).catch(function(e){if(e&&e.name==='AbortError')return;copyShareLink(u)});return}}catch(e){}copyShareLink(u)}function copyShareLink(u){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(function(){alert('Lien de l’application copié. Tu peux maintenant l’envoyer à ton ami.')}).catch(function(){prompt('Copie ce lien et envoie-le à ton ami :',u)});return}}catch(e){}prompt('Copie ce lien et envoie-le à ton ami :',u)}async function forceAppUpdate(){
+<script>window.updateNetworkStatus=function(){let ok=false;try{ok=window.AndroidStatus?AndroidStatus.hasInternet():navigator.onLine}catch(e){ok=navigator.onLine}network.textContent=ok?'Internet disponible':'Réseau indisponible'};addEventListener('online',updateNetworkStatus);addEventListener('offline',updateNetworkStatus);setInterval(updateNetworkStatus,4000);updateNetworkStatus();function toggleSettings(){settings.classList.toggle('open');const open=settings.classList.contains('open');document.body.classList.toggle('settings-open',open);if(open&&window.CarPlayLocation)window.CarPlayLocation.refresh()}function toggleSection(id,btn){const b=document.getElementById(id),open=b.classList.contains('open');document.querySelectorAll('.settingBody').forEach(x=>x.classList.remove('open'));document.querySelectorAll('.settingHead span:last-child').forEach(x=>x.textContent='⌄');if(!open){b.classList.add('open');btn.querySelector('span:last-child').textContent='⌃'}}function saveGps(v){localStorage.setItem('gps_pref',v);refreshPrefs()}function refreshPrefs(){const g=localStorage.getItem('gps_pref')||'';gpsStatus.textContent=g?'GPS choisi : '+g:'Aucun GPS choisi';gpsWaze.classList.toggle('selected',g==='Waze');gpsGoogle.classList.toggle('selected',g==='Google Maps')}async function _returnPlaceAddress(lat,lon){try{const r=await fetch('/api/place-address?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{cache:'no-store'}),j=await r.json();if(r.ok&&j&&j.address)return String(j.address)}catch(e){}return 'Emplacement enregistré'}async function returnPlace(){let a=localStorage.getItem('return_lat'),o=localStorage.getItem('return_lon');if(!a||!o){if(!navigator.geolocation)return alert('GPS indisponible');navigator.geolocation.getCurrentPosition(async p=>{const lat=p.coords.latitude,lon=p.coords.longitude,address=await _returnPlaceAddress(lat,lon);if(!confirm('Êtes-vous sûr de vouloir enregistrer cet emplacement comme votre place ?\n\n'+address))return;localStorage.setItem('return_lat',lat);localStorage.setItem('return_lon',lon);localStorage.setItem('return_address',address);showStatuses();window.dispatchEvent(new CustomEvent('carplay-return-place-saved',{detail:{lat:lat,lon:lon,address:address}}));alert('✅ Emplacement enregistré\n\n'+address)},e=>{var m=window.CarPlayLocation?window.CarPlayLocation.showHelp(e):'Activez la localisation.';alert(m)},{enableHighAccuracy:true,timeout:15000,maximumAge:0});return}let address=localStorage.getItem('return_address')||'';if(!address||address==='Emplacement enregistré'){address=await _returnPlaceAddress(a,o);localStorage.setItem('return_address',address)}if(!confirm('Êtes-vous sûr de vouloir retourner sur la place ?\n\n'+address))return;const q=a+','+o,pref=localStorage.getItem('gps_pref')||'Google Maps';location.href=pref==='Waze'?'https://waze.com/ul?ll='+encodeURIComponent(q)+'&navigate=yes':'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(q)+'&travelmode=driving&dir_action=navigate'}function clearReturnPlace(){localStorage.removeItem('return_lat');localStorage.removeItem('return_lon');localStorage.removeItem('return_address');showStatuses();alert('Emplacement de retour effacé.')}function showStatuses(){const a=localStorage.getItem('return_address')||'';returnStatus.textContent=localStorage.getItem('return_lat')?(a?'Place enregistrée : '+a:'Place enregistrée.') : ''}async function shareApp(){let u=(location.origin&&location.origin!=='null')?location.origin+'/installer.html':'https://carplay-telephone.appli-suzon.workers.dev/installer.html';try{if(window.CarPlayReferralShareLink)u=await window.CarPlayReferralShareLink()}catch(e){}const data={title:'Couteau Suisse',text:'Je te parraine sur Couteau Suisse. Ajoute l’application à ton écran d’accueil, ouvre-la depuis l’icône puis renseigne nom, prénom et e-mail. Tu recevras un e-mail pour activer tes 96 points. Moi, je gagne 320 points.',url:u};try{if(navigator.share){navigator.share(data).catch(function(e){if(e&&e.name==='AbortError')return;copyShareLink(u)});return}}catch(e){}copyShareLink(u)}function copyShareLink(u){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(function(){alert('Lien de l’application copié. Tu peux maintenant l’envoyer à ton ami.')}).catch(function(){prompt('Copie ce lien et envoie-le à ton ami :',u)});return}}catch(e){}prompt('Copie ce lien et envoie-le à ton ami :',u)}async function forceAppUpdate(){
   if(window.__manualUpdateV368Running)return;
   window.__manualUpdateV368Running=true;
   var overlay=document.getElementById('manualUpdateV368');
@@ -1378,19 +1363,19 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(10,'Vérification de l’application…','Contrôle de la page d’accueil et des réglages.');
     await check('/index.html');
     setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications.');
-    await check('/contest-v188.js?v=464-referral-celebration');
+    await check('/contest-v188.js?v=459-concours-restaure');
     setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique et événements.');
-    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=431-gps-photo'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v481.js?v=481-more-market-lines'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=431-gps-distance'),check('/market-consensus.js?v=461-gps'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
+    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=431-gps-photo'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v388.js?v=462-voix-globale-oise'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=431-gps-distance'),check('/market-consensus.js?v=320-verification-speciale'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
     setProgress(48,'Vérification des champignons…','Contrôle des fiches Champignons et des coins enregistrés.');
     await Promise.allSettled([check('/champignons.html'),check('/champignons.js?v=300-concours-auto')]);
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
     await Promise.allSettled([check('/notification-settings.js?v=282-onboarding-notification-detail'),check('/market-update-notifications-v281.js?v=282')]);
     setProgress(72,'Vérification du compte…','Contrôle de l’abonnement, de l’identité et des réglages.');
-    await Promise.allSettled([check('/subscription-web.js?v=434-settings'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
+    await Promise.allSettled([check('/subscription-web.js?v=459-abonnement-restaure'),check('/persistent-user-data-v283.js?v=416-admin-session')]);
     setProgress(82,'Recherche de la nouvelle version…','Seuls les fichiers de l’application sont actualisés.');
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
-      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=456-stable-update',{updateViaCache:'none'})]}catch(_){regs=[]}}
+      if(!regs.length){try{regs=[await navigator.serviceWorker.register('/sw.js?v=462-voix-globale-oise',{updateViaCache:'none'})]}catch(_){regs=[]}}
       for(var i=0;i<regs.length;i++)try{await regs[i].update()}catch(_){}
       var reg=regs[0];
       if(reg&&reg.waiting){
@@ -2733,11 +2718,11 @@ window.addEventListener('load',function(){
 <script src="/notification-settings.js?v=282-onboarding-notification-detail"></script><script src="/admin-approval-overlay.js?v=302-d1"></script><script src="/sanction-guard-v161.js?v=302-d1"></script><script src="/user-stats-v285.js?v=328-stations-verifiees"></script><script src="/auto-market-counter-v204.js?v=204" defer></script>
 <script src="/trial-home-banner-v292.js?v=292"></script>
 
-<script src="/voice-assist-v481.js?v=481-more-market-lines"></script>
-<script defer src="/contest-v188.js?v=472-contest-restore"></script>
-<script defer src="/referral-v232.js?v=472-contest-restore"></script>
+<script src="/subscription-web.js?v=459-abonnement-restaure"></script>
+<script src="/contest-v188.js?v=459-concours-restaure"></script>
+<script src="/accessibility-zoom-v459.js?v=459"></script>
+<script src="/voice-assist-v388.js?v=462-voix-globale-oise"></script>
 <script src="/market-milestones-v457.js?v=457"></script>
-<script src="/market-save-notice-v462.js?v=462"></script>
 </body>
 </html>
 

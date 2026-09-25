@@ -1,6 +1,6 @@
 (function () {
-  if (window.__carplaySubscriptionWebV471Loaded) return;
-  window.__carplaySubscriptionWebV471Loaded = true;
+  if(window.__subscriptionWebV441Loaded)return;
+  window.__subscriptionWebV441Loaded=1;
   if ("serviceWorker" in navigator) {
     var swLastCheck = 0;
     var swReloading = false;
@@ -13,7 +13,7 @@
       if (Date.now() - swLastCheck < 30000) return;
       swLastCheck = Date.now();
       try {
-        var registration = await navigator.serviceWorker.register("/sw.js?v=330-gpl-favori-verif", { updateViaCache: "none" });
+        var registration = await navigator.serviceWorker.register("/sw.js?v=462-voix-globale-oise", { updateViaCache: "none" });
         activateWaiting(registration);
         registration.addEventListener("updatefound", function () {
           var worker = registration.installing;
@@ -116,7 +116,14 @@
     return real;
   }
   function valid(s) { return s && (s.lifetime || (s.expiresAt && Date.parse(s.expiresAt) > Date.now())); }
-  function unlocked() { return valid(saved()); }
+  function adminBypass() {
+    try {
+      return localStorage.getItem("carplay_admin_here") === "1" ||
+             !!localStorage.getItem("carplay_admin_token") ||
+             !!localStorage.getItem("carplay_admin_secret");
+    } catch (_) { return false; }
+  }
+  function unlocked() { return adminBypass() || valid(saved()); }
   function detectedType() { return "phone"; }
   function rememberEmail(value) {
     var email=String(value||"").trim().toLowerCase();
@@ -475,8 +482,8 @@
     var settings = document.getElementById("settings");
     if (!settings) return;
     var existingPanel = document.getElementById("subscriptionSettings");
-    if (existingPanel) { cleanupOldSettingDuplicates(settings, existingPanel); return; }
-    var panel = document.createElement("div");
+    var updateRow = document.getElementById("updateSettingRow");
+    var panel = existingPanel || document.createElement("div");
     panel.className = "settingRow";
     panel.id = "subscriptionSettings";
     var s = saved();
@@ -485,7 +492,9 @@
     var state = isActive ? "ACTIF" : "DÉSACTIVÉ";
     var days = isActive ? (s.lifetime ? "ABONNEMENT À VIE" : remaining + " JOUR" + (remaining > 1 ? "S" : "") + " RESTANT" + (remaining > 1 ? "S" : "")) : "0 JOUR RESTANT";
     var end = isActive ? (s.lifetime ? "AUCUNE DATE DE FIN" : "FIN LE " + new Date(s.expiresAt).toLocaleDateString("fr-FR")) : "FONCTIONS VERROUILLÉES";
-    panel.innerHTML = '<div class="settingHead"><span>🔐 ABONNEMENT</span><span>⌄</span></div><div class="settingBody"><div class="sub-current-status" style="margin:4px 0 12px;padding:12px;border:2px solid '+(isActive?'#44d17a':'#ff5a5a')+';border-radius:13px;background:#0b1522;text-align:center;font-weight:950"><div style="font-size:19px">'+state+'</div><div style="margin-top:4px">'+days+'</div><div style="margin-top:4px;font-size:13px;color:#d8e0eb">'+end+'</div></div><a href="https://www.snapchat.com/add/steve_suzon" target="_blank" rel="noopener" style="display:block;margin:0 0 12px;padding:11px;border:2px solid #fffc00;border-radius:12px;background:#272500;color:#fff;text-align:center;text-decoration:none;font:900 14px/1.35 Arial">Pour commander un code : contactez <b>steve_suzon</b> sur Snapchat.<br><strong style="color:#ffdc47">30 € — code valable un an</strong></a><div class="sub-settings"><label><b>1. NOM ET PRÉNOM OBLIGATOIRES</b></label><div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:6px 0 12px"><input class="sub-setting-last-name" type="text" autocomplete="family-name" maxlength="60" placeholder="Nom"><input class="sub-setting-first-name" type="text" autocomplete="given-name" maxlength="60" placeholder="Prénom"></div><label class="sub-setting-email-label"><b>2. ÉCRIVEZ VOTRE ADRESSE E-MAIL COMPLÈTE</b></label><input class="sub-setting-email sub-full-email" type="email" inputmode="email" autocomplete="email" placeholder="Exemple : prenom.nom@gmail.com"><div class="sub-setting-confirmed sub-email-complete" style="display:none;color:#55e58c;font-weight:900;margin:7px 0"></div><div class="sub-setting-warning" style="display:none;font-size:12px;color:#ffd166;margin:4px 0 9px">⚠️ Attention : si l’adresse e-mail est incorrecte, aucune récupération du compte ne sera possible.</div><button class="sub-setting-confirm-email" type="button">CONFIRMER LES INFORMATIONS</button><button class="sub-setting-change-email" type="button" style="display:none">MODIFIER MES INFORMATIONS</button><button class="sub-setting-recover-code" type="button">ME FAIRE RENVOYER MON CODE D’ABONNEMENT</button><small class="sub-recovery-help">Application effacée ou nouveau téléphone ? Renseignez le même nom, prénom et la même adresse e-mail : votre code d’abonnement actuel vous sera renvoyé par e-mail. En le saisissant, vous récupérez exactement l’abonnement déjà existant et le nombre de jours qu’il lui restait — aucune nouvelle période ne remplace l’ancienne.</small><label><b>3. ENTREZ VOTRE CODE D’ABONNEMENT</b></label><input class="sub-setting-code" inputmode="text" autocapitalize="characters" maxlength="6" placeholder="CODE 6 LETTRES / CHIFFRES"><button class="sub-setting-activate">ACTIVER / CHANGER MON CODE</button><div class="sub-settings-message"></div></div></div>'
+    panel.innerHTML = '<button class="settingHead" type="button"><span>🔐 ABONNEMENT</span><span>⌄</span></button><div class="settingBody" id="subscriptionMenu"><div class="sub-current-status" style="margin:4px 0 12px;padding:12px;border:2px solid '+(isActive?'#44d17a':'#ff5a5a')+';border-radius:13px;background:#0b1522;text-align:center;font-weight:950"><div style="font-size:19px">'+state+'</div><div style="margin-top:4px">'+days+'</div><div style="margin-top:4px;font-size:13px;color:#d8e0eb">'+end+'</div></div><a href="https://www.snapchat.com/add/steve_suzon" target="_blank" rel="noopener" style="display:block;margin:0 0 12px;padding:11px;border:2px solid #fffc00;border-radius:12px;background:#272500;color:#fff;text-align:center;text-decoration:none;font:900 14px/1.35 Arial">Pour commander un code : contactez <b>steve_suzon</b> sur Snapchat.<br><strong style="color:#ffdc47">30 € — code valable un an</strong></a><div class="sub-settings"><label><b>1. NOM ET PRÉNOM OBLIGATOIRES</b></label><div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:6px 0 12px"><input class="sub-setting-last-name" type="text" autocomplete="family-name" maxlength="60" placeholder="Nom"><input class="sub-setting-first-name" type="text" autocomplete="given-name" maxlength="60" placeholder="Prénom"></div><label class="sub-setting-email-label"><b>2. ÉCRIVEZ VOTRE ADRESSE E-MAIL COMPLÈTE</b></label><input class="sub-setting-email sub-full-email" type="email" inputmode="email" autocomplete="email" placeholder="Exemple : prenom.nom@gmail.com"><div class="sub-setting-confirmed sub-email-complete" style="display:none;color:#55e58c;font-weight:900;margin:7px 0"></div><div class="sub-setting-warning" style="display:none;font-size:12px;color:#ffd166;margin:4px 0 9px">⚠️ Attention : si l’adresse e-mail est incorrecte, aucune récupération du compte ne sera possible.</div><button class="sub-setting-confirm-email" type="button">CONFIRMER LES INFORMATIONS</button><button class="sub-setting-change-email" type="button" style="display:none">MODIFIER MES INFORMATIONS</button><button class="sub-setting-recover-code" type="button">ME FAIRE RENVOYER MON CODE D’ABONNEMENT</button><small class="sub-recovery-help">Application effacée ou nouveau téléphone ? Renseignez le même nom, prénom et la même adresse e-mail : votre code d’abonnement actuel vous sera renvoyé par e-mail. En le saisissant, vous récupérez exactement l’abonnement déjà existant et le nombre de jours qu’il lui restait — aucune nouvelle période ne remplace l’ancienne.</small><label><b>3. ENTREZ VOTRE CODE D’ABONNEMENT</b></label><input class="sub-setting-code" inputmode="text" autocapitalize="characters" maxlength="6" placeholder="CODE 6 LETTRES / CHIFFRES"><button class="sub-setting-activate">ACTIVER / CHANGER MON CODE</button><div class="sub-settings-message"></div></div></div>'
+    if (updateRow && updateRow.parentNode) updateRow.parentNode.insertBefore(panel, updateRow.nextSibling);
+    else if (!panel.parentNode) settings.insertBefore(panel, settings.querySelector(".settingRow") || null);
     var emailField=panel.querySelector('.sub-setting-email'),firstNameField=panel.querySelector('.sub-setting-first-name'),lastNameField=panel.querySelector('.sub-setting-last-name'),emailProof='',identitySeed=storedIdentity(s||{});
     if(emailField&&!emailField.value){emailField.value=identitySeed.email||rememberedEmail()||(s&&s.email)||'';}
     if(firstNameField)firstNameField.value=identitySeed.firstName||(s&&s.firstName)||'';
@@ -500,10 +509,9 @@
     };
     if(emailField&&emailField.value&&firstNameField.value.trim().length>=2&&lastNameField.value.trim().length>=2&&s&&s.email&&s.firstName&&s.lastName){showConfirmed(emailField.value);}
     window.CarPlaySyncIdentityToSubscriptionSettings(s||{});
-    var firstSetting = settings.querySelector(".settingRow");
-    if (firstSetting) settings.insertBefore(panel, firstSetting); else settings.appendChild(panel);
     cleanupOldSettingDuplicates(settings, panel);
-    panel.querySelector(".settingHead").onclick = function () { panel.querySelector(".settingBody").classList.toggle("open"); };
+    var subHead=panel.querySelector(".settingHead"),subBody=panel.querySelector(".settingBody");
+    if(subHead&&subBody)subHead.onclick=function(){subBody.classList.toggle("open")};
     var settingsCodeInput = panel.querySelector(".sub-setting-code");
     settingsCodeInput.addEventListener("input", function(){ settingsCodeInput.value = cleanCode(settingsCodeInput.value); });
     panel.querySelector('.sub-setting-confirm-email').onclick=function(){var msg=panel.querySelector('.sub-settings-message'),email=String(emailField.value||'').trim().toLowerCase(),firstName=String(firstNameField.value||'').trim().replace(/\s+/g,' '),lastName=String(lastNameField.value||'').trim().replace(/\s+/g,' ');if(firstName.length<2||lastName.length<2){msg.textContent='Écrivez votre nom et votre prénom.';return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){msg.textContent='Écrivez une adresse e-mail complète.';return;}rememberEmail(email);msg.textContent='Vérification de votre adresse e-mail…';ensureServerIdentityV407(email,firstName,lastName,function(){emailProof='adresse-confirmee';showConfirmed(email);settingsCodeInput.disabled=false;panel.querySelector('.sub-setting-activate').disabled=false;msg.textContent='✅ Adresse e-mail confirmée sur le serveur. Vous pouvez continuer.';},function(e){emailProof='';msg.textContent=messageFor(e);});};
@@ -526,6 +534,12 @@
     };
   }
 
+  window.CarPlayEnsureSubscriptionSettings=settingsPanel;
+  window.CarPlayOpenSubscriptionSettings=function(){
+    try{settingsPanel()}catch(_){}
+    var body=document.getElementById("subscriptionMenu");
+    if(body)body.classList.add("open");
+  };
   window.addEventListener("carplay:identity-ready",function(event){
     if(window.CarPlaySyncIdentityToSubscriptionSettings)window.CarPlaySyncIdentityToSubscriptionSettings(event&&event.detail||{});
   });
@@ -535,7 +549,7 @@
     var mapsMenu = document.getElementById("mapsMenu");
     if (mapsMenu) {
       var row = mapsMenu.closest ? mapsMenu.closest(".settingRow") : mapsMenu.parentNode;
-      if (row) row.style.display = "none";
+      if (row) row.remove();
     }
   }
 
@@ -619,11 +633,13 @@
     document.head.appendChild(recoveryStyle);
     if(localStorage.getItem('carplay_device_type')==='autoradio'||window.__COUTEAU_AUTORADIO__===true)document.body.classList.add('autoradio-subscription-ui');
     // Afficher ABONNEMENT immédiatement dans Réglages, même si le contrôle serveur prend du temps.
-    settingsPanel();
+    try{settingsPanel()}catch(e){try{var b=document.getElementById("subscriptionMenu");if(b)b.innerHTML='<div class="settingNote" style="padding:12px;color:#ffcf7a">Touchez de nouveau ABONNEMENT pour recharger.</div>'}catch(_){}}
     verifySaved(function () {
-      var oldSubscriptionPanel=document.getElementById("subscriptionSettings");
-      if(oldSubscriptionPanel)oldSubscriptionPanel.remove();
-      settingsPanel();
+      try{
+        var oldSubscriptionPanel=document.getElementById("subscriptionSettings");
+        if(oldSubscriptionPanel)oldSubscriptionPanel.remove();
+        settingsPanel();
+      }catch(_){}
       homeStatus();
       maybeShowSubscriptionExpiryReminder(false);
       addAdminMessageCounter();

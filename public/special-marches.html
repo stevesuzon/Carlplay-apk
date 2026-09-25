@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta
       name="viewport"
-      content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes"
+      content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes,viewport-fit=cover"
     />
     <title>Catégorie marchés</title>
     <style>
@@ -265,11 +265,8 @@
   user-select:none!important;
   -webkit-touch-callout:none!important;
 }
-[data-voice-card]{touch-action:pan-y pinch-zoom!important}
+[data-voice-card]{touch-action:pan-y!important}
 </style>
-<script defer src="/accessibility-zoom-v466.js?v=470-direct-load"></script>
-<link rel="stylesheet" href="/subscription-locks.css?v=471-restore">
-<script defer src="/subscription-web.js?v=471-restore"></script>
 </head>
   <body>
     <main class="wrap">
@@ -632,7 +629,7 @@
               var goText = goLabel(r);
               var ev = type === "brocante" ? eventVisual(r) : null;
               return (
-                '<article class="item card ' + (ev ? "eventBig" : "") + '" data-voice-card="market" data-voice-city="'+esc(r[3]||'')+'" data-voice-name="'+esc(r[2]||'Marché')+'" data-voice-day="'+esc(r[4]||'Date à vérifier')+'" data-voice-distance="'+esc(specialDistanceText(r)||'')+'" data-voice-count="'+esc(String(places).replace(/ officiellement/gi, ''))+'" data-voice-count-label="'+esc(type==="noel"?"chalets":type==="brocante"?"emplacements / exposants":"commerçants")+'" data-market-key="' +
+                '<article class="item card ' + (ev ? "eventBig" : "") + '" data-voice-card="market" data-voice-area="'+esc(r[0]||'')+'" data-voice-city="'+esc(r[3]||'')+'" data-voice-name="'+esc(r[2]||'Marché')+'" data-voice-day="'+esc(r[4]||'Date à vérifier')+'" data-voice-distance="'+esc(specialDistanceText(r)||'')+'" data-voice-count="'+esc(String(places).replace(/ officiellement/gi, ''))+'" data-voice-count-label="'+esc(type==="noel"?"chalets":type==="brocante"?"emplacements / exposants":"commerçants")+'" data-market-key="' +
                 esc(marketIdentity(r)) +
                 '"><button class="favStar ' +
                 (fav ? "active" : "") +
@@ -687,8 +684,9 @@
         render();
       })();
     </script>
-    <script src="market-consensus.js?v=461-gps"></script>
+    <script src="market-consensus.js?v=320-verification-speciale"></script>
     <script src="new-feature-bubbles.js?v=20260905"></script>
-  <script src="voice-assist-v388.js?v=410"></script>
+  <script src="voice-assist-v388.js?v=462-voix-globale-oise"></script>
+<script src="/accessibility-zoom-v459.js?v=459"></script>
 </body>
 </html>
