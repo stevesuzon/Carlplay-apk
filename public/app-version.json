@@ -1,4 +1,4 @@
 {
-  "version": "V476",
-  "message": "Voix corrigée sur les boutons. Un appui long de 1,20 seconde ou plus lit le bouton et bloque son action : aucune page ne doit s’ouvrir. Un appui court garde son fonctionnement normal. Le son n’est plus annulé quand l’application reprend le focus."
+  "version": "V477",
+  "message": "Moteur vocal nettoyé : un seul script de voix est chargé. Les anciennes versions vocales et leur cache sont neutralisés. Appui long 1,20 s = lecture uniquement, sans ouvrir le bouton ni la page. « Toucher pour écouter » apparaît une seule fois après ouverture de l’application."
 }
