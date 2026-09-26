@@ -13,7 +13,7 @@
 .cards{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;align-items:stretch!important}
 .sectionTitle{grid-column:1/-1;margin:10px 0 2px;padding:10px 12px;border-radius:14px;background:#14263a;color:#ffd84a;font-weight:1000;font-size:20px;border:2px solid #f39b19}
 .specialBadge{display:inline-flex;align-items:center;gap:6px;margin:2px 0 8px;padding:7px 11px;border-radius:999px;color:#fff;font-size:13px;font-weight:1000;letter-spacing:.3px;box-shadow:0 4px 12px #0006}.specialBadge.foire{background:linear-gradient(135deg,#8c35d9,#d56d00)}.specialBadge.brocante{background:linear-gradient(135deg,#e46b00,#ff9a19)}.specialBadge.vide{background:linear-gradient(135deg,#087f72,#17b661)}.specialBadge.braderie{background:linear-gradient(135deg,#b62e55,#f06464)}
-.specialDate{margin-top:2px;font-size:15px!important;line-height:1.25!important;color:#ffe38a!important;font-weight:1000!important}.specialTimer{margin-top:3px;font-size:12px!important;line-height:1.2!important;color:#ffd84a!important;font-weight:950!important}.specialPhone{margin-top:4px;color:#8ff0b6!important;font-weight:950!important}.market-actions.has-three{grid-template-columns:1fr 1fr!important}.market-actions .register{grid-column:1/-1!important;display:flex!important;align-items:center!important;justify-content:center!important;min-height:38px!important;padding:6px 5px!important;border-radius:8px!important;background:#168a4e!important;color:#fff!important;text-decoration:none!important;text-align:center!important;font-size:9px!important;line-height:1.15!important;font-weight:1000!important}
+.eventCityBig{margin:2px 0 7px;font-size:23px;line-height:1.05;color:#6fe0ff;font-weight:1000;letter-spacing:.2px}.specialDate{margin-top:2px;font-size:15px!important;line-height:1.25!important;color:#ffe38a!important;font-weight:1000!important}.specialTimer{margin-top:3px;font-size:12px!important;line-height:1.2!important;color:#ffd84a!important;font-weight:950!important}.specialPhone{margin-top:4px;color:#8ff0b6!important;font-weight:950!important}.market-actions.has-three{grid-template-columns:1fr 1fr!important}.market-actions .register{grid-column:1/-1!important;display:flex!important;align-items:center!important;justify-content:center!important;min-height:38px!important;padding:6px 5px!important;border-radius:8px!important;background:#168a4e!important;color:#fff!important;text-decoration:none!important;text-align:center!important;font-size:9px!important;line-height:1.15!important;font-weight:1000!important}
 @media(max-width:650px){.sectionTitle{font-size:18px}.specialDate{font-size:14px!important}}
 .card{position:relative!important;min-width:0!important;padding:8px!important;border:2px solid #f39b19!important;border-radius:14px!important;background:rgba(5,17,34,.97)!important;overflow:hidden!important}
 .card .name{font-size:16px!important;line-height:1.05!important;font-weight:950!important;color:#fff!important;padding-right:58px!important;margin-bottom:5px!important;overflow-wrap:anywhere}
@@ -61,12 +61,12 @@
 <div id="photoModal" class="photo-modal" role="dialog" aria-modal="true" aria-label="Photo agrandie du marché">
   <div class="photo-box"><button id="photoClose" class="photo-close" type="button" aria-label="Fermer">×</button><img id="photoLarge" alt=""></div>
 </div>
-<!-- V369 : données 150 km chargées par petits fichiers selon « Retourner sur la place ». -->
+<!-- V490 : données 250 km chargées par petits fichiers selon « Retourner sur la place ». -->
 <script>
 (() => {
   'use strict';
-  const requestedRadius=Number(new URLSearchParams(location.search).get('radius')||150);
-  const LIMIT_KM = requestedRadius===80?80:150;
+  const requestedRadius=Number(new URLSearchParams(location.search).get('radius')||250);
+  const LIMIT_KM = requestedRadius===80?80:(requestedRadius===150?150:250);
   const DAYS = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
   let viewDate = new Date();
   let showTomorrow = viewDate.getHours() >= 17;
@@ -99,6 +99,16 @@
 
   const norm = v => String(v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
   const cleanCardText = v => String(v ?? '').replace(/\s+officiellement\b/gi,'').replace(/\s*[,;:-]?\s*GPS\s+[àa]\s+confirmer\s+sur\s+place\b/gi,'').replace(/\s{2,}/g,' ').trim();
+  const displayCity = row => {
+    const direct=cleanCardText(row?.[3]||'');
+    if(direct) return direct;
+    const address=cleanCardText(row?.[8]||'');
+    let m=address.match(/\b\d{5}\s*,?\s*([^,]+)$/);
+    if(m&&m[1]) return m[1].trim();
+    const parts=address.split(',').map(x=>x.trim()).filter(Boolean);
+    if(parts.length>1) return parts[parts.length-1].replace(/^\d{5}\s*/,'').trim()||'Ville à vérifier';
+    return 'Ville à vérifier';
+  };
   const identity = (country,row) => [country,row?.[0],row?.[2],row?.[3],row?.[4],row?.[8]||''].join('|');
   const isServerDisabled = (country,row) => { const key=identity(country,row); if(disabledKeys.has(key)) return true; try{return localStorage.getItem('marketPresenceV174:'+key)==='non'}catch(e){return false} };
   async function loadDisabledKeys(){
@@ -200,8 +210,8 @@
       const special=a.country==='be'?window.SPECIAL_BE:window.SPECIAL_FR;
       mergeRows(weekly,j.weekly||[]);mergeRows(special,j.special||[]);
     }
-    // V430 : la page 150 km recharge aussi les mêmes fichiers que la rubrique « Marchés ».
-    // Cela évite qu'un marché présent dans Marchés disparaisse simplement parce que le shard 150 km est plus ancien.
+    // V490 : la page 250 km recharge aussi les mêmes fichiers que la rubrique « Marchés ».
+    // Cela évite qu'un marché présent dans Marchés disparaisse simplement parce que le shard 250 km est plus ancien.
     const dayFile=norm(selectedDay);
     const mainChunks=await Promise.all(candidates.map(async a=>{
       try{
@@ -474,7 +484,7 @@
     statusCopy(list.length);
     function renderCard(item){
       const r=item.row, s=saved(item.country,r)||{};
-      const place=cleanCardText(r[3]||'À préciser');
+      const place=displayCity(r);
       const name=cleanCardText(r[2]||'Marché');
       const hour=cleanCardText(s.time||r[5]||'Horaire à vérifier');
       const count=cleanCardText(s.count||r[7]||'À vérifier');
@@ -503,7 +513,7 @@
       const voiceDay=!item.special?(showTomorrow?'Demain':'Aujourd’hui'):(/AUJOURD|EN COURS/i.test(timing)?'Aujourd’hui':/DEMAIN/i.test(timing)?'Demain':dateLabel);
       return '<article class="card" data-voice-card="market" data-voice-department="'+esc(r[0]||'')+'" data-voice-city="'+esc(place)+'" data-voice-name="'+esc(name)+'" data-voice-day="'+esc(voiceDay)+'" data-voice-distance="'+esc(distanceLabel(item.d))+'" data-voice-count="'+esc(count)+'" data-voice-count-label="'+esc(countLabel)+'" data-count-kind="'+esc(countKind)+'" data-market-key="'+esc(marketKey)+'"><span class="marketVerificationDot '+(dotGreen?'green':'orange')+'" title="'+(dotGreen?'Fiche vérifiée':'Fiche à vérifier')+'" aria-label="'+(dotGreen?'Fiche vérifiée':'Fiche à vérifier')+'"></span>'+
         '<button type="button" class="marketFavoriteStar '+(fav?'active':'')+'" data-favorite-key="'+esc(favoriteKey(item.country,r))+'" aria-label="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'" title="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'">'+(fav?'★':'☆')+'</button>'+
-        '<div class="name">'+esc(place)+'<span class="distance">'+distanceLabel(item.d)+'</span></div>'+ specialTop + photo +
+        '<div class="name"><span class="distance">'+distanceLabel(item.d)+'</span></div><div class="eventCityBig">📍 '+esc(place)+'</div>'+ specialTop + photo +
         (!item.special?'':'<div class="meta" style="font-weight:900;font-size:18px;margin-bottom:6px">'+esc(name)+'</div>')+
         '<div class="meta">🕒 <span class="shared-time">'+esc(hour)+'</span></div>'+
         '<div class="meta">👥 '+esc(countLabel)+' : <span class="shared-count">'+esc(count)+'</span></div>'+
