@@ -1,0 +1,51 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#07130d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Champignons">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Champignons</title>
+<link rel="manifest" href="/champignons-app/manifest.webmanifest?v=1">
+<link rel="apple-touch-icon" href="/champignon-cepe.jpg?v=240">
+<link rel="stylesheet" href="/champignons-app/champignons.css?v=1">
+<script defer src="/accessibility-zoom-v466.js?v=470-direct-load"></script>
+</head><body>
+<header class="mushTop standaloneTop"><div class="standaloneLogo" aria-hidden="true">🍄</div><h1>CHAMPIGNONS</h1><button id="installAppBtn" type="button" class="topInstall">INSTALLER</button><button id="mushSettingsBtn" type="button" class="topSettings" aria-label="Réglages">⚙️</button></header>
+<main class="wrap">
+<section class="hero"><img src="/champignon-cepe.jpg?v=240" alt="Champignon"><div class="heroText"><h2>🍄 Coin Détente & Champignons</h2><p>Vos coins privés, sans adresse affichée.</p></div></section>
+<div class="reserved"><b>🔒 SECTION RÉSERVÉE</b><br>Aucun sédentaire accepté.<br><strong>Abonnement Champignons : 50 € pour 1 an.</strong></div>
+<div class="warn">⚠️ BÊTA — SECTION EN CONSTRUCTION. L’identification photo peut se tromper et ne permet jamais de conclure qu’un champignon est comestible.</div>
+<section id="accessGate" class="panel"><h3>Débloquer la section</h3><p><b>Pendant votre période d’essai de Couteau Suisse, l’accès Champignons est gratuit et aucun code n’est demandé.</b> Il s’arrête exactement le même jour que l’essai principal. Après cette date, demandez votre code à Steve puis entrez-le ici.</p><div class="unlockLine"><a class="btn snap" href="https://www.snapchat.com/add/steve_suzon" target="_blank" rel="noopener">👻 CONTACTER SUR SNAP</a><input id="mushroomCode" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="CODE 6 CARACTÈRES"></div><button id="activateMushroomBtn" class="btn">🔓 ACTIVER MON CODE</button><div id="accessStatus" class="status">Vérification de votre abonnement…</div></section>
+<section id="memberBox" class="memberBox hidden"><b>✅ ABONNEMENT CONFIRMÉ</b><span id="daysRemaining">—</span><div id="expiryWarning" class="expiryWarning hidden">⚠️ Votre abonnement arrive à expiration dans moins d’un mois.</div></section>
+<div id="memberContent" class="hidden">
+<section id="homeView" class="panel"><h3>Que voulez-vous faire ?</h3><div class="actions mushroomHomeActions"><button id="recognizeBtn" class="btn recognize">🔎 RECONNAÎTRE UN CHAMPIGNON</button><button id="addSpotBtn" class="btn secondary">🌲 AJOUTER UN BOIS</button><button id="browseBtn" class="btn blue">🍄 VOIR LES COINS</button></div><div id="identityInfo" class="status"></div></section>
+<section id="addView" class="hidden">
+  <div class="topBack"><button id="backHome1">← RETOUR</button><b id="addViewTitle">Ajouter un bois</b></div>
+  <div id="contestMushroomInfo" class="contestMushroomInfo">🏆 CONCOURS : si vous êtes inscrit, chaque fiche Champignons enregistrée rapporte immédiatement <b>+50 points</b> + les points du trajet aller (gasoil). L’administrateur peut ensuite la contrôler ; un refus retire les points de cette fiche.</div>
+  <div class="panel"><h3>1. Localiser le bois</h3><p>Une fois dans le bois, appuyez sur le bouton pour enregistrer sa position. Aucune adresse ne sera affichée.</p><button id="locateBtn" class="btn">📍 LOCALISER LE BOIS</button><div id="gpsStatus" class="status">Appuyez sur « Localiser le bois ».</div></div>
+  <div class="panel"><h3>2. Photo du champignon</h3><p><b>Prenez la photo du champignon non cueilli, encore en terre.</b> Le GPS de la photo doit correspondre au GPS du bois.</p><button id="cameraBtn" class="btn photoReadyBtn" disabled>📷 PRENDRE LA PHOTO DU CHAMPIGNON</button><div id="cameraBox" class="camera"><video id="cameraVideo" playsinline autoplay muted></video><canvas id="cameraCanvas"></canvas><div class="cameraControls"><button id="captureBtn" class="btn">📸 PRENDRE LA PHOTO</button><button id="closeCameraBtn" class="btn secondary">FERMER</button></div></div><div id="photoStatus" class="status">Localisez d’abord le bois : ce bouton deviendra bleu.</div></div>
+  <div id="aiPanel" class="panel aiBox"><h3>3. Reconnaissance du champignon</h3><img id="photoPreview" class="previewImg" alt="Photo prise sur place"><div id="aiStatus" class="status">Analyse…</div><div id="woodNameField" class="field"><label for="woodNameInput">Nom du bois (facultatif)</label><input id="woodNameInput" maxlength="140" autocomplete="off" placeholder="Ex. Forêt de Huelgoat"></div><div id="privateWoodField" class="woodCategoryField"><b>Catégorie du bois</b><div class="woodTypeChoices"><label class="woodTypeChoice public"><input id="publicWoodInput" name="woodType" type="radio" value="public"> 🌳 Bois public</label><label class="woodTypeChoice private"><input id="privateWoodInput" name="woodType" type="radio" value="private"> 🔒 Bois privé</label></div></div><div class="field"><label for="speciesInput">Quel(s) champignon(s) ?</label><p class="fieldHelp">L’IA ajoute le champignon reconnu. S’il y a plusieurs variétés dans ce bois, ajoutez-les aussi : tapez une virgule puis 1 ou 2 lettres et touchez la proposition.</p><input id="speciesInput" autocomplete="off" placeholder="Ex. Cèpe de Bordeaux, gi…"><button id="addSpeciesBtn" type="button" class="addSpeciesBtn">＋ AJOUTER UNE VARIÉTÉ</button><div id="speciesMatches" class="speciesMatches hidden"></div></div><div id="speciesGuide" class="guide"></div><div id="spotNoteField" class="field"><label for="spotNote">Commentaire (facultatif)</label><textarea id="spotNote" maxlength="500" placeholder="Ex. plusieurs cèpes dans les alentours, sous les chênes…"></textarea></div><button id="saveSpotBtn" class="btn" disabled>✅ ENREGISTRER LE BOIS</button><div id="saveStatus" class="status"></div></div>
+</section>
+<section id="browseView" class="hidden"><div class="topBack"><button id="backHome2">← RETOUR</button><b>Voir les coins</b></div><div class="panel"><h3>Choisissez la recherche</h3><div class="searchButtons"><button id="routeSpotsBtn" class="btn">🛣️ SUR MON TRAJET<br><small>Du marché jusqu’au retour sur la place : coins Champignons avec max 15 km de détour.</small></button><button id="nearbySpotsBtn" class="btn blue">🎯 À MOINS DE 100 KM<br><small>Du point « Retourner sur la place »</small></button></div><p class="privacyNote">🔒 Aucune adresse n’est affichée. Seul le bouton « Aller à ce bois » utilise le GPS.</p></div><div id="browseStatus" class="status">Choisissez un des deux boutons.</div><div id="spotResults"></div></section>
+<div id="editSpotModal" class="editModal hidden"><div class="editCard"><h3>Modifier la fiche</h3><input id="editSpotId" type="hidden"><label>Nom du bois<input id="editWoodName" maxlength="140"></label><label>Champignons signalés<input id="editSpecies" maxlength="120"></label><label>Commentaire<textarea id="editNote" maxlength="500"></textarea></label><div class="woodCategoryField"><b>Catégorie du bois</b><div class="woodTypeChoices"><label class="woodTypeChoice public"><input id="editPublic" name="editWoodType" type="radio" value="public"> 🌳 Bois public</label><label class="woodTypeChoice private"><input id="editPrivate" name="editWoodType" type="radio" value="private"> 🔒 Bois privé</label></div></div><div class="editActions"><button id="saveEditBtn" class="btn">ENREGISTRER</button><button id="cancelEditBtn" class="btn secondary">ANNULER</button></div><div id="editStatus" class="status"></div></div></div>
+</div>
+</main>
+<div id="mushSettings" class="standaloneOverlay hidden" aria-hidden="true"><div class="standalonePanel">
+  <button id="closeMushSettings" class="overlayClose" type="button">×</button>
+  <h2>⚙️ RÉGLAGES CHAMPIGNONS</h2>
+  <div class="settingBlock"><h3>📍 Retourner sur la place</h3><p>Ce point sert à rechercher les coins Champignons à moins de 100 km.</p><div id="returnPlaceStatus" class="status">Vérification…</div><button id="saveReturnPlaceBtn" class="btn">📍 ENREGISTRER MA PLACE ACTUELLE</button></div>
+  <div class="settingBlock"><h3>🧭 GPS préféré</h3><div class="gpsChoices"><button type="button" data-gps="Google Maps">Google Maps</button><button type="button" data-gps="Waze">Waze</button><button type="button" data-gps="Plans Apple">Plans Apple</button></div><div id="gpsPrefStatus" class="status"></div></div>
+  <div class="settingBlock"><h3>📱 Application séparée</h3><p>Une fois installée sur l’écran d’accueil, cette application s’ouvre directement ici, sans passer par Couteau Suisse.</p><button id="installFromSettingsBtn" class="btn blue">📲 INSTALLER L’APPLICATION</button></div>
+</div></div>
+<div id="installHelp" class="standaloneOverlay hidden" aria-hidden="true"><div class="standalonePanel installPanel">
+  <button id="closeInstallHelp" class="overlayClose" type="button">×</button>
+  <h2>🍄 INSTALLER CHAMPIGNONS</h2>
+  <div id="installHelpText" class="installSteps"></div>
+</div></div>
+<script src="/champignons-app/champignons.js?v=1" defer></script>
+<script src="/voice-assist-v486.js?v=487-stable"></script>
+<script>
+(function(){
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/champignons-app/sw.js?v=1',{scope:'/champignons-app/',updateViaCache:'none'}).catch(function(){})})}
+})();
+</script>
+</body></html>
