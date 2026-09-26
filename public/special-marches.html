@@ -396,6 +396,28 @@
           return false;
         }
         var rows = Array.isArray(window.SPECIAL_DATA) ? window.SPECIAL_DATA.slice() : [];
+        if(country==="fr"&&type==="brocante"){
+          rows=mergeRows(rows,[[
+            "91",
+            "brocante",
+            "Brocante du Bout Galeux",
+            "Palaiseau",
+            "26 au 27 septembre 2026",
+            "09h00-19h00",
+            "Plus de 500 exposants annoncés. Rue de Paris / quartier du Bout Galeux. Événement annoncé pour les 26 et 27 septembre 2026. Une fiche PagesJaunes l’indique annulé tandis que plusieurs sources récentes l’annoncent maintenu : statut à vérifier auprès de l’organisateur.",
+            "Plus de 500 exposants annoncés",
+            "Rue de Paris, quartier du Bout Galeux, 91120 Palaiseau",
+            [
+              "https://www.essonnetourisme.com/agenda/marches-foires-salons/",
+              "https://www.sortiraparis.com/loisirs/shopping-mode/articles/352516-bout-galeux-2026-la-plus-grande-brocante-de-l-essonne-ce-week-end",
+              "https://www.pagesjaunes.fr/agenda/palaiseau-91/brocante-du-bout-galeux-26-et-27-septembre-2026-6a626652fd7dee9122c0f766"
+            ],
+            null,
+            null,
+            "Tirage au sort à vérifier",
+            "Association des Artisans et Commerçants du Bout Galeux — inscriptions exposants annoncées closes le 15 juillet 2026"
+          ]]);
+        }
         rows = rows.filter(belongs);
         try {
           var live=JSON.parse(localStorage.getItem("server_markets")||"[]");
