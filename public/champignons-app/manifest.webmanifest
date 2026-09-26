@@ -1,0 +1,21 @@
+{
+  "id": "/champignons-app/",
+  "name": "Champignons",
+  "short_name": "Champignons",
+  "description": "Application indépendante pour les coins, photos et reconnaissances de champignons.",
+  "start_url": "/champignons-app/",
+  "scope": "/champignons-app/",
+  "display": "standalone",
+  "background_color": "#07130d",
+  "theme_color": "#07130d",
+  "lang": "fr",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/champignon-cepe.jpg?v=240",
+      "sizes": "any",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}
