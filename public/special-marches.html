@@ -134,6 +134,8 @@
       .eventCategoryBig.foireBig{background:linear-gradient(145deg,#7c2bc1,#d87500)}
       .eventCategoryBig.brocanteBig{background:linear-gradient(145deg,#b85a00,#ff9b19)}
       .eventCategoryBig.braderieBig{background:linear-gradient(145deg,#a8214c,#ed5e67)}
+      .eventCityBig{margin:2px 0 10px;padding:8px 10px;border-radius:12px;background:#09283d;color:#6fe0ff;font-size:28px;font-weight:1000;line-height:1.05;text-align:center}
+      .eventNameBig{margin:0 58px 8px 0!important;font-size:20px!important;color:#fff!important}
       .distanceSortNotice{margin:5px 0 14px;padding:10px 12px;border-radius:13px;background:#0b1f34;border:2px solid #62d8ff;color:#bdefff;font-weight:900;text-align:center}
 
       .favStar {
@@ -235,6 +237,8 @@
         .eventCategoryBig{min-height:155px;border-radius:24px;font-size:27px;padding:18px 14px}
         .eventCategoryBig .eventCategoryIcon{font-size:48px;margin-bottom:10px}
         .eventCategoryBig .eventCategoryHelp{font-size:14px}
+        .eventCityBig{font-size:23px;padding:7px 6px;margin-bottom:7px}
+        .eventNameBig{font-size:15px!important;margin-right:42px!important}
 
         .meta {
           font-size: 12px;
@@ -499,6 +503,15 @@
             ];
           });
         }
+        function displayCity(r) {
+          var direct=String((r&&r[3])||"").trim();
+          if(direct) return direct;
+          var address=String((r&&r[8])||"").trim(),m=address.match(/\b\d{5}\s*,?\s*([^,]+)$/);
+          if(m&&m[1]) return m[1].trim();
+          var parts=address.split(",").map(function(x){return x.trim()}).filter(Boolean);
+          if(parts.length>1) return String(parts[parts.length-1]).replace(/^\d{5}\s*/,"").trim()||"Ville à vérifier";
+          return "Ville à vérifier";
+        }
         function specialDistanceValue(r) {
           var a = parseFloat(localStorage.getItem("return_lat")),
             b = parseFloat(localStorage.getItem("return_lon")),
@@ -645,7 +658,7 @@
           if(ra!==rb)return ra-rb;
           var da=eventStartSortKey(a),db=eventStartSortKey(b);
           if(da!==db)return da<db?-1:1;
-          var ca=norm((a&&a[3])||""),cb=norm((b&&b[3])||"");
+          var ca=norm(displayCity(a)),cb=norm(displayCity(b));
           if(ca!==cb)return ca<cb?-1:1;
           var na=norm((a&&a[2])||""),nb=norm((b&&b[2])||"");
           return na===nb?0:(na<nb?-1:1);
@@ -687,7 +700,7 @@
               if(da!==db)return da-db;
               var ka=eventStartSortKey(a),kb=eventStartSortKey(b);
               if(ka!==kb)return ka<kb?-1:1;
-              return norm((a&&a[3])||"").localeCompare(norm((b&&b[3])||""));
+              return norm(displayCity(a)).localeCompare(norm(displayCity(b)));
             });
           }else if(type==="brocante")out=out.slice().sort(compareBrocanteRows);
           document.getElementById("count").textContent =
@@ -753,7 +766,7 @@
               var goText = goLabel(r);
               var ev = type === "brocante" ? eventVisual(r) : null;
               return (
-                '<article class="item card ' + (ev ? "eventBig" : "") + '" data-voice-card="market" data-voice-city="'+esc(r[3]||'')+'" data-voice-name="'+esc(r[2]||'Marché')+'" data-voice-day="'+esc(r[4]||'Date à vérifier')+'" data-voice-distance="'+esc(specialDistanceText(r)||'')+'" data-voice-count="'+esc(String(places).replace(/ officiellement/gi, ''))+'" data-voice-count-label="'+esc(type==="noel"?"chalets":type==="brocante"?"emplacements / exposants":"commerçants")+'" data-market-key="' +
+                '<article class="item card ' + (ev ? "eventBig" : "") + '" data-voice-card="market" data-voice-city="'+esc(displayCity(r))+'" data-voice-name="'+esc(r[2]||'Marché')+'" data-voice-day="'+esc(r[4]||'Date à vérifier')+'" data-voice-distance="'+esc(specialDistanceText(r)||'')+'" data-voice-count="'+esc(String(places).replace(/ officiellement/gi, ''))+'" data-voice-count-label="'+esc(type==="noel"?"chalets":type==="brocante"?"emplacements / exposants":"commerçants")+'" data-market-key="' +
                 esc(marketIdentity(r)) +
                 '" data-verify-url="'+esc(verifyUrl)+'"><button class="favStar ' +
                 (fav ? "active" : "") +
@@ -761,8 +774,9 @@
                 idx +
                 ',this)">' +
                 (fav ? "★" : "☆") +
-                '</button>' + (ev ? '<div class="eventTypeBadge '+ev.cls+'">'+ev.label+'</div>' : '') + '<h2>' +
-                esc((r[3] || "") + " — " + (r[2] || "")) +
+                '</button>' + (ev ? '<div class="eventTypeBadge '+ev.cls+'">'+ev.label+'</div>' : '') +
+                '<div class="eventCityBig">📍 '+esc(displayCity(r))+'</div><h2 class="eventNameBig">' +
+                esc(r[2] || "Événement") +
                 "</h2>" +
                 (specialDistanceText(r)
                   ? '<div class="meta" data-feature="market-distance" style="color:#6fe0ff;font-size:16px;font-weight:950;margin-bottom:5px">' +
@@ -804,8 +818,26 @@
             })
             .join("");
         }
+        async function refreshLiveSpecialEvents(){
+          try{
+            var response=await fetch('/api/markets?special_category_v490='+Date.now(),{cache:'no-store'});
+            var data=await response.json();
+            if(!response.ok||!data||!Array.isArray(data.markets))return;
+            data.markets.forEach(function(m){
+              var ctry=String(m.country||"FR").toUpperCase()==="BE"?"be":"fr";
+              if(ctry!==country)return;
+              var row=[m.area||"",m.kind||"marche",m.name||"Marché",m.city||"",m.date_label||m.day||"",m.hours||"",m.note||m.kind||"",m.merchants||"",m.address||m.city||"",m.source_url?[m.source_url]:[],m.latitude==null?null:m.latitude,m.longitude==null?null:m.longitude,m.draw||"",m.registration||"",m.phone||""];
+              if(!belongs(row))return;
+              if(type==="brocante"&&subtype&&eventSubtype(row)!==subtype)return;
+              rows=mergeRows(rows,[row]);
+            });
+            try{localStorage.setItem("server_markets",JSON.stringify(data.markets));localStorage.setItem("markets_last_update",new Date().toISOString())}catch(_){}
+            render();
+          }catch(_){}
+        }
         document.getElementById("q").oninput = render;
         render();
+        refreshLiveSpecialEvents();
       })();
     </script>
     <script src="market-consensus.js?v=488-click-verify"></script>
