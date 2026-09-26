@@ -571,6 +571,37 @@
         }
         function goLabel(r){var x=norm([r&&r[1],r&&r[2],r&&r[6]].join(" "));if(/vide[ -]?grenier/.test(x))return"ALLER AU VIDE-GRENIER";if(/braderie/.test(x))return"ALLER À LA BRADERIE";if(/foire/.test(x))return"ALLER À LA FOIRE";if(/brocante|puces|rederie|réderie|bric/.test(x))return"ALLER À LA BROCANTE";if(isNoel(r))return"ALLER AU MARCHÉ DE NOËL";return"ALLER AU MARCHÉ";}
         function eventVisual(r){var x=norm([r&&r[1],r&&r[2],r&&r[6]].join(" "));if(/foire/.test(x))return{cls:"foire",label:"🎪 FOIRE"};if(/vide[ -]?grenier/.test(x))return{cls:"vide",label:"🧺 VIDE-GRENIER"};if(/braderie/.test(x))return{cls:"braderie",label:"🛍️ BRADERIE"};return{cls:"brocante",label:"🧳 BROCANTE"};}
+        function brocanteGroupRank(r){
+          var cls=eventVisual(r).cls;
+          if(cls==="foire")return 0;
+          if(cls==="brocante"||cls==="vide")return 1;
+          if(cls==="braderie")return 2;
+          return 3;
+        }
+        function eventStartSortKey(r){
+          var raw=String((r&&r[4])||"")+" "+String((r&&r[6])||""),
+              value=norm(raw),
+              months={janvier:1,fevrier:2,mars:3,avril:4,mai:5,juin:6,juillet:7,aout:8,septembre:9,octobre:10,novembre:11,decembre:12};
+          var m=value.match(/(\d{1,2})\s+(?:au|a|-)\s+(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\s+(20\d{2})/);
+          if(m)return m[4]+"-"+String(months[m[3]]).padStart(2,"0")+"-"+String(Number(m[1])).padStart(2,"0");
+          m=value.match(/(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\s+(20\d{2})/);
+          if(m)return m[3]+"-"+String(months[m[2]]).padStart(2,"0")+"-"+String(Number(m[1])).padStart(2,"0");
+          m=raw.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/);
+          if(m)return m[1]+"-"+m[2]+"-"+m[3];
+          m=raw.match(/\b(\d{1,2})[-\/.](\d{1,2})[-\/.](20\d{2})\b/);
+          if(m)return m[3]+"-"+String(Number(m[2])).padStart(2,"0")+"-"+String(Number(m[1])).padStart(2,"0");
+          return "9999-12-31";
+        }
+        function compareBrocanteRows(a,b){
+          var ra=brocanteGroupRank(a),rb=brocanteGroupRank(b);
+          if(ra!==rb)return ra-rb;
+          var da=eventStartSortKey(a),db=eventStartSortKey(b);
+          if(da!==db)return da<db?-1:1;
+          var ca=norm((a&&a[3])||""),cb=norm((b&&b[3])||"");
+          if(ca!==cb)return ca<cb?-1:1;
+          var na=norm((a&&a[2])||""),nb=norm((b&&b[2])||"");
+          return na===nb?0:(na<nb?-1:1);
+        }
         function capacityLabel(){if(type==="noel")return"🎄 Nombre de chalets : ";if(type==="brocante")return"👥 Nombre d’emplacements / exposants : ";if(type==="saisonnier")return"👥 Nombre d’emplacements / commerçants : ";return"👥 Nombre de places / commerçants : ";}
         function eventEndIso(r){var s=String((r&&r[4])||"")+" "+String((r&&r[6])||"");var months={janvier:1,fevrier:2,"février":2,mars:3,avril:4,mai:5,juin:6,juillet:7,aout:8,"août":8,septembre:9,octobre:10,novembre:11,decembre:12,"décembre":12,januari:1,februari:2,maart:3,april:4,mei:5,juni:6,juli:7,augustus:8,oktober:10,december:12},all=[].slice.call(s.matchAll(/(\d{1,2})\s+(janvier|f[eé]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[eé]cembre|januari|februari|maart|april|mei|juni|juli|augustus|oktober|december)\s+(20\d{2})/gi));if(all.length){var m=all[all.length-1],mo=months[String(m[2]).toLowerCase()];return m[3]+"-"+String(mo).padStart(2,"0")+"-"+String(Number(m[1])).padStart(2,"0")}var n=[].slice.call(s.matchAll(/(\d{1,2})[-\/.](\d{1,2})[-\/.](20\d{2})/g));if(n.length){var q=n[n.length-1];return q[3]+"-"+String(Number(q[2])).padStart(2,"0")+"-"+String(Number(q[1])).padStart(2,"0")}return"";}
         function eventExpired(r){if(type!=="brocante"&&type!=="noel")return false;var e=eventEndIso(r),d=new Date(),today=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");return !!e&&e<today;}
@@ -602,6 +633,7 @@
               if (department) return areaMatchesDepartment(r, department);
               return !needle || norm(r.join(" ")).includes(needle);
             });
+          if(type==="brocante")out=out.slice().sort(compareBrocanteRows);
           document.getElementById("count").textContent =
             out.length +
             " entrée" +
@@ -656,7 +688,7 @@
               return (
                 '<article class="item card ' + (ev ? "eventBig" : "") + '" data-voice-card="market" data-voice-city="'+esc(r[3]||'')+'" data-voice-name="'+esc(r[2]||'Marché')+'" data-voice-day="'+esc(r[4]||'Date à vérifier')+'" data-voice-distance="'+esc(specialDistanceText(r)||'')+'" data-voice-count="'+esc(String(places).replace(/ officiellement/gi, ''))+'" data-voice-count-label="'+esc(type==="noel"?"chalets":type==="brocante"?"emplacements / exposants":"commerçants")+'" data-market-key="' +
                 esc(marketIdentity(r)) +
-                '"><button class="favStar ' +
+                '" data-verify-url="'+esc(verifyUrl)+'"><button class="favStar ' +
                 (fav ? "active" : "") +
                 '" type="button" onclick="return window.toggleSpecialFav(' +
                 idx +
@@ -700,7 +732,7 @@
                 maps +
                 '">' + esc(goText) + '</a>' + (phone&&(!regAction||regAction.kind!=="phone")?'<a class="call" href="tel:'+esc(phone)+'">APPELER</a>':'') + '<a class="verify" href="' +
                 verifyUrl +
-                '">MODIFIER / VÉRIFIER</a>' + (regAction?'<a class="register" '+(regAction.kind==="web"?'target="_blank" rel="noopener" ':'')+'href="'+esc(regAction.href)+'">'+esc(regAction.label)+'</a>':'') + '</div></article>'
+                '">VÉRIFIER LA FICHE</a>' + (regAction?'<a class="register" '+(regAction.kind==="web"?'target="_blank" rel="noopener" ':'')+'href="'+esc(regAction.href)+'">'+esc(regAction.label)+'</a>':'') + '</div></article>'
               );
             })
             .join("");
@@ -709,7 +741,7 @@
         render();
       })();
     </script>
-    <script src="market-consensus.js?v=461-gps"></script>
+    <script src="market-consensus.js?v=488-click-verify"></script>
     <script src="new-feature-bubbles.js?v=20260905"></script>
   <script src="voice-assist-v486.js?v=487-stable"></script>
 </body>
