@@ -1,3 +1,3 @@
-Cloudflare deploy trigger: 2026-09-26T07:19:00Z
-Reason: redéploiement demandé manuellement
-Previous commit: cdea107929b0ceced0756d75ea10f357590a48b9
+Cloudflare deploy trigger: 2026-09-26T07:19:53Z
+Run: 36226434163
+Commit: 4a7f6e4e392001777246bdb737dff28c2cd75b8a
