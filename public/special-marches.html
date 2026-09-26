@@ -126,6 +126,15 @@
       .eventTypeBadge.vide{background:linear-gradient(135deg,#087f72,#17b661)}
       .eventTypeBadge.braderie{background:linear-gradient(135deg,#b62e55,#f06464)}
       .item.eventBig .eventDateStrong{font-size:17px;color:#ffe38a;font-weight:1000;margin:5px 0}
+      .eventCategoryPicker{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:22px 0 30px}
+      .eventCategoryBig{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:210px;padding:22px 16px;border:4px solid #fff8;border-radius:28px;color:#fff;text-decoration:none;text-align:center;font-size:30px;font-weight:1000;line-height:1.08;box-shadow:0 10px 28px #0008;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+      .eventCategoryBig:active{transform:scale(.985)}
+      .eventCategoryBig .eventCategoryIcon{display:block;font-size:54px;line-height:1;margin-bottom:14px}
+      .eventCategoryBig .eventCategoryHelp{display:block;margin-top:10px;font-size:15px;line-height:1.25;color:#fffddd;font-weight:850}
+      .eventCategoryBig.foireBig{background:linear-gradient(145deg,#7c2bc1,#d87500)}
+      .eventCategoryBig.brocanteBig{background:linear-gradient(145deg,#b85a00,#ff9b19)}
+      .eventCategoryBig.braderieBig{background:linear-gradient(145deg,#a8214c,#ed5e67)}
+      .distanceSortNotice{margin:5px 0 14px;padding:10px 12px;border-radius:13px;background:#0b1f34;border:2px solid #62d8ff;color:#bdefff;font-weight:900;text-align:center}
 
       .favStar {
         position: absolute;
@@ -222,6 +231,10 @@
         .item.eventBig{min-height:230px;padding:11px;border-width:3px}
         .eventTypeBadge{font-size:14px;padding:7px 9px;margin-bottom:7px}
         .item.eventBig .eventDateStrong{font-size:13px}
+        .eventCategoryPicker{grid-template-columns:1fr;gap:14px;margin:14px 0 22px}
+        .eventCategoryBig{min-height:155px;border-radius:24px;font-size:27px;padding:18px 14px}
+        .eventCategoryBig .eventCategoryIcon{font-size:48px;margin-bottom:10px}
+        .eventCategoryBig .eventCategoryHelp{font-size:14px}
 
         .meta {
           font-size: 12px;
@@ -303,6 +316,8 @@
         var requested = p.get("type") || "brocante";
         var allowed = ["noel", "brocante", "saisonnier", "periodique"];
         var type = allowed.indexOf(requested) >= 0 ? requested : "brocante";
+        var requestedSubtype = p.get("subtype") || "";
+        var subtype = ["foire","brocante","braderie"].indexOf(requestedSubtype) >= 0 ? requestedSubtype : "";
         function norm(s) {
           return String(s || "")
             .toLowerCase()
@@ -345,6 +360,12 @@
           return /(brocante|antiquite|puces|vide[ -]?grenier|foire(?: a| à)? tout|foire aux greniers|foire a la brocante|foire à la brocante|braderie|bric ?a ?brac|rederie|réderie|troc et puces|rommelmarkt|vlooienmarkt)/.test(
             s,
           );
+        }
+        function eventSubtype(r) {
+          var s = blob(r);
+          if (/foire(?:\s|$| a| à)/.test(s)) return "foire";
+          if (/braderie/.test(s)) return "braderie";
+          return "brocante";
         }
         function isPeriodic(r) {
           var s = blob(r);
@@ -428,6 +449,9 @@
             if(belongs(row)) rows=mergeRows(rows,[row]);
           });
         } catch(_) {}
+        if(type==="brocante"&&subtype){
+          rows=rows.filter(function(r){return eventSubtype(r)===subtype});
+        }
         var names = {
           noel: ["MARCHÉS DE NOËL ", "🎄 "],
           brocante: ["BROCANTE / VIDE-GRENIER / FOIRE ", "🧳 "],
@@ -436,7 +460,14 @@
         };
         var spec = names[type],
           label = spec[0] + (country === "be" ? "BELGIQUE" : "FRANCE");
-        document.getElementById("title").textContent = spec[1] + label;
+        var countryWord=country === "be" ? "BELGIQUE" : "FRANCE";
+        if(type==="brocante"&&subtype){
+          var subtypeTitles={foire:"🎪 FOIRES ",brocante:"🧳 BROCANTES / VIDE-GRENIERS ",braderie:"🛍️ BRADERIES "};
+          document.getElementById("title").textContent=subtypeTitles[subtype]+countryWord;
+          document.querySelector(".back").href="special-marches.html?country="+country+"&type=brocante&v=489";
+        }else{
+          document.getElementById("title").textContent = spec[1] + label;
+        }
         document.getElementById("q").placeholder = country === "fr"
           ? "Commune, nom ou département (ex. 91)"
           : "Commune, nom ou province";
@@ -445,9 +476,22 @@
             ? "Marchés présents seulement pendant une période de l’année. La période publiée reste affichée dans la fiche."
             : type === "periodique"
               ? "Marchés récurrents qui ne sont pas toutes les semaines : toutes les 2 semaines, 1er/2e/3e/4e jour du mois, mensuels ou trimestriels."
-              : type === "brocante"
-                ? "Brocantes, vide-greniers, foires à tout, braderies et événements de chine. Base locale complétée par plusieurs agendas France et Belgique."
-                : "Dates, horaires, adresse, places et GPS disponibles.";
+              : type === "brocante" && !subtype
+                ? "Choisis une catégorie. Chaque liste sera triée du plus près de « Retourner sur la place » au plus loin."
+                : type === "brocante"
+                  ? "Tri automatique du plus près de « Retourner sur la place » au plus loin."
+                  : "Dates, horaires, adresse, places et GPS disponibles.";
+        if(type==="brocante"&&!subtype){
+          document.querySelector(".filters").style.display="none";
+          document.getElementById("count").style.display="none";
+          var base="special-marches.html?country="+country+"&type=brocante&v=489&subtype=";
+          document.getElementById("list").className="eventCategoryPicker";
+          document.getElementById("list").innerHTML=
+            '<a class="eventCategoryBig foireBig" href="'+base+'foire"><span class="eventCategoryIcon">🎪</span>FOIRES<span class="eventCategoryHelp">Voir les foires du plus près au plus loin</span></a>'+
+            '<a class="eventCategoryBig brocanteBig" href="'+base+'brocante"><span class="eventCategoryIcon">🧳</span>BROCANTES<br>VIDE-GRENIERS<span class="eventCategoryHelp">Voir les brocantes du plus près au plus loin</span></a>'+
+            '<a class="eventCategoryBig braderieBig" href="'+base+'braderie"><span class="eventCategoryIcon">🛍️</span>BRADERIES<span class="eventCategoryHelp">Voir les braderies du plus près au plus loin</span></a>';
+          return;
+        }
         function esc(x) {
           return String(x || "").replace(/[&<>\"]/g, function (c) {
             return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" }[
@@ -455,13 +499,13 @@
             ];
           });
         }
-        function specialDistanceText(r) {
+        function specialDistanceValue(r) {
           var a = parseFloat(localStorage.getItem("return_lat")),
             b = parseFloat(localStorage.getItem("return_lon")),
             c = parseFloat(r && r[10]),
             d = parseFloat(r && r[11]);
           if (!isFinite(a) || !isFinite(b) || !isFinite(c) || !isFinite(d))
-            return "";
+            return Infinity;
           var p = Math.PI / 180,
             da = (c - a) * p,
             db = (d - b) * p,
@@ -470,8 +514,12 @@
               Math.cos(a * p) *
                 Math.cos(c * p) *
                 Math.sin(db / 2) *
-                Math.sin(db / 2),
-            km = 2 * 6371 * Math.asin(Math.sqrt(x));
+                Math.sin(db / 2);
+          return 2 * 6371 * Math.asin(Math.sqrt(x));
+        }
+        function specialDistanceText(r) {
+          var km=specialDistanceValue(r);
+          if (!isFinite(km)) return "";
           if (km < 1) return Math.round(km * 1000) + " m";
           return (km < 10 ? km.toFixed(1) : Math.round(km)) + " km";
         }
@@ -633,7 +681,15 @@
               if (department) return areaMatchesDepartment(r, department);
               return !needle || norm(r.join(" ")).includes(needle);
             });
-          if(type==="brocante")out=out.slice().sort(compareBrocanteRows);
+          if(type==="brocante"&&subtype){
+            out=out.slice().sort(function(a,b){
+              var da=specialDistanceValue(a),db=specialDistanceValue(b);
+              if(da!==db)return da-db;
+              var ka=eventStartSortKey(a),kb=eventStartSortKey(b);
+              if(ka!==kb)return ka<kb?-1:1;
+              return norm((a&&a[3])||"").localeCompare(norm((b&&b[3])||""));
+            });
+          }else if(type==="brocante")out=out.slice().sort(compareBrocanteRows);
           document.getElementById("count").textContent =
             out.length +
             " entrée" +
@@ -643,6 +699,10 @@
               ? " dans la base locale + compléments croisés"
               : " dans la base locale");
           var box = document.getElementById("list");
+          if(type==="brocante"&&subtype){
+            var hasReturn=isFinite(parseFloat(localStorage.getItem("return_lat")))&&isFinite(parseFloat(localStorage.getItem("return_lon")));
+            document.getElementById("count").insertAdjacentHTML("afterend",'<div class="distanceSortNotice">'+(hasReturn?'📍 Tri : du plus près de « Retourner sur la place » au plus loin.':'📍 Enregistre « Retourner sur la place » pour trier cette catégorie par distance.')+'</div>');
+          }
           if (!out.length) {
             box.innerHTML =
               '<div class="empty">Aucun marché de cette catégorie n’est encore intégré pour cette zone.</div>';
