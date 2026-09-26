@@ -700,8 +700,15 @@
               : " dans la base locale");
           var box = document.getElementById("list");
           if(type==="brocante"&&subtype){
-            var hasReturn=isFinite(parseFloat(localStorage.getItem("return_lat")))&&isFinite(parseFloat(localStorage.getItem("return_lon")));
-            document.getElementById("count").insertAdjacentHTML("afterend",'<div class="distanceSortNotice">'+(hasReturn?'📍 Tri : du plus près de « Retourner sur la place » au plus loin.':'📍 Enregistre « Retourner sur la place » pour trier cette catégorie par distance.')+'</div>');
+            var hasReturn=isFinite(parseFloat(localStorage.getItem("return_lat")))&&isFinite(parseFloat(localStorage.getItem("return_lon"))),
+                notice=document.getElementById("distanceSortNotice");
+            if(!notice){
+              notice=document.createElement("div");
+              notice.id="distanceSortNotice";
+              notice.className="distanceSortNotice";
+              document.getElementById("count").insertAdjacentElement("afterend",notice);
+            }
+            notice.textContent=hasReturn?'📍 Tri : du plus près de « Retourner sur la place » au plus loin.':'📍 Enregistre « Retourner sur la place » pour trier cette catégorie par distance.';
           }
           if (!out.length) {
             box.innerHTML =
