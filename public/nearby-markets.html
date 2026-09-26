@@ -61,12 +61,12 @@
 <div id="photoModal" class="photo-modal" role="dialog" aria-modal="true" aria-label="Photo agrandie du marché">
   <div class="photo-box"><button id="photoClose" class="photo-close" type="button" aria-label="Fermer">×</button><img id="photoLarge" alt=""></div>
 </div>
-<!-- V490 : données 250 km chargées par petits fichiers selon « Retourner sur la place ». -->
+<!-- V491 : données 150 km chargées par petits fichiers selon « Retourner sur la place ». -->
 <script>
 (() => {
   'use strict';
-  const requestedRadius=Number(new URLSearchParams(location.search).get('radius')||250);
-  const LIMIT_KM = requestedRadius===80?80:(requestedRadius===150?150:250);
+  const requestedRadius=Number(new URLSearchParams(location.search).get('radius')||150);
+  const LIMIT_KM = requestedRadius===80?80:150;
   const DAYS = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
   let viewDate = new Date();
   let showTomorrow = viewDate.getHours() >= 17;
@@ -210,8 +210,8 @@
       const special=a.country==='be'?window.SPECIAL_BE:window.SPECIAL_FR;
       mergeRows(weekly,j.weekly||[]);mergeRows(special,j.special||[]);
     }
-    // V490 : la page 250 km recharge aussi les mêmes fichiers que la rubrique « Marchés ».
-    // Cela évite qu'un marché présent dans Marchés disparaisse simplement parce que le shard 250 km est plus ancien.
+    // V491 : la page 150 km recharge aussi les mêmes fichiers que la rubrique « Marchés ».
+    // Cela évite qu'un marché présent dans Marchés disparaisse simplement parce que le shard 150 km est plus ancien.
     const dayFile=norm(selectedDay);
     const mainChunks=await Promise.all(candidates.map(async a=>{
       try{
