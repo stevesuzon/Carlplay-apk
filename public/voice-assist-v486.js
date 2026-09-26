@@ -14,17 +14,13 @@
   }
   function enabled(){return true}
   function voiceUnlockedV456(){
-    if(window.__carplayVoiceSessionUnlockedV487===true)return true;
-    try{
-      var ok=sessionStorage.getItem('carplay_voice_unlocked_v456')==='1';
-      if(ok)window.__carplayVoiceSessionUnlockedV487=true;
-      return ok;
-    }catch(_){return window.__carplayVoiceSessionUnlockedV487===true}
+    // Sur iPhone, l'autorisation de démarrer la synthèse vocale est propre à la page.
+    // Une nouvelle page doit donc pouvoir refaire son premier appui long de 1,20 s.
+    return window.__carplayVoicePageUnlockedV487===true;
   }
   function unlockVoiceV456(){
     voiceAwakeV423=true;
-    window.__carplayVoiceSessionUnlockedV487=true;
-    try{sessionStorage.setItem('carplay_voice_unlocked_v456','1')}catch(_){}
+    window.__carplayVoicePageUnlockedV487=true;
     try{localStorage.setItem(KEY,'1')}catch(_){}
     try{document.cookie='carplay_voice_enabled=1; path=/; max-age=31536000; SameSite=Lax'}catch(_){}
     document.documentElement.classList.add('carplayVoiceEnabled');
