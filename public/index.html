@@ -864,10 +864,10 @@ opacity:.9;
   <div class="gear" onclick="toggleSettings()">⚙</div>
 </div>
 </div>
-<section id="homeDepartmentSearch" aria-label="Marchés autour de 150 kilomètres">
-  <button id="nearby80Button" type="button" aria-label="Afficher les marchés autour de 150 kilomètres">
+<section id="homeDepartmentSearch" aria-label="Marchés autour de 250 kilomètres">
+  <button id="nearby80Button" type="button" aria-label="Afficher les marchés autour de 250 kilomètres">
     <span class="pencil" aria-hidden="true">✏️</span>
-    <span class="nearText">MARCHÉS À MOINS DE 150 KM</span>
+    <span class="nearText">MARCHÉS À MOINS DE 250 KM</span>
   </button>
 </section><div class="grid homeDesignGrid">
   <div class="card blue" onclick="location.href='choix-marches-v409.html'">
@@ -1380,7 +1380,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications.');
     await check('/contest-v188.js?v=464-referral-celebration');
     setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique et événements.');
-    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?v=431-gps-photo'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v486.js?v=487-stable'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=431-gps-distance'),check('/market-consensus.js?v=461-gps'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
+    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?radius=250&v=490'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v486.js?v=487-stable'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=431-gps-distance'),check('/market-consensus.js?v=461-gps'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
     setProgress(48,'Vérification des champignons…','Contrôle des fiches Champignons et des coins enregistrés.');
     await Promise.allSettled([check('/champignons.html'),check('/champignons.js?v=300-concours-auto')]);
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
@@ -1609,7 +1609,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
   btn.addEventListener('click',function(){
     var lat=localStorage.getItem('return_lat'),lon=localStorage.getItem('return_lon');
     if(!lat||!lon){alert('Enregistre d’abord ta position avec « Retourner sur la place ».');return;}
-    location.href='nearby-markets.html?radius=150&v=431';
+    location.href='nearby-markets.html?radius=250&v=490';
   });
 })();
 </script>
