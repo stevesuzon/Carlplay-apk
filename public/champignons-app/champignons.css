@@ -35,3 +35,22 @@
 .gpsChoices{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.gpsChoices button{min-height:50px;border:2px solid #4c7458;border-radius:12px;background:#14291b;color:#fff;font-weight:950}.gpsChoices button.selected{background:#167bd4;border-color:#8bd4ff}
 .installSteps{padding:8px 2px;color:#e9f8ee;font-size:17px;line-height:1.55;font-weight:850}.installSteps b{color:#8cf0ad}
 @media(max-width:560px){.topInstall{font-size:10px!important;padding:0 8px!important}.standaloneTop h1{font-size:17px}.gpsChoices{grid-template-columns:1fr}.standalonePanel{padding:14px}}
+
+/* V2 — Accueil simplifié et fiches Retourner dans le bois */
+.mushroomHomePanel h3{text-align:center;font-size:25px;margin-bottom:14px}
+.mushroomHomeActions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:16px!important}
+.mushroomHomeActions .btn{min-height:190px!important;border-radius:24px!important;font-size:27px!important;line-height:1.08!important;padding:22px 16px!important;box-shadow:0 10px 26px #0008}
+.mushroomHomeActions .btn span{display:block;margin-top:13px;font-size:14px;line-height:1.3;font-weight:850;opacity:.94}
+.returnWoodHome{background:linear-gradient(145deg,#16864a,#0f5f35)!important;border:3px solid #7af0a5!important}
+.addWoodHome{background:linear-gradient(145deg,#286b9e,#17476b)!important;border:3px solid #7bc9ff!important}
+.returnWoodIntro{text-align:center}.returnWoodIntro h3{font-size:25px;color:#9af2b4}.routeSecondary{margin-top:8px;background:#315c45!important;min-height:48px!important}
+.woodCityBig{grid-column:1/-1;margin:0 0 9px;padding:10px 12px;border-radius:13px;background:#0a2c1a;border:2px solid #53d27b;color:#8ff1ad;text-align:center;font-size:25px;font-weight:1000;line-height:1.05;letter-spacing:.2px}
+.woodDistanceBig{display:inline-flex;margin-top:5px;padding:5px 9px;border-radius:999px;background:#0c2740;color:#79d8ff;font-weight:1000;font-size:14px}
+.woodShare{grid-column:1/-1;min-height:46px;border:0;border-radius:12px;padding:9px 12px;background:#6d28d9;color:#fff;font-weight:1000;font-size:13px}
+.woodShare:active{transform:scale(.99)}
+.localWoodBadge{display:inline-block;margin:5px 0;padding:4px 8px;border-radius:999px;background:#1b5732;color:#a7f3bd;font-size:11px;font-weight:1000}
+@media(max-width:560px){
+ .mushroomHomeActions{grid-template-columns:1fr!important;gap:11px!important}
+ .mushroomHomeActions .btn{min-height:145px!important;font-size:24px!important}
+ .woodCityBig{font-size:21px}
+}
