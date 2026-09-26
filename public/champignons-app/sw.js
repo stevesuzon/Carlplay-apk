@@ -1,10 +1,10 @@
-const CACHE='champignons-standalone-v1';
+const CACHE='champignons-standalone-v2';
 const SHELL=[
   '/champignons-app/',
   '/champignons-app/index.html',
-  '/champignons-app/champignons.css?v=1',
-  '/champignons-app/champignons.js?v=1',
-  '/champignons-app/manifest.webmanifest?v=1',
+  '/champignons-app/champignons.css?v=2',
+  '/champignons-app/champignons.js?v=2',
+  '/champignons-app/manifest.webmanifest?v=2',
   '/champignon-cepe.jpg?v=240',
   '/accessibility-zoom-v466.js?v=470-direct-load',
   '/voice-assist-v486.js?v=487-stable'
