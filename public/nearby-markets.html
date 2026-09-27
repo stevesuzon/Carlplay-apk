@@ -538,29 +538,31 @@
       const img=button.querySelector('img');
       if(img){
         const url=button.dataset.src||img.dataset.photoSrc||img.getAttribute('src')||'';
-        if(url&&img.getAttribute('src')!==url)img.src=url;
-        img.loading='eager';
+        if(url&&img.getAttribute('src')!==url)img.setAttribute('src',url);
+        let near=true;try{const r=button.closest('.card').getBoundingClientRect(),h=window.innerHeight||800;near=r.top<h*2.2&&r.bottom>-180}catch(e){}
+        img.loading=near?'eager':'lazy';
         img.decoding='async';
-        try{img.fetchPriority='high'}catch(e){}
+        try{img.fetchPriority=near?'high':'low'}catch(e){}
       }
       if(button.dataset.wired)return;
       button.dataset.wired='1';
       button.addEventListener('click',()=>{photoLarge.src=button.dataset.src;photoLarge.alt=button.dataset.caption||'Photo du marché';photoModal.classList.add('open');});
     });
   }
-  function photoCacheKey(marketKey){return 'marketPhotoFastV492:'+String(marketKey||'')}
+  function validFastPhotoUrl(url){url=String(url||'');return /^https?:\/\//i.test(url)||/^\/api\/market-photo(?:\?|$)/i.test(url)}
+  function photoCacheKey(marketKey){return 'marketPhotoFastV493:'+String(marketKey||'')}
   function cachedPhotoFor(marketKey){
     try{
-      const p=JSON.parse(localStorage.getItem(photoCacheKey(marketKey))||'null');
-      return p&&/^https?:\/\//i.test(String(p.url||''))?String(p.url):'';
+      const p=JSON.parse(localStorage.getItem(photoCacheKey(marketKey))||localStorage.getItem('marketPhotoFastV492:'+String(marketKey||''))||'null');
+      return p&&validFastPhotoUrl(p.url)?String(p.url):'';
     }catch(e){return''}
   }
   function rememberPhotoFor(marketKey,url){
-    if(!marketKey||!/^https?:\/\//i.test(String(url||'')))return;
+    if(!marketKey||!validFastPhotoUrl(url))return;
     try{localStorage.setItem(photoCacheKey(marketKey),JSON.stringify({url:String(url),updatedAt:Date.now()}))}catch(e){}
   }
   function showPhotoOnCard(card,url){
-    if(!card||!/^https?:\/\//i.test(String(url||'')))return;
+    if(!card||!validFastPhotoUrl(url))return;
     rememberPhotoFor(card.dataset.marketKey,url);
     const add=card.querySelector('.market-photo-add');if(add)add.remove();
     let button=card.querySelector('.market-photo');
@@ -572,7 +574,7 @@
     }else{
       button.dataset.src=url;
       const img=button.querySelector('img');
-      if(img){img.src=url;img.loading='eager';try{img.fetchPriority='high'}catch(e){}}
+      if(img){if(img.getAttribute('src')!==url)img.setAttribute('src',url);wirePhotos()}
     }
   }
   function refreshVisibleStatus(){
@@ -588,6 +590,10 @@
       if(fast)showPhotoOnCard(card,fast);
     });
     wirePhotos();
+    fetch('/api/market-photos/batch',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({keys}),cache:'no-store'}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(result=>{
+      cards.querySelectorAll('[data-market-key]').forEach(card=>{const p=result.photos&&result.photos[card.dataset.marketKey];if(p&&p.url)showPhotoOnCard(card,p.url)});
+      wirePhotos();
+    }).catch(()=>{});
     fetch('/api/market-verifications/batch',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({keys}),cache:'no-store'}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(result=>{
       cards.querySelectorAll('[data-market-key]').forEach(card=>{const state=result.states&&result.states[card.dataset.marketKey];if(!state)return;const v=state.values||{};if(v.exists&&String(v.exists.value||'').toLowerCase()==='non'){disabledKeys.add(card.dataset.marketKey);try{localStorage.setItem('marketPresenceV174:'+card.dataset.marketKey,'non')}catch(e){}card.remove();return}else if(v.exists&&String(v.exists.value||'').toLowerCase()==='oui'){disabledKeys.delete(card.dataset.marketKey);try{localStorage.removeItem('marketPresenceV174:'+card.dataset.marketKey)}catch(e){}}const done=v.time&&v.count&&v.draw,inProgress=Object.keys(state.leaders||{}).length>0||!!state.photo,dot=card.querySelector('.marketVerificationDot');if(done||inProgress){if(dot){dot.className='marketVerificationDot '+(done?'green':'orange');dot.title=done?'Fiche vérifiée':'Vérification en cours';dot.setAttribute('aria-label',dot.title)}}if(state.location&&Number.isFinite(Number(state.location.latitude))&&Number.isFinite(Number(state.location.longitude))){const go=card.querySelector('[data-navigation]'),destination={lat:Number(state.location.latitude),lon:Number(state.location.longitude),text:Number(state.location.latitude)+','+Number(state.location.longitude)};if(go)go.href=navigationUrl(destination);try{localStorage.setItem('marketLocalLocationV1:'+card.dataset.marketKey,JSON.stringify({latitude:destination.lat,longitude:destination.lon,address:state.location.address||'',pending:false,updatedAt:Date.now()}))}catch(e){}}if(v.time)card.querySelector('.shared-time').textContent=v.time.value;if(v.count){const unit=card.dataset.countKind==='chalets'?' chalets':card.dataset.countKind==='emplacements'?' emplacements':' places';card.querySelector('.shared-count').textContent=v.count.value+unit;}if(v.draw&&card.querySelector('.shared-draw'))card.querySelector('.shared-draw').textContent=v.draw.value;if(v.welcome&&card.querySelector('.shared-welcome'))card.querySelector('.shared-welcome').textContent=v.welcome.value;if(v.placer&&card.querySelector('.shared-placer'))card.querySelector('.shared-placer').textContent=v.placer.value;if(v.clientModel&&card.querySelector('.shared-client-model'))card.querySelector('.shared-client-model').textContent=v.clientModel.value;if(state.photo&&state.photo.url){showPhotoOnCard(card,state.photo.url)}});wirePhotos();refreshVisibleStatus();
     }).catch(()=>{});
