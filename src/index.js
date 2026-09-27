@@ -2092,6 +2092,23 @@ async function batchMarketVerifications(request, env) {
 }
 
 
+async function batchMarketPhotos(request, env) {
+  if (!env.DB) return json({ ok:false, error:"DB_INDISPONIBLE" }, 503);
+  await ensureMarketVerificationTables(env);
+  const data=await body(request);
+  const keys=[...new Set((Array.isArray(data.keys)?data.keys:[]).map(cleanMarketKey).filter(Boolean))].slice(0,300);
+  const photos={};
+  if(!keys.length)return json({ok:true,photos});
+  const ph=keys.map(()=>'?').join(',');
+  const rows=await env.DB.prepare(`SELECT market_key,updated_at FROM market_photo_metadata WHERE market_key IN (${ph})`).bind(...keys).all();
+  for(const row of rows.results||[]){
+    const key=String(row.market_key||'');
+    if(!key)continue;
+    photos[key]={url:`/api/market-photo?marketKey=${encodeURIComponent(key)}&v=${encodeURIComponent(row.updated_at)}`,updatedAt:row.updated_at};
+  }
+  return json({ok:true,photos});
+}
+
 async function ensureMarketAttendanceTable(env) {
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_attendance (
     market_key TEXT NOT NULL,
@@ -2162,19 +2179,24 @@ async function marketPhoto(url, env) {
   if (!env.DB) return new Response("Photo indisponible", { status: 404, headers: cors });
   await ensureMarketVerificationTables(env);
   const marketKey = cleanMarketKey(url.searchParams.get("marketKey"));
+  const version=String(url.searchParams.get("v")||"").trim();
+  const cacheControl=version?"public, max-age=31536000, immutable":"public, max-age=300";
+  const etag=version?('"market-photo-'+version.replace(/[^A-Za-z0-9._-]/g,'')+'"'):"";
   const row = marketKey && await env.DB.prepare("SELECT object_key,mime_type FROM market_photo_metadata WHERE market_key=?").bind(marketKey).first();
   if (!row) return new Response("Photo indisponible", { status: 404, headers: cors });
+  const photoHeaders={...cors,"content-type":row.mime_type||"image/jpeg","cache-control":cacheControl};
+  if(etag)photoHeaders.etag=etag;
   if (env.MARKET_PHOTOS && !String(row.object_key || "").startsWith("d1:")) {
     const object = await env.MARKET_PHOTOS.get(row.object_key);
-    if (object) return new Response(object.body, { headers: { ...cors, "content-type": row.mime_type || "image/jpeg", "cache-control": "public, max-age=3600" } });
+    if (object) return new Response(object.body, { headers: photoHeaders });
   }
   const blob = await env.DB.prepare("SELECT data_base64,mime_type FROM market_photo_blobs WHERE market_key=?").bind(marketKey).first();
   if (!blob || !blob.data_base64) return new Response("Photo indisponible", { status: 404, headers: cors });
   try {
     const binary = atob(String(blob.data_base64));
     const bytes = new Uint8Array(binary.length);
-    for (let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
-    return new Response(bytes, { headers: { ...cors, "content-type": blob.mime_type || row.mime_type || "image/jpeg", "cache-control": "public, max-age=3600" } });
+    const headers={...photoHeaders,"content-type":blob.mime_type||row.mime_type||"image/jpeg"};
+    return new Response(bytes, { headers });
   } catch (_) { return new Response("Photo indisponible", { status: 404, headers: cors }); }
 }
 
@@ -4723,6 +4745,7 @@ export default {
     if (url.pathname === "/api/market-verifications" && request.method === "GET") return getMarketVerification(url, env);
     if (url.pathname === "/api/market-verifications" && request.method === "POST") return submitMarketVerification(request, env);
     if (url.pathname === "/api/market-verifications/batch" && request.method === "POST") return batchMarketVerifications(request, env);
+    if (url.pathname === "/api/market-photos/batch" && request.method === "POST") return batchMarketPhotos(request, env);
     if (url.pathname === "/api/market-update-announcements" && request.method === "GET") return marketUpdateAnnouncements(url, env);
     if (url.pathname === "/api/market-attendance" && (request.method === "GET" || request.method === "POST")) return marketAttendance(request, url, env);
     if (url.pathname === "/api/market-attendance/batch" && request.method === "POST") return marketAttendanceBatch(request, env);
