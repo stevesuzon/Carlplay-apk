@@ -38,16 +38,17 @@
     img.decoding='async';
     try{img.fetchPriority=near?'high':'low'}catch(e){}
   }
+  function validFastPhotoUrl(url){url=String(url||'');return /^https?:\/\//i.test(url)||/^\/api\/market-photo(?:\?|$)/i.test(url)}
   function photoCacheKey(card){return 'marketPhotoFastV493:'+(card&&card.dataset.marketKey||'')}
   function cachedPhoto(card){
     if(!card||!card.dataset.marketKey)return null;
     try{
       var value=JSON.parse(localStorage.getItem(photoCacheKey(card))||localStorage.getItem('marketPhotoFastV492:'+(card&&card.dataset.marketKey||''))||'null');
-      return value&&/^https?:\/\//i.test(String(value.url||''))?value:null;
+      return value&&validFastPhotoUrl(value.url)?value:null;
     }catch(e){return null}
   }
   function rememberPhoto(card,photo){
-    if(!card||!card.dataset.marketKey||!photo||!/^https?:\/\//i.test(String(photo.url||'')))return;
+    if(!card||!card.dataset.marketKey||!photo||!validFastPhotoUrl(photo.url))return;
     try{localStorage.setItem(photoCacheKey(card),JSON.stringify({url:String(photo.url),updatedAt:Date.now()}))}catch(e){}
   }
   function updatePhotoSlot(card,state){
