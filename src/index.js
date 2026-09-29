@@ -1457,10 +1457,21 @@ async function adminMarketSourceCounts(request,env){
   if(!(await adminAuthorized(request,env)))return json({ok:false,error:'ACCES_REFUSE'},401);
   if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
   await ensureMarketTable(env);
+  await ensureJdmRefreshTable(env);
+  const jdmWhere="kind='marche' AND (lower(source_url) LIKE '%jours-de-marche.fr%' OR lower(note) LIKE '%jours-de-march%')";
   const markets=await env.DB.prepare("SELECT count(*) AS n FROM (SELECT 1 FROM imported_markets WHERE kind='marche' GROUP BY country,area,lower(trim(city)),lower(trim(name)))").first();
-  const source=await env.DB.prepare("SELECT count(*) AS n FROM (SELECT 1 FROM imported_markets WHERE kind='marche' AND lower(source_url) LIKE '%jours-de-marche.fr%' GROUP BY country,area,lower(trim(city)),lower(trim(name)))").first();
-  const areas=await env.DB.prepare("SELECT area,count(*) AS n FROM (SELECT area,city,name FROM imported_markets WHERE kind='marche' AND lower(source_url) LIKE '%jours-de-marche.fr%' GROUP BY area,lower(trim(city)),lower(trim(name))) GROUP BY area ORDER BY area").all();
-  return json({ok:true,totalMarkets:Number(markets.n||0),fromMarketWebsite:Number(source.n||0),departments:areas.results||[]});
+  const source=await env.DB.prepare("SELECT count(*) AS n FROM (SELECT 1 FROM imported_markets WHERE "+jdmWhere+" GROUP BY country,area,lower(trim(city)),lower(trim(name)))").first();
+  const areas=await env.DB.prepare("SELECT area,count(*) AS n FROM (SELECT area,city,name FROM imported_markets WHERE "+jdmWhere+" GROUP BY area,lower(trim(city)),lower(trim(name))) GROUP BY area ORDER BY area").all();
+  const recent=await env.DB.prepare("SELECT area,last_check_at,last_found,last_pages,last_message,next_check_at,first_scan_done FROM market_jdm_refresh_state WHERE last_check_at>0 ORDER BY last_check_at DESC LIMIT 8").all();
+  const due=await env.DB.prepare("SELECT COUNT(*) AS n FROM market_jdm_refresh_state WHERE next_check_at<=?").bind(Date.now()).first();
+  return json({ok:true,totalMarkets:Number(markets.n||0),fromMarketWebsite:Number(source.n||0),departments:areas.results||[],joursDeMarche:{due:Number(due&&due.n||0),recent:recent.results||[]}});
+}
+
+async function adminRunJdmRefresh(request,env){
+  if(!(await adminAuthorized(request,env)))return json({ok:false,error:'ACCES_REFUSE'},401);
+  if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
+  const results=await runJdmIncremental(env);
+  return json({ok:true,results,ranAt:Date.now()});
 }
 async function marketMilestoneFeed(url,env){
   if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
@@ -4680,11 +4691,10 @@ async function nearHlmV473(url){
 
 export default {
   async scheduled(controller, env, ctx) {
-    // V343 : uniquement événements spéciaux. Les marchés hebdomadaires ne sont pas touchés.
-    // Brocante / braderie / foire : 90 jours par zone. Voyageurs : 60 jours par zone.
-    if (String(env.MARKET_AUTO_REFRESH || "1") === "0") return;
-    ctx.waitUntil(runSpecialEventRefresh(env));
-    ctx.waitUntil(runJdmIncremental(env));
+    // V494 : Jours-de-Marché reste actif progressivement, même si l'ancien interrupteur
+    // des événements spéciaux a été désactivé. Un interrupteur dédié peut l'arrêter si besoin.
+    if (String(env.MARKET_AUTO_REFRESH || "1") !== "0") ctx.waitUntil(runSpecialEventRefresh(env));
+    if (String(env.MARKET_JDM_AUTO_REFRESH || "1") !== "0") ctx.waitUntil(runJdmIncremental(env));
   },
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -4740,6 +4750,7 @@ export default {
     if (url.pathname === "/api/markets/refresh-status" && request.method === "GET") return marketRefreshStatus(env);
     if (url.pathname === "/api/markets/milestones" && request.method === "GET") return marketMilestoneFeed(url, env);
     if (url.pathname === "/api/admin/market-source-counts" && request.method === "GET") return adminMarketSourceCounts(request,env);
+    if (url.pathname === "/api/admin/markets/jdm-refresh" && request.method === "POST") return adminRunJdmRefresh(request,env);
     if (url.pathname === "/api/admin/markets/import" && request.method === "POST") return importMarkets(request, env);
     if (url.pathname === "/api/admin/market-verification-forms" && request.method === "GET") return adminMarketVerificationForms(request, env);
     if (url.pathname === "/api/market-verifications" && request.method === "GET") return getMarketVerification(url, env);
