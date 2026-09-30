@@ -247,7 +247,28 @@
   function verifySaved(done) {
     var s = saved();
     if (s && s.globalFree && freeAccess()) { done(); return; }
-    if (!s || !s.code || !valid(s)) { done(); return; }
+
+    function recoverFromVerifiedIdentity(){
+      var identity=storedIdentity(s||{}),mail=String(identity.email||rememberedEmail()||'').trim().toLowerCase();
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail)){done();return;}
+      fetch("/api/app-identity/status",{
+        method:"POST",headers:{"content-type":"application/json"},
+        body:JSON.stringify({email:mail,deviceId:id()}),cache:"no-store"
+      }).then(function(r){return r.json().then(function(j){if(!r.ok)throw j;return j;});})
+        .then(function(j){
+          var sub=j&&j.verified&&j.subscription?j.subscription:null;
+          if(sub&&(sub.lifetime||(sub.expiresAt&&Date.parse(sub.expiresAt)>Date.now()))){
+            var recovered={ok:true,lifetime:!!sub.lifetime,expiresAt:sub.expiresAt||null,email:sub.email||mail,firstName:sub.firstName||identity.firstName||'',lastName:sub.lastName||identity.lastName||''};
+            if(s&&s.code)recovered.code=s.code;
+            localStorage.setItem(KEY,JSON.stringify(recovered));
+            localStorage.setItem(PAID_KEY,"1");
+            rememberEmail(recovered.email);
+          }
+          done();
+        }).catch(function(){done();});
+    }
+
+    if (!s || !s.code || !valid(s)) { recoverFromVerifiedIdentity(); return; }
     fetch("/api/status", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -262,7 +283,7 @@
       done();
     }).catch(function (e) {
       if (e && (e.error === "APPAREIL_REMPLACE" || e.error === "ABONNEMENT_EXPIRE" || e.error === "CODE_INCORRECT")) localStorage.removeItem(KEY);
-      done();
+      recoverFromVerifiedIdentity();
     });
   }
 
