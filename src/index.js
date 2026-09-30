@@ -722,7 +722,15 @@ async function subscriptionStatus(request, env) {
   if (!row) return json({ ok: false, error: "CODE_INCORRECT" }, 403);
   if (!row.lifetime && (!row.expires_at || Date.parse(row.expires_at) <= Date.now())) return json({ ok: false, error: "ABONNEMENT_EXPIRE" }, 403);
   const registered = type === "autoradio" ? row.autoradio_device : row.phone_device;
-  if (registered !== deviceId) return json({ ok: false, error: "APPAREIL_REMPLACE" }, 409);
+  if (registered !== deviceId) {
+    const email=normalizeEmail(data.email),firstName=String(data.firstName||"").trim(),lastName=String(data.lastName||"").trim();
+    const storedEmail=normalizeEmail(row.recovery_email_mask||""),storedFirst=String(row.account_first_name||"").trim(),storedLast=String(row.account_last_name||"").trim();
+    const identityMatches=validEmail(email)&&email===storedEmail&&firstName.length>=2&&lastName.length>=2&&
+      subscriptionIdentityKey(firstName)===subscriptionIdentityKey(storedFirst)&&subscriptionIdentityKey(lastName)===subscriptionIdentityKey(storedLast);
+    if(!identityMatches)return json({ ok: false, error: "APPAREIL_REMPLACE" }, 409);
+    const column=type==="autoradio"?"autoradio_device":"phone_device";
+    await env.DB.prepare(`UPDATE subscriptions SET ${column}=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(deviceId,row.id).run();
+  }
   return json({ ok: true, lifetime: !!row.lifetime, expiresAt: row.expires_at || null, deviceType: type, email: String(row.recovery_email_mask || ""), firstName: String(row.account_first_name || ""), lastName: String(row.account_last_name || "") });
 }
 
