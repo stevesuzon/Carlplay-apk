@@ -4223,6 +4223,15 @@ async function verifiedAppIdentityState(env,email,deviceId){
     try{await env.DB.prepare("UPDATE app_identities SET device_id=?,email_verified_device_id=?,updated_at=? WHERE lower(email)=?").bind(deviceId,deviceId,Date.now(),email).run();row.device_id=deviceId;row.email_verified_device_id=deviceId}catch(_){}
   }
   let trial=false;try{trial=!!(sub&&await isContestTrialRow(sub))}catch(_){}
+  // Un abonnement à vie ne doit jamais rester bloqué après réinstallation/changement
+  // de l'identifiant local du téléphone. Après confirmation de l'e-mail sur ce
+  // téléphone, on rattache automatiquement le téléphone au même abonnement.
+  if(sub&&Number(sub.lifetime)===1&&String(sub.phone_device||'')!==deviceId){
+    try{
+      await env.DB.prepare("UPDATE subscriptions SET phone_device=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(deviceId,sub.id).run();
+      sub.phone_device=deviceId;
+    }catch(_){}
+  }
   return {verified:true,identity:{firstName:String(row.first_name||''),lastName:String(row.last_name||''),email:String(row.email||email)},deviceId,verifiedAt:Number(row.email_verified_at||0),subscription:sub?{ok:true,email:String(sub.recovery_email_mask||email),firstName:String(sub.account_first_name||row.first_name||''),lastName:String(sub.account_last_name||row.last_name||''),lifetime:!!sub.lifetime,expiresAt:sub.expires_at||null,trial,trialMode:trial?'seven_day':'',existingAccount:!trial}:null};
 }
 async function sendAppIdentityConfirmationEmail(env,email,confirmUrl,firstName){
