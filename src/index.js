@@ -3685,10 +3685,54 @@ async function contestMarketBreakdown(env,deviceId,marketKey,distanceKm){
   return {basePoints:total,items,complete,distanceKm:fuel.usedKm,distancePoints:fuel.points};
 }
 
+async function contestUniqueRanking(env,currentSubscriptionId=-1){
+  const rows=(await env.DB.prepare(`
+    SELECT p.subscription_id,p.first_name,p.last_name,p.points,p.joined_at,p.email_hash,
+           COALESCE(s.recovery_email_mask,'') AS account_email,
+           COALESCE(s.recovery_email_hash,'') AS account_hash
+    FROM contest_participants p
+    LEFT JOIN subscriptions s ON s.id=p.subscription_id
+    WHERE p.banned=0 AND COALESCE(p.contest_excluded,0)=0
+    ORDER BY p.points DESC,p.joined_at ASC,p.subscription_id ASC
+  `).all()).results||[];
+
+  let currentKey='';
+  if(Number(currentSubscriptionId)>0){
+    const cur=await env.DB.prepare("SELECT recovery_email_mask,recovery_email_hash FROM subscriptions WHERE id=? LIMIT 1").bind(Number(currentSubscriptionId)).first();
+    const curEmail=normalizeEmail(cur&&cur.recovery_email_mask||'');
+    if(validEmail(curEmail))currentKey='e:'+curEmail;
+    else if(String(cur&&cur.recovery_email_hash||'').trim())currentKey='h:'+String(cur.recovery_email_hash).trim();
+    else currentKey='sid:'+Number(currentSubscriptionId);
+  }
+
+  const groups=new Map();
+  for(const row of rows){
+    const email=normalizeEmail(row.account_email||'');
+    const key=validEmail(email)?'e:'+email:(String(row.email_hash||row.account_hash||'').trim()?'h:'+String(row.email_hash||row.account_hash).trim():'sid:'+Number(row.subscription_id));
+    let g=groups.get(key);
+    if(!g){
+      g={
+        subscription_id:Number(row.subscription_id),
+        first_name:String(row.first_name||''),
+        last_name:String(row.last_name||''),
+        points:Number(row.points||0),
+        joined_at:Number(row.joined_at||0),
+        is_me:0,
+        non_winner:email===ONLY_ADMIN_EMAIL?1:0,
+        _key:key
+      };
+      groups.set(key,g);
+    }
+    if(Number(row.subscription_id)===Number(currentSubscriptionId)||key===currentKey)g.is_me=1;
+    if(email===ONLY_ADMIN_EMAIL)g.non_winner=1;
+  }
+  return [...groups.values()].map(x=>{delete x._key;return x});
+}
+
 async function finalizeContestIfNeeded(env){
   const cfg=await ensureContestTables(env);if(Date.now()<Number(cfg.end_at)||cfg.finalized_at)return cfg;
-  const top=await env.DB.prepare("SELECT * FROM contest_participants WHERE banned=0 AND COALESCE(contest_excluded,0)=0 AND subscription_id NOT IN (SELECT id FROM subscriptions WHERE lower(COALESCE(recovery_email_mask,''))=?) ORDER BY points DESC, joined_at ASC LIMIT 5").bind(ONLY_ADMIN_EMAIL).all();let rank=0;
-  for(const p of top.results||[]){rank++;const reward=rank<=2?"Abonnement à vie":"1 an d’abonnement gratuit";await env.DB.prepare("INSERT OR REPLACE INTO contest_results(rank,subscription_id,first_name,last_name,points,reward) VALUES(?,?,?,?,?,?)").bind(rank,p.subscription_id,p.first_name,p.last_name,p.points,reward).run();const sub=await env.DB.prepare("SELECT * FROM subscriptions WHERE id=?").bind(p.subscription_id).first();if(sub){if(rank<=2)await env.DB.prepare("UPDATE subscriptions SET lifetime=1,expires_at=NULL,active=1,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(sub.id).run();else if(!sub.lifetime){const base=Math.max(Date.now(),sub.expires_at?Date.parse(sub.expires_at):0),d=new Date(base);d.setFullYear(d.getFullYear()+1);await env.DB.prepare("UPDATE subscriptions SET expires_at=?,active=1,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(d.toISOString(),sub.id).run()}const email=String(sub.recovery_email_mask||"");if(validEmail(email)&&!email.includes("***"))await sendContestMail(env,email,"Félicitations — vous êtes gagnant du concours Couteau Suisse",`Félicitations ${p.first_name} ${p.last_name} !\nVous terminez n°${rank} du concours avec ${p.points} points.\nVotre gain : ${reward}.`)}}
+  const top=(await contestUniqueRanking(env,-1)).filter(p=>!Number(p.non_winner)).slice(0,5);let rank=0;
+  for(const p of top){rank++;const reward=rank<=2?"Abonnement à vie":"1 an d’abonnement gratuit";await env.DB.prepare("INSERT OR REPLACE INTO contest_results(rank,subscription_id,first_name,last_name,points,reward) VALUES(?,?,?,?,?,?)").bind(rank,p.subscription_id,p.first_name,p.last_name,p.points,reward).run();const sub=await env.DB.prepare("SELECT * FROM subscriptions WHERE id=?").bind(p.subscription_id).first();if(sub){if(rank<=2)await env.DB.prepare("UPDATE subscriptions SET lifetime=1,expires_at=NULL,active=1,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(sub.id).run();else if(!sub.lifetime){const base=Math.max(Date.now(),sub.expires_at?Date.parse(sub.expires_at):0),d=new Date(base);d.setFullYear(d.getFullYear()+1);await env.DB.prepare("UPDATE subscriptions SET expires_at=?,active=1,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(d.toISOString(),sub.id).run()}const email=String(sub.recovery_email_mask||"");if(validEmail(email)&&!email.includes("***"))await sendContestMail(env,email,"Félicitations — vous êtes gagnant du concours Couteau Suisse",`Félicitations ${p.first_name} ${p.last_name} !\nVous terminez n°${rank} du concours avec ${p.points} points.\nVotre gain : ${reward}.`)}}
   const finalizedAt=Date.now();await env.DB.prepare("UPDATE contest_config SET finalized_at=?,results_until=? WHERE id=1").bind(finalizedAt,finalizedAt+CONTEST_RESULTS_MS).run();return await env.DB.prepare("SELECT * FROM contest_config WHERE id=1").first();
 }
 
@@ -3709,7 +3753,7 @@ async function contestStatus(request,env){
     }
   }
   if(sub){profile={firstName:adminSession?"Steve":String(sub.account_first_name||""),lastName:adminSession?"Suzon":String(sub.account_last_name||""),email:adminSession?ONLY_ADMIN_EMAIL:String(sub.recovery_email_mask||"")};const currentDevice=String(data.deviceId||"").trim();if(validDevice(currentDevice))await env.DB.prepare("UPDATE contest_participants SET device_id=?,updated_at=? WHERE subscription_id=? AND device_id<>?").bind(currentDevice,now,sub.id,currentDevice).run();participant=await env.DB.prepare("SELECT subscription_id,first_name,last_name,home_country,home_area,home_commune,return_place_lat,return_place_lon,return_place_label,camping_active,camping_lat,camping_lon,camping_label,camping_updated_at,points,banned,alert_count,change_allowed,auto_enrolled,joined_at FROM contest_participants WHERE subscription_id=?").bind(sub.id).first();const installed=await registeredVerificationDevice(env,currentDevice);if(participant){await applyPendingReferralRewards(env,sub.id);if(!ended)randomGift=await contestEnsurePendingGiftV419(env,sub.id);participant=await env.DB.prepare("SELECT subscription_id,first_name,last_name,home_country,home_area,home_commune,return_place_lat,return_place_lon,return_place_label,camping_active,camping_lat,camping_lon,camping_label,camping_updated_at,points,banned,alert_count,change_allowed,auto_enrolled,joined_at FROM contest_participants WHERE subscription_id=?").bind(sub.id).first();bonusState=await contestRefreshBonusState(env,sub.id);scoreSummary=await contestScoreSummary(env,sub.id);bonusProgress=contestBonusProgress(scoreSummary.marketCount);const ob=await env.DB.prepare("SELECT status,start_at,end_at FROM contest_bonus_periods WHERE subscription_id=? AND source_key='onboarding-home-place' LIMIT 1").bind(sub.id).first();onboarding={installed,identity:!!(String(sub.account_first_name||'').trim()&&String(sub.account_last_name||'').trim()&&String(sub.recovery_email_hash||'').trim()),returnPlaceSaved:!!String(participant.return_place_label||'').trim(),bonusWon:!!ob,bonusStatus:ob&&ob.status||''};const m=await env.DB.prepare("SELECT id,kind,message,created_at FROM contest_messages WHERE subscription_id=? AND read_at IS NULL ORDER BY created_at DESC LIMIT 8").bind(sub.id).all();messages=m.results||[];const q=await env.DB.prepare("SELECT id,new_place,previous_place,message,user_answer,status,created_at FROM contest_travel_alerts WHERE subscription_id=? AND status='pending' AND user_answer='' ORDER BY created_at DESC").bind(sub.id).all();questions=q.results||[]}}
-  const ranking=includeRanking?await env.DB.prepare("SELECT first_name,last_name,points,joined_at,CASE WHEN subscription_id=? THEN 1 ELSE 0 END AS is_me,CASE WHEN subscription_id IN (SELECT id FROM subscriptions WHERE lower(COALESCE(recovery_email_mask,''))=?) THEN 1 ELSE 0 END AS non_winner FROM contest_participants WHERE banned=0 AND COALESCE(contest_excluded,0)=0 ORDER BY points DESC,joined_at ASC").bind(sub?sub.id:-1,ONLY_ADMIN_EMAIL).all():{results:[]};const results=resultsVisible?(await env.DB.prepare("SELECT * FROM contest_results ORDER BY rank").all()).results||[]:[];
+  const ranking=includeRanking?{results:await contestUniqueRanking(env,sub?sub.id:-1)}:{results:[]};const results=resultsVisible?(await env.DB.prepare("SELECT * FROM contest_results ORDER BY rank").all()).results||[]:[];
   return json({ok:true,active:!ended,ended,resultsVisible,closed,phase:!ended?"active":resultsVisible?"results":"closed",startAt:Number(cfg.start_at),endAt:Number(cfg.end_at),resultsUntil,appFreeUntil:Number(cfg.end_at)+CONTEST_APP_FREE_EXTRA_MS,daysRemaining:Math.max(0,Math.ceil((Number(cfg.end_at)-now)/86400000)),profile,participant,ranking:ranking.results||[],messages,questions,results,scoreSummary,bonusState,bonusProgress,onboarding,randomGift});
 }
 async function contestScoreStatus(request,env){
@@ -3723,7 +3767,7 @@ async function contestScoreStatus(request,env){
   }
   if(!sub)return json({ok:true,participant:null,ranking:[]});
   const participant=await env.DB.prepare("SELECT subscription_id,points,banned FROM contest_participants WHERE subscription_id=? LIMIT 1").bind(sub.id).first();
-  const ranking=await env.DB.prepare("SELECT first_name,last_name,points,joined_at,CASE WHEN subscription_id=? THEN 1 ELSE 0 END AS is_me,CASE WHEN subscription_id IN (SELECT id FROM subscriptions WHERE lower(COALESCE(recovery_email_mask,''))=?) THEN 1 ELSE 0 END AS non_winner FROM contest_participants WHERE banned=0 AND COALESCE(contest_excluded,0)=0 ORDER BY points DESC,joined_at ASC").bind(sub.id,ONLY_ADMIN_EMAIL).all();
+  const ranking={results:await contestUniqueRanking(env,sub.id)};
   return json({ok:true,participant:participant?{points:Number(participant.points||0),banned:Number(participant.banned||0)}:null,ranking:ranking.results||[],serverTime:Date.now()});
 }
 async function contestCommunes(url){
@@ -3985,8 +4029,8 @@ async function contestBroadcastRankingUpdate(env,subscriptionId,gainedPoints){
   const sid=Number(subscriptionId||0),gain=contestRound2(Number(gainedPoints||0));
   if(!sid||gain<=0)return {sent:0,rank:0};
   try{
-    const ranking=(await env.DB.prepare("SELECT subscription_id,first_name,last_name,points,joined_at FROM contest_participants WHERE banned=0 AND COALESCE(contest_excluded,0)=0 ORDER BY points DESC,joined_at ASC").all()).results||[];
-    const idx=ranking.findIndex(x=>Number(x.subscription_id)===sid);
+    const ranking=await contestUniqueRanking(env,sid);
+    const idx=ranking.findIndex(x=>Number(x.is_me)===1);
     if(idx<0)return {sent:0,rank:0};
     const person=ranking[idx],rank=idx+1,name=[String(person.first_name||'').trim(),String(person.last_name||'').trim()].filter(Boolean).join(' ')||'Un participant';
     const place=rank===1?'1er':`${rank}e`;
