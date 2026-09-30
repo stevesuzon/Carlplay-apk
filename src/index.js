@@ -3924,8 +3924,8 @@ async function adminContest(request,env){
   await ensureMarketVerificationTables(env);
   const url=new URL(request.url),summary=url.searchParams.get('summary')==='1',mode=url.searchParams.get('mode')||'',cfg=await finalizeContestIfNeeded(env);
   if(summary){
-    const c=await env.DB.prepare("SELECT COUNT(*) AS n FROM contest_participants WHERE COALESCE(contest_excluded,0)=0").first();
-    return json({ok:true,config:cfg,participantCount:Number(c&&c.n||0),participants:[]});
+    const unique=await contestUniqueRanking(env,-1);
+    return json({ok:true,config:cfg,participantCount:unique.length,participants:[]});
   }
   if(mode==='pending-summary'){
     const c=await env.DB.prepare(`SELECT
