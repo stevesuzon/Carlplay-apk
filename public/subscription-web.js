@@ -272,7 +272,7 @@
     fetch("/api/status", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ code: s.code, deviceId: id(), deviceType: "phone" })
+      body: JSON.stringify({ code: s.code, deviceId: id(), deviceType: "phone", email:s.email||rememberedEmail(), firstName:s.firstName||"", lastName:s.lastName||"" })
     }).then(function (r) {
       return r.json().then(function (j) { if (!r.ok) throw j; return j; });
     }).then(function (j) {
