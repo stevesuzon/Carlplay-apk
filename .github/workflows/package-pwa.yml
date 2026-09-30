@@ -52,11 +52,25 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          printf 'Cloudflare deploy trigger: %s\nRun: %s\nCommit: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${{ github.run_id }}" "${{ github.sha }}" > cloudflare-deploy-trigger.txt
-          git add -f CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip cloudflare-deploy-trigger.txt
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m "Met à jour le ZIP et déclenche Cloudflare [skip ci]"
-          git pull --rebase origin main
-          git push origin HEAD:main
+
+          # Plusieurs mises à jour peuvent arriver à quelques secondes d'intervalle.
+          # On repart toujours du dernier main, puis on reconstruit le ZIP pour éviter
+          # les conflits de rebase sur le fichier binaire ZIP.
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            rm -f CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip
+            zip -rq CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip public src
+            printf 'Cloudflare deploy trigger: %s\nRun: %s\nSource: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${{ github.run_id }}" "$(git rev-parse HEAD)" > cloudflare-deploy-trigger.txt
+            git add -f CarPlay-TELEPHONE-GITHUB-CLOUDFLARE-V5.zip cloudflare-deploy-trigger.txt
+            if git diff --cached --quiet; then
+              exit 0
+            fi
+            git commit -m "Met à jour le ZIP Couteau Suisse [skip ci]"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Impossible de publier le ZIP après 3 tentatives."
+          exit 1
