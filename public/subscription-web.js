@@ -269,10 +269,11 @@
     }
 
     if (!s || !s.code || !valid(s)) { recoverFromVerifiedIdentity(); return; }
+    var identity=storedIdentity(s);
     fetch("/api/status", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ code: s.code, deviceId: id(), deviceType: "phone", email:s.email||rememberedEmail(), firstName:s.firstName||"", lastName:s.lastName||"" })
+      body: JSON.stringify({ code: s.code, deviceId: id(), deviceType: "phone", email:identity.email||s.email||rememberedEmail(), firstName:identity.firstName||s.firstName||"", lastName:identity.lastName||s.lastName||"" })
     }).then(function (r) {
       return r.json().then(function (j) { if (!r.ok) throw j; return j; });
     }).then(function (j) {
