@@ -1416,6 +1416,27 @@ async function ensureJdmRefreshTable(env){
   try{await env.DB.prepare('CREATE INDEX IF NOT EXISTS market_jdm_due ON market_jdm_refresh_state(next_check_at)').run()}catch(_){}
 }
 async function seedJdmRefreshQueue(env){await ensureJdmRefreshTable(env);const now=Date.now(),jobs=[];for(const area of Object.keys(JDM_FR_SLUGS))jobs.push(env.DB.prepare('INSERT OR IGNORE INTO market_jdm_refresh_state(area,next_check_at) VALUES(?,?)').bind(area,now));for(let i=0;i<jobs.length;i+=40)await env.DB.batch(jobs.slice(i,i+40))}
+async function ensureJdmControl(env){
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_jdm_control(
+    id INTEGER PRIMARY KEY CHECK(id=1),
+    progressive_until INTEGER NOT NULL DEFAULT 0,
+    started_at INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL DEFAULT 0
+  )`).run();
+  await env.DB.prepare('INSERT OR IGNORE INTO market_jdm_control(id,progressive_until,started_at,updated_at) VALUES(1,0,0,0)').run();
+}
+async function jdmProgressiveActive(env){
+  await ensureJdmControl(env);
+  const row=await env.DB.prepare('SELECT progressive_until FROM market_jdm_control WHERE id=1').first();
+  return Number(row&&row.progressive_until||0)>Date.now();
+}
+async function startJdmProgressive(env){
+  await ensureJdmControl(env);
+  const now=Date.now(),until=now+72*3600000;
+  await env.DB.prepare('UPDATE market_jdm_control SET progressive_until=?,started_at=?,updated_at=? WHERE id=1').bind(until,now,now).run();
+  return until;
+}
+
 async function jdmFetch(url){
   const headers={
     'user-agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
@@ -1485,7 +1506,7 @@ async function adminMarketSourceCounts(request,env){
   const areas=await env.DB.prepare("SELECT area,count(*) AS n FROM (SELECT area,city,name FROM imported_markets WHERE "+jdmWhere+" GROUP BY area,lower(trim(city)),lower(trim(name))) GROUP BY area ORDER BY area").all();
   const recent=await env.DB.prepare("SELECT area,last_check_at,last_found,last_pages,last_message,next_check_at,first_scan_done FROM market_jdm_refresh_state WHERE last_check_at>0 ORDER BY last_check_at DESC LIMIT 8").all();
   const due=await env.DB.prepare("SELECT COUNT(*) AS n FROM market_jdm_refresh_state WHERE next_check_at<=?").bind(Date.now()).first();
-  return json({ok:true,totalMarkets:Number(markets.n||0),fromMarketWebsite:Number(source.n||0),departments:areas.results||[],dynamicLabel:'Marchés enregistrés par les mises à jour automatiques',joursDeMarche:{due:Number(due&&due.n||0),recent:recent.results||[]}});
+  await ensureJdmControl(env);const ctl=await env.DB.prepare('SELECT progressive_until,started_at FROM market_jdm_control WHERE id=1').first();return json({ok:true,totalMarkets:Number(markets.n||0),fromMarketWebsite:Number(source.n||0),departments:areas.results||[],dynamicLabel:'Marchés enregistrés par les mises à jour automatiques',joursDeMarche:{due:Number(due&&due.n||0),recent:recent.results||[],progressive:Number(ctl&&ctl.progressive_until||0)>Date.now(),progressiveUntil:Number(ctl&&ctl.progressive_until||0),startedAt:Number(ctl&&ctl.started_at||0)}});
 }
 
 async function adminRunJdmRefresh(request,env){
@@ -1493,10 +1514,8 @@ async function adminRunJdmRefresh(request,env){
   if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
   await ensureMarketTable(env);
   await seedJdmRefreshQueue(env);
+  const progressiveUntil=await startJdmProgressive(env);
 
-  // Bouton "maintenant" = vrai lancement immédiat, sans attendre next_check_at.
-  // On reprend d'abord les départements qui avaient l'ancienne erreur D1,
-  // puis les départements IDF non terminés, puis le reste de la France.
   const q=await env.DB.prepare(`
     SELECT area,city_cursor,city_count,next_check_at,last_message,first_scan_done
     FROM market_jdm_refresh_state
@@ -1510,13 +1529,12 @@ async function adminRunJdmRefresh(request,env){
       CASE WHEN last_check_at=0 THEN 0 ELSE 1 END,
       last_check_at ASC,
       area ASC
-    LIMIT 2
+    LIMIT 1
   `).all();
 
   const results=[];
   for(const row of (q.results||[])){
     try{
-      // Force la ligne à être immédiatement exécutable et traite directement la zone.
       await env.DB.prepare('UPDATE market_jdm_refresh_state SET next_check_at=0 WHERE area=?').bind(row.area).run();
       results.push(await refreshJdmArea(env,row));
     }catch(e){
@@ -1526,7 +1544,7 @@ async function adminRunJdmRefresh(request,env){
       results.push({area:row.area,count:0,pages:0,pending:true,message:msg,error:true});
     }
   }
-  return json({ok:true,results,ranAt:Date.now()});
+  return json({ok:true,results,ranAt:Date.now(),progressive:true,progressiveUntil});
 }
 async function marketMilestoneFeed(url,env){
   if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
@@ -1537,12 +1555,12 @@ async function marketMilestoneFeed(url,env){
 }
 
 
-async function runJdmIncremental(env){
+async function runJdmIncremental(env,batches=2){
   await ensureMarketTable(env);
   await seedJdmRefreshQueue(env);
   const results=[];
-  // Deux lots par passage : assez rapide pour remplir la France, sans lancer tout le pays d'un coup.
-  for(let i=0;i<2;i++){
+  const limit=Math.max(1,Math.min(4,Number(batches)||1));
+  for(let i=0;i<limit;i++){
     const idf=['75','77','78','91','92','93','94','95'];
     const idfPending=await env.DB.prepare("SELECT 1 FROM market_jdm_refresh_state WHERE area IN ('75','77','78','91','92','93','94','95') AND first_scan_done=0 LIMIT 1").first();
     const firstPassPending=!idfPending&&await env.DB.prepare('SELECT 1 FROM market_jdm_refresh_state WHERE first_scan_done=0 LIMIT 1').first();
@@ -4738,10 +4756,15 @@ async function nearHlmV473(url){
 
 export default {
   async scheduled(controller, env, ctx) {
-    // V494 : Jours-de-Marché reste actif progressivement, même si l'ancien interrupteur
-    // des événements spéciaux a été désactivé. Un interrupteur dédié peut l'arrêter si besoin.
-    if (String(env.MARKET_AUTO_REFRESH || "1") !== "0") ctx.waitUntil(runSpecialEventRefresh(env));
-    if (String(env.MARKET_JDM_AUTO_REFRESH || "1") !== "0") ctx.waitUntil(runJdmIncremental(env));
+    const minute=new Date(Number(controller.scheduledTime||Date.now())).getUTCMinutes();
+    if (minute===0 && String(env.MARKET_AUTO_REFRESH || "1") !== "0") ctx.waitUntil(runSpecialEventRefresh(env));
+    if (String(env.MARKET_JDM_AUTO_REFRESH || "1") !== "0") {
+      ctx.waitUntil((async()=>{
+        const progressive=await jdmProgressiveActive(env);
+        if(progressive) return runJdmIncremental(env,1);
+        if(minute===0) return runJdmIncremental(env,2);
+      })());
+    }
   },
   async fetch(request, env) {
     const url = new URL(request.url);
