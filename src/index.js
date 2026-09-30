@@ -1053,6 +1053,7 @@ async function ensureMarketTable(env) {
   // On ajoute donc la colonne simplement, puis on initialise les anciennes lignes.
   try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN updated_at TEXT").run(); } catch (_) {}
   try { await env.DB.prepare("UPDATE imported_markets SET updated_at=COALESCE(NULLIF(updated_at,''),created_at,CURRENT_TIMESTAMP) WHERE updated_at IS NULL OR updated_at=''").run(); } catch (_) {}
+  try { await env.DB.prepare("UPDATE market_jdm_refresh_state SET next_check_at=0 WHERE lower(last_message) LIKE '%updated_at%' OR lower(last_message) LIKE '%sqlite_error%'").run(); } catch (_) {}
 }
 
 function cleanMarket(value, max = 240) {
@@ -1490,7 +1491,41 @@ async function adminMarketSourceCounts(request,env){
 async function adminRunJdmRefresh(request,env){
   if(!(await adminAuthorized(request,env)))return json({ok:false,error:'ACCES_REFUSE'},401);
   if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
-  const results=await runJdmIncremental(env);
+  await ensureMarketTable(env);
+  await seedJdmRefreshQueue(env);
+
+  // Bouton "maintenant" = vrai lancement immédiat, sans attendre next_check_at.
+  // On reprend d'abord les départements qui avaient l'ancienne erreur D1,
+  // puis les départements IDF non terminés, puis le reste de la France.
+  const q=await env.DB.prepare(`
+    SELECT area,city_cursor,city_count,next_check_at,last_message,first_scan_done
+    FROM market_jdm_refresh_state
+    ORDER BY
+      CASE
+        WHEN lower(last_message) LIKE '%updated_at%' OR lower(last_message) LIKE '%sqlite_error%' THEN 0
+        WHEN area IN ('75','77','78','91','92','93','94','95') AND first_scan_done=0 THEN 1
+        WHEN first_scan_done=0 THEN 2
+        ELSE 3
+      END,
+      CASE WHEN last_check_at=0 THEN 0 ELSE 1 END,
+      last_check_at ASC,
+      area ASC
+    LIMIT 2
+  `).all();
+
+  const results=[];
+  for(const row of (q.results||[])){
+    try{
+      // Force la ligne à être immédiatement exécutable et traite directement la zone.
+      await env.DB.prepare('UPDATE market_jdm_refresh_state SET next_check_at=0 WHERE area=?').bind(row.area).run();
+      results.push(await refreshJdmArea(env,row));
+    }catch(e){
+      const msg=String(e&&e.message||e).slice(0,250);
+      await env.DB.prepare('UPDATE market_jdm_refresh_state SET next_check_at=?,last_check_at=?,last_message=? WHERE area=?')
+        .bind(Date.now()+3600000,Date.now(),msg,row.area).run();
+      results.push({area:row.area,count:0,pages:0,pending:true,message:msg,error:true});
+    }
+  }
   return json({ok:true,results,ranAt:Date.now()});
 }
 async function marketMilestoneFeed(url,env){
