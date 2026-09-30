@@ -1102,6 +1102,44 @@ async function listMarkets(env) {
   return json({ ok: true, markets, updatedAt: latest || null, serverTime: Date.now() });
 }
 
+async function queryMarkets(request, env) {
+  await ensureMarketTable(env);
+  await ensureMarketVerificationTables(env);
+  const data=await body(request);
+  const country=String(data.country||'FR').trim().toUpperCase().slice(0,2);
+  const area=String(data.area||'').trim().slice(0,40);
+  const day=String(data.day||'').trim().toLowerCase().slice(0,24);
+  const params=[country];
+  let where="upper(country)=?";
+  if(area){where+=" AND area=?";params.push(area)}
+  if(day){where+=" AND lower(day) LIKE ?";params.push('%'+day+'%')}
+  const result=await env.DB.prepare(`SELECT country,area,kind,name,city,day,hours,address,merchants,draw,registration,note,phone,date_label,start_date,end_date,source_url,latitude,longitude,updated_at FROM imported_markets WHERE ${where} ORDER BY area,day,city,name LIMIT 1500`).bind(...params).all();
+  const removed=await env.DB.prepare("SELECT market_key FROM market_verification_consensus WHERE field='exists' AND lower(value_norm)='non'").all();
+  const disabled=new Set((removed.results||[]).map(r=>String(r.market_key||'')));
+  const markets=(result.results||[]).filter(m=>{
+    const key=[String(m.country||'').toLowerCase(),m.area,m.name,m.city,m.day,m.address||''].join('|');
+    return !disabled.has(key)&&!storedMarketExpired(m);
+  });
+  return json({ok:true,markets,serverTime:Date.now()});
+}
+
+async function marketCategory(request, env) {
+  await ensureMarketTable(env);
+  await ensureMarketVerificationTables(env);
+  const data=await body(request);
+  const country=String(data.country||'BE').trim().toUpperCase().slice(0,2);
+  const kind=String(data.kind||'').trim().toLowerCase().slice(0,30);
+  if(!kind)return json({ok:false,error:'CATEGORIE_REQUISE'},400);
+  const result=await env.DB.prepare("SELECT country,area,kind,name,city,day,hours,address,merchants,draw,registration,note,phone,date_label,start_date,end_date,source_url,latitude,longitude,updated_at FROM imported_markets WHERE upper(country)=? AND lower(kind)=? ORDER BY area,day,city,name LIMIT 2000").bind(country,kind).all();
+  const removed=await env.DB.prepare("SELECT market_key FROM market_verification_consensus WHERE field='exists' AND lower(value_norm)='non'").all();
+  const disabled=new Set((removed.results||[]).map(r=>String(r.market_key||'')));
+  const markets=(result.results||[]).filter(m=>{
+    const key=[String(m.country||'').toLowerCase(),m.area,m.name,m.city,m.day,m.address||''].join('|');
+    return !disabled.has(key)&&!storedMarketExpired(m);
+  });
+  return json({ok:true,markets,serverTime:Date.now()});
+}
+
 async function importMarkets(request, env) {
   if (!(await adminAuthorized(request, env))) return json({ ok: false, error: "SECRET_INCORRECT" }, 401);
   await ensureMarketTable(env);
@@ -4817,6 +4855,8 @@ export default {
     if (url.pathname === "/api/rne-pdf" && request.method === "GET") return downloadRne(url);
     if (url.pathname === "/api/event-registration-info" && request.method === "GET") return eventRegistrationInfo(request);
     if (url.pathname === "/api/markets" && request.method === "GET") return listMarkets(env);
+    if (url.pathname === "/api/markets/query" && request.method === "POST") return queryMarkets(request, env);
+    if (url.pathname === "/api/markets/category" && request.method === "POST") return marketCategory(request, env);
     if (url.pathname === "/api/markets/refresh-status" && request.method === "GET") return marketRefreshStatus(env);
     if (url.pathname === "/api/markets/milestones" && request.method === "GET") return marketMilestoneFeed(url, env);
     if (url.pathname === "/api/admin/market-source-counts" && request.method === "GET") return adminMarketSourceCounts(request,env);
