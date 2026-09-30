@@ -1318,7 +1318,7 @@ const JDM_WEEKDAYS=['lundi','mardi','mercredi','jeudi','vendredi','samedi','dima
 function jdmDecodeUrl(href){try{return new URL(String(href||''),'https://www.jours-de-marche.fr').href}catch(_){return''}}
 function jdmCityUrls(html){
   const out=[],seen=new Set(),src=String(html||'');let m;
-  const re=/href=["'](\/\d{5}-[a-z0-9][a-z0-9-]*\/)["']/gi;
+  const re=/href=["']((?:https?:\/\/www\.jours-de-marche\.fr)?\/\d{5}-[a-z0-9][a-z0-9-]*\/?)["']/gi;
   while((m=re.exec(src))){const u=jdmDecodeUrl(m[1]);if(u&&!seen.has(u)){seen.add(u);out.push(u)}}
   return out;
 }
@@ -1378,8 +1378,7 @@ function parseJdmMarketPage(html,area,pageUrl){
     const title=String(h.text||'').trim(),body=marketPlainText(h.after||'');
     if(!title||!/ce march[eé] a lieu/i.test(normMarketText(body)))continue;
     const combined=title+' '+body,kind=marketClassFromText(combined),n=normMarketText(combined);
-    // Le projet exclut les « marchés de producteurs » / drives fermiers des marchés classiques.
-    if(kind==='marche'&&/march[eé] de producteurs?|drive fermier|cagette/.test(n))continue;
+    // V495 : conserver aussi les marchés de producteurs / cagettes publiés comme marchés.
     if(kind==='brocante')continue; // récupérées sur la rubrique vide-greniers.
     const range=jdmDateRange(body),days=jdmDays(body),hours=jdmHours(body),pc=jdmPostalCity(body),address=jdmAddress(body,pc);
     const actualArea=jdmAreaForPostal(area,pc);
@@ -1413,10 +1412,28 @@ async function ensureJdmRefreshTable(env){
   try{await env.DB.prepare('CREATE INDEX IF NOT EXISTS market_jdm_due ON market_jdm_refresh_state(next_check_at)').run()}catch(_){}
 }
 async function seedJdmRefreshQueue(env){await ensureJdmRefreshTable(env);const now=Date.now(),jobs=[];for(const area of Object.keys(JDM_FR_SLUGS))jobs.push(env.DB.prepare('INSERT OR IGNORE INTO market_jdm_refresh_state(area,next_check_at) VALUES(?,?)').bind(area,now));for(let i=0;i<jobs.length;i+=40)await env.DB.batch(jobs.slice(i,i+40))}
-async function jdmFetch(url){try{const r=await fetch(url,{headers:{'user-agent':'Mozilla/5.0 (compatible; Couteau-Suisse/324; +https://carplay-telephone.appli-suzon.workers.dev/)','accept-language':'fr-FR,fr;q=0.9','accept':'text/html,application/xhtml+xml'},cf:{cacheTtl:3600}});if(!r.ok)return'';return await r.text()}catch(_){return''}}
+async function jdmFetch(url){
+  const headers={
+    'user-agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+    'accept-language':'fr-FR,fr;q=0.9,en;q=0.5',
+    'accept':'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'referer':'https://www.jours-de-marche.fr/'
+  };
+  try{
+    let r=await fetch(url,{headers,cf:{cacheTtl:900}});
+    if(!r.ok)r=await fetch(url+'?source=couteau-suisse',{headers,cache:'no-store'});
+    if(!r.ok)return'';
+    return await r.text();
+  }catch(_){return''}
+}
 async function refreshJdmArea(env,state){
   const area=String(state.area||'').toUpperCase(),slug=JDM_FR_SLUGS[area];if(!slug)return{area,count:0,pages:0,pending:false,message:'département non pris en charge'};
-  const deptUrl=`https://www.jours-de-marche.fr/${area}-${slug}/`,deptHtml=await jdmFetch(deptUrl);if(!deptHtml)return{area,count:0,pages:0,pending:false,message:'page département indisponible'};
+  const deptUrl=`https://www.jours-de-marche.fr/${area}-${slug}/`,deptHtml=await jdmFetch(deptUrl);
+  if(!deptHtml){
+    const now=Date.now(),msg='Jours-de-Marché: page département indisponible — nouvel essai dans 1 h';
+    await env.DB.prepare('UPDATE market_jdm_refresh_state SET next_check_at=?,last_check_at=?,last_found=0,last_pages=0,last_message=? WHERE area=?').bind(now+3600000,now,msg,area).run();
+    return{area,count:0,pages:0,pending:true,message:msg};
+  }
   const cityUrls=jdmCityUrls(deptHtml),batchSize=12,start=Math.max(0,Number(state.city_cursor||0))%Math.max(1,cityUrls.length),selected=[];
   if(cityUrls.length){for(let i=0;i<Math.min(batchSize,cityUrls.length);i++)selected.push(cityUrls[(start+i)%cityUrls.length])}
   let events=parseJdmMarketPage(deptHtml,area,deptUrl),pages=1;
@@ -1464,7 +1481,7 @@ async function adminMarketSourceCounts(request,env){
   const areas=await env.DB.prepare("SELECT area,count(*) AS n FROM (SELECT area,city,name FROM imported_markets WHERE "+jdmWhere+" GROUP BY area,lower(trim(city)),lower(trim(name))) GROUP BY area ORDER BY area").all();
   const recent=await env.DB.prepare("SELECT area,last_check_at,last_found,last_pages,last_message,next_check_at,first_scan_done FROM market_jdm_refresh_state WHERE last_check_at>0 ORDER BY last_check_at DESC LIMIT 8").all();
   const due=await env.DB.prepare("SELECT COUNT(*) AS n FROM market_jdm_refresh_state WHERE next_check_at<=?").bind(Date.now()).first();
-  return json({ok:true,totalMarkets:Number(markets.n||0),fromMarketWebsite:Number(source.n||0),departments:areas.results||[],joursDeMarche:{due:Number(due&&due.n||0),recent:recent.results||[]}});
+  return json({ok:true,totalMarkets:Number(markets.n||0),fromMarketWebsite:Number(source.n||0),departments:areas.results||[],dynamicLabel:'Marchés enregistrés par les mises à jour automatiques',joursDeMarche:{due:Number(due&&due.n||0),recent:recent.results||[]}});
 }
 
 async function adminRunJdmRefresh(request,env){
