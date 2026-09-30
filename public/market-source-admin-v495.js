@@ -30,9 +30,9 @@ function start(){
       const recent=data.joursDeMarche&&data.joursDeMarche.recent||[];
       if(recent.length){
         const r=recent[0];
-        status.textContent=/updated_at|SQLITE_ERROR/i.test(String(r.last_message||''))?'Ancienne erreur de base réparée. Nouvelle récupération automatique en cours…':'Dernier passage Jours-de-Marché : département '+(r.area||'—')+' · '+when(r.last_check_at)+'\n'+(r.last_message||'')+' · en attente : '+fmt(data.joursDeMarche.due);
+        status.textContent=(data.joursDeMarche&&data.joursDeMarche.progressive?'✅ MODE PROGRESSIF SERVEUR ACTIF — tu peux mettre l’application en arrière-plan.\n':'')+(/updated_at|SQLITE_ERROR/i.test(String(r.last_message||''))?'Ancienne erreur de base réparée. Nouvelle récupération automatique en cours…':'Dernier passage Jours-de-Marché : département '+(r.area||'—')+' · '+when(r.last_check_at)+'\n'+(r.last_message||'')+' · en attente : '+fmt(data.joursDeMarche.due));
       }else{
-        status.textContent='Jours-de-Marché : aucun passage enregistré pour le moment. Démarrage progressif en cours.';
+        status.textContent=(data.joursDeMarche&&data.joursDeMarche.progressive?'✅ MODE PROGRESSIF SERVEUR ACTIF — tu peux mettre l’application en arrière-plan.\n':'')+'Jours-de-Marché : aucun passage enregistré pour le moment.';
       }
       if(Number(data.fromMarketWebsite||0)===0){
         const today=new Date().toISOString().slice(0,10),key='jdm_admin_auto_kick_v496_'+today;
@@ -44,7 +44,7 @@ function start(){
             .then(r=>r.json().then(j=>({ok:r.ok,j}))).then(x=>{
               const rows=Array.isArray(x.j&&x.j.results)?x.j.results:[];
               const added=rows.reduce((s,v)=>s+Number(v&&v.count||0),0);
-              runStatus.textContent=x.ok?'✅ Premier lot terminé : '+fmt(added)+' fiche(s) traitée(s).':'⚠️ Premier lot non terminé.';
+              runStatus.textContent=x.ok?'✅ Récupération progressive lancée sur le serveur. Premier lot : '+fmt(added)+' fiche(s). Tu peux mettre l’application en arrière-plan. Le serveur continue toutes les 15 minutes.':'⚠️ Premier lot non terminé.';
               setTimeout(update,1200);
             }).catch(()=>{runStatus.textContent='⚠️ La récupération automatique réessaiera plus tard.'});
         }
@@ -60,7 +60,7 @@ function start(){
       if(!r.ok||!j.ok)throw new Error(j.error||'Erreur');
       const rows=Array.isArray(j.results)?j.results:[];
       const added=rows.reduce((s,x)=>s+Number(x&&x.count||0),0);
-      runStatus.textContent='✅ Passage terminé : '+fmt(added)+' fiche(s) traitée(s). Le compteur se met à jour.';
+      runStatus.textContent='✅ Récupération progressive lancée sur le serveur. Premier lot : '+fmt(added)+' fiche(s). Tu peux maintenant mettre l’application en arrière-plan : le serveur continue toutes les 15 minutes.';
       await update();
     }catch(e){
       runStatus.textContent='❌ Impossible de lancer la récupération : '+(e&&e.message||'erreur');
