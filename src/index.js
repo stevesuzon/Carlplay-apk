@@ -1049,7 +1049,10 @@ async function ensureMarketTable(env) {
   try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN start_date TEXT NOT NULL DEFAULT ''").run(); } catch (_) {}
   try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN end_date TEXT NOT NULL DEFAULT ''").run(); } catch (_) {}
   try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN source_url TEXT NOT NULL DEFAULT ''").run(); } catch (_) {}
-  try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP").run(); } catch (_) {}
+  // Anciennes bases D1 : SQLite refuse parfois ADD COLUMN avec DEFAULT CURRENT_TIMESTAMP.
+  // On ajoute donc la colonne simplement, puis on initialise les anciennes lignes.
+  try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN updated_at TEXT").run(); } catch (_) {}
+  try { await env.DB.prepare("UPDATE imported_markets SET updated_at=COALESCE(NULLIF(updated_at,''),created_at,CURRENT_TIMESTAMP) WHERE updated_at IS NULL OR updated_at=''").run(); } catch (_) {}
 }
 
 function cleanMarket(value, max = 240) {
@@ -1500,6 +1503,7 @@ async function marketMilestoneFeed(url,env){
 
 
 async function runJdmIncremental(env){
+  await ensureMarketTable(env);
   await seedJdmRefreshQueue(env);
   const results=[];
   // Deux lots par passage : assez rapide pour remplir la France, sans lancer tout le pays d'un coup.
