@@ -6,7 +6,6 @@ const ADMIN_CACHE = "couteau-suisse-module-admin-v439-market-list";
 const DATA_CACHE = "couteau-suisse-module-data-v426-current";
 const INSTALL_CACHE = "couteau-suisse-module-install-v426-current";
 const STATS_CACHE = "couteau-suisse-module-stats-v362";
-const MUSHROOM_CACHE = "couteau-suisse-module-mushroom-v300";
 const SUBSCRIPTION_CACHE = "couteau-suisse-module-subscription-v441-syntax-fix";
 const AUTORADIO_CACHE = "couteau-suisse-module-autoradio-v386-responsive-images";
 const PHONE_UI_CACHE = "couteau-suisse-module-phone-ui-v432-home-clean";
@@ -16,7 +15,7 @@ const NOTIFICATION_LAST_UPDATE_URL = "/__carplay_last_update_notification_versio
 
 const CURRENT_CACHES = new Set([
   BASE_CACHE, ICON_CACHE, CONTEST_CACHE, ADMIN_CACHE, DATA_CACHE, INSTALL_CACHE,
-  STATS_CACHE, MUSHROOM_CACHE, SUBSCRIPTION_CACHE, AUTORADIO_CACHE,
+  STATS_CACHE, SUBSCRIPTION_CACHE, AUTORADIO_CACHE,
   PHONE_UI_CACHE, NOTIFICATION_PREF_CACHE
 ]);
 
@@ -34,7 +33,6 @@ function moduleCacheFor(path){
   if(path==="/manifest.webmanifest"||/couteau-suisse-v283-/.test(path))return ICON_CACHE;
   if(path==="/contest-v188.js")return CONTEST_CACHE;
   if(path==="/contest-admin-v188.js"||path==="/admin.html")return ADMIN_CACHE;
-  if(path==="/champignons.html"||path==="/champignons.js"||path==="/champignons.css")return MUSHROOM_CACHE;
   if(path==="/subscription-web.js")return SUBSCRIPTION_CACHE;
   if(path==="/persistent-user-data-v283.js")return DATA_CACHE;
   if(path==="/visitor-register-v361.js"||path==="/installer.html"||path==="/app-access-gate-v240.js"||path==="/cache-cleanup-v20260910.js")return INSTALL_CACHE;
