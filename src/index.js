@@ -2472,7 +2472,7 @@ async function contestAutoEnrollIdentityV303(env,cfg,identity){
   const joinedAt=Math.max(Number(cfg&&cfg.start_at||now),Number(identity&&identity.created_at||sub.account_updated_at||now));
   // Une même adresse e-mail ne doit produire qu'une seule personne dans le concours,
   // même après changement ou réinstallation du téléphone.
-  const sameEmail=await env.DB.prepare("SELECT subscription_id FROM contest_participants WHERE email_hash=? ORDER BY joined_at ASC LIMIT 1").bind(emailHash).first();
+  const sameEmail=await env.DB.prepare("SELECT p.subscription_id FROM contest_participants p LEFT JOIN subscriptions sx ON sx.id=p.subscription_id WHERE p.email_hash=? OR lower(COALESCE(sx.recovery_email_mask,''))=? ORDER BY p.joined_at ASC,p.subscription_id ASC LIMIT 1").bind(emailHash,email).first();
   if(sameEmail&&Number(sameEmail.subscription_id)!==Number(sub.id)){
     await env.DB.prepare("UPDATE contest_participants SET device_id=?,first_name=?,last_name=?,auto_enrolled=1,contest_excluded=0,updated_at=? WHERE subscription_id=?").bind(participantDevice,first,last,now,Number(sameEmail.subscription_id)).run();
     return {ok:true,subscriptionId:Number(sameEmail.subscription_id),existingByEmail:true};
@@ -3697,10 +3697,12 @@ async function contestUniqueRanking(env,currentSubscriptionId=-1){
   `).all()).results||[];
 
   async function identityKey(row){
+    // La vraie adresse e-mail du compte est prioritaire. D'anciens comptes d'essai
+    // pouvaient avoir un email_hash technique différent et apparaître deux fois.
+    const email=normalizeEmail(row&&row.account_email||'');
+    if(validEmail(email))return 'e:'+email;
     const participantHash=String(row&&row.email_hash||'').trim();
     if(participantHash)return 'h:'+participantHash;
-    const email=normalizeEmail(row&&row.account_email||'');
-    if(validEmail(email))return 'h:'+(await sha256Text(email));
     const accountHash=String(row&&row.account_hash||'').trim();
     if(accountHash)return 'h:'+accountHash;
     const device=String(row&&row.device_id||'').trim();
