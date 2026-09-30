@@ -32,7 +32,22 @@ function start(){
         const r=recent[0];
         status.textContent='Dernier passage Jours-de-Marché : département '+(r.area||'—')+' · '+when(r.last_check_at)+'\n'+(r.last_message||'')+' · en attente : '+fmt(data.joursDeMarche.due);
       }else{
-        status.textContent='Jours-de-Marché : aucun passage enregistré pour le moment. Le système automatique est activé progressivement.';
+        status.textContent='Jours-de-Marché : aucun passage enregistré pour le moment. Démarrage progressif en cours.';
+      }
+      if(Number(data.fromMarketWebsite||0)===0){
+        const today=new Date().toISOString().slice(0,10),key='jdm_admin_auto_kick_'+today;
+        if(!sessionStorage.getItem(key)){
+          sessionStorage.setItem(key,'1');
+          runStatus.style.display='block';
+          runStatus.textContent='Premier lot Jours-de-Marché en cours…';
+          fetch('/api/admin/markets/jdm-refresh',{method:'POST',headers:{authorization:'Bearer '+t,'content-type':'application/json'},body:'{}',cache:'no-store'})
+            .then(r=>r.json().then(j=>({ok:r.ok,j}))).then(x=>{
+              const rows=Array.isArray(x.j&&x.j.results)?x.j.results:[];
+              const added=rows.reduce((s,v)=>s+Number(v&&v.count||0),0);
+              runStatus.textContent=x.ok?'✅ Premier lot terminé : '+fmt(added)+' fiche(s) traitée(s).':'⚠️ Premier lot non terminé.';
+              setTimeout(update,1200);
+            }).catch(()=>{runStatus.textContent='⚠️ La récupération automatique réessaiera plus tard.'});
+        }
       }
     }catch(_){}
   }
