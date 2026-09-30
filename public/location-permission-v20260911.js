@@ -38,8 +38,15 @@ function openSystemSettings(){
   // précise. On ouvre donc l'écran système le plus proche disponible.
   try{
     if(isIOS()){
-      location.href='app-settings:';
-      setTimeout(function(){if(!document.hidden)settingsHelp()},900);
+      // Essai direct vers Service de localisation. iOS peut bloquer ce lien selon la version ;
+      // dans ce cas on retombe sur les réglages généraux de l'appareil.
+      location.href='App-Prefs:root=Privacy&path=LOCATION';
+      setTimeout(function(){
+        if(!document.hidden){
+          try{location.href='app-settings:'}catch(_){}
+          setTimeout(function(){if(!document.hidden)settingsHelp()},800);
+        }
+      },700);
       return;
     }
     if(isAndroid()){
