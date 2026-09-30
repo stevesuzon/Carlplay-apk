@@ -3687,7 +3687,7 @@ async function contestMarketBreakdown(env,deviceId,marketKey,distanceKm){
 
 async function contestUniqueRanking(env,currentSubscriptionId=-1){
   const rows=(await env.DB.prepare(`
-    SELECT p.subscription_id,p.first_name,p.last_name,p.points,p.joined_at,p.email_hash,
+    SELECT p.subscription_id,p.first_name,p.last_name,p.points,p.joined_at,p.email_hash,p.device_id,
            COALESCE(s.recovery_email_mask,'') AS account_email,
            COALESCE(s.recovery_email_hash,'') AS account_hash
     FROM contest_participants p
@@ -3696,19 +3696,36 @@ async function contestUniqueRanking(env,currentSubscriptionId=-1){
     ORDER BY p.points DESC,p.joined_at ASC,p.subscription_id ASC
   `).all()).results||[];
 
+  async function identityKey(row){
+    const participantHash=String(row&&row.email_hash||'').trim();
+    if(participantHash)return 'h:'+participantHash;
+    const email=normalizeEmail(row&&row.account_email||'');
+    if(validEmail(email))return 'h:'+(await sha256Text(email));
+    const accountHash=String(row&&row.account_hash||'').trim();
+    if(accountHash)return 'h:'+accountHash;
+    const device=String(row&&row.device_id||'').trim();
+    const name=(subscriptionIdentityKey(row&&row.first_name||'')+'|'+subscriptionIdentityKey(row&&row.last_name||''));
+    if(validDevice(device)&&name!=='|')return 'd:'+device+'|'+name;
+    return 'sid:'+Number(row&&row.subscription_id||0);
+  }
+
   let currentKey='';
   if(Number(currentSubscriptionId)>0){
-    const cur=await env.DB.prepare("SELECT recovery_email_mask,recovery_email_hash FROM subscriptions WHERE id=? LIMIT 1").bind(Number(currentSubscriptionId)).first();
-    const curEmail=normalizeEmail(cur&&cur.recovery_email_mask||'');
-    if(validEmail(curEmail))currentKey='e:'+curEmail;
-    else if(String(cur&&cur.recovery_email_hash||'').trim())currentKey='h:'+String(cur.recovery_email_hash).trim();
-    else currentKey='sid:'+Number(currentSubscriptionId);
+    const cur=await env.DB.prepare(`
+      SELECT p.subscription_id,p.first_name,p.last_name,p.email_hash,p.device_id,
+             COALESCE(s.recovery_email_mask,'') AS account_email,
+             COALESCE(s.recovery_email_hash,'') AS account_hash
+      FROM subscriptions s
+      LEFT JOIN contest_participants p ON p.subscription_id=s.id
+      WHERE s.id=? LIMIT 1
+    `).bind(Number(currentSubscriptionId)).first();
+    currentKey=cur?await identityKey(cur):'sid:'+Number(currentSubscriptionId);
   }
 
   const groups=new Map();
   for(const row of rows){
     const email=normalizeEmail(row.account_email||'');
-    const key=validEmail(email)?'e:'+email:(String(row.email_hash||row.account_hash||'').trim()?'h:'+String(row.email_hash||row.account_hash).trim():'sid:'+Number(row.subscription_id));
+    const key=await identityKey(row);
     let g=groups.get(key);
     if(!g){
       g={
