@@ -30,12 +30,12 @@ function start(){
       const recent=data.joursDeMarche&&data.joursDeMarche.recent||[];
       if(recent.length){
         const r=recent[0];
-        status.textContent='Dernier passage Jours-de-Marché : département '+(r.area||'—')+' · '+when(r.last_check_at)+'\n'+(r.last_message||'')+' · en attente : '+fmt(data.joursDeMarche.due);
+        status.textContent=/updated_at|SQLITE_ERROR/i.test(String(r.last_message||''))?'Ancienne erreur de base réparée. Nouvelle récupération automatique en cours…':'Dernier passage Jours-de-Marché : département '+(r.area||'—')+' · '+when(r.last_check_at)+'\n'+(r.last_message||'')+' · en attente : '+fmt(data.joursDeMarche.due);
       }else{
         status.textContent='Jours-de-Marché : aucun passage enregistré pour le moment. Démarrage progressif en cours.';
       }
       if(Number(data.fromMarketWebsite||0)===0){
-        const today=new Date().toISOString().slice(0,10),key='jdm_admin_auto_kick_'+today;
+        const today=new Date().toISOString().slice(0,10),key='jdm_admin_auto_kick_v496_'+today;
         if(!sessionStorage.getItem(key)){
           sessionStorage.setItem(key,'1');
           runStatus.style.display='block';
