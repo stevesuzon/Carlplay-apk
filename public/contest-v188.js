@@ -50,7 +50,7 @@ function style(){if(document.getElementById('contestStyleV188'))return;var e=doc
 @media(max-width:520px){#contestV188 .two{grid-template-columns:92px 1fr}.scoreGrid{grid-template-columns:1fr 1fr}.winner-one{font-size:27px}.trophy{font-size:95px}#contestV188 .quickBar{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#contestV188 .quickBar button{font-size:14px;min-height:66px;padding:8px 5px}#contestV188 .quickBar button strong{font-size:24px}#contestV188 .quickBar button:last-child{grid-column:1/-1}}
 `;document.head.appendChild(e)}
 var state=null;
-var STATE_CACHE_PREFIX='contest_state_cache_v283_';
+var STATE_CACHE_PREFIX='contest_state_cache_v499_noduplicates_';
 function stateCacheKey(){var ident={};try{ident=JSON.parse(localStorage.getItem(KEY)||'null')||{}}catch(_){}var raw=String(subCode()||ident.email||deviceId()||'anon').toLowerCase();var h=0;for(var i=0;i<raw.length;i++)h=((h<<5)-h+raw.charCodeAt(i))|0;return STATE_CACHE_PREFIX+Math.abs(h)}
 function cachedState(){if(adminToken())return null;try{var x=JSON.parse(localStorage.getItem(stateCacheKey())||'null');return x&&x.data||null}catch(_){return null}}
 function saveCachedState(j){if(adminToken())return j;try{localStorage.setItem(stateCacheKey(),JSON.stringify({savedAt:Date.now(),data:j}))}catch(_){}return j}
