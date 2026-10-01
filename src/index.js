@@ -7,6 +7,15 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
   headers: { ...cors, "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
 });
+function cachedJson(data, ttl=300){
+  return new Response(JSON.stringify(data),{status:200,headers:{...cors,"content-type":"application/json; charset=utf-8","cache-control":"public, max-age="+ttl}});
+}
+async function edgeCacheMatch(request,key){
+  try{const u=new URL(request.url);u.pathname="/__edgecache/"+key;u.search="";return await caches.default.match(new Request(u.toString(),{method:"GET"}))}catch(_){return null}
+}
+async function edgeCachePut(request,key,response){
+  try{const u=new URL(request.url);u.pathname="/__edgecache/"+key;u.search="";await caches.default.put(new Request(u.toString(),{method:"GET"}),response.clone())}catch(_){}
+}
 
 async function hashCode(code, pepper) {
   const bytes = new TextEncoder().encode(`${pepper}:${code}`);
@@ -1121,7 +1130,9 @@ function normalizeMarket(input) {
     longitude: Number.isFinite(longitude) ? longitude : null };
 }
 
-async function listMarkets(env) {
+async function listMarkets(request,env) {
+  const hit=await edgeCacheMatch(request,"markets-all-v503");
+  if(hit)return hit;
   await ensureMarketTable(env);
   await ensureMarketVerificationTables(env);
   const result = await env.DB.prepare("SELECT country,area,kind,name,city,day,hours,address,merchants,draw,registration,note,phone,date_label,start_date,end_date,source_url,latitude,longitude,updated_at FROM imported_markets ORDER BY country,area,day,city,name").all();
@@ -1132,7 +1143,9 @@ async function listMarkets(env) {
     return !disabled.has(key) && !storedMarketExpired(m);
   });
   const latest = (result.results || []).reduce((m,r) => String(r.updated_at || '') > m ? String(r.updated_at || '') : m, '');
-  return json({ ok: true, markets, updatedAt: latest || null, serverTime: Date.now() });
+  const response=cachedJson({ ok: true, markets, updatedAt: latest || null, serverTime: Date.now() },300);
+  await edgeCachePut(request,"markets-all-v503",response);
+  return response;
 }
 
 async function queryMarkets(request, env) {
@@ -1142,6 +1155,8 @@ async function queryMarkets(request, env) {
   const country=String(data.country||'FR').trim().toUpperCase().slice(0,2);
   const area=String(data.area||'').trim().slice(0,40);
   const day=String(data.day||'').trim().toLowerCase().slice(0,24);
+  const qKey="markets-query-"+await sha256Text(country+"|"+area+"|"+day);
+  const qHit=await edgeCacheMatch(request,qKey);if(qHit)return qHit;
   const params=[country];
   let where="upper(country)=?";
   if(area){where+=" AND area=?";params.push(area)}
@@ -1153,7 +1168,9 @@ async function queryMarkets(request, env) {
     const key=[String(m.country||'').toLowerCase(),m.area,m.name,m.city,m.day,m.address||''].join('|');
     return !disabled.has(key)&&!storedMarketExpired(m);
   });
-  return json({ok:true,markets,serverTime:Date.now()});
+  const response=cachedJson({ok:true,markets,serverTime:Date.now()},300);
+  await edgeCachePut(request,qKey,response);
+  return response;
 }
 
 async function marketCategory(request, env) {
@@ -1163,6 +1180,8 @@ async function marketCategory(request, env) {
   const country=String(data.country||'BE').trim().toUpperCase().slice(0,2);
   const kind=String(data.kind||'').trim().toLowerCase().slice(0,30);
   if(!kind)return json({ok:false,error:'CATEGORIE_REQUISE'},400);
+  const cKey="markets-category-"+await sha256Text(country+"|"+kind);
+  const cHit=await edgeCacheMatch(request,cKey);if(cHit)return cHit;
   const result=await env.DB.prepare("SELECT country,area,kind,name,city,day,hours,address,merchants,draw,registration,note,phone,date_label,start_date,end_date,source_url,latitude,longitude,updated_at FROM imported_markets WHERE upper(country)=? AND lower(kind)=? ORDER BY area,day,city,name LIMIT 2000").bind(country,kind).all();
   const removed=await env.DB.prepare("SELECT market_key FROM market_verification_consensus WHERE field='exists' AND lower(value_norm)='non'").all();
   const disabled=new Set((removed.results||[]).map(r=>String(r.market_key||'')));
@@ -1170,7 +1189,9 @@ async function marketCategory(request, env) {
     const key=[String(m.country||'').toLowerCase(),m.area,m.name,m.city,m.day,m.address||''].join('|');
     return !disabled.has(key)&&!storedMarketExpired(m);
   });
-  return json({ok:true,markets,serverTime:Date.now()});
+  const response=cachedJson({ok:true,markets,serverTime:Date.now()},300);
+  await edgeCachePut(request,cKey,response);
+  return response;
 }
 
 async function importMarkets(request, env) {
@@ -4961,7 +4982,7 @@ export default {
     if (url.pathname === "/download-autoradio.apk" && request.method === "GET") return downloadAutoradioApk();
     if (url.pathname === "/api/rne-pdf" && request.method === "GET") return downloadRne(url);
     if (url.pathname === "/api/event-registration-info" && request.method === "GET") return eventRegistrationInfo(request);
-    if (url.pathname === "/api/markets" && request.method === "GET") return listMarkets(env);
+    if (url.pathname === "/api/markets" && request.method === "GET") return listMarkets(request, env);
     if (url.pathname === "/api/markets/query" && request.method === "POST") return queryMarkets(request, env);
     if (url.pathname === "/api/markets/category" && request.method === "POST") return marketCategory(request, env);
     if (url.pathname === "/api/markets/refresh-status" && request.method === "GET") return marketRefreshStatus(env);
