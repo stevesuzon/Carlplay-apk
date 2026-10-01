@@ -13,7 +13,7 @@
       if (Date.now() - swLastCheck < 30000) return;
       swLastCheck = Date.now();
       try {
-        var registration = await navigator.serviceWorker.register("/sw.js?v=330-gpl-favori-verif", { updateViaCache: "none" });
+        var registration = await navigator.serviceWorker.register("/sw.js?v=505-inscription-email", { updateViaCache: "none" });
         activateWaiting(registration);
         registration.addEventListener("updatefound", function () {
           var worker = registration.installing;
@@ -260,10 +260,10 @@
         .then(function(j){
           var sub=j&&j.verified&&j.subscription?j.subscription:null;
           if(sub&&(sub.lifetime||(sub.expiresAt&&Date.parse(sub.expiresAt)>Date.now()))){
-            var recovered={ok:true,lifetime:!!sub.lifetime,expiresAt:sub.expiresAt||null,email:sub.email||mail,firstName:sub.firstName||identity.firstName||'',lastName:sub.lastName||identity.lastName||''};
+            var recovered={ok:true,globalFree:!!sub.trial,personalTrial:!!sub.trial,trialMode:sub.trialMode||'',lifetime:!!sub.lifetime,expiresAt:sub.expiresAt||null,email:sub.email||mail,firstName:sub.firstName||identity.firstName||'',lastName:sub.lastName||identity.lastName||''};
             if(s&&s.code)recovered.code=s.code;
             localStorage.setItem(KEY,JSON.stringify(recovered));
-            localStorage.setItem(PAID_KEY,"1");
+            if(sub.trial){localStorage.removeItem(PAID_KEY);localStorage.setItem('carplay_personal_trial_until_ms',String(Date.parse(sub.expiresAt)));}else{localStorage.setItem(PAID_KEY,"1");}
             rememberEmail(recovered.email);
           }
           done();
@@ -510,6 +510,12 @@
     var days = isActive ? (s.lifetime ? "ABONNEMENT À VIE" : remaining + " JOUR" + (remaining > 1 ? "S" : "") + " RESTANT" + (remaining > 1 ? "S" : "")) : "0 JOUR RESTANT";
     var end = isActive ? (s.lifetime ? "AUCUNE DATE DE FIN" : "FIN LE " + new Date(s.expiresAt).toLocaleDateString("fr-FR")) : "FONCTIONS VERROUILLÉES";
     panel.innerHTML = '<div class="settingHead"><span>🔐 ABONNEMENT</span><span>⌄</span></div><div class="settingBody"><div class="sub-current-status" style="margin:4px 0 12px;padding:12px;border:2px solid '+(isActive?'#44d17a':'#ff5a5a')+';border-radius:13px;background:#0b1522;text-align:center;font-weight:950"><div style="font-size:19px">'+state+'</div><div style="margin-top:4px">'+days+'</div><div style="margin-top:4px;font-size:13px;color:#d8e0eb">'+end+'</div></div><a href="https://www.snapchat.com/add/steve_suzon" target="_blank" rel="noopener" style="display:block;margin:0 0 12px;padding:11px;border:2px solid #fffc00;border-radius:12px;background:#272500;color:#fff;text-align:center;text-decoration:none;font:900 14px/1.35 Arial">Pour commander un code : contactez <b>steve_suzon</b> sur Snapchat.<br><strong style="color:#ffdc47">30 € — code valable un an</strong></a><div class="sub-settings"><label><b>1. NOM ET PRÉNOM OBLIGATOIRES</b></label><div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:6px 0 12px"><input class="sub-setting-last-name" type="text" autocomplete="family-name" maxlength="60" placeholder="Nom"><input class="sub-setting-first-name" type="text" autocomplete="given-name" maxlength="60" placeholder="Prénom"></div><label class="sub-setting-email-label"><b>2. ÉCRIVEZ VOTRE ADRESSE E-MAIL COMPLÈTE</b></label><input class="sub-setting-email sub-full-email" type="email" inputmode="email" autocomplete="email" placeholder="Exemple : prenom.nom@gmail.com"><div class="sub-setting-confirmed sub-email-complete" style="display:none;color:#55e58c;font-weight:900;margin:7px 0"></div><div class="sub-setting-warning" style="display:none;font-size:12px;color:#ffd166;margin:4px 0 9px">⚠️ Attention : si l’adresse e-mail est incorrecte, aucune récupération du compte ne sera possible.</div><button class="sub-setting-confirm-email" type="button">CONFIRMER LES INFORMATIONS</button><button class="sub-setting-change-email" type="button" style="display:none">MODIFIER MES INFORMATIONS</button><button class="sub-setting-recover-code" type="button">ME FAIRE RENVOYER MON CODE D’ABONNEMENT</button><small class="sub-recovery-help">Application effacée ou nouveau téléphone ? Renseignez le même nom, prénom et la même adresse e-mail : votre code d’abonnement actuel vous sera renvoyé par e-mail. En le saisissant, vous récupérez exactement l’abonnement déjà existant et le nombre de jours qu’il lui restait — aucune nouvelle période ne remplace l’ancienne.</small><label><b>3. ENTREZ VOTRE CODE D’ABONNEMENT</b></label><input class="sub-setting-code" inputmode="text" autocapitalize="characters" maxlength="6" placeholder="CODE 6 LETTRES / CHIFFRES"><button class="sub-setting-activate">ACTIVER / CHANGER MON CODE</button><div class="sub-settings-message"></div></div></div>'
+    if(!s || s.globalFree){
+      var orderLink=panel.querySelector('a[href="https://www.snapchat.com/add/steve_suzon"]');
+      if(orderLink)orderLink.remove();
+      var status=panel.querySelector('.sub-current-status');
+      if(status&&isActive)status.textContent='COMPTE ACTIF';
+    }
     var emailField=panel.querySelector('.sub-setting-email'),firstNameField=panel.querySelector('.sub-setting-first-name'),lastNameField=panel.querySelector('.sub-setting-last-name'),emailProof='',identitySeed=storedIdentity(s||{});
     if(emailField&&!emailField.value){emailField.value=identitySeed.email||rememberedEmail()||(s&&s.email)||'';}
     if(firstNameField)firstNameField.value=identitySeed.firstName||(s&&s.firstName)||'';
@@ -564,20 +570,7 @@
   }
 
   function homeStatus() {
-    var p = location.pathname.toLowerCase();
-    if (p !== "/" && p !== "/index.html") return;
-    var s = saved();
-    var trial = !!(s && s.globalFree && freeAccess());
-    if (!trial) return;
-    var remaining = Math.max(0, Math.ceil((Date.parse(s.expiresAt) - Date.now()) / 86400000));
-    var style = document.createElement("style");
-    style.textContent = ".subscription-home-status{position:fixed;top:max(8px,env(safe-area-inset-top));left:max(8px,env(safe-area-inset-left));z-index:1800;min-width:145px;padding:8px 11px;border:2px solid #62b6ff;border-radius:14px;color:#62b6ff;text-align:center;box-shadow:0 5px 16px #0009;font:950 14px/1.18 Arial,sans-serif;background:#0b4f9c}.subscription-home-status strong,.subscription-home-status span{display:block}.subscription-home-status span{margin-top:3px;font-size:12px}body.settings-open .subscription-home-status{display:none!important}";
-    document.head.appendChild(style);
-    var box = document.createElement("div");
-    box.id = "subscriptionHomeStatus";
-    box.className = "subscription-home-status is-trial";
-    box.innerHTML = '<strong>MODE ESSAI</strong><span>' + remaining + ' JOUR' + (remaining > 1 ? 'S' : '') + ' RESTANT' + (remaining > 1 ? 'S' : '') + '</span>';
-    document.body.appendChild(box);
+    document.querySelectorAll('.subscription-home-status,#couteauTrialHomeBannerV292').forEach(function(el){el.remove();});
   }
 
   var SUBSCRIPTION_REMINDER_KEY = "carplay_subscription_expiry_reminder_v1";
@@ -661,3 +654,4 @@
   document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")maybeShowSubscriptionExpiryReminder(false);});
   window.addEventListener("focus",function(){maybeShowSubscriptionExpiryReminder(false);});
 })();
+
