@@ -715,16 +715,23 @@ async function subscriptionProfileV156(request,env){
 }
 
 async function apiHealth(env){
-  if(!env.DB)return json({ok:false,error:"DB_NON_CONFIGUREE",time:Date.now()},503);
+  if(!env.DB)return json({ok:false,error:"DB_NON_CONFIGUREE",stage:"binding",time:Date.now()});
+  let stage="db";
   try{
-    await ensureSubscriptionEmailColumns(env);
-    await ensureMarketTable(env);
     const db=await env.DB.prepare("SELECT 1 AS ok").first();
+    stage="subscriptions-schema";
+    await ensureSubscriptionEmailColumns(env);
+    stage="subscriptions-count";
     const subs=await env.DB.prepare("SELECT COUNT(*) AS n FROM subscriptions").first();
-    const markets=await env.DB.prepare("SELECT COUNT(*) AS n FROM imported_markets").first();
-    return json({ok:true,db:!!(db&&Number(db.ok)===1),subscriptions:Number(subs&&subs.n||0),markets:Number(markets&&markets.n||0),time:Date.now()});
+    let markets=0,marketError="";
+    try{
+      await ensureMarketTable(env);
+      const m=await env.DB.prepare("SELECT COUNT(*) AS n FROM imported_markets").first();
+      markets=Number(m&&m.n||0);
+    }catch(me){marketError=String(me&&me.message||me).slice(0,180)}
+    return json({ok:true,db:!!(db&&Number(db.ok)===1),subscriptions:Number(subs&&subs.n||0),markets,marketError,time:Date.now()});
   }catch(e){
-    return json({ok:false,error:"HEALTH_DB_ERROR",message:String(e&&e.message||e).slice(0,180),time:Date.now()},503);
+    return json({ok:false,error:"HEALTH_DB_ERROR",stage,message:String(e&&e.message||e).slice(0,220),time:Date.now()});
   }
 }
 
