@@ -1060,7 +1060,27 @@ async function downloadRne(url) {
   }
 }
 
+// Market schema migrations persist in D1 and are shared by concurrent requests.
+const marketSchemaReady = new WeakMap();
+async function ensureMarketSchemaOnce(db, key, initialize) {
+  let ready = marketSchemaReady.get(db);
+  if (!ready) { ready = new Map(); marketSchemaReady.set(db, ready); }
+  if (!ready.has(key)) {
+    const pending = (async () => {
+      await db.prepare("CREATE TABLE IF NOT EXISTS app_schema_migrations (migration_key TEXT PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
+      const applied = await db.prepare("SELECT migration_key FROM app_schema_migrations WHERE migration_key=?").bind(key).first();
+      if (applied) return;
+      await initialize();
+      await db.prepare("INSERT OR IGNORE INTO app_schema_migrations(migration_key) VALUES(?)").bind(key).run();
+    })();
+    ready.set(key, pending);
+    pending.catch(() => { if (ready.get(key) === pending) ready.delete(key); });
+  }
+  await ready.get(key);
+}
+
 async function ensureMarketTable(env) {
+  return ensureMarketSchemaOnce(env.DB, 'markets-schema-v504', async () => {
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS imported_markets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     fingerprint TEXT NOT NULL UNIQUE,
@@ -1099,8 +1119,10 @@ async function ensureMarketTable(env) {
   try { await env.DB.prepare("ALTER TABLE imported_markets ADD COLUMN updated_at TEXT").run(); } catch (_) {}
   try { await env.DB.prepare("UPDATE imported_markets SET updated_at=COALESCE(NULLIF(updated_at,''),created_at,CURRENT_TIMESTAMP) WHERE updated_at IS NULL OR updated_at=''").run(); } catch (_) {}
   try { await env.DB.prepare("UPDATE market_jdm_refresh_state SET next_check_at=0 WHERE lower(last_message) LIKE '%updated_at%' OR lower(last_message) LIKE '%sqlite_error%'").run(); } catch (_) {}
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS imported_markets_country_area_idx ON imported_markets(upper(country),area)").run();
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS imported_markets_country_kind_idx ON imported_markets(upper(country),lower(kind))").run();
+  });
 }
-
 function cleanMarket(value, max = 240) {
   return String(value == null ? "" : value).replace(/\s+/g, " ").trim().slice(0, max);
 }
@@ -1152,14 +1174,14 @@ async function listMarkets(request,env) {
 }
 
 async function queryMarkets(request, env) {
-  await ensureMarketTable(env);
-  await ensureMarketVerificationTables(env);
   const data=await body(request);
   const country=String(data.country||'FR').trim().toUpperCase().slice(0,2);
   const area=String(data.area||'').trim().slice(0,40);
   const day=String(data.day||'').trim().toLowerCase().slice(0,24);
   const qKey="markets-query-"+await sha256Text(country+"|"+area+"|"+day);
   const qHit=await edgeCacheMatch(request,qKey);if(qHit)return qHit;
+  await ensureMarketTable(env);
+  await ensureMarketVerificationTables(env);
   const params=[country];
   let where="upper(country)=?";
   if(area){where+=" AND area=?";params.push(area)}
@@ -1177,14 +1199,14 @@ async function queryMarkets(request, env) {
 }
 
 async function marketCategory(request, env) {
-  await ensureMarketTable(env);
-  await ensureMarketVerificationTables(env);
   const data=await body(request);
   const country=String(data.country||'BE').trim().toUpperCase().slice(0,2);
   const kind=String(data.kind||'').trim().toLowerCase().slice(0,30);
   if(!kind)return json({ok:false,error:'CATEGORIE_REQUISE'},400);
   const cKey="markets-category-"+await sha256Text(country+"|"+kind);
   const cHit=await edgeCacheMatch(request,cKey);if(cHit)return cHit;
+  await ensureMarketTable(env);
+  await ensureMarketVerificationTables(env);
   const result=await env.DB.prepare("SELECT country,area,kind,name,city,day,hours,address,merchants,draw,registration,note,phone,date_label,start_date,end_date,source_url,latitude,longitude,updated_at FROM imported_markets WHERE upper(country)=? AND lower(kind)=? ORDER BY area,day,city,name LIMIT 2000").bind(country,kind).all();
   const removed=await env.DB.prepare("SELECT market_key FROM market_verification_consensus WHERE field='exists' AND lower(value_norm)='non'").all();
   const disabled=new Set((removed.results||[]).map(r=>String(r.market_key||'')));
@@ -1840,6 +1862,7 @@ const MARKET_PHOTO_MIN_STALLS = 0; // V109 : aucun minimum de stands
 const MARKET_PHOTO_MIN_QUALITY = 45; // V109 : ne pas refuser une vraie vue générale pour des critères esthétiques
 
 async function ensureMarketVerificationTables(env) {
+  return ensureMarketSchemaOnce(env.DB, 'market-verification-schema-v504', async () => {
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS market_verification_votes (
     market_key TEXT NOT NULL, field TEXT NOT NULL, value_norm TEXT NOT NULL, value_display TEXT NOT NULL,
     device_id TEXT NOT NULL, ip_hash TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1882,8 +1905,8 @@ async function ensureMarketVerificationTables(env) {
     market_key TEXT PRIMARY KEY, latitude REAL NOT NULL, longitude REAL NOT NULL, address TEXT NOT NULL DEFAULT '',
     confirmations INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`).run();
+  });
 }
-
 function cleanMarketKey(value) { return String(value || "").replace(/[\u0000-\u001f]/g, "").trim().slice(0, 500); }
 
 function normalizedVerification(field, raw) {
