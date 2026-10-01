@@ -517,16 +517,19 @@ function subscriptionIdentityKey(value){
 
 async function verifiedIdentityCanReplaceSubscriptionDevice(env,deviceId,row,email,firstName,lastName){
   try{
-    if(!validDevice(deviceId)||!row||!validEmail(email))return false;
+    if(!validDevice(deviceId)||!row)return false;
+    const stored=normalizeEmail(row.recovery_email_mask||"");
+    const expectedEmail=validEmail(normalizeEmail(email))?normalizeEmail(email):stored;
+    if(!validEmail(expectedEmail)||expectedEmail.includes("***"))return false;
     await ensureAppIdentityTables(env);
-    const ai=await env.DB.prepare("SELECT email,first_name,last_name,email_verified_at FROM app_identities WHERE device_id=? AND lower(email)=? AND email_verified_at>0 ORDER BY updated_at DESC LIMIT 1")
-      .bind(deviceId,normalizeEmail(email)).first();
+    const ai=await env.DB.prepare("SELECT email,first_name,last_name,email_verified_at,email_verified_device_id FROM app_identities WHERE device_id=? AND lower(email)=? AND email_verified_at>0 ORDER BY updated_at DESC LIMIT 1")
+      .bind(deviceId,expectedEmail).first();
     if(!ai)return false;
+    if(ai.email_verified_device_id&&String(ai.email_verified_device_id)!==deviceId)return false;
     const aiFirst=String(ai.first_name||"").trim(),aiLast=String(ai.last_name||"").trim();
     const rowFirst=String(row.account_first_name||firstName||"").trim(),rowLast=String(row.account_last_name||lastName||"").trim();
     if(rowFirst&&rowLast&&(subscriptionIdentityKey(rowFirst)!==subscriptionIdentityKey(aiFirst)||subscriptionIdentityKey(rowLast)!==subscriptionIdentityKey(aiLast)))return false;
-    const stored=normalizeEmail(row.recovery_email_mask||"");
-    if(validEmail(stored)&&!stored.includes("***")&&stored!==normalizeEmail(email))return false;
+    if(validEmail(stored)&&!stored.includes("***")&&stored!==expectedEmail)return false;
     return true;
   }catch(_){return false}
 }
