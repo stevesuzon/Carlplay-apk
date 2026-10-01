@@ -36,19 +36,24 @@ jobs:
           set -euo pipefail
           BASE="https://carplay-telephone.appli-suzon.workers.dev"
           ok=0
-          for i in {1..12}; do
-            if curl -fsS --max-time 15 "$BASE/api/health" -o /tmp/health.json && grep -q '"ok":true' /tmp/health.json; then
+          for i in 1 2 3; do
+            code="$(curl -sS --max-time 15 -o /tmp/health.json -w '%{http_code}' "$BASE/api/health" || true)"
+            echo "HEALTH HTTP=$code"
+            cat /tmp/health.json 2>/dev/null || true
+            echo
+            if [ "$code" = "200" ] && grep -q '"ok":true' /tmp/health.json; then
               ok=1
               break
             fi
-            sleep 5
+            sleep 4
           done
-          cat /tmp/health.json 2>/dev/null || true
-          test "$ok" = "1"
 
-          response="$(curl -sS --max-time 15 -w '\n%{http_code}' -X POST "$BASE/api/status" -H 'content-type: application/json' --data '{}')"
-          code="$(printf '%s\n' "$response" | tail -n1)"
-          body="$(printf '%s\n' "$response" | sed '$d')"
-          printf '%s\n' "$body"
-          test "$code" = "400"
-          printf '%s' "$body" | grep -q 'DONNEES_INVALIDES'
+          response="$(curl -sS --max-time 15 -w '\n%{http_code}' -X POST "$BASE/api/status" -H 'content-type: application/json' --data '{}' || true)"
+          status_code="$(printf '%s\n' "$response" | tail -n1)"
+          status_body="$(printf '%s\n' "$response" | sed '$d')"
+          echo "STATUS HTTP=$status_code"
+          printf '%s\n' "$status_body"
+
+          test "$ok" = "1"
+          test "$status_code" = "400"
+          printf '%s' "$status_body" | grep -q 'DONNEES_INVALIDES'
