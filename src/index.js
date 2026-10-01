@@ -4932,7 +4932,8 @@ export default {
     }
   },
   async fetch(request, env) {
-    const url = new URL(request.url);
+    try {
+      const url = new URL(request.url);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     if (url.pathname === "/api/health" && request.method === "GET") return apiHealth(env);
     if (url.pathname === "/api/activate" && request.method === "POST") return activate(request, env);
@@ -5050,5 +5051,13 @@ export default {
       return new Response(transformed.body, { status: transformed.status, statusText: transformed.statusText, headers });
     }
     return response;
+    } catch(e) {
+      const message=String(e&&e.message||e||"").slice(0,260);
+      if(/exceeded D1's free tier daily row read limit|daily row read limit/i.test(message)){
+        const now=new Date(),retry=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()+1,0,0,5));
+        return json({ok:false,error:"SERVEUR_BASE_QUOTA",message:"Limite quotidienne Cloudflare D1 atteinte.",retryAt:retry.toISOString()},503);
+      }
+      return json({ok:false,error:"SERVEUR_ERREUR",message},500);
+    }
   }
 };
