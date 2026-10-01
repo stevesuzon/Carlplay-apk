@@ -29,3 +29,26 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4"
           command: deploy --config wrangler.toml
+
+      - name: Vérifier le serveur Couteau Suisse après déploiement
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://carplay-telephone.appli-suzon.workers.dev"
+          ok=0
+          for i in {1..12}; do
+            if curl -fsS --max-time 15 "$BASE/api/health" -o /tmp/health.json && grep -q '"ok":true' /tmp/health.json; then
+              ok=1
+              break
+            fi
+            sleep 5
+          done
+          cat /tmp/health.json 2>/dev/null || true
+          test "$ok" = "1"
+
+          response="$(curl -sS --max-time 15 -w '\n%{http_code}' -X POST "$BASE/api/status" -H 'content-type: application/json' --data '{}')"
+          code="$(printf '%s\n' "$response" | tail -n1)"
+          body="$(printf '%s\n' "$response" | sed '$d')"
+          printf '%s\n' "$body"
+          test "$code" = "400"
+          printf '%s' "$body" | grep -q 'DONNEES_INVALIDES'
