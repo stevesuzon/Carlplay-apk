@@ -44,7 +44,7 @@ function start(){
             .then(r=>r.json().then(j=>({ok:r.ok,j}))).then(x=>{
               const rows=Array.isArray(x.j&&x.j.results)?x.j.results:[];
               const added=rows.reduce((s,v)=>s+Number(v&&v.count||0),0);
-              runStatus.textContent=x.ok?'✅ Récupération progressive lancée sur le serveur. Premier lot : '+fmt(added)+' fiche(s). Tu peux mettre l’application en arrière-plan. Le serveur continue toutes les 15 minutes.':'⚠️ Premier lot non terminé.';
+              runStatus.textContent=x.ok?'✅ Récupération progressive lancée sur le serveur. Premier lot : '+fmt(added)+' fiche(s). Tu peux mettre l’application en arrière-plan. Le serveur continue environ une fois par heure.':'⚠️ Premier lot non terminé.';
               setTimeout(update,1200);
             }).catch(()=>{runStatus.textContent='⚠️ La récupération automatique réessaiera plus tard.'});
         }
@@ -60,7 +60,7 @@ function start(){
       if(!r.ok||!j.ok)throw new Error(j.error||'Erreur');
       const rows=Array.isArray(j.results)?j.results:[];
       const added=rows.reduce((s,x)=>s+Number(x&&x.count||0),0);
-      runStatus.textContent='✅ Récupération progressive lancée sur le serveur. Premier lot : '+fmt(added)+' fiche(s). Tu peux maintenant mettre l’application en arrière-plan : le serveur continue toutes les 15 minutes.';
+      runStatus.textContent='✅ Récupération progressive lancée sur le serveur. Premier lot : '+fmt(added)+' fiche(s). Tu peux maintenant mettre l’application en arrière-plan : le serveur continue environ une fois par heure.';
       await update();
     }catch(e){
       runStatus.textContent='❌ Impossible de lancer la récupération : '+(e&&e.message||'erreur');
