@@ -444,8 +444,11 @@ async function recoverSubscriptionCode(request,env){
   if(!validEmail(email))return json({ok:false,error:'EMAIL_OBLIGATOIRE'},400);
   if(!validDevice(deviceId))return json({ok:false,error:'DONNEES_INVALIDES'},400);
   const emailHash=await sha256Text(email);
-  const row=await env.DB.prepare("SELECT * FROM subscriptions WHERE recovery_email_hash=? AND active=1 ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC,id DESC LIMIT 1").bind(emailHash).first();
+  let row=await env.DB.prepare("SELECT * FROM subscriptions WHERE active=1 AND (recovery_email_hash=? OR lower(COALESCE(recovery_email_mask,''))=?) ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC,id DESC LIMIT 1").bind(emailHash,email).first();
   if(!row)return json({ok:false,error:'EMAIL_INTROUVABLE'},404);
+  if(!String(row.recovery_email_hash||'').trim() && normalizeEmail(row.recovery_email_mask||'')===email){
+    try{await env.DB.prepare("UPDATE subscriptions SET recovery_email_hash=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(emailHash,row.id).run();row.recovery_email_hash=emailHash}catch(_){}
+  }
   const storedFirst=String(row.account_first_name||'').trim(),storedLast=String(row.account_last_name||'').trim();
   if(storedFirst&&storedLast){
     if(firstName.length<2||lastName.length<2)return json({ok:false,error:'NOM_ET_PRENOM_OBLIGATOIRES'},400);
@@ -711,6 +714,20 @@ async function subscriptionProfileV156(request,env){
   return json({ok:true,email,firstName:String(row.account_first_name||ai&&ai.first_name||""),lastName:String(row.account_last_name||ai&&ai.last_name||""),lifetime:!!row.lifetime,expiresAt:row.expires_at||null});
 }
 
+async function apiHealth(env){
+  if(!env.DB)return json({ok:false,error:"DB_NON_CONFIGUREE",time:Date.now()},503);
+  try{
+    await ensureSubscriptionEmailColumns(env);
+    await ensureMarketTable(env);
+    const db=await env.DB.prepare("SELECT 1 AS ok").first();
+    const subs=await env.DB.prepare("SELECT COUNT(*) AS n FROM subscriptions").first();
+    const markets=await env.DB.prepare("SELECT COUNT(*) AS n FROM imported_markets").first();
+    return json({ok:true,db:!!(db&&Number(db.ok)===1),subscriptions:Number(subs&&subs.n||0),markets:Number(markets&&markets.n||0),time:Date.now()});
+  }catch(e){
+    return json({ok:false,error:"HEALTH_DB_ERROR",message:String(e&&e.message||e).slice(0,180),time:Date.now()},503);
+  }
+}
+
 async function subscriptionStatus(request, env) {
   const data = await body(request);
   const code = normalizeCode(data.code);
@@ -727,7 +744,8 @@ async function subscriptionStatus(request, env) {
     const storedEmail=normalizeEmail(row.recovery_email_mask||""),storedFirst=String(row.account_first_name||"").trim(),storedLast=String(row.account_last_name||"").trim();
     const identityMatches=validEmail(email)&&email===storedEmail&&firstName.length>=2&&lastName.length>=2&&
       subscriptionIdentityKey(firstName)===subscriptionIdentityKey(storedFirst)&&subscriptionIdentityKey(lastName)===subscriptionIdentityKey(storedLast);
-    if(!identityMatches)return json({ ok: false, error: "APPAREIL_REMPLACE" }, 409);
+    const verifiedFallback=identityMatches?true:await verifiedIdentityCanReplaceSubscriptionDevice(env,deviceId,row,email,firstName,lastName);
+    if(!verifiedFallback)return json({ ok: false, error: "APPAREIL_REMPLACE" }, 409);
     const column=type==="autoradio"?"autoradio_device":"phone_device";
     await env.DB.prepare(`UPDATE subscriptions SET ${column}=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(deviceId,row.id).run();
   }
@@ -4887,6 +4905,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+    if (url.pathname === "/api/health" && request.method === "GET") return apiHealth(env);
     if (url.pathname === "/api/activate" && request.method === "POST") return activate(request, env);
     if (url.pathname === "/api/status" && request.method === "POST") return subscriptionStatus(request, env);
     if (url.pathname === "/api/subscription-profile-v156" && request.method === "POST") return subscriptionProfileV156(request, env);
