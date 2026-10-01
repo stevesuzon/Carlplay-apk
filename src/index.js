@@ -4930,7 +4930,7 @@ export default {
       ctx.waitUntil((async()=>{
         const progressive=await jdmProgressiveActive(env);
         if(progressive) return runJdmIncremental(env,1);
-        if(minute===0) return runJdmIncremental(env,2);
+        if(minute===0) return runJdmIncremental(env,1);
       })());
     }
   },
