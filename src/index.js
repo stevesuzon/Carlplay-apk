@@ -4890,6 +4890,7 @@ async function nearHlmV473(url){
   return json({ok:true,near:false,radiusM:300,source:"indisponible"});
 }
 
+// V502 — les routes /api passent toujours par le Worker avant le fallback PWA.
 export default {
   async scheduled(controller, env, ctx) {
     const minute=new Date(Number(controller.scheduledTime||Date.now())).getUTCMinutes();
