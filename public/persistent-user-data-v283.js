@@ -17,6 +17,7 @@ var EXACT={
   'event_reg_address':1,'profession':1,'market_trade':1,'gps_pref':1,
   'return_address':1,'return_full_address':1,'return_lat':1,'return_lon':1,
   'return_nearby':1,'return_saved_at':1,'return_context_v231':1,'return_context_updated_at':1,
+  'carplay_identity_email_verified_v304':1,'carplay_pending_identity_v304':1,'carplay_account_profile':1,
   'carplay_app_identity_v240':1,'carplay_recovery_email':1,'carplay_subscription_email':1,
   'carplay_shared_subscription':1,'carplay_device_id':1,
   'carplay_admin_token':1,'carplay_admin_secret':1,'carplay_admin_here':1
@@ -151,9 +152,11 @@ var nativeSet=Storage.prototype.setItem,nativeRemove=Storage.prototype.removeIte
 Storage.prototype.setItem=function(k,v){nativeSet.call(this,k,v);if(this===localStorage&&keepKey(k))scheduleSave()};
 Storage.prototype.removeItem=function(k){nativeRemove.call(this,k);if(this===localStorage&&keepKey(k))scheduleSave()};
 
-Promise.resolve().then(restoreMissing).then(restoreDocuments).then(function(){return Promise.all([saveNow(),backupDocuments()])});
+window.CouteauUserDataReady=Promise.resolve().then(restoreMissing);
+window.CouteauUserDataReady.then(restoreDocuments).then(function(){return Promise.all([saveNow(),backupDocuments()])});
 window.addEventListener('pagehide',function(){saveNow();backupDocuments()});
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden'){saveNow();backupDocuments()}});
 window.addEventListener('couteau-user-data-changed',function(){scheduleSave();scheduleDocuments()});
 window.CouteauUserDataSafety={save:function(){return Promise.all([saveNow(),backupDocuments()])},restore:function(){return Promise.all([restoreMissing(),restoreDocuments()])},keys:Object.keys(EXACT),keeps:keepKey};
 })();
+
