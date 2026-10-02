@@ -450,6 +450,7 @@
         if(!p) continue; // aucun point exact ni autre marché géolocalisé dans cette ville
         const k=area.country+'|'+norm(row?.[0])+'|'+norm(row?.[2])+'|'+norm(row?.[3])+'|'+norm(row?.[4])+'|'+norm(row?.[8]);
         if(seen.has(k)) continue;
+        if(result.some(item=>!item.special&&item.country===area.country&&sameRegularMarketV507(item.row,row))) continue;
         seen.add(k);
         result.push({country:area.country,row,p});
       }
