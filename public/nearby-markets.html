@@ -139,6 +139,42 @@
     const seen=new Set((target||[]).map(r=>[r?.[0],r?.[1],r?.[2],r?.[3],r?.[4],r?.[8]||''].join('|').toLowerCase()));
     for(const r of (rows||[])){const k=[r?.[0],r?.[1],r?.[2],r?.[3],r?.[4],r?.[8]||''].join('|').toLowerCase();if(!seen.has(k)){seen.add(k);target.push(r)}}
   }
+  // V507 — anti-doublons entre les fichiers embarqués et /api/markets.
+  // On garde en priorité la fiche déjà présente dans les fichiers locaux (elle conserve sa clé
+  // de vérification, ses photos et ses renseignements). Les variantes de nom du même marché
+  // (« Marché d'Arpajon » / « Marché de Arpajon », nom de ville / nom de place) ne créent plus
+  // une deuxième carte.
+  function genericRegularMarketNameV507(row){
+    const cityWords=new Set(norm(row?.[3]||'').split(' ').filter(Boolean));
+    const stop=new Set(['marche','marches','de','du','des','d','la','le','les','a','au','aux','en','sur']);
+    const words=norm(row?.[2]||'').split(' ').filter(Boolean).filter(w=>!stop.has(w)&&!cityWords.has(w));
+    return words.length===0;
+  }
+  function weakMarketAddressV507(row){
+    const city=norm(row?.[3]||''),address=norm(row?.[8]||'');
+    return !address||address===city||address===('ville '+city)||address===('commune '+city);
+  }
+  function sameRegularMarketV507(a,b){
+    const cityA=norm(a?.[3]||''),cityB=norm(b?.[3]||'');
+    if(!cityA||cityA!==cityB)return false;
+    const dayA=norm(a?.[4]||''),dayB=norm(b?.[4]||''),today=norm(selectedDay);
+    if(!(dayA===dayB||(today&&dayA.includes(today)&&dayB.includes(today))))return false;
+    const nameA=norm(a?.[2]||''),nameB=norm(b?.[2]||'');
+    if(nameA&&nameA===nameB)return true;
+    const genericA=genericRegularMarketNameV507(a),genericB=genericRegularMarketNameV507(b);
+    if(genericA&&genericB)return true;
+    const addressA=norm(a?.[8]||''),addressB=norm(b?.[8]||'');
+    const sameAddress=!!addressA&&!!addressB&&(addressA===addressB||addressA.includes(addressB)||addressB.includes(addressA));
+    const pa=validPoint(a),pb=validPoint(b);
+    const near=!!pa&&!!pb&&distanceKm(pa.lat,pa.lon,pb.lat,pb.lon)<=0.6;
+    if((genericA||genericB)&&(near||sameAddress||weakMarketAddressV507(a)||weakMarketAddressV507(b)))return true;
+    return false;
+  }
+  function mergeServerRegularRowV507(target,row){
+    if((target||[]).some(existing=>sameRegularMarketV507(existing,row)))return false;
+    mergeRows(target,[row]);
+    return true;
+  }
   let cityPointIndexV430=new Map();
   function cityPointKeyV430(country,row){
     return String(country||'')+'|'+norm(row?.[3]||'');
@@ -173,7 +209,7 @@
       const country=String(m.country||'FR').toUpperCase()==='BE'?'be':'fr';
       const blob=norm([row[1],row[2],row[4],row[6],row[8]].join(' '));
       const regular=String(row[1]||'').toLowerCase()==='marche'&&!/producteur|producteurs|producent|producenten|paysan|paysans|boerenmarkt|vente directe/.test(blob)&&!/mensuel|trimestriel|bimensuel|une semaine sur deux|toutes les 2 semaines|saisonnier|marche d ete/.test(blob);
-      if(regular)mergeRows(country==='be'?window.NEAR_BE:window.NEAR_FR,[row]);
+      if(regular)mergeServerRegularRowV507(country==='be'?window.NEAR_BE:window.NEAR_FR,row);
       mergeRows(country==='be'?window.SPECIAL_BE:window.SPECIAL_FR,[row]);
     }
   }
@@ -187,7 +223,7 @@
         const country=String(m.country||'FR').toUpperCase()==='BE'?'be':'fr';
         const blob=norm([row[1],row[2],row[4],row[6],row[8]].join(' '));
         const regular=String(row[1]||'').toLowerCase()==='marche'&&!/producteur|producteurs|producent|producenten|paysan|paysans|boerenmarkt|vente directe/.test(blob)&&!/mensuel|trimestriel|bimensuel|une semaine sur deux|toutes les 2 semaines|saisonnier|marche d ete/.test(blob);
-        if(regular)mergeRows(country==='be'?window.NEAR_BE:window.NEAR_FR,[row]);
+        if(regular)mergeServerRegularRowV507(country==='be'?window.NEAR_BE:window.NEAR_FR,row);
         mergeRows(country==='be'?window.SPECIAL_BE:window.SPECIAL_FR,[row]);
       }
     }catch(_){ }
