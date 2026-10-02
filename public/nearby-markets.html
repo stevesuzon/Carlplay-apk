@@ -154,6 +154,15 @@
     const city=norm(row?.[3]||''),address=norm(row?.[8]||'');
     return !address||address===city||address===('ville '+city)||address===('commune '+city);
   }
+  function marketNameCoreV508(row){
+    const cityWords=new Set(norm(row?.[3]||'').split(' ').filter(Boolean));
+    const stop=new Set(['marche','marches','de','du','des','d','la','le','les','a','au','aux','en','sur','place','halle','halles']);
+    return norm(row?.[2]||'').split(' ').filter(Boolean).filter(w=>!stop.has(w)&&!cityWords.has(w)).map(w=>{
+      // Harmonise seulement les pluriels simples pour éviter « Bosseron » / « Bosserons ».
+      if(w.length>5&&w.endsWith('s')&&!w.endsWith('ss'))return w.slice(0,-1);
+      return w;
+    }).join(' ');
+  }
   function sameRegularMarketV507(a,b){
     const cityA=norm(a?.[3]||''),cityB=norm(b?.[3]||'');
     if(!cityA||cityA!==cityB)return false;
@@ -161,6 +170,8 @@
     if(!(dayA===dayB||(today&&dayA.includes(today)&&dayB.includes(today))))return false;
     const nameA=norm(a?.[2]||''),nameB=norm(b?.[2]||'');
     if(nameA&&nameA===nameB)return true;
+    const coreA=marketNameCoreV508(a),coreB=marketNameCoreV508(b);
+    if(coreA&&coreB&&coreA===coreB)return true;
     const genericA=genericRegularMarketNameV507(a),genericB=genericRegularMarketNameV507(b);
     if(genericA&&genericB)return true;
     const addressA=norm(a?.[8]||''),addressB=norm(b?.[8]||'');
