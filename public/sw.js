@@ -1,5 +1,5 @@
-const VERSION = "V510-MARKET-DEDUP";
-const BASE_CACHE = "couteau-suisse-runtime-code-v510-market-dedup";
+const VERSION = "V511-MARKET-REVIEW";
+const BASE_CACHE = "couteau-suisse-runtime-code-v511-market-review";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v439-market-list";

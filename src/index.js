@@ -2371,6 +2371,22 @@ async function adminMarketAttendance(request,url,env){
   const r=await env.DB.prepare("SELECT first_name,last_name,email,trade,updated_at FROM market_attendance WHERE market_key=? AND date_key=? ORDER BY updated_at DESC").bind(marketKey,dateKey).all();return json({ok:true,date:dateKey,people:r.results||[]});
 }
 
+async function marketDuplicateDecisions(request, env) {
+  if (!env.DB) return json({ok:false,error:'DB_INDISPONIBLE'},503);
+  if (request.method === 'POST' && !(await adminAuthorized(request,env))) return json({ok:false,error:'CONNEXION_ADMINISTRATEUR_REQUISE'},401);
+  await ensureMarketSchemaOnce(env.DB,'market-duplicate-review-v511',async()=>{
+    await env.DB.prepare("CREATE TABLE IF NOT EXISTS market_duplicate_decisions (market_key TEXT PRIMARY KEY, action TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
+  });
+  if (request.method === 'POST') {
+    const data=await body(request),key=cleanMarketKey(data.marketKey),action=String(data.action||'');
+    if (!key || !/^(fr|be)\|/.test(key) || !['restored','deleted','pending'].includes(action)) return json({ok:false,error:'CHOIX_INVALIDE'},400);
+    await env.DB.prepare("INSERT INTO market_duplicate_decisions(market_key,action,updated_at) VALUES(?,?,CURRENT_TIMESTAMP) ON CONFLICT(market_key) DO UPDATE SET action=excluded.action,updated_at=CURRENT_TIMESTAMP").bind(key,action).run();
+    return json({ok:true,marketKey:key,action});
+  }
+  const result=await env.DB.prepare('SELECT market_key,action FROM market_duplicate_decisions').all();
+  return json({ok:true,decisions:Object.fromEntries((result.results||[]).map(r=>[r.market_key,r.action]))});
+}
+
 async function disabledMarketPresence(env) {
   if (!env.DB) return json({ ok: false, error: "DB_INDISPONIBLE" }, 503);
   await ensureMarketVerificationTables(env);
@@ -5027,6 +5043,7 @@ export default {
     if (url.pathname === "/api/market-attendance" && (request.method === "GET" || request.method === "POST")) return marketAttendance(request, url, env);
     if (url.pathname === "/api/market-attendance/batch" && request.method === "POST") return marketAttendanceBatch(request, env);
     if (url.pathname === "/api/admin/market-attendance" && request.method === "GET") return adminMarketAttendance(request, url, env);
+    if (url.pathname === "/api/market-duplicates/decisions" && ["GET","POST"].includes(request.method)) return marketDuplicateDecisions(request,env);
     if (url.pathname === "/api/market-presence/disabled" && request.method === "GET") return disabledMarketPresence(env);
     if (url.pathname === "/api/market-photo" && request.method === "GET") return marketPhoto(url, env);
     if (url.pathname === "/api/vigilance" && request.method === "GET") return vigilanceForPlace(url);

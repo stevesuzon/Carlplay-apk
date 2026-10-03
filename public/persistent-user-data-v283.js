@@ -9,6 +9,7 @@ var DOC_DB='carplayDocuments',DOC_FILES='files';
 var opening=null,saveTimer=0,docTimer=0;
 
 var EXACT={
+  'marketDuplicateArchiveV511':1,'marketDuplicateDecisionsV511':1,
   'saved_market_addresses':1,'saved_market_addresses_be':1,
   'generic_client_documents':1,'professional_signature_v1':1,'generic_company_logo':1,
   'custom_quote_templates_v1':1,'custom_quote_company_v2':1,

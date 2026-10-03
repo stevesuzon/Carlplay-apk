@@ -192,7 +192,8 @@
       )
         out.push(r);
     }
-    return window.MarketDedupV510.rows(out);
+    window.MarketDedupV511.restoredRows(country,k,currentDay).forEach(function(row){if(!out.some(function(r){return identity(r)===identity(row)}))out.push(row)});
+    return window.MarketDedupV511.rows(out,country);
   }
   function verificationKey(r) {
     return (
@@ -943,7 +944,7 @@
     }
   }
   function addRegistrationLines() {}
-  init();
+  window.MarketDedupV511.ready.then(init);
   document.addEventListener("visibilitychange", function () {
     if (!document.hidden) refreshCountsOnReturn();
   });

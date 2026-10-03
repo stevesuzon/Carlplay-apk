@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-require('../public/market-dedup-v510.js');
-const {same,rows}=global.MarketDedupV510;
+require('../public/market-dedup-v511.js');
+const {same,rows}=global.MarketDedupV511;
 function row(name,day='samedi',address='Palaiseau',lat=null,lon=null,time='7h-13h'){return ['91','marche',name,'Palaiseau',day,time,'','',address,[],lat,lon];}
 assert(same(row('Place des Causeuses'),row('Marché Causeuses')));
 assert(same(row('Marché du Pileu alimentaire'),row('Marché couvert du Pileu')));
@@ -21,6 +21,10 @@ assert(!same(row('Marché Palaiseau','samedi','rue Collet'),row('Marché de Pala
 assert(!same(row('Marché Palaiseau','samedi','Palaiseau',48.71,2.23),row('Marché de Palaiseau','samedi','Palaiseau',48.73,2.23)));
 const janvry=JSON.parse(fs.readFileSync(require('node:path').join(__dirname,'../public/market-chunks/fr/91/samedi.json'))).filter(r=>r[3]==='Janvry');
 assert.equal(rows(janvry).length,1);
+const restoredKey=global.MarketDedupV511.key('fr',original[1]);
+global.MarketDedupV511.setDecision(restoredKey,'restored');assert.equal(rows(original).length,5);
+global.MarketDedupV511.setDecision(restoredKey,'deleted');assert.equal(rows(original).length,4);
+global.MarketDedupV511.setDecision(restoredKey,'pending');assert.equal(rows(original).length,4);
 console.log('Generic names, Janvry, Bondoufle, distinct sites and days passed');
 const path=require('node:path'),dataRoot=path.join(__dirname,'../public/market-chunks');let files=0,removed=0;
 function checkDirectory(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const file=path.join(dir,entry.name);if(entry.isDirectory()){checkDirectory(file);continue;}if(!file.endsWith('.json'))continue;const input=JSON.parse(fs.readFileSync(file)),output=rows(input);assert.deepEqual(rows(output),output);assert(output.every(r=>input.includes(r)));files++;removed+=input.length-output.length;}}
