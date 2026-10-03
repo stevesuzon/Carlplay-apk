@@ -192,7 +192,7 @@
       )
         out.push(r);
     }
-    return window.MarketDedupV509.rows(out);
+    return window.MarketDedupV510.rows(out);
   }
   function verificationKey(r) {
     return (

@@ -62,7 +62,7 @@
   <div class="photo-box"><button id="photoClose" class="photo-close" type="button" aria-label="Fermer">×</button><img id="photoLarge" alt=""></div>
 </div>
 <!-- V491 : données 150 km chargées par petits fichiers selon « Retourner sur la place ». -->
-<script src="/market-dedup-v509.js?v=509"></script>
+<script src="/market-dedup-v510.js?v=510"></script>
 <script>
 (() => {
   'use strict';
@@ -141,7 +141,7 @@
     for(const r of (rows||[])){const k=[r?.[0],r?.[1],r?.[2],r?.[3],r?.[4],r?.[8]||''].join('|').toLowerCase();if(!seen.has(k)){seen.add(k);target.push(r)}}
   }
   // Shared conservative identity rules: day, address, name aliases and actual GPS.
-  function sameRegularMarketV507(a,b){return window.MarketDedupV509.same(a,b);}
+  function sameRegularMarketV507(a,b){return window.MarketDedupV510.same(a,b);}
   function mergeServerRegularRowV507(target,row){
     if((target||[]).some(existing=>sameRegularMarketV507(existing,row)))return false;
     mergeRows(target,[row]);
@@ -414,7 +414,7 @@
   function rowsForToday(){
     const result=[],seen=new Set();
     for(const area of [{country:'fr'},{country:'be'}]){
-      const source=window.MarketDedupV509.rows(area.country==='fr'?(window.NEAR_FR||[]):(window.NEAR_BE||[]));
+      const source=window.MarketDedupV510.rows(area.country==='fr'?(window.NEAR_FR||[]):(window.NEAR_BE||[]));
       for(const row of source){
         if(!isToday(row)) continue;
         if(isServerDisabled(area.country,row)) continue;

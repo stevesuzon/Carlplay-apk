@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-require('../public/market-dedup-v509.js');
-const {same,rows}=global.MarketDedupV509;
+require('../public/market-dedup-v510.js');
+const {same,rows}=global.MarketDedupV510;
 function row(name,day='samedi',address='Palaiseau',lat=null,lon=null,time='7h-13h'){return ['91','marche',name,'Palaiseau',day,time,'','',address,[],lat,lon];}
 assert(same(row('Place des Causeuses'),row('Marché Causeuses')));
 assert(same(row('Marché du Pileu alimentaire'),row('Marché couvert du Pileu')));
@@ -15,7 +15,16 @@ assert(!same(row('Lozère','samedi','1 rue Collet',null,null,'8h-13h'),row('Loz�
 assert(!same(row('Marché de Palaiseau'),row('Marché de Lozère')));
 const original=[row('Place des Causeuses'),row('Marché Causeuses'),row('Marché Causeuses','mercredi'),row('Marché du Pileu alimentaire'),row('Marché de Lozère')];
 const before=JSON.stringify(original);assert.equal(rows(original).length,4);assert.equal(JSON.stringify(original),before);assert.equal(rows(original)[0],original[0]);
-console.log('11 identity and preservation checks passed');
+assert(same(row('marché de janvry'),row('Marché Janvry')));
+const bondoufleA=row('Marché Bondoufle','samedi','Bondoufle'),bondoufleB=row('Marché de Bondoufle','samedi','Centre commercial des Trois Parts, 91070, Bondoufle');bondoufleA[3]=bondoufleB[3]='Bondoufle';assert(same(bondoufleA,bondoufleB));
+assert(!same(row('Marché Palaiseau','samedi','rue Collet'),row('Marché de Palaiseau','samedi','place de la Victoire')));
+assert(!same(row('Marché Palaiseau','samedi','Palaiseau',48.71,2.23),row('Marché de Palaiseau','samedi','Palaiseau',48.73,2.23)));
+const janvry=JSON.parse(fs.readFileSync(require('node:path').join(__dirname,'../public/market-chunks/fr/91/samedi.json'))).filter(r=>r[3]==='Janvry');
+assert.equal(rows(janvry).length,1);
+console.log('Generic names, Janvry, Bondoufle, distinct sites and days passed');
+const path=require('node:path'),dataRoot=path.join(__dirname,'../public/market-chunks');let files=0,removed=0;
+function checkDirectory(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const file=path.join(dir,entry.name);if(entry.isDirectory()){checkDirectory(file);continue;}if(!file.endsWith('.json'))continue;const input=JSON.parse(fs.readFileSync(file)),output=rows(input);assert.deepEqual(rows(output),output);assert(output.every(r=>input.includes(r)));files++;removed+=input.length-output.length;}}
+checkDirectory(dataRoot);console.log(files+' day/area datasets checked; '+removed+' duplicate entries grouped');
 const page=fs.readFileSync(require('node:path').join(__dirname,'../public/nearby-markets.html'),'utf8');
 for(const match of page.matchAll(/<script>([\s\S]*?)<\/script>/g))new (require('node:vm').Script)(match[1]);
 console.log('Nearby page inline script syntax valid');
