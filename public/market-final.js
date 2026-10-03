@@ -192,7 +192,7 @@
       )
         out.push(r);
     }
-    return out;
+    return window.MarketDedupV509.rows(out);
   }
   function verificationKey(r) {
     return (

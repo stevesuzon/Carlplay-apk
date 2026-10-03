@@ -1,0 +1,21 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+require('../public/market-dedup-v509.js');
+const {same,rows}=global.MarketDedupV509;
+function row(name,day='samedi',address='Palaiseau',lat=null,lon=null,time='7h-13h'){return ['91','marche',name,'Palaiseau',day,time,'','',address,[],lat,lon];}
+assert(same(row('Place des Causeuses'),row('Marché Causeuses')));
+assert(same(row('Marché du Pileu alimentaire'),row('Marché couvert du Pileu')));
+assert(!same(row('Marché de Lozère'),row('Marché du Pileu alimentaire')));
+assert(!same(row('Marché de Lozère'),row('Marché de Lozère','mercredi')));
+assert(same(row('Lozère','samedi','1 rue Collet, 91120 Palaiseau',48.71,2.23),row('Halle alimentaire','samedi','1 rue Collet Palaiseau',48.7101,2.23)));
+assert(!same(row('Marché de Lozère','samedi','1 rue Collet'),row('Marché de Lozère','samedi','rue de Paris')));
+assert(!same(row('Lozère','samedi','Palaiseau',48.71,2.23),row('Pileu','samedi','Palaiseau',48.71,2.23)));
+assert(!same(row('Lozère','samedi','1 rue Collet',48.71,2.23),row('Halle','samedi','1 rue Collet',48.73,2.23)));
+assert(!same(row('Lozère','samedi','1 rue Collet',null,null,'8h-13h'),row('Lozère','samedi','1 rue Collet',null,null,'17h-20h')));
+assert(!same(row('Marché de Palaiseau'),row('Marché de Lozère')));
+const original=[row('Place des Causeuses'),row('Marché Causeuses'),row('Marché Causeuses','mercredi'),row('Marché du Pileu alimentaire'),row('Marché de Lozère')];
+const before=JSON.stringify(original);assert.equal(rows(original).length,4);assert.equal(JSON.stringify(original),before);assert.equal(rows(original)[0],original[0]);
+console.log('11 identity and preservation checks passed');
+const page=fs.readFileSync(require('node:path').join(__dirname,'../public/nearby-markets.html'),'utf8');
+for(const match of page.matchAll(/<script>([\s\S]*?)<\/script>/g))new (require('node:vm').Script)(match[1]);
+console.log('Nearby page inline script syntax valid');

@@ -62,6 +62,7 @@
   <div class="photo-box"><button id="photoClose" class="photo-close" type="button" aria-label="Fermer">×</button><img id="photoLarge" alt=""></div>
 </div>
 <!-- V491 : données 150 km chargées par petits fichiers selon « Retourner sur la place ». -->
+<script src="/market-dedup-v509.js?v=509"></script>
 <script>
 (() => {
   'use strict';
@@ -139,48 +140,8 @@
     const seen=new Set((target||[]).map(r=>[r?.[0],r?.[1],r?.[2],r?.[3],r?.[4],r?.[8]||''].join('|').toLowerCase()));
     for(const r of (rows||[])){const k=[r?.[0],r?.[1],r?.[2],r?.[3],r?.[4],r?.[8]||''].join('|').toLowerCase();if(!seen.has(k)){seen.add(k);target.push(r)}}
   }
-  // V507 — anti-doublons entre les fichiers embarqués et /api/markets.
-  // On garde en priorité la fiche déjà présente dans les fichiers locaux (elle conserve sa clé
-  // de vérification, ses photos et ses renseignements). Les variantes de nom du même marché
-  // (« Marché d'Arpajon » / « Marché de Arpajon », nom de ville / nom de place) ne créent plus
-  // une deuxième carte.
-  function genericRegularMarketNameV507(row){
-    const cityWords=new Set(norm(row?.[3]||'').split(' ').filter(Boolean));
-    const stop=new Set(['marche','marches','de','du','des','d','la','le','les','a','au','aux','en','sur']);
-    const words=norm(row?.[2]||'').split(' ').filter(Boolean).filter(w=>!stop.has(w)&&!cityWords.has(w));
-    return words.length===0;
-  }
-  function weakMarketAddressV507(row){
-    const city=norm(row?.[3]||''),address=norm(row?.[8]||'');
-    return !address||address===city||address===('ville '+city)||address===('commune '+city);
-  }
-  function marketNameCoreV508(row){
-    const cityWords=new Set(norm(row?.[3]||'').split(' ').filter(Boolean));
-    const stop=new Set(['marche','marches','de','du','des','d','la','le','les','a','au','aux','en','sur','place','halle','halles']);
-    return norm(row?.[2]||'').split(' ').filter(Boolean).filter(w=>!stop.has(w)&&!cityWords.has(w)).map(w=>{
-      // Harmonise seulement les pluriels simples pour éviter « Bosseron » / « Bosserons ».
-      if(w.length>5&&w.endsWith('s')&&!w.endsWith('ss'))return w.slice(0,-1);
-      return w;
-    }).join(' ');
-  }
-  function sameRegularMarketV507(a,b){
-    const cityA=norm(a?.[3]||''),cityB=norm(b?.[3]||'');
-    if(!cityA||cityA!==cityB)return false;
-    const dayA=norm(a?.[4]||''),dayB=norm(b?.[4]||''),today=norm(selectedDay);
-    if(!(dayA===dayB||(today&&dayA.includes(today)&&dayB.includes(today))))return false;
-    const nameA=norm(a?.[2]||''),nameB=norm(b?.[2]||'');
-    if(nameA&&nameA===nameB)return true;
-    const coreA=marketNameCoreV508(a),coreB=marketNameCoreV508(b);
-    if(coreA&&coreB&&coreA===coreB)return true;
-    const genericA=genericRegularMarketNameV507(a),genericB=genericRegularMarketNameV507(b);
-    if(genericA&&genericB)return true;
-    const addressA=norm(a?.[8]||''),addressB=norm(b?.[8]||'');
-    const sameAddress=!!addressA&&!!addressB&&(addressA===addressB||addressA.includes(addressB)||addressB.includes(addressA));
-    const pa=validPoint(a),pb=validPoint(b);
-    const near=!!pa&&!!pb&&distanceKm(pa.lat,pa.lon,pb.lat,pb.lon)<=0.6;
-    if((genericA||genericB)&&(near||sameAddress||weakMarketAddressV507(a)||weakMarketAddressV507(b)))return true;
-    return false;
-  }
+  // Shared conservative identity rules: day, address, name aliases and actual GPS.
+  function sameRegularMarketV507(a,b){return window.MarketDedupV509.same(a,b);}
   function mergeServerRegularRowV507(target,row){
     if((target||[]).some(existing=>sameRegularMarketV507(existing,row)))return false;
     mergeRows(target,[row]);
@@ -453,7 +414,7 @@
   function rowsForToday(){
     const result=[],seen=new Set();
     for(const area of [{country:'fr'},{country:'be'}]){
-      const source=area.country==='fr'?(window.NEAR_FR||[]):(window.NEAR_BE||[]);
+      const source=window.MarketDedupV509.rows(area.country==='fr'?(window.NEAR_FR||[]):(window.NEAR_BE||[]));
       for(const row of source){
         if(!isToday(row)) continue;
         if(isServerDisabled(area.country,row)) continue;
@@ -461,7 +422,7 @@
         if(!p) continue; // aucun point exact ni autre marché géolocalisé dans cette ville
         const k=area.country+'|'+norm(row?.[0])+'|'+norm(row?.[2])+'|'+norm(row?.[3])+'|'+norm(row?.[4])+'|'+norm(row?.[8]);
         if(seen.has(k)) continue;
-        if(result.some(item=>!item.special&&item.country===area.country&&sameRegularMarketV507(item.row,row))) continue;
+        
         seen.add(k);
         result.push({country:area.country,row,p});
       }
@@ -561,7 +522,7 @@
       const voiceDay=!item.special?(showTomorrow?'Demain':'Aujourd’hui'):(/AUJOURD|EN COURS/i.test(timing)?'Aujourd’hui':/DEMAIN/i.test(timing)?'Demain':dateLabel);
       return '<article class="card" data-voice-card="market" data-voice-department="'+esc(r[0]||'')+'" data-voice-city="'+esc(place)+'" data-voice-name="'+esc(name)+'" data-voice-day="'+esc(voiceDay)+'" data-voice-distance="'+esc(distanceLabel(item.d))+'" data-voice-count="'+esc(count)+'" data-voice-count-label="'+esc(countLabel)+'" data-count-kind="'+esc(countKind)+'" data-market-key="'+esc(marketKey)+'"><span class="marketVerificationDot '+(dotGreen?'green':'orange')+'" title="'+(dotGreen?'Fiche vérifiée':'Fiche à vérifier')+'" aria-label="'+(dotGreen?'Fiche vérifiée':'Fiche à vérifier')+'"></span>'+
         '<button type="button" class="marketFavoriteStar '+(fav?'active':'')+'" data-favorite-key="'+esc(favoriteKey(item.country,r))+'" aria-label="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'" title="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'">'+(fav?'★':'☆')+'</button>'+
-        '<div class="name"><span class="distance">'+distanceLabel(item.d)+'</span></div><div class="eventCityBig">📍 '+esc(place)+'</div>'+ specialTop + photo +
+        '<div class="name"><span class="distance">'+distanceLabel(item.d)+(item.p.exact?'':' — estimée')+'</span></div><div class="eventCityBig">📍 '+esc(place)+'</div>'+ specialTop + photo +
         (!item.special?'':'<div class="meta" style="font-weight:900;font-size:18px;margin-bottom:6px">'+esc(name)+'</div>')+
         '<div class="meta">🕒 <span class="shared-time">'+esc(hour)+'</span></div>'+
         '<div class="meta">👥 '+esc(countLabel)+' : <span class="shared-count">'+esc(count)+'</span></div>'+
