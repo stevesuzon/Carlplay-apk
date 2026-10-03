@@ -2004,7 +2004,7 @@ async function marketVerificationState(env, marketKey, includePhoto = true) {
     const row = await env.DB.prepare("SELECT distance_meters,quality_score,stall_count,replacement_count,captured_at,updated_at FROM market_photo_metadata WHERE market_key=?").bind(marketKey).first();
     if (row) {
       const replacementsUsed=Math.max(0,Number(row.replacement_count||0));
-      photo = { url: `/api/market-photo?marketKey=${encodeURIComponent(marketKey)}&v=${encodeURIComponent(row.updated_at)}`, distanceMeters: Math.round(Number(row.distance_meters)), qualityScore: Number(row.quality_score || 0), stallCount: Number(row.stall_count || 0), replacementsUsed, replacementsRemaining:Math.max(0,2-replacementsUsed), locked:replacementsUsed>=2, capturedAt: row.captured_at };
+      photo = { url: `/api/market-photo?marketKey=${encodeURIComponent(marketKey)}&v=${encodeURIComponent(row.updated_at)}&decode=2`, distanceMeters: Math.round(Number(row.distance_meters)), qualityScore: Number(row.quality_score || 0), stallCount: Number(row.stall_count || 0), replacementsUsed, replacementsRemaining:Math.max(0,2-replacementsUsed), locked:replacementsUsed>=2, capturedAt: row.captured_at };
     }
   }
   const loc = await env.DB.prepare("SELECT latitude,longitude,address,confirmations,updated_at FROM market_location_consensus WHERE market_key=?").bind(marketKey).first();
@@ -2280,7 +2280,7 @@ async function batchMarketVerifications(request, env) {
   for (const row of photos.results || []) {
     const key=String(row.market_key||''),st=states[key]; if(!st) continue;
     const replacementsUsed=Math.max(0,Number(row.replacement_count||0));
-    st.photo={url:`/api/market-photo?marketKey=${encodeURIComponent(key)}&v=${encodeURIComponent(row.updated_at)}`,distanceMeters:Math.round(Number(row.distance_meters)),qualityScore:Number(row.quality_score||0),stallCount:Number(row.stall_count||0),replacementsUsed,replacementsRemaining:Math.max(0,2-replacementsUsed),locked:replacementsUsed>=2,capturedAt:row.captured_at};
+    st.photo={url:`/api/market-photo?marketKey=${encodeURIComponent(key)}&v=${encodeURIComponent(row.updated_at)}&decode=2`,distanceMeters:Math.round(Number(row.distance_meters)),qualityScore:Number(row.quality_score||0),stallCount:Number(row.stall_count||0),replacementsUsed,replacementsRemaining:Math.max(0,2-replacementsUsed),locked:replacementsUsed>=2,capturedAt:row.captured_at};
   }
 
   const locations = await env.DB.prepare(`SELECT market_key,latitude,longitude,address,confirmations,updated_at FROM market_location_consensus WHERE market_key IN (${ph})`).bind(...keys).all();
@@ -2307,7 +2307,7 @@ async function batchMarketPhotos(request, env) {
   for(const row of rows.results||[]){
     const key=String(row.market_key||'');
     if(!key)continue;
-    photos[key]={url:`/api/market-photo?marketKey=${encodeURIComponent(key)}&v=${encodeURIComponent(row.updated_at)}`,updatedAt:row.updated_at};
+    photos[key]={url:`/api/market-photo?marketKey=${encodeURIComponent(key)}&v=${encodeURIComponent(row.updated_at)}&decode=2`,updatedAt:row.updated_at};
   }
   return json({ok:true,photos});
 }
@@ -2383,8 +2383,8 @@ async function marketPhoto(url, env) {
   await ensureMarketVerificationTables(env);
   const marketKey = cleanMarketKey(url.searchParams.get("marketKey"));
   const version=String(url.searchParams.get("v")||"").trim();
-  const cacheControl=version?"public, max-age=31536000, immutable":"public, max-age=300";
-  const etag=version?('"market-photo-'+version.replace(/[^A-Za-z0-9._-]/g,'')+'"'):"";
+  const cacheControl=version&&url.searchParams.get("decode")==="2"?"public, max-age=31536000, immutable":"no-store";
+  const etag=version?('"market-photo-decoded-2-'+version.replace(/[^A-Za-z0-9._-]/g,'')+'"'):"";
   const row = marketKey && await env.DB.prepare("SELECT object_key,mime_type FROM market_photo_metadata WHERE market_key=?").bind(marketKey).first();
   if (!row) return new Response("Photo indisponible", { status: 404, headers: cors });
   const photoHeaders={...cors,"content-type":row.mime_type||"image/jpeg","cache-control":cacheControl};
@@ -2398,6 +2398,7 @@ async function marketPhoto(url, env) {
   try {
     const binary = atob(String(blob.data_base64));
     const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     const headers={...photoHeaders,"content-type":blob.mime_type||row.mime_type||"image/jpeg"};
     return new Response(bytes, { headers });
   } catch (_) { return new Response("Photo indisponible", { status: 404, headers: cors }); }
