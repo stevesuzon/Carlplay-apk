@@ -40,7 +40,7 @@
   function id(country,r){return [country||'fr',r[0],r[2],r[3],r[4],r[8]||''].join('|');}
   function remember(country,row,kept){var k=id(country,row);if(k===id(country,kept))return;if(!archive[k]){archive[k]={id:k,country:country,row:row.slice(),kept:kept.slice(),reason:'Doublon détecté : même jour et même marché'};write(storageKey,archive);}}
   function policySame(a,b,country){return decisions[id(country,a)]!=='restored'&&decisions[id(country,b)]!=='restored'&&same(a,b);}
-  function sync(){if(!root.fetch)return Promise.resolve();return root.fetch('/api/market-duplicates/decisions',{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){if(!j.ok||!j.decisions)throw 0;decisions=j.decisions;write(decisionKey,decisions);}).catch(function(){});}
+  function sync(){if(!root.fetch)return Promise.resolve();return root.fetch('/api/market-duplicate-decisions',{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){if(!j.ok||!j.decisions)throw 0;decisions=j.decisions;write(decisionKey,decisions);}).catch(function(){});}
   function reviewedRows(input,country){
     var buckets=new Map(),out=[];
     (input||[]).forEach(function(r){if(decisions[id(country,r)]==='deleted')return;var key=[norm(r[0]),norm(r[1]),norm(r[3]),norm(r[4])].join('|'),bucket=buckets.get(key)||[],kept=bucket.find(function(x){return policySame(x,r,country);});

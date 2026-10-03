@@ -24,7 +24,7 @@
     if(action==='deleted'&&!confirm('Effacer cette fiche : '+selected.row[2]+' ('+selected.row[4]+') ? Le marché conservé restera affiché.'))return;
     var token=localStorage.getItem('carplay_admin_token')||localStorage.getItem('carplay_admin_secret')||'';
     busy=true;['restore','delete','pending','close'].forEach(function(id){el(id).disabled=true});el('actionStatus').textContent='Enregistrement…';
-    try{var r=await fetch('/api/market-duplicates/decisions',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({marketKey:selected.id,action:action})}),j=await r.json();if(!r.ok||!j.ok){if(r.status===401){el('actionStatus').innerHTML='Connecte-toi à ton compte administrateur pour enregistrer ce choix. <a href="/admin.html">Ouvrir Administration</a>';return;}throw Error(j.error||'Enregistrement impossible')}
+    try{var r=await fetch('/api/market-duplicate-decisions',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({marketKey:selected.id,action:action})}),j=await r.json();if(!r.ok||!j.ok){if(r.status===401){el('actionStatus').innerHTML='Connecte-toi à ton compte administrateur pour enregistrer ce choix. <a href="/admin.html">Ouvrir Administration</a>';return;}throw Error(j.error||'Enregistrement impossible')}
       api.remember(selected.country,selected.row,selected.kept);api.setDecision(selected.id,action);el('actionStatus').textContent='✅ '+label(action)+'. Le marché conservé reste disponible.';render();
     }catch(e){el('actionStatus').textContent='Impossible d’enregistrer. Vérifie Internet puis réessaie.'}finally{busy=false;['restore','delete','pending','close'].forEach(function(id){el(id).disabled=false})}
   }

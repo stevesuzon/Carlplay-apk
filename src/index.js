@@ -4977,6 +4977,7 @@ export default {
   async fetch(request, env) {
     try {
       const url = new URL(request.url);
+    if (url.pathname === "/api/market-duplicate-decisions" && (request.method === "GET" || request.method === "POST")) return marketDuplicateDecisions(request,env);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     if (url.pathname === "/api/health" && request.method === "GET") return apiHealth(env);
     if (url.pathname === "/api/activate" && request.method === "POST") return activate(request, env);
@@ -5043,7 +5044,7 @@ export default {
     if (url.pathname === "/api/market-attendance" && (request.method === "GET" || request.method === "POST")) return marketAttendance(request, url, env);
     if (url.pathname === "/api/market-attendance/batch" && request.method === "POST") return marketAttendanceBatch(request, env);
     if (url.pathname === "/api/admin/market-attendance" && request.method === "GET") return adminMarketAttendance(request, url, env);
-    if (url.pathname === "/api/market-duplicates/decisions" && ["GET","POST"].includes(request.method)) return marketDuplicateDecisions(request,env);
+
     if (url.pathname === "/api/market-presence/disabled" && request.method === "GET") return disabledMarketPresence(env);
     if (url.pathname === "/api/market-photo" && request.method === "GET") return marketPhoto(url, env);
     if (url.pathname === "/api/vigilance" && request.method === "GET") return vigilanceForPlace(url);
