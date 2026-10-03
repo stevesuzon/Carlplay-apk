@@ -57,3 +57,18 @@ jobs:
           test "$ok" = "1"
           test "$status_code" = "400"
           printf '%s' "$status_body" | grep -q 'DONNEES_INVALIDES'
+
+      - name: Vérifier les choix des marchés supprimés
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://carplay-telephone.appli-suzon.workers.dev"
+          code="$(curl -sS --max-time 20 -o /tmp/market-decisions.json -w '%{http_code}' "$BASE/api/market-duplicate-decisions")"
+          echo "DUPLICATE REVIEW HTTP=$code"
+          cat /tmp/market-decisions.json
+          test "$code" = "200"
+          python -c 'import json; j=json.load(open("/tmp/market-decisions.json")); assert j["ok"] is True and isinstance(j["decisions"],dict)'
+          code="$(curl -sS --max-time 20 -X POST -H 'content-type: application/json' --data '{}' -o /tmp/market-review-auth.json -w '%{http_code}' "$BASE/api/market-duplicate-decisions")"
+          echo "DUPLICATE REVIEW AUTH HTTP=$code"
+          cat /tmp/market-review-auth.json
+          test "$code" = "401"
