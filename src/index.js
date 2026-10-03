@@ -1156,7 +1156,8 @@ function normalizeMarket(input) {
 }
 
 async function listMarkets(request,env) {
-  const hit=await edgeCacheMatch(request,"markets-all-v503");
+  const allKey="markets-all-v512-"+await marketCacheVersion(env);
+  const hit=await edgeCacheMatch(request,allKey);
   if(hit)return hit;
   await ensureMarketTable(env);
   await ensureMarketVerificationTables(env);
@@ -1169,7 +1170,7 @@ async function listMarkets(request,env) {
   });
   const latest = (result.results || []).reduce((m,r) => String(r.updated_at || '') > m ? String(r.updated_at || '') : m, '');
   const response=cachedJson({ ok: true, markets, updatedAt: latest || null, serverTime: Date.now() },300);
-  await edgeCachePut(request,"markets-all-v503",response);
+  await edgeCachePut(request,allKey,response);
   return response;
 }
 
@@ -1178,7 +1179,7 @@ async function queryMarkets(request, env) {
   const country=String(data.country||'FR').trim().toUpperCase().slice(0,2);
   const area=String(data.area||'').trim().slice(0,40);
   const day=String(data.day||'').trim().toLowerCase().slice(0,24);
-  const qKey="markets-query-"+await sha256Text(country+"|"+area+"|"+day);
+  const qKey="markets-query-v512-"+await marketCacheVersion(env)+"-"+await sha256Text(country+"|"+area+"|"+day);
   const qHit=await edgeCacheMatch(request,qKey);if(qHit)return qHit;
   await ensureMarketTable(env);
   await ensureMarketVerificationTables(env);
@@ -1203,7 +1204,7 @@ async function marketCategory(request, env) {
   const country=String(data.country||'BE').trim().toUpperCase().slice(0,2);
   const kind=String(data.kind||'').trim().toLowerCase().slice(0,30);
   if(!kind)return json({ok:false,error:'CATEGORIE_REQUISE'},400);
-  const cKey="markets-category-"+await sha256Text(country+"|"+kind);
+  const cKey="markets-category-v512-"+await marketCacheVersion(env)+"-"+await sha256Text(country+"|"+kind);
   const cHit=await edgeCacheMatch(request,cKey);if(cHit)return cHit;
   await ensureMarketTable(env);
   await ensureMarketVerificationTables(env);
@@ -1392,8 +1393,9 @@ function deepValuesByKey(obj,re,out=[],depth=0){if(depth>8||obj==null)return out
 function firstScalar(v){if(v==null)return'';if(typeof v==='string'||typeof v==='number')return String(v);if(Array.isArray(v)){for(const x of v){const z=firstScalar(x);if(z)return z}}if(typeof v==='object'){for(const k of ['fr','nl','en','label','value','name']){if(v[k]!=null){const z=firstScalar(v[k]);if(z)return z}}for(const x of Object.values(v)){const z=firstScalar(x);if(z)return z}}return''}
 function datatourismeToMarket(o,area,queryKind){
   const label=firstScalar(o&&o.label)||firstScalar(deepValuesByKey(o,/^(name|title)$/i)[0]);if(!label)return null;const addrObj=deepValuesByKey(o,/^address$/i)[0]||{};const city=firstScalar(deepValuesByKey(addrObj,/hasAddressCity|city/i)[0]);const zip=firstScalar(deepValuesByKey(addrObj,/postal|zip/i)[0]);const street=firstScalar(deepValuesByKey(addrObj,/street|address1|addressLocality/i)[0]);const geo=deepValuesByKey(o,/^geo$/i)[0]||{};const lat=Number(firstScalar(deepValuesByKey(geo,/lat/i)[0])),lon=Number(firstScalar(deepValuesByKey(geo,/long|lng|lon/i)[0]));const all=JSON.stringify(o);const dates=[...all.matchAll(/20\d{2}-\d{2}-\d{2}/g)].map(m=>m[0]).sort();const future=dates.filter(d=>d>=marketTodayIso());const start=future[0]||dates[0]||'',end=future[future.length-1]||dates[dates.length-1]||start;if(!start)return null;const phone=marketPhoneFromText(all,'FR');const sourceUrl=String(o.uri||o.url||'');const kind=marketClassFromText(label+' '+all.slice(0,4000));if(queryKind==='brocante'&&kind!=='brocante')return null;if(queryKind==='noel'&&kind!=='noel')return null;return{country:'FR',area:String(area).toUpperCase(),kind:kind||queryKind,name:label,city,day:start,dateLabel:start===end?start:(start+' au '+end),start,end,hours:'',address:[street,zip,city].filter(Boolean).join(', '),phone,merchants:marketCapacityFromText(all),note:'Mise à jour automatique DATAtourisme',sourceUrl,latitude:Number.isFinite(lat)?lat:null,longitude:Number.isFinite(lon)?lon:null}}
-async function upsertAutoMarket(env,raw){
+async function upsertAutoMarket(env,raw,publishJdm=false){
   const m=normalizeMarket(raw);if(!m)return false;
+  if(!publishJdm && /^https?:\/\/(?:www\.)?jours-de-marche\.fr(?:\/|$)/i.test(m.sourceUrl))return stageJdmMarket(env,m);
   let newKey='';
   if(['marche','brocante','voyageur'].includes(m.kind)){
     await ensureMarketMilestones(env);
@@ -1568,7 +1570,7 @@ async function jdmFetch(url){
     return await r.text();
   }catch(_){return''}
 }
-async function refreshJdmArea(env,state){
+async function refreshJdmAreaUnlocked(env,state){
   const area=String(state.area||'').toUpperCase(),slug=JDM_FR_SLUGS[area];if(!slug)return{area,count:0,pages:0,pending:false,message:'département non pris en charge'};
   const deptUrl=`https://www.jours-de-marche.fr/${area}-${slug}/`,deptHtml=await jdmFetch(deptUrl);
   if(!deptHtml){
@@ -1578,12 +1580,12 @@ async function refreshJdmArea(env,state){
   }
   const cityUrls=jdmCityUrls(deptHtml),batchSize=12,start=Math.max(0,Number(state.city_cursor||0))%Math.max(1,cityUrls.length),selected=[];
   if(cityUrls.length){for(let i=0;i<Math.min(batchSize,cityUrls.length);i++)selected.push(cityUrls[(start+i)%cityUrls.length])}
-  let events=parseJdmMarketPage(deptHtml,area,deptUrl),pages=1;
-  for(const u of selected){const html=await jdmFetch(u);if(!html)continue;pages++;events.push(...parseJdmMarketPage(html,area,u));if(events.length>900)break}
-  const brocUrl=`https://www.jours-de-marche.fr/vide-greniers/${area}-${slug}/`,brocHtml=await jdmFetch(brocUrl);if(brocHtml){pages++;events.push(...parseJdmVideGreniers(brocHtml,area,brocUrl))}
-  // Les mêmes marchés présents sur plusieurs jours restent plusieurs entrées (une par jour),
-  // mais un doublon strict de même marché / ville / jour n'est enregistré qu'une fois par fingerprint D1.
-  let count=0;for(const e of events){if(await upsertAutoMarket(env,e))count++}
+  let count=0,pages=1;
+  async function collect(events){for(const e of events){if(await upsertAutoMarket(env,e))count++}}
+  await collect(parseJdmMarketPage(deptHtml,area,deptUrl));
+  await jdmDownloadProgress(env,area,pages,'Téléchargement Jours-de-Marché : département '+area+' · '+pages+' page(s)');
+  for(const u of selected){const html=await jdmFetch(u);if(!html)continue;pages++;await collect(parseJdmMarketPage(html,area,u));await jdmDownloadProgress(env,area,pages,'Téléchargement Jours-de-Marché : département '+area+' · '+pages+' page(s)');}
+  const brocUrl=`https://www.jours-de-marche.fr/vide-greniers/${area}-${slug}/`,brocHtml=await jdmFetch(brocUrl);if(brocHtml){pages++;await collect(parseJdmVideGreniers(brocHtml,area,brocUrl));await jdmDownloadProgress(env,area,pages,'Téléchargement Jours-de-Marché : département '+area+' · '+pages+' page(s)');}
   const consumed=cityUrls.length?Math.min(batchSize,cityUrls.length):0,nextCursor=cityUrls.length?(start+consumed)%cityUrls.length:0,wrapped=!cityUrls.length||start+consumed>=cityUrls.length;
   const next=Date.now()+(wrapped?30*86400000:2*3600000),msg=`Jours-de-Marché: ${count} fiches · ${pages} pages · villes ${cityUrls.length}`;
   await env.DB.prepare('UPDATE market_jdm_refresh_state SET city_cursor=?,city_count=?,next_check_at=?,last_check_at=?,last_found=?,last_pages=?,last_message=?,first_scan_done=CASE WHEN ?=1 THEN 1 ELSE first_scan_done END WHERE area=?').bind(nextCursor,cityUrls.length,next,Date.now(),count,pages,msg,wrapped?1:0,area).run();
@@ -1612,18 +1614,158 @@ async function publishMarketMilestones(env){
     await env.DB.prepare('INSERT OR IGNORE INTO market_milestone_events(milestone,breakdown_json,created_at) VALUES(?,?,?)').bind(milestone,JSON.stringify(rows.results||[]),Date.now()).run();
   }
 }
+async function ensureJdmStaging(env){
+  await ensureMarketTable(env);
+  await ensureMarketSchemaOnce(env.DB,'jdm-staging-v512',async()=>{
+    await env.DB.prepare('CREATE TABLE IF NOT EXISTS market_jdm_staging(fingerprint TEXT PRIMARY KEY,payload_json TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,updated_at INTEGER NOT NULL)').run();
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS market_jdm_staging_time ON market_jdm_staging(updated_at)').run();
+    await env.DB.prepare("CREATE TABLE IF NOT EXISTS market_jdm_download(id INTEGER PRIMARY KEY CHECK(id=1),running_until INTEGER NOT NULL DEFAULT 0,area TEXT NOT NULL DEFAULT '',pages INTEGER NOT NULL DEFAULT 0,updated_at INTEGER NOT NULL DEFAULT 0)").run();
+    await env.DB.prepare("INSERT OR IGNORE INTO market_jdm_download(id) VALUES(1)").run();
+  });
+}
+function jdmPayload(m){return {...m,start:m.startDate,end:m.endDate};}
+function jdmUnchanged(m,existing){
+  if(!existing)return false;
+  const pairs={hours:'hours',address:'address',merchants:'merchants',draw:'draw',registration:'registration',note:'note',phone:'phone',dateLabel:'date_label',startDate:'start_date',endDate:'end_date',sourceUrl:'source_url',latitude:'latitude',longitude:'longitude'};
+  return Object.entries(pairs).every(([field,column])=>m[field]==null||m[field]===''||String(m[field])===String(existing[column]??''));
+}
+async function stageJdmMarket(env,m){
+  await ensureJdmStaging(env);
+  const existing=await env.DB.prepare('SELECT * FROM imported_markets WHERE fingerprint=?').bind(m.fingerprint).first();
+  if(jdmUnchanged(m,existing))return false;
+  await env.DB.prepare('INSERT INTO market_jdm_staging(fingerprint,payload_json,revision,updated_at) VALUES(?,?,1,?) ON CONFLICT(fingerprint) DO UPDATE SET payload_json=excluded.payload_json,revision=market_jdm_staging.revision+1,updated_at=excluded.updated_at').bind(m.fingerprint,JSON.stringify(jdmPayload(m)),Date.now()).run();
+  return true;
+}
+async function jdmDownloadProgress(env,area,pages,message){
+  await env.DB.prepare('UPDATE market_jdm_download SET area=?,pages=?,updated_at=? WHERE id=1').bind(area,pages,Date.now()).run();
+  await env.DB.prepare('UPDATE market_jdm_refresh_state SET last_message=? WHERE area=?').bind(message,area).run();
+}
+async function refreshJdmArea(env,state){
+  await ensureJdmStaging(env);
+  const now=Date.now(),until=now+10*60000;
+  const lock=await env.DB.prepare('UPDATE market_jdm_download SET running_until=?,area=?,pages=0,updated_at=? WHERE id=1 AND running_until<=?').bind(until,state.area,now,now).run();
+  if(!Number(lock.meta&&lock.meta.changes))return {area:state.area,count:0,pages:0,pending:true,message:'Un téléchargement est déjà en cours'};
+  try{await jdmOfficialTotal(env,true);return await refreshJdmAreaUnlocked(env,state)}finally{await env.DB.prepare('UPDATE market_jdm_download SET running_until=0,updated_at=? WHERE id=1 AND running_until=?').bind(Date.now(),until).run();}
+}
+async function marketCacheVersion(env){await ensureJdmStaging(env);const r=await env.DB.prepare('SELECT updated_at FROM market_jdm_download WHERE id=1').first();return Number(r&&r.updated_at||0);}
+async function adminJdmStage(request,url,env,ctx){
+  if(!(await adminAuthorized(request,env)))return json({ok:false,error:'ACCES_REFUSE'},401);
+  await ensureJdmStaging(env);
+  if(request.method==='GET'){
+    const offset=Math.max(0,Number(url.searchParams.get('offset'))||0),result=await env.DB.prepare('SELECT fingerprint,payload_json,updated_at FROM market_jdm_staging ORDER BY updated_at DESC,fingerprint LIMIT 100 OFFSET ?').bind(offset).all();
+    return json({ok:true,entries:(result.results||[]).map(r=>({...JSON.parse(r.payload_json),downloadedAt:r.updated_at})),offset});
+  }
+  const data=await body(request),cutoff=Math.min(Date.now(),Number(data.cutoff)||Date.now());
+  const result=await env.DB.prepare('SELECT fingerprint,payload_json,revision FROM market_jdm_staging WHERE updated_at<=? ORDER BY updated_at,fingerprint LIMIT 40').bind(cutoff).all();
+  let imported=0;
+  for(const row of result.results||[]){
+    // Write first, then remove only the exact downloaded revision. Retry is idempotent.
+    if(await upsertAutoMarket(env,JSON.parse(row.payload_json),true)){
+      await env.DB.prepare('DELETE FROM market_jdm_staging WHERE fingerprint=? AND revision=?').bind(row.fingerprint,row.revision).run();imported++;
+    }
+  }
+  if(imported)await env.DB.prepare('UPDATE market_jdm_download SET updated_at=? WHERE id=1').bind(Date.now()).run();
+  const remaining=Number((await env.DB.prepare('SELECT COUNT(*) n FROM market_jdm_staging WHERE updated_at<=?').bind(cutoff).first()).n||0);
+  if(!remaining){
+    await seedJdmRefreshQueue(env);await startJdmProgressive(env);
+    // Resume from the existing cursor; never reset to the first department.
+    const next=runJdmIncremental(env,1);if(ctx&&ctx.waitUntil)ctx.waitUntil(next);else await next;
+  }
+  return json({ok:true,imported,remaining,cutoff,downloadingNext:remaining===0});
+}
+
+
+
+  'use strict';
+  function norm(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}
+  function core(r,index){
+    var city=norm(r[3]).split(' '),stop=['marche','marches','de','du','des','d','la','le','les','a','au','aux','en','sur','place','halle','halles','alimentaire','alimentaires','couvert','couverte','hebdomadaire'];
+    return norm(r[index]).split(' ').filter(function(w){return w&&!stop.includes(w)&&!city.includes(w)&&!/^\d{5}$/.test(w);}).map(function(w){return w.length>5&&w.endsWith('s')&&!w.endsWith('ss')?w.slice(0,-1):w;}).join(' ');
+  }
+  function address(r){return core(r,8);}
+  function point(r){
+    if(r[10]==null||r[11]==null||String(r[10]).trim()===''||String(r[11]).trim()==='')return null;
+    var lat=Number(r[10]),lon=Number(r[11]);return Number.isFinite(lat)&&Number.isFinite(lon)&&Math.abs(lat)<=90&&Math.abs(lon)<=180&&(lat||lon)?{lat:lat,lon:lon}:null;
+  }
+  function meters(a,b){var p=Math.PI/180,x=Math.sin((b.lat-a.lat)*p/2)**2+Math.cos(a.lat*p)*Math.cos(b.lat*p)*Math.sin((b.lon-a.lon)*p/2)**2;return 12742000*Math.asin(Math.sqrt(Math.min(1,x)));}
+  function hours(r){var m=norm(r[5]).match(/^(\d{1,2})\s*h\s*(\d{2})?\s*(\d{1,2})\s*h\s*(\d{2})?$/);return m?[Number(m[1])*60+Number(m[2]||0),Number(m[3])*60+Number(m[4]||0)]:null;}
+  function same(a,b){
+    if(!a||!b||norm(a[0])!==norm(b[0])||norm(a[1])!==norm(b[1])||!norm(a[3])||norm(a[3])!==norm(b[3])||!norm(a[4])||norm(a[4])!==norm(b[4]))return false;
+    var ha=hours(a),hb=hours(b);if(ha&&hb&&(ha[1]<=hb[0]||hb[1]<=ha[0]))return false;
+    var aa=address(a),ab=address(b),na=core(a,2),nb=core(b,2),pa=point(a),pb=point(b),d=pa&&pb?meters(pa,pb):null;
+    // City-only addresses and inherited city positions are never evidence of identity.
+    if(aa&&ab&&aa===ab)return d===null||d<=200;
+    // Different explicit addresses or widely separated points describe different sites.
+    if(aa&&ab&&aa!==ab)return false;
+    if(d!==null&&d>300)return false;
+    if(na&&nb&&na===nb)return true;
+    if(!na&&!nb)return true;
+    // A source URL identifying the same site can resolve completely different aliases.
+    var urls=Array.isArray(a[9])?a[9]:[],other=Array.isArray(b[9])?b[9]:[];
+    return urls.some(function(u){return /openstreetmap\.org\/(node|way|relation)\/\d+|\/marche\/[^/?]+|data\.datatourisme\.fr\/[^?]+/.test(u)&&other.includes(u);});
+  }
+  function rows(input){
+    var buckets=new Map(),out=[];
+    (input||[]).forEach(function(r){var key=[norm(r[0]),norm(r[1]),norm(r[3]),norm(r[4])].join('|'),bucket=buckets.get(key)||[];
+      if(!bucket.some(function(existing){return same(existing,r);})) {bucket.push(r);out.push(r);buckets.set(key,bucket);}
+    });return out;
+  }
+
+function countMarketSites(entries,decisions={}){
+ const countries=new Map();
+ for(const e of entries){const c=String(e.country||'fr').toLowerCase(),r=e.row,k=[c,r[0],r[2],r[3],r[4],r[8]||''].join('|');if(decisions[k]==='deleted')continue;
+ const groups=countries.get(c)||new Map(),bucketKey=[norm(r[0]),norm(r[1]),norm(r[3]),norm(r[4])].join('|'),bucket=groups.get(bucketKey)||[];
+ if(!bucket.some(x=>decisions[x.key]!=='restored'&&decisions[k]!=='restored'&&same(x.row,r)))bucket.push({row:r,key:k});
+ groups.set(bucketKey,bucket);countries.set(c,groups);}
+ const sites=new Set();for(const [c,groups] of countries)for(const bucket of groups.values())for(const e of bucket){const r=e.row;sites.add([c,norm(r[0]),norm(r[1]),norm(r[3]),norm(r[2]),norm(r[8])].join('|'));}
+ return sites.size;
+}
+function countEntry(m){return {country:String(m.country||'fr').toLowerCase(),row:[String(m.area||'').toLowerCase(),m.kind,m.name,m.city,m.day,m.hours,null,null,m.address,m.sourceUrl?[m.sourceUrl]:[],m.latitude,m.longitude]};}
+async function jdmOfficialTotal(env,refresh=false){
+ await ensureMarketSchemaOnce(env.DB,'jdm-source-total-v512',async()=>{
+ await env.DB.prepare('CREATE TABLE IF NOT EXISTS market_jdm_source_total(id INTEGER PRIMARY KEY,total INTEGER NOT NULL,checked_at INTEGER NOT NULL)').run();
+ await env.DB.prepare('INSERT OR IGNORE INTO market_jdm_source_total(id,total,checked_at) VALUES(1,10383,1791025200000)').run();});
+ let row=await env.DB.prepare('SELECT total,checked_at FROM market_jdm_source_total WHERE id=1').first();
+ if(refresh&&Date.now()-Number(row.checked_at)>86400000){
+ const html=await jdmFetch('https://www.jours-de-marche.fr/'),text=stripHtmlToText(html).replace(/&nbsp;|&#160;/g,' '),match=text.match(/([\d\s\u00a0]+)\s+marchés ajoutés au site/i),total=match?Number(match[1].replace(/\D/g,'')):0;
+ if(total>0){await env.DB.prepare('UPDATE market_jdm_source_total SET total=?,checked_at=? WHERE id=1').bind(total,Date.now()).run();row={total,checked_at:Date.now()};}
+ }
+ return {total:Number(row.total),verifiedAt:Number(row.checked_at),sourceUrl:'https://www.jours-de-marche.fr/'};
+}
+let marketCountCatalogue=null;
+async function applicationMarketCounts(env){
+ let catalog=marketCountCatalogue;
+ if(!catalog){const asset=await env.ASSETS.fetch(new Request('https://couteau-suisse.invalid/market-count-catalog-v512.json'));
+ if(!asset.ok)throw new Error('Catalogue de comptage indisponible');
+ catalog=await asset.json();marketCountCatalogue=catalog;}
+ const entries=[];for(const country of Object.keys(catalog))for(const row of catalog[country])entries.push({country,row});
+ const imported=await env.DB.prepare("SELECT country,area,kind,name,city,day,hours,address,source_url,latitude,longitude FROM imported_markets WHERE kind='marche'").all();
+ const ready=await env.DB.prepare("SELECT payload_json FROM market_jdm_staging WHERE json_extract(payload_json,'$.kind')='marche'").all();
+ let decisions={};try{const d=await env.DB.prepare('SELECT market_key,action FROM market_duplicate_decisions').all();for(const r of d.results||[])decisions[r.market_key]=r.action;}catch(_){}
+ const added=(imported.results||[]).map(m=>countEntry({...m,sourceUrl:m.source_url}));
+ const source=(imported.results||[]).filter(m=>/jours-de-marche\.fr/i.test(m.source_url||'')).map(m=>countEntry({...m,sourceUrl:m.source_url}));
+ const pending=(ready.results||[]).map(r=>countEntry(JSON.parse(r.payload_json)));
+ return {applicationTotal:countMarketSites(entries.concat(added),decisions),catalogueTotal:countMarketSites(entries,decisions),downloadedTotal:countMarketSites(source.concat(pending)),pendingMarkets:countMarketSites(pending),importedSourceTotal:countMarketSites(source)};
+}
+
 async function adminMarketSourceCounts(request,env){
   if(!(await adminAuthorized(request,env)))return json({ok:false,error:'ACCES_REFUSE'},401);
   if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
   await ensureMarketTable(env);
   await ensureJdmRefreshTable(env);
+  await ensureJdmStaging(env);
+  const counters=await applicationMarketCounts(env),official=await jdmOfficialTotal(env);
+  const staged=await env.DB.prepare('SELECT COUNT(*) n FROM market_jdm_staging').first();
+  const stagedAreas=await env.DB.prepare("SELECT json_extract(payload_json,'$.area') area,COUNT(*) n FROM market_jdm_staging GROUP BY json_extract(payload_json,'$.area') ORDER BY area").all();
+  const stagePreview=await env.DB.prepare('SELECT payload_json,updated_at FROM market_jdm_staging ORDER BY updated_at DESC LIMIT 10').all();
+  const downloading=await env.DB.prepare('SELECT * FROM market_jdm_download WHERE id=1').first();
   const jdmWhere="kind='marche' AND (lower(source_url) LIKE '%jours-de-marche.fr%' OR lower(note) LIKE '%jours-de-march%')";
   const markets=await env.DB.prepare("SELECT count(*) AS n FROM (SELECT 1 FROM imported_markets WHERE kind='marche' GROUP BY country,area,lower(trim(city)),lower(trim(name)))").first();
   const source=await env.DB.prepare("SELECT count(*) AS n FROM (SELECT 1 FROM imported_markets WHERE "+jdmWhere+" GROUP BY country,area,lower(trim(city)),lower(trim(name)))").first();
   const areas=await env.DB.prepare("SELECT area,count(*) AS n FROM (SELECT area,city,name FROM imported_markets WHERE "+jdmWhere+" GROUP BY area,lower(trim(city)),lower(trim(name))) GROUP BY area ORDER BY area").all();
   const recent=await env.DB.prepare("SELECT area,last_check_at,last_found,last_pages,last_message,next_check_at,first_scan_done FROM market_jdm_refresh_state WHERE last_check_at>0 ORDER BY last_check_at DESC LIMIT 8").all();
   const due=await env.DB.prepare("SELECT COUNT(*) AS n FROM market_jdm_refresh_state WHERE next_check_at<=?").bind(Date.now()).first();
-  await ensureJdmControl(env);const ctl=await env.DB.prepare('SELECT progressive_until,started_at FROM market_jdm_control WHERE id=1').first();return json({ok:true,totalMarkets:Number(markets.n||0),fromMarketWebsite:Number(source.n||0),departments:areas.results||[],dynamicLabel:'Marchés enregistrés par les mises à jour automatiques',joursDeMarche:{due:Number(due&&due.n||0),recent:recent.results||[],progressive:Number(ctl&&ctl.progressive_until||0)>Date.now(),progressiveUntil:Number(ctl&&ctl.progressive_until||0),startedAt:Number(ctl&&ctl.started_at||0)}});
+  await ensureJdmControl(env);const ctl=await env.DB.prepare('SELECT progressive_until,started_at FROM market_jdm_control WHERE id=1').first();return json({ok:true,...counters,official,staging:{count:Number(staged.n||0),departments:stagedAreas.results||[],latest:(stagePreview.results||[]).map(r=>({...JSON.parse(r.payload_json),downloadedAt:r.updated_at})),running:Number(downloading&&downloading.running_until||0)>Date.now(),area:downloading&&downloading.area||'',pages:Number(downloading&&downloading.pages||0)},totalMarkets:Number(markets.n||0),fromMarketWebsite:Number(source.n||0),departments:areas.results||[],dynamicLabel:'Marchés enregistrés par les mises à jour automatiques',joursDeMarche:{due:Number(due&&due.n||0),recent:recent.results||[],progressive:Number(ctl&&ctl.progressive_until||0)>Date.now(),progressiveUntil:Number(ctl&&ctl.progressive_until||0),startedAt:Number(ctl&&ctl.started_at||0)}});
 }
 
 async function adminRunJdmRefresh(request,env){
@@ -4974,7 +5116,7 @@ export default {
       })());
     }
   },
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     try {
       const url = new URL(request.url);
     if (url.pathname === "/api/market-duplicate-decisions" && (request.method === "GET" || request.method === "POST")) return marketDuplicateDecisions(request,env);
@@ -5032,6 +5174,7 @@ export default {
     if (url.pathname === "/api/markets/category" && request.method === "POST") return marketCategory(request, env);
     if (url.pathname === "/api/markets/refresh-status" && request.method === "GET") return marketRefreshStatus(env);
     if (url.pathname === "/api/markets/milestones" && request.method === "GET") return marketMilestoneFeed(url, env);
+    if (url.pathname === "/api/admin/markets/jdm-stage" && (request.method === "GET" || request.method === "POST")) return adminJdmStage(request,url,env,ctx);
     if (url.pathname === "/api/admin/market-source-counts" && request.method === "GET") return adminMarketSourceCounts(request,env);
     if (url.pathname === "/api/admin/markets/jdm-refresh" && request.method === "POST") return adminRunJdmRefresh(request,env);
     if (url.pathname === "/api/admin/markets/import" && request.method === "POST") return importMarkets(request, env);
