@@ -1748,6 +1748,17 @@ async function applicationMarketCounts(env){
  return {applicationTotal:countMarketSites(entries.concat(added),decisions),catalogueTotal:countMarketSites(entries,decisions),downloadedTotal:countMarketSites(source.concat(pending)),pendingMarkets:countMarketSites(pending),importedSourceTotal:countMarketSites(source)};
 }
 
+async function publicMarketCounts(env){
+  if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
+  await ensureMarketTable(env);
+  await ensureJdmStaging(env);
+  const counters=await applicationMarketCounts(env),official=await jdmOfficialTotal(env);
+  const total=Math.max(0,Number(official&&official.total||0));
+  const inApplication=Math.max(0,Number(counters&&counters.applicationTotal||0));
+  const progress=total?Math.min(100,100*inApplication/total):0;
+  return json({ok:true,total,inApplication,progress});
+}
+
 async function adminMarketSourceCounts(request,env){
   if(!(await adminAuthorized(request,env)))return json({ok:false,error:'ACCES_REFUSE'},401);
   if(!env.DB)return json({ok:false,error:'DB_INDISPONIBLE'},503);
@@ -5175,7 +5186,7 @@ export default {
     if (url.pathname === "/api/markets/refresh-status" && request.method === "GET") return marketRefreshStatus(env);
     if (url.pathname === "/api/markets/milestones" && request.method === "GET") return marketMilestoneFeed(url, env);
     if (url.pathname === "/api/admin/markets/jdm-stage" && (request.method === "GET" || request.method === "POST")) return adminJdmStage(request,url,env,ctx);
-    if (url.pathname === "/api/admin/market-source-counts" && request.method === "GET") return adminMarketSourceCounts(request,env);
+    if (url.pathname === "/api/market-counts" && request.method === "GET") return publicMarketCounts(env);\n    if (url.pathname === "/api/admin/market-source-counts" && request.method === "GET") return adminMarketSourceCounts(request,env);
     if (url.pathname === "/api/admin/markets/jdm-refresh" && request.method === "POST") return adminRunJdmRefresh(request,env);
     if (url.pathname === "/api/admin/markets/import" && request.method === "POST") return importMarkets(request, env);
     if (url.pathname === "/api/admin/market-verification-forms" && request.method === "GET") return adminMarketVerificationForms(request, env);
