@@ -80,7 +80,7 @@ jobs:
           BASE="https://carplay-telephone.appli-suzon.workers.dev"
           curl -fsSL --max-time 30 "$BASE/market-count-catalog-v512.json" -o /tmp/market-catalog.json
           python -c 'import json; j=json.load(open("/tmp/market-catalog.json")); assert len(j["fr"])>6000 and len(j["be"])>500'
-          curl -fsSL --max-time 30 "$BASE/market-source-admin-v512.js" -o /tmp/market-admin.js
+          curl -fsSL --max-time 30 "$BASE/market-source-admin-v513.js" -o /tmp/market-admin.js
           node --check /tmp/market-admin.js
           for method in GET POST; do
             code="$(curl -sS --max-time 20 -X "$method" -H 'content-type: application/json' --data '{}' -o /tmp/market-stage-auth.json -w '%{http_code}' "$BASE/api/admin/markets/jdm-stage")"
