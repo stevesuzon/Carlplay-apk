@@ -363,7 +363,7 @@ body.house-measure-open #weatherBubble,body.house-measure-open .gear,body.house-
 .roofPhotoWarning{margin:10px 0;padding:12px;border:2px solid #ff9d21;border-radius:12px;background:#2a1d0c;color:#fff;font-size:13px;line-height:1.4}
 .roofPhotoDetectBox .houseActionBtn{width:100%;min-height:50px;margin:8px 0}
 </style><style id="homeButtonsNeverOverlap">
-/* Correctif mobile : aucun chevauchement entre CONCOURS / MESURER et le bouton 150 km */
+/* Correctif mobile : aucun chevauchement entre CONCOURS / MESURER et le bouton 100 km */
 #homeDepartmentSearch{margin:12px 0 12px!important;clear:both!important;position:relative!important;z-index:1!important}
 .homeTopActions{margin-bottom:0!important;position:relative!important;z-index:2!important}
 @media(max-width:720px){
@@ -864,10 +864,10 @@ opacity:.9;
   <div class="gear" onclick="toggleSettings()">⚙</div>
 </div>
 </div>
-<section id="homeDepartmentSearch" aria-label="Marchés autour de 150 kilomètres">
-  <button id="nearby80Button" type="button" aria-label="Afficher les marchés autour de 150 kilomètres">
+<section id="homeDepartmentSearch" aria-label="Marchés autour de 100 kilomètres">
+  <button id="nearby80Button" type="button" aria-label="Afficher les marchés autour de 100 kilomètres">
     <span class="pencil" aria-hidden="true">✏️</span>
-    <span class="nearText">MARCHÉS À MOINS DE 150 KM</span>
+    <span class="nearText">MARCHÉS À MOINS DE 100 KM</span>
   </button>
 </section><div class="grid homeDesignGrid">
   <div class="card blue" onclick="location.href='choix-marches-v409.html'">
@@ -1381,7 +1381,7 @@ Si Android le demande, autorise l’installation d’applications provenant de c
     setProgress(20,'Vérification du concours…','Contrôle des points, bonus, trajets et notifications.');
     await check('/contest-v188.js?v=464-referral-celebration');
     setProgress(32,'Vérification des marchés…','Contrôle des marchés France/Belgique et événements.');
-    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?radius=150&v=493-photo-priority'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v486.js?v=487-stable'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=492-fast-photo'),check('/market-consensus.js?v=503-d1-cache'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
+    await Promise.allSettled([check('/choix-marches-v409.html'),check('/marches-final.html'),check('/belgique-marches-final.html'),check('/nearby-markets.html?radius=100&v=516-fast-photo'),check('/stations-carburant.html?v=388-voix'),check('/voice-assist-v486.js?v=487-stable'),check('/special-marches.html?v=388-voix'),check('/traveller-markets.html?v=388-voix'),check('/verification-v9.html?v=492-fast-photo'),check('/market-consensus.js?v=503-d1-cache'),check('/special-market-server-v157.js?v=320-verification-speciale')]);
     setProgress(60,'Vérification des notifications…','Contrôle des bulles, messages et demandes.');
     await Promise.allSettled([check('/notification-settings.js?v=282-onboarding-notification-detail'),check('/market-update-notifications-v281.js?v=282')]);
     setProgress(72,'Vérification du compte…','Contrôle de l’abonnement, de l’identité et des réglages.');
@@ -1606,7 +1606,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
   var btn=document.getElementById('nearby80Button');
   if(!btn)return;
   btn.addEventListener('click',function(){
-    location.href='nearby-markets.html?radius=150&v=515-current-gps';
+    location.href='nearby-markets.html?radius=100&v=516-fast-photo';
   });
 })();
 </script>
