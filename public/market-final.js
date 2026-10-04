@@ -125,29 +125,100 @@
   function areaKey() {
     return selected ? String(selected[0]) : "";
   }
-  var marketChunkCache = {}, marketChunkToken = 0;
+  var marketChunkCache = {}, marketChunkToken = 0, nearbyIndexCacheV514 = null;
   function marketChunkUrl() {
     return "/market-chunks/" + encodeURIComponent(country) + "/" +
-      encodeURIComponent(areaKey()) + "/" + encodeURIComponent(currentDay) + ".json?v=160";
+      encodeURIComponent(areaKey()) + "/" + encodeURIComponent(currentDay) + ".json?v=514-sync";
+  }
+  function marketMergeKeyV514(row) {
+    return [
+      String((row && row[0]) || "").toLowerCase(),
+      normSearch((row && row[2]) || ""),
+      normSearch((row && row[3]) || ""),
+      String((row && row[4]) || "").toLowerCase(),
+      normSearch((row && row[8]) || "")
+    ].join("|");
+  }
+  function mergeMarketRowsV514(target, rows) {
+    var out = target || [], seen = {}, i, row, key;
+    for (i = 0; i < out.length; i++) seen[marketMergeKeyV514(out[i])] = 1;
+    for (i = 0; i < (rows || []).length; i++) {
+      row = rows[i];
+      if (!row || String(row[0]) !== String(areaKey()) || String(row[4] || "").toLowerCase() !== currentDay) continue;
+      key = marketMergeKeyV514(row);
+      if (!seen[key]) { seen[key] = 1; out.push(row); }
+    }
+    return out;
+  }
+  function nearbyShardRowsV514() {
+    function findAndLoad(index) {
+      var areas = index && Array.isArray(index.areas) ? index.areas : [], hit = null, i;
+      for (i = 0; i < areas.length; i++) {
+        if (String(areas[i].country || "").toLowerCase() === String(country).toLowerCase() &&
+            String(areas[i].area || "").toLowerCase() === String(areaKey()).toLowerCase()) {
+          hit = areas[i]; break;
+        }
+      }
+      if (!hit || !hit.file) return Promise.resolve([]);
+      return fetch("/nearby-shards/" + encodeURIComponent(hit.file) + "?v=514-sync", { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) { return j && Array.isArray(j.weekly) ? j.weekly : []; })
+        .catch(function () { return []; });
+    }
+    if (nearbyIndexCacheV514) return findAndLoad(nearbyIndexCacheV514);
+    return fetch("/nearby-shards/index.json?v=514-sync", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { nearbyIndexCacheV514 = j || { areas: [] }; return findAndLoad(nearbyIndexCacheV514); })
+      .catch(function () { return []; });
+  }
+  function serverMarketRowsV514() {
+    var payload = { country: String(country || "fr").toUpperCase(), area: areaKey(), day: currentDay };
+    return fetch("/api/markets/query?sync_v514=" + Date.now(), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify(payload)
+    }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        var markets = j && Array.isArray(j.markets) ? j.markets : [], rows = [], i, m, kind;
+        for (i = 0; i < markets.length; i++) {
+          m = markets[i] || {};
+          kind = String(m.kind || "marche").toLowerCase();
+          if (kind !== "marche") continue;
+          rows.push([
+            m.area || areaKey(), m.kind || "marche", m.name || "Marché", m.city || "",
+            m.day || m.date_label || currentDay, m.hours || "", m.note || m.kind || "",
+            m.merchants || "", m.address || m.city || "", m.source_url ? [m.source_url] : [],
+            m.latitude == null ? null : Number(m.latitude), m.longitude == null ? null : Number(m.longitude),
+            m.draw || "", m.registration || "", "", m.phone || "", m.date_label || m.day || ""
+          ]);
+        }
+        return rows;
+      }).catch(function () { return []; });
   }
   function loadSelectedMarketChunk(done) {
     if (!window.CARPLAY_MARKET_LAZY) { done(); return; }
     var key = country + "|" + areaKey() + "|" + currentDay, token = ++marketChunkToken;
     if (marketChunkCache[key]) { window.data = marketChunkCache[key]; done(); return; }
     if (el("cards")) el("cards").innerHTML = '<article class="card empty">Chargement des marchés…</article>';
-    fetch(marketChunkUrl(), { cache: "no-cache" })
-      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
-      .then(function (rows) {
-        if (token !== marketChunkToken) return;
-        marketChunkCache[key] = Array.isArray(rows) ? rows : [];
-        window.data = marketChunkCache[key];
-        done();
-      })
-      .catch(function () {
-        if (token !== marketChunkToken) return;
-        window.data = [];
-        if (el("cards")) el("cards").innerHTML = '<article class="card empty">Impossible de charger les marchés. Vérifiez Internet puis réessayez.</article>';
-      });
+    Promise.all([
+      fetch(marketChunkUrl(), { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
+      nearbyShardRowsV514(),
+      serverMarketRowsV514()
+    ]).then(function (packs) {
+      if (token !== marketChunkToken) return;
+      var rows = Array.isArray(packs[0]) ? packs[0].slice() : [];
+      rows = mergeMarketRowsV514(rows, packs[1]);
+      rows = mergeMarketRowsV514(rows, packs[2]);
+      marketChunkCache[key] = rows;
+      window.data = rows;
+      done();
+    }).catch(function () {
+      if (token !== marketChunkToken) return;
+      window.data = [];
+      if (el("cards")) el("cards").innerHTML = '<article class="card empty">Impossible de charger les marchés. Vérifiez Internet puis réessayez.</article>';
+    });
   }
   function renderSelectedMarkets() {
     loadSelectedMarketChunk(function () { renderMarkets(); });
