@@ -5186,7 +5186,8 @@ export default {
     if (url.pathname === "/api/markets/refresh-status" && request.method === "GET") return marketRefreshStatus(env);
     if (url.pathname === "/api/markets/milestones" && request.method === "GET") return marketMilestoneFeed(url, env);
     if (url.pathname === "/api/admin/markets/jdm-stage" && (request.method === "GET" || request.method === "POST")) return adminJdmStage(request,url,env,ctx);
-    if (url.pathname === "/api/market-counts" && request.method === "GET") return publicMarketCounts(env);\n    if (url.pathname === "/api/admin/market-source-counts" && request.method === "GET") return adminMarketSourceCounts(request,env);
+    if (url.pathname === "/api/market-counts" && request.method === "GET") return publicMarketCounts(env);
+    if (url.pathname === "/api/admin/market-source-counts" && request.method === "GET") return adminMarketSourceCounts(request,env);
     if (url.pathname === "/api/admin/markets/jdm-refresh" && request.method === "POST") return adminRunJdmRefresh(request,env);
     if (url.pathname === "/api/admin/markets/import" && request.method === "POST") return importMarkets(request, env);
     if (url.pathname === "/api/admin/market-verification-forms" && request.method === "GET") return adminMarketVerificationForms(request, env);
