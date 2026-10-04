@@ -44,8 +44,13 @@ function goBack(){var back=queryParam('back');if(back){location.href=back;return
 function distanceMeters(a,b,c,d){var p=Math.PI/180,da=(c-a)*p,db=(d-b)*p,x=Math.sin(da/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(db/2)**2;return 12742000*Math.asin(Math.sqrt(x))}
 var qk=queryParam('k'),p=null,marketKey=queryParam('mk')||qk,photoFile=null,previewUrl='',validatedGps=null,officialLocation=null,currentState=null,gpsOverrideMode=false,photoProposalMode=false,unlockScope='',gpsUnlockId='',gpsUnlockToken='',gpsUnlockTimer=null,existenceEditMode=false,isAdmin=localStorage.getItem('carplay_admin_here')==='1',reviewMode=queryParam('adminReview')==='1',marketCountry=(queryParam('country')||((queryParam('back').toLowerCase().indexOf('belgique')>=0)?'be':'fr')).toLowerCase(),marketType=(queryParam('type')||'marche').toLowerCase();
 function rememberFastPhoto(photo){
-  if(!marketKey||!photo||!/^https?:\/\//i.test(String(photo.url||'')))return;
-  try{localStorage.setItem('marketPhotoFastV492:'+marketKey,JSON.stringify({url:String(photo.url),updatedAt:Date.now()}))}catch(e){}
+  var url=String(photo&&photo.url||'');
+  if(!marketKey||!url||!(/^https?:\/\//i.test(url)||/^\/api\/market-photo(?:\?|$)/i.test(url)))return;
+  try{
+    var value=JSON.stringify({url:url,updatedAt:Date.now()});
+    localStorage.setItem('marketPhotoFastV493:'+marketKey,value);
+    localStorage.setItem('marketPhotoFastV492:'+marketKey,value);
+  }catch(e){}
 }
 if(qk){var old={};try{old=JSON.parse(localStorage.getItem(qk)||'{}')}catch(e){}p={key:qk,name:queryParam('n')||'Marché',defaultTime:queryParam('t'),defaultCount:queryParam('c'),values:old}}else p=payload();
 if(!p||!marketKey){alert('Marché introuvable.');goBack();return}
