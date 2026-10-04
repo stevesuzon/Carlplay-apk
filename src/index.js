@@ -2460,10 +2460,34 @@ async function batchMarketPhotos(request, env) {
   if(!keys.length)return json({ok:true,photos});
   const ph=keys.map(()=>'?').join(',');
   const rows=await env.DB.prepare(`SELECT market_key,updated_at FROM market_photo_metadata WHERE market_key IN (${ph})`).bind(...keys).all();
+  const exact=new Set();
   for(const row of rows.results||[]){
     const key=String(row.market_key||'');
     if(!key)continue;
-    photos[key]={url:`/api/market-photo?marketKey=${encodeURIComponent(key)}&v=${encodeURIComponent(row.updated_at)}&decode=2`,updatedAt:row.updated_at};
+    exact.add(key);
+    photos[key]={url:`/api/market-photo?marketKey=${encodeURIComponent(key)}&v=${encodeURIComponent(row.updated_at)}&decode=2`,updatedAt:row.updated_at,sourceKey:key};
+  }
+
+  // V518 — Une même fiche peut venir du catalogue, du serveur ou de la page « autour de moi »
+  // avec une adresse légèrement différente. Pour les photos, on rapproche alors
+  // pays + département/province + nom + ville + jour, sans exiger la même adresse.
+  const missing=keys.filter(k=>!exact.has(k));
+  if(missing.length){
+    const all=(await env.DB.prepare("SELECT market_key,updated_at FROM market_photo_metadata ORDER BY updated_at DESC LIMIT 2000").all()).results||[];
+    const byBase=new Map();
+    const base=k=>String(k||'').split('|').slice(0,5).join('|').toLowerCase();
+    for(const row of all){
+      const actual=String(row.market_key||'');
+      if(!actual)continue;
+      const b=base(actual);
+      if(b&&!byBase.has(b))byBase.set(b,row);
+    }
+    for(const requested of missing){
+      const row=byBase.get(base(requested));
+      if(!row)continue;
+      const actual=String(row.market_key||'');
+      photos[requested]={url:`/api/market-photo?marketKey=${encodeURIComponent(actual)}&v=${encodeURIComponent(row.updated_at)}&decode=2`,updatedAt:row.updated_at,sourceKey:actual};
+    }
   }
   return json({ok:true,photos});
 }
