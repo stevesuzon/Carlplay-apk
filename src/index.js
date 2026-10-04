@@ -4676,13 +4676,16 @@ async function appIdentityHandoff(request,env){
 async function appIdentityStatus(request,env){
   if(!env.DB)return json({ok:false,verified:false,error:'DB_NON_CONFIGUREE'},503);
   await ensureAppIdentityTables(env);
-  const d=await body(request),email=normalizeEmail(d.email),deviceId=cleanIdentityText(d.deviceId,140),sourceApp=appIdentitySourceApp(d.sourceApp),state=await verifiedAppIdentityState(env,email,deviceId);
+  const d=await body(request),email=normalizeEmail(d.email),deviceId=cleanIdentityText(d.deviceId,140),sourceApp=appIdentitySourceApp(d.sourceApp);
   if(sourceApp==='champignons'){
-    if(!state.verified)return json({ok:true,verified:false});
-    const emailHash=await sha256Text(email);
-    const link=await env.DB.prepare("SELECT confirmed_at FROM app_identity_email_links WHERE device_id=? AND email_hash=? AND source_app='champignons' ORDER BY created_at DESC LIMIT 1").bind(deviceId,emailHash).first();
-    if(!link||Number(link.confirmed_at||0)<=0)return json({ok:true,verified:false,couteauMatched:true,identity:state.identity||null});
+    const firstName=cleanIdentityText(d.firstName,80),lastName=cleanIdentityText(d.lastName,80);
+    if(firstName.length<2||lastName.length<2||!validEmail(email))return json({ok:true,verified:false,error:'IDENTITE_INCOMPLETE'});
+    const known=await couteauIdentityForChampignons(env,email);
+    if(!known)return json({ok:true,verified:false,error:'COMPTE_COUTEAU_SUISSE_NON_RECONNU'});
+    if(!sameAppIdentityNames(firstName,lastName,known))return json({ok:true,verified:false,error:'IDENTITE_DIFFERENTE'});
+    return json({ok:true,verified:true,couteauMatched:true,identity:{firstName:known.firstName,lastName:known.lastName,email:known.email}});
   }
+  const state=await verifiedAppIdentityState(env,email,deviceId);
   return json({ok:true,...state});
 }
 async function appIdentity(request,env){
