@@ -73,19 +73,19 @@
 <div id="gpsSettingsOverlay" role="dialog" aria-modal="true" aria-labelledby="gpsSettingsTitle">
   <div id="gpsSettingsBox">
     <h2 id="gpsSettingsTitle">📍 LOCALISATION DÉSACTIVÉE</h2>
-    <p id="gpsSettingsText">Active la localisation pour afficher les marchés à moins de 150 km autour de ta position actuelle.</p>
+    <p id="gpsSettingsText">Active la localisation pour afficher les marchés à moins de 100 km autour de ta position actuelle.</p>
     <button id="gpsSettingsOpen" class="gpsSettingsMain" type="button">OUVRIR LES RÉGLAGES DE LOCALISATION</button>
     <button id="gpsSettingsRetry" class="gpsSettingsRetry" type="button">RÉESSAYER LE GPS</button>
     <small id="gpsSettingsHint"></small>
   </div>
 </div>
-<!-- V491 : données 150 km chargées par petits fichiers selon « Retourner sur la place ». -->
+<!-- V516 : données 100 km chargées autour de la position GPS actuelle. -->
 <script src="/market-dedup-v511.js?v=511"></script>
 <script>
 (() => {
   'use strict';
-  const requestedRadius=Number(new URLSearchParams(location.search).get('radius')||150);
-  const LIMIT_KM = requestedRadius===80?80:150;
+  const requestedRadius=Number(new URLSearchParams(location.search).get('radius')||100);
+  const LIMIT_KM = requestedRadius===80?80:100;
   const DAYS = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
   let viewDate = new Date();
   let showTomorrow = viewDate.getHours() >= 17;
@@ -144,8 +144,8 @@
   const esc = v => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const distanceKm = (a,b,c,d) => { const R=6371,p=Math.PI/180,da=(c-a)*p,db=(d-b)*p,x=Math.sin(da/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(db/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
 
-  // V515 — La page rayon utilise la position GPS ACTUELLE du téléphone.
-  // « Retourner sur la place » n'est plus utilisé comme origine pour le rayon de 150 km.
+  // V516 — La page rayon utilise la position GPS ACTUELLE du téléphone.
+  // « Retourner sur la place » n'est plus utilisé comme origine pour le rayon de 100 km.
   // Elle ne charge que les zones géographiques utiles autour de la position courante.
   window.NEAR_FR=[]; window.NEAR_BE=[]; window.SPECIAL_FR=[]; window.SPECIAL_BE=[];
   function nearestPointToBox(lat,lon,b){
@@ -246,10 +246,20 @@
       }catch(_){return null}
     }));
     for(const pack of mainChunks){if(!pack||!Array.isArray(pack.rows))continue;mergeRows(pack.a.country==='be'?window.NEAR_BE:window.NEAR_FR,pack.rows)}
-    await loadServerMarketsV430(lat,lon);
+    // V516 : afficher d'abord les fichiers locaux/proches + le cache serveur.
+    // Le gros rafraîchissement serveur continue ensuite en arrière-plan et ne bloque plus l'écran.
     addServerMarketsFromCache(lat,lon);
     mergeRows(window.NEAR_FR,window.MarketDedupV511.restoredRows('fr'));mergeRows(window.NEAR_BE,window.MarketDedupV511.restoredRows('be'));
     rebuildCityPointIndexV430();
+    loadServerMarketsV430(lat,lon).then(async()=>{
+      addServerMarketsFromCache(lat,lon);
+      mergeRows(window.NEAR_FR,window.MarketDedupV511.restoredRows('fr'));mergeRows(window.NEAR_BE,window.MarketDedupV511.restoredRows('be'));
+      rebuildCityPointIndexV430();
+      if(Number.isFinite(userLat)&&Number.isFinite(userLon)&&Math.abs(userLat-lat)<0.0005&&Math.abs(userLon-lon)<0.0005){
+        await loadDisabledKeys();
+        render(keepWithin80(rowsForToday(),lat,lon));
+      }
+    }).catch(()=>{});
   }
   const isToday = row => {
     const value=norm(row?.[4]);
