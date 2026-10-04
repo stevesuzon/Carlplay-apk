@@ -1606,9 +1606,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
   var btn=document.getElementById('nearby80Button');
   if(!btn)return;
   btn.addEventListener('click',function(){
-    var lat=localStorage.getItem('return_lat'),lon=localStorage.getItem('return_lon');
-    if(!lat||!lon){alert('Enregistre d’abord ta position avec « Retourner sur la place ».');return;}
-    location.href='nearby-markets.html?radius=150&v=493-photo-priority';
+    location.href='nearby-markets.html?radius=150&v=515-current-gps';
   });
 })();
 </script>
