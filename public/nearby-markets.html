@@ -84,19 +84,10 @@
   const cards = document.getElementById('cards');
   const photoModal = document.getElementById('photoModal');
   const photoLarge = document.getElementById('photoLarge');
-  const storedNumber = key => { const raw=localStorage.getItem(key); return raw===null||String(raw).trim()===''?NaN:Number(raw); };
-  const returnLat = storedNumber('return_lat');
-  const returnLon = storedNumber('return_lon');
-  let userLat=returnLat,userLon=returnLon;
-  try{
-    const recent=JSON.parse(localStorage.getItem('marketDistanceReferenceV1')||'null');
-    const age=Date.now()-Number(recent&&recent.updatedAt||0),lat=Number(recent&&recent.latitude),lon=Number(recent&&recent.longitude);
-    if(age>=0&&age<=15*60*1000&&Number.isFinite(lat)&&Number.isFinite(lon)){userLat=lat;userLon=lon;}
-  }catch(e){}
+  let userLat=NaN,userLon=NaN;
   let disabledKeys = new Set();
   let disabledSignature = '';
-  const usingRecentGps = Number.isFinite(userLat)&&Number.isFinite(userLon)&&(userLat!==returnLat||userLon!==returnLon);
-  const referenceLabel = usingRecentGps?'ta position GPS vérifiée':'« Retourner sur la place »';
+  let referenceLabel='ta position actuelle';
 
   const norm = v => String(v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
   const cleanCardText = v => String(v ?? '').replace(/\s+officiellement\b/gi,'').replace(/\s*[,;:-]?\s*GPS\s+[àa]\s+confirmer\s+sur\s+place\b/gi,'').replace(/\s{2,}/g,' ').trim();
@@ -130,8 +121,9 @@
   const esc = v => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const distanceKm = (a,b,c,d) => { const R=6371,p=Math.PI/180,da=(c-a)*p,db=(d-b)*p,x=Math.sin(da/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(db/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
 
-  // V335 — La page rayon utilise EXCLUSIVEMENT le point enregistré par « Retourner sur la place ».
-  // Elle ne charge plus les ~8 Mo de bases France/Belgique au démarrage : seulement les zones géographiques utiles.
+  // V515 — La page rayon utilise la position GPS ACTUELLE du téléphone.
+  // « Retourner sur la place » n'est plus utilisé comme origine pour le rayon de 150 km.
+  // Elle ne charge que les zones géographiques utiles autour de la position courante.
   window.NEAR_FR=[]; window.NEAR_BE=[]; window.SPECIAL_FR=[]; window.SPECIAL_BE=[];
   function nearestPointToBox(lat,lon,b){
     return {lat:Math.max(Number(b.minLat),Math.min(lat,Number(b.maxLat))),lon:Math.max(Number(b.minLon),Math.min(lon,Number(b.maxLon)))};
@@ -618,17 +610,22 @@
 
   async function start(){
     heading.textContent='📍 À MOINS DE '+LIMIT_KM+' KM — MARCHÉS PUIS ÉVÉNEMENTS';
-    status.textContent='Calcul depuis '+referenceLabel+' — marchés '+(showTomorrow?'de demain : ':'d’aujourd’hui : ')+selectedDay+' puis événements du mois…';
+    status.textContent='Recherche de ta position GPS actuelle…';
     try{
-      const lat=userLat, lon=userLon;
-      if(!Number.isFinite(lat)||!Number.isFinite(lon)){
-        status.textContent='Aucune position « Retourner sur la place » enregistrée. Enregistre d’abord ta place depuis l’accueil.';
+      const live=await currentPosition();
+      if(!live||!Number.isFinite(live.lat)||!Number.isFinite(live.lon)){
+        userLat=NaN;userLon=NaN;
+        status.textContent='Position actuelle introuvable. Active la localisation pour Couteau Suisse puis réessaie.';
+        cards.innerHTML='';
         return;
       }
-      await loadNearbyShards(lat,lon);
+      userLat=live.lat;userLon=live.lon;referenceLabel='ta position actuelle';
+      try{localStorage.setItem('marketDistanceReferenceV1',JSON.stringify({latitude:userLat,longitude:userLon,updatedAt:Date.now(),source:'current-gps'}))}catch(e){}
+      status.textContent='Calcul depuis '+referenceLabel+' — marchés '+(showTomorrow?'de demain : ':'d’aujourd’hui : ')+selectedDay+' puis événements du mois…';
+      await loadNearbyShards(userLat,userLon);
       await loadDisabledKeys();
       const todayRows=rowsForToday();
-      const nearby=keepWithin80(todayRows,lat,lon);
+      const nearby=keepWithin80(todayRows,userLat,userLon);
       render(nearby);
     }catch(e){status.textContent='Impossible de calculer les marchés. Réessaie.';}
   }
