@@ -4501,6 +4501,8 @@ async function ensureAppIdentityTables(env){
       confirmed_at INTEGER NOT NULL DEFAULT 0,handoff_hash TEXT NOT NULL DEFAULT '',handoff_expires_at INTEGER NOT NULL DEFAULT 0,
       handoff_consumed INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL
     )`).run();
+    try{await env.DB.prepare("ALTER TABLE app_identity_email_links ADD COLUMN source_app TEXT NOT NULL DEFAULT 'couteau-suisse'").run()}catch(_){}
+    try{await env.DB.prepare("ALTER TABLE app_identity_email_links ADD COLUMN return_url TEXT NOT NULL DEFAULT ''").run()}catch(_){}
     try{await env.DB.prepare("CREATE INDEX IF NOT EXISTS app_identity_links_device_idx ON app_identity_email_links(device_id,email_hash,created_at DESC)").run()}catch(_){}
     try{await env.DB.prepare("CREATE INDEX IF NOT EXISTS app_identity_links_handoff_idx ON app_identity_email_links(handoff_hash,handoff_expires_at)").run()}catch(_){}
     // V305 : les identités créées avant la V304 existaient déjà dans l'application.
@@ -4529,6 +4531,30 @@ async function ensureAppIdentityTables(env){
 async function appIdentityMagicHash(id,token,env){return sha256Text("app-identity-magic:"+id+":"+token+":"+(env.CODE_PEPPER||"couteau-suisse-identity"))}
 async function appIdentityHandoffHash(token,env){return sha256Text("app-identity-handoff:"+token+":"+(env.CODE_PEPPER||"couteau-suisse-identity"))}
 function appIdentityPlatform(v){v=cleanIdentityText(v||'pwa',32).toLowerCase();return /^(ios|android|pwa)$/.test(v)?v:'pwa'}
+function appIdentitySourceApp(v){v=cleanIdentityText(v||'couteau-suisse',40).toLowerCase();return v==='champignons'?'champignons':'couteau-suisse'}
+function appIdentityReturnUrl(sourceApp,raw){
+  if(sourceApp!=='champignons')return '';
+  const fallback='https://champignons.appli-suzon.workers.dev/';
+  try{
+    const u=new URL(String(raw||fallback));
+    if(u.origin!=='https://champignons.appli-suzon.workers.dev')return fallback;
+    u.search='';u.hash='';
+    return u.toString()
+  }catch(_){return fallback}
+}
+async function couteauIdentityForChampignons(env,email){
+  await ensureAppIdentityTables(env);email=normalizeEmail(email);
+  let row=await env.DB.prepare("SELECT email,first_name,last_name,email_verified_at FROM app_identities WHERE lower(email)=? AND COALESCE(email_verified_at,0)>0 LIMIT 1").bind(email).first();
+  if(row)return {email:String(row.email||email),firstName:String(row.first_name||''),lastName:String(row.last_name||'')};
+  try{
+    const sub=await env.DB.prepare("SELECT recovery_email_mask,account_first_name,account_last_name FROM subscriptions WHERE active=1 AND lower(COALESCE(recovery_email_mask,''))=? ORDER BY lifetime DESC,COALESCE(expires_at,'') DESC,id DESC LIMIT 1").bind(email).first();
+    if(sub&&cleanIdentityText(sub.account_first_name,80).length>=2&&cleanIdentityText(sub.account_last_name,80).length>=2)return {email:String(sub.recovery_email_mask||email),firstName:String(sub.account_first_name||''),lastName:String(sub.account_last_name||'')};
+  }catch(_){}
+  return null
+}
+function sameAppIdentityNames(firstName,lastName,known){
+  return !!known&&subscriptionIdentityKey(firstName)===subscriptionIdentityKey(known.firstName)&&subscriptionIdentityKey(lastName)===subscriptionIdentityKey(known.lastName)
+}
 async function saveVerifiedAppIdentity(env,data,verifiedAt){
   await ensureAppIdentityTables(env);await ensureInstallationsTable(env);
   const firstName=cleanIdentityText(data&&data.firstName,80),lastName=cleanIdentityText(data&&data.lastName,80),email=normalizeEmail(data&&data.email),deviceId=cleanIdentityText(data&&data.deviceId,140),platform=appIdentityPlatform(data&&data.platform),now=Date.now(),verified=Math.max(1,Number(verifiedAt||now));
@@ -4574,38 +4600,57 @@ async function verifiedAppIdentityState(env,email,deviceId){
   }
   return {verified:true,identity:{firstName:String(row.first_name||''),lastName:String(row.last_name||''),email:String(row.email||email)},deviceId,verifiedAt:Number(row.email_verified_at||0),subscription:sub?{ok:true,email:String(sub.recovery_email_mask||email),firstName:String(sub.account_first_name||row.first_name||''),lastName:String(sub.account_last_name||row.last_name||''),lifetime:!!sub.lifetime,expiresAt:sub.expires_at||null,trial,trialMode:trial?'seven_day':'',existingAccount:!trial}:null};
 }
-async function sendAppIdentityConfirmationEmail(env,email,confirmUrl,firstName){
+async function sendAppIdentityConfirmationEmail(env,email,confirmUrl,firstName,sourceApp='couteau-suisse'){
   const safeFirst=String(firstName||'').replace(/[<>&"']/g,'');
-  const subject='Confirmez votre adresse e-mail Couteau Suisse';
-  const text=`Bonjour${safeFirst?' '+safeFirst:''}, confirmez votre adresse e-mail pour terminer votre inscription Couteau Suisse : ${confirmUrl}. Ce lien est valable 24 heures.`;
-  const html=`<div style="margin:0;background:#07182d;padding:24px;font-family:Arial,sans-serif;color:#fff"><div style="max-width:620px;margin:auto;background:linear-gradient(180deg,#0d2f5a,#06172d);border:3px solid #3aa7ff;border-radius:24px;padding:28px;text-align:center"><div style="font-size:48px">✉️</div><h1 style="color:#7bc6ff;margin:8px 0">COUTEAU SUISSE</h1><p style="font-size:19px;line-height:1.5">Bonjour${safeFirst?' <b>'+safeFirst+'</b>':''},</p><p style="font-size:18px;line-height:1.5">Appuyez sur le bouton ci-dessous pour confirmer votre adresse e-mail et terminer votre inscription.</p><a href="${confirmUrl}" style="display:inline-block;margin:18px 0;padding:17px 28px;background:#1478d1;color:#fff;text-decoration:none;border-radius:14px;font-size:19px;font-weight:900">CONFIRMER MON ADRESSE E-MAIL</a><p style="font-size:13px;color:#b8c7d9;margin-top:18px">Lien personnel valable 24 heures. Après confirmation, vous serez redirigé automatiquement vers Couteau Suisse.</p></div></div>`;
+  const champignons=sourceApp==='champignons';
+  const subject=champignons?'Champignons — confirmez votre inscription':'Confirmez votre adresse e-mail Couteau Suisse';
+  const text=champignons
+    ? `Bonjour${safeFirst?' '+safeFirst:''}, votre nom, votre prénom et votre adresse e-mail correspondent bien à votre compte Couteau Suisse. Appuyez sur ce lien pour confirmer et débloquer Champignons : ${confirmUrl}. Ce lien est valable 24 heures.`
+    : `Bonjour${safeFirst?' '+safeFirst:''}, confirmez votre adresse e-mail pour terminer votre inscription Couteau Suisse : ${confirmUrl}. Ce lien est valable 24 heures.`;
+  const html=champignons
+    ? `<div style="margin:0;background:#102015;padding:24px;font-family:Arial,sans-serif;color:#fff"><div style="max-width:620px;margin:auto;background:linear-gradient(180deg,#214c2c,#102015);border:3px solid #6fcf79;border-radius:24px;padding:28px;text-align:center"><div style="font-size:48px">🍄</div><h1 style="color:#9be7a4;margin:8px 0">CHAMPIGNONS</h1><p style="font-size:19px;line-height:1.5">Bonjour${safeFirst?' <b>'+safeFirst+'</b>':''},</p><p style="font-size:18px;line-height:1.5">✅ Votre <b>nom, prénom et adresse e-mail</b> correspondent bien à votre compte <b>Couteau Suisse</b>.</p><p style="font-size:18px;line-height:1.5">Appuyez sur le bouton ci-dessous pour confirmer et débloquer Champignons.</p><a href="${confirmUrl}" style="display:inline-block;margin:18px 0;padding:17px 28px;background:#2f9e44;color:#fff;text-decoration:none;border-radius:14px;font-size:19px;font-weight:900">🍄 DÉBLOQUER CHAMPIGNONS</a><p style="font-size:13px;color:#cfe7d3;margin-top:18px">Lien personnel valable 24 heures. Après confirmation, vous serez redirigé vers Champignons.</p></div></div>`
+    : `<div style="margin:0;background:#07182d;padding:24px;font-family:Arial,sans-serif;color:#fff"><div style="max-width:620px;margin:auto;background:linear-gradient(180deg,#0d2f5a,#06172d);border:3px solid #3aa7ff;border-radius:24px;padding:28px;text-align:center"><div style="font-size:48px">✉️</div><h1 style="color:#7bc6ff;margin:8px 0">COUTEAU SUISSE</h1><p style="font-size:19px;line-height:1.5">Bonjour${safeFirst?' <b>'+safeFirst+'</b>':''},</p><p style="font-size:18px;line-height:1.5">Appuyez sur le bouton ci-dessous pour confirmer votre adresse e-mail et terminer votre inscription.</p><a href="${confirmUrl}" style="display:inline-block;margin:18px 0;padding:17px 28px;background:#1478d1;color:#fff;text-decoration:none;border-radius:14px;font-size:19px;font-weight:900">CONFIRMER MON ADRESSE E-MAIL</a><p style="font-size:13px;color:#b8c7d9;margin-top:18px">Lien personnel valable 24 heures. Après confirmation, vous serez redirigé automatiquement vers Couteau Suisse.</p></div></div>`;
   return brevoSendHtml(env,email,subject,text,html);
 }
 async function appIdentityStart(request,env){
   if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);
   await ensureAppIdentityTables(env);await ensureSubscriptionEmailColumns(env);
-  const d=await body(request),firstName=cleanIdentityText(d.firstName,80),lastName=cleanIdentityText(d.lastName,80),email=normalizeEmail(d.email),deviceId=cleanIdentityText(d.deviceId,140),platform=appIdentityPlatform(d.platform),now=Date.now(),day=parisDay();
+  const d=await body(request),firstName=cleanIdentityText(d.firstName,80),lastName=cleanIdentityText(d.lastName,80),email=normalizeEmail(d.email),deviceId=cleanIdentityText(d.deviceId,140),platform=appIdentityPlatform(d.platform),sourceApp=appIdentitySourceApp(d.sourceApp),returnUrl=appIdentityReturnUrl(sourceApp,d.redirectUrl||d.returnUrl||d.callbackUrl),now=Date.now(),day=parisDay();
   if(firstName.length<2||lastName.length<2||!validEmail(email)||!validDevice(deviceId))return json({ok:false,error:'IDENTITE_INCOMPLETE'},400);
-  const existing=await verifiedAppIdentityState(env,email,deviceId);if(existing.verified)return json({ok:true,alreadyVerified:true,...existing});
+  if(sourceApp==='champignons'){
+    const known=await couteauIdentityForChampignons(env,email);
+    if(!known)return json({ok:false,error:'COMPTE_COUTEAU_SUISSE_NON_RECONNU'},404);
+    if(!sameAppIdentityNames(firstName,lastName,known))return json({ok:false,error:'IDENTITE_DIFFERENTE'},409);
+  }
+  const existing=await verifiedAppIdentityState(env,email,deviceId);
+  if(existing.verified&&sourceApp!=='champignons')return json({ok:true,alreadyVerified:true,...existing});
   const usage=await env.DB.prepare("SELECT sent_count FROM brevo_daily_usage WHERE day=?").bind(day).first();if(Number(usage&&usage.sent_count||0)>=200)return json({ok:false,error:'QUOTA_EMAIL_JOURNALIER'},429);
   const emailHash=await sha256Text(email),recent=await env.DB.prepare("SELECT created_at FROM app_identity_email_links WHERE device_id=? AND email_hash=? ORDER BY created_at DESC LIMIT 1").bind(deviceId,emailHash).first();
   if(recent&&now-Number(recent.created_at||0)<60000)return json({ok:false,error:'EMAIL_TROP_RAPIDE',emailMask:emailMask(email)},429);
   const id=crypto.randomUUID(),token=referralToken(),tokenHash=await appIdentityMagicHash(id,token,env),expires=now+24*60*60*1000;
   await env.DB.prepare("DELETE FROM app_identity_email_links WHERE expires_at<? AND handoff_expires_at<?").bind(now-86400000,now-86400000).run();
-  await env.DB.prepare(`INSERT INTO app_identity_email_links(id,email,email_hash,first_name,last_name,device_id,platform,token_hash,expires_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)`).bind(id,email,emailHash,firstName,lastName,deviceId,platform,tokenHash,expires,now).run();
+  await env.DB.prepare(`INSERT INTO app_identity_email_links(id,email,email_hash,first_name,last_name,device_id,platform,token_hash,expires_at,created_at,source_app,return_url) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id,email,emailHash,firstName,lastName,deviceId,platform,tokenHash,expires,now,sourceApp,returnUrl).run();
   const confirmUrl=new URL(request.url).origin+'/api/app-identity/confirm?id='+encodeURIComponent(id)+'&token='+encodeURIComponent(token);
-  if(!(await sendAppIdentityConfirmationEmail(env,email,confirmUrl,firstName))){await env.DB.prepare("DELETE FROM app_identity_email_links WHERE id=?").bind(id).run();return json({ok:false,error:'EMAIL_ENVOI_INDISPONIBLE'},503)}
+  if(!(await sendAppIdentityConfirmationEmail(env,email,confirmUrl,firstName,sourceApp))){await env.DB.prepare("DELETE FROM app_identity_email_links WHERE id=?").bind(id).run();return json({ok:false,error:'EMAIL_ENVOI_INDISPONIBLE'},503)}
   await env.DB.prepare("INSERT INTO brevo_daily_usage(day,sent_count) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET sent_count=sent_count+1").bind(day).run();
-  return json({ok:true,emailMask:emailMask(email),expiresAt:expires,confirmationSent:true});
+  return json({ok:true,emailMask:emailMask(email),expiresAt:expires,confirmationSent:true,sourceApp});
 }
 async function appIdentityConfirm(request,env){
   if(!env.DB)return new Response('Service indisponible',{status:503});await ensureAppIdentityTables(env);
   const url=new URL(request.url),id=String(url.searchParams.get('id')||'').trim(),token=String(url.searchParams.get('token')||'').trim(),origin=url.origin;
-  const go=(state,handoff='')=>Response.redirect(origin+'/?installation=1&email_confirmed='+encodeURIComponent(state)+(handoff?'&email_handoff='+encodeURIComponent(handoff):''),302);
+  const go=(state,handoff='',row=null)=>{
+    if(row&&String(row.source_app||'').toLowerCase()==='champignons'){
+      const target=new URL(appIdentityReturnUrl('champignons',row.return_url));
+      target.searchParams.set('champignons_confirmed',state==='ok'?'1':state);
+      if(handoff)target.searchParams.set('email_handoff',handoff);
+      return Response.redirect(target.toString(),302)
+    }
+    return Response.redirect(origin+'/?installation=1&email_confirmed='+encodeURIComponent(state)+(handoff?'&email_handoff='+encodeURIComponent(handoff):''),302)
+  };
   if(!id||!token)return go('invalid');
   const row=await env.DB.prepare("SELECT * FROM app_identity_email_links WHERE id=? LIMIT 1").bind(id).first();if(!row)return go('invalid');
-  if(Number(row.expires_at||0)<Date.now())return go('expired');
-  if(await appIdentityMagicHash(id,token,env)!==String(row.token_hash||''))return go('invalid');
+  if(Number(row.expires_at||0)<Date.now())return go('expired','',row);
+  if(await appIdentityMagicHash(id,token,env)!==String(row.token_hash||''))return go('invalid','',row);
   const now=Date.now();
   try{
     if(Number(row.confirmed_at||0)<=0){
@@ -4615,8 +4660,8 @@ async function appIdentityConfirm(request,env){
     }
     const handoff=referralToken(),handoffHash=await appIdentityHandoffHash(handoff,env),handoffExpires=now+15*60*1000;
     await env.DB.prepare("UPDATE app_identity_email_links SET handoff_hash=?,handoff_expires_at=?,handoff_consumed=0 WHERE id=?").bind(handoffHash,handoffExpires,id).run();
-    return go('ok',handoff);
-  }catch(_){return go('invalid')}
+    return go('ok',handoff,row);
+  }catch(_){return go('invalid','',row)}
 }
 async function appIdentityHandoff(request,env){
   if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);await ensureAppIdentityTables(env);
@@ -4629,7 +4674,16 @@ async function appIdentityHandoff(request,env){
   return json({ok:true,...state});
 }
 async function appIdentityStatus(request,env){
-  if(!env.DB)return json({ok:false,verified:false,error:'DB_NON_CONFIGUREE'},503);const d=await body(request),state=await verifiedAppIdentityState(env,d.email,d.deviceId);return json({ok:true,...state});
+  if(!env.DB)return json({ok:false,verified:false,error:'DB_NON_CONFIGUREE'},503);
+  await ensureAppIdentityTables(env);
+  const d=await body(request),email=normalizeEmail(d.email),deviceId=cleanIdentityText(d.deviceId,140),sourceApp=appIdentitySourceApp(d.sourceApp),state=await verifiedAppIdentityState(env,email,deviceId);
+  if(sourceApp==='champignons'){
+    if(!state.verified)return json({ok:true,verified:false});
+    const emailHash=await sha256Text(email);
+    const link=await env.DB.prepare("SELECT confirmed_at FROM app_identity_email_links WHERE device_id=? AND email_hash=? AND source_app='champignons' ORDER BY created_at DESC LIMIT 1").bind(deviceId,emailHash).first();
+    if(!link||Number(link.confirmed_at||0)<=0)return json({ok:true,verified:false,couteauMatched:true,identity:state.identity||null});
+  }
+  return json({ok:true,...state});
 }
 async function appIdentity(request,env){
   if(!env.DB)return json({ok:false,error:'DB_NON_CONFIGUREE'},503);
