@@ -89,30 +89,44 @@ function showPendingGiftPopupV422(gift,participant){
   style();
   if(!gift||!gift.id)return;
   var points=Math.max(0,Math.round(Number(gift.points)||0));if(!points)return;
-  var existing=document.querySelector('.contestGiftV417[data-gift-id="'+String(gift.id).replace(/"/g,'')+'"]');if(existing)return;
+  var giftId=String(gift.id),sessionKey='contest_gift_dismissed_v517_'+giftId.replace(/[^a-zA-Z0-9_-]/g,'').slice(0,120);
+  try{if(sessionStorage.getItem(sessionKey)==='1')return}catch(_){}
+  var existing=document.querySelector('.contestGiftV417[data-gift-id="'+giftId.replace(/"/g,'')+'"]');if(existing)return;
   var old=document.querySelector('.contestGiftV417');if(old)old.remove();
   var first=String(participant&&participant.first_name||'').trim();
   var last=String(participant&&participant.last_name||'').trim();
   var who=(first+' '+last).trim()||'Bravo';
-  var d=document.createElement('div');d.className='contestGiftV417';d.dataset.giftId=String(gift.id);d.setAttribute('role','dialog');d.setAttribute('aria-label','Cadeau concours '+points+' points');
-  d.style.cssText='position:fixed;z-index:2147483647;inset:0;background:rgba(1,4,14,.96);display:flex;align-items:center;justify-content:center;padding:8px;overflow:hidden;font-family:Arial,sans-serif';
-  d.innerHTML='<div class="giftImageWrap" style="position:relative;width:min(94vw,620px);aspect-ratio:9/16;max-height:96vh;overflow:hidden;border-radius:28px;box-shadow:0 0 34px #ff34d9aa,0 0 70px #2f7bffaa;background:radial-gradient(circle at 50% 30%,#8f1ac8,#32127e 55%,#07152f 100%)"><img class="giftImage" src="/cadeau-concours-v417.svg?v=422" alt="Cadeau concours avec feux d’artifice et confettis" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block"><div class="giftDynamic" style="position:absolute;left:9%;right:9%;top:46.5%;height:31%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;text-shadow:0 3px 6px #000,0 0 16px #7d21ff;pointer-events:none"><div class="giftName" style="font-weight:1000;font-size:clamp(23px,6vw,39px);line-height:1.05;color:#ffd74b;text-shadow:0 4px 0 #8c2c00,0 0 18px #ff5bd5;margin-bottom:6px">'+esc(who)+', bravo !</div><div class="giftLine" style="font-weight:950;font-size:clamp(18px,4.5vw,29px);line-height:1.08;color:#fff;margin-bottom:6px">Vous avez reçu un cadeau de</div><div class="giftPointsDynamic" style="font-weight:1000;font-size:clamp(64px,18vw,112px);line-height:.9;letter-spacing:-4px;color:#ffd32d;text-shadow:0 6px 0 #9c3a00,0 0 14px #fff5a8,0 0 30px #ff2cd0">'+points+' pts</div><div class="giftSubDynamic" style="margin-top:10px;font-weight:1000;font-size:clamp(16px,4vw,24px);color:#fff3a8">✨ Cadeau en attente ✨</div></div><div class="giftClaimStatus" style="position:absolute;left:12%;right:12%;bottom:12%;z-index:6;text-align:center;color:#fff;font-weight:950;font-size:clamp(12px,3.2vw,17px);text-shadow:0 2px 5px #000;min-height:22px"></div><button type="button" class="giftClaimButton" style="position:absolute;left:13%;right:13%;bottom:4.2%;z-index:6;min-height:62px;border:3px solid #eaffb7;border-radius:20px;background:linear-gradient(180deg,#3df07a,#078b42);color:#fff;font:1000 clamp(17px,4.5vw,25px)/1 Arial,sans-serif;box-shadow:0 6px 0 #07552b,0 0 22px #3df07aaa;padding:12px 10px">🎁 RÉCUPÉRER MES '+points+' POINTS</button></div>';
+  var d=document.createElement('div');d.className='contestGiftV417';d.dataset.giftId=giftId;d.setAttribute('role','dialog');d.setAttribute('aria-label','Cadeau concours '+points+' points. Touchez pour fermer.');
+  d.style.cssText='position:fixed;z-index:2147483647;inset:0;background:rgba(1,4,14,.96);display:flex;align-items:center;justify-content:center;padding:8px;overflow:hidden;font-family:Arial,sans-serif;cursor:pointer;touch-action:manipulation';
+  d.innerHTML='<div class="giftImageWrap" style="position:relative;width:min(94vw,620px);aspect-ratio:9/16;max-height:96vh;overflow:hidden;border-radius:28px;box-shadow:0 0 34px #ff34d9aa,0 0 70px #2f7bffaa;background:radial-gradient(circle at 50% 30%,#8f1ac8,#32127e 55%,#07152f 100%)"><img class="giftImage" src="/cadeau-concours-v417.svg?v=517" alt="Cadeau concours avec feux d’artifice et confettis" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block"><div class="giftDynamic" style="position:absolute;left:9%;right:9%;top:46.5%;height:31%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;text-shadow:0 3px 6px #000,0 0 16px #7d21ff;pointer-events:none"><div class="giftName" style="font-weight:1000;font-size:clamp(23px,6vw,39px);line-height:1.05;color:#ffd74b;text-shadow:0 4px 0 #8c2c00,0 0 18px #ff5bd5;margin-bottom:6px">'+esc(who)+', bravo !</div><div class="giftLine" style="font-weight:950;font-size:clamp(18px,4.5vw,29px);line-height:1.08;color:#fff;margin-bottom:6px">Vous avez reçu un cadeau de</div><div class="giftPointsDynamic" style="font-weight:1000;font-size:clamp(64px,18vw,112px);line-height:.9;letter-spacing:-4px;color:#ffd32d;text-shadow:0 6px 0 #9c3a00,0 0 14px #fff5a8,0 0 30px #ff2cd0">'+points+' pts</div><div class="giftSubDynamic" style="margin-top:10px;font-weight:1000;font-size:clamp(16px,4vw,24px);color:#fff3a8">✨ Cadeau concours ✨</div></div><div class="giftClaimStatus" style="position:absolute;left:10%;right:10%;bottom:9.5%;z-index:6;text-align:center;color:#fff;font-weight:950;font-size:clamp(12px,3.2vw,17px);text-shadow:0 2px 5px #000;min-height:22px">Ajout automatique des points…</div><div class="giftTapHint" style="position:absolute;left:10%;right:10%;bottom:3.5%;z-index:6;text-align:center;color:#fff;font-weight:1000;font-size:clamp(13px,3.4vw,19px);text-shadow:0 2px 5px #000;pointer-events:none">👆 APPUYEZ SUR L’IMAGE POUR FERMER</div></div>';
   for(var i=0;i<72;i++){var x=document.createElement('i');x.className='giftSpark';x.style.left=(Math.random()*100)+'%';x.style.animationDuration=(2.2+Math.random()*4.5)+'s';x.style.animationDelay=(-Math.random()*2.5)+'s';x.style.background=['#ffd328','#ff2cc3','#8b5cff','#31d7ff','#fff','#ff6b35'][i%6];x.style.color=x.style.background;d.appendChild(x)}
-  var btn=d.querySelector('.giftClaimButton'),status=d.querySelector('.giftClaimStatus');
-  btn.onclick=async function(ev){
-    ev.preventDefault();ev.stopPropagation();btn.disabled=true;btn.textContent='RÉCUPÉRATION EN COURS…';status.textContent='Ajout de vos points au classement…';
-    try{
-      var r=await api('/api/contest/gift/claim',{method:'POST',body:{giftId:String(gift.id)}});
-      status.textContent='✅ '+points+' points ajoutés !';
-      btn.textContent='✅ POINTS RÉCUPÉRÉS';
-      try{var fresh=await loadState(true);state=fresh;saveCachedState(fresh);applyFastScore({participant:fresh.participant,ranking:fresh.ranking})}catch(_){}
-      setTimeout(function(){if(d&&d.parentNode)d.remove()},900);
-    }catch(e){
-      btn.disabled=false;btn.textContent='🎁 RÉCUPÉRER MES '+points+' POINTS';
-      status.textContent='⚠️ Impossible de récupérer les points. Réessayez.';
-    }
-  };
+  var status=d.querySelector('.giftClaimStatus'),closed=false;
+  function dismiss(){
+    if(closed)return;closed=true;
+    try{sessionStorage.setItem(sessionKey,'1')}catch(_){}
+    if(d&&d.parentNode)d.remove();
+  }
+  d.addEventListener('click',function(ev){ev.preventDefault();dismiss()});
+  d.addEventListener('touchend',function(ev){try{ev.preventDefault()}catch(_){}dismiss()},{passive:false});
   document.body.appendChild(d);
+  setTimeout(dismiss,10000);
+
+  (async function claimAutomatically(){
+    var attempts=0,lastError=null;
+    while(attempts<3){
+      attempts++;
+      try{
+        var r=await api('/api/contest/gift/claim',{method:'POST',body:{giftId:giftId}});
+        if(status&&status.isConnected)status.textContent='✅ '+points+' points ajoutés automatiquement !';
+        try{var fresh=await loadState(true);state=fresh;saveCachedState(fresh);applyFastScore({participant:fresh.participant,ranking:fresh.ranking})}catch(_){}
+        return;
+      }catch(e){
+        lastError=e;
+        if(attempts<3)await new Promise(function(resolve){setTimeout(resolve,900*attempts)});
+      }
+    }
+    if(status&&status.isConnected)status.textContent='Tes points restent en attente et seront ajoutés automatiquement au prochain essai.';
+  })();
 }
 async function checkPendingGiftV422(){
   try{
