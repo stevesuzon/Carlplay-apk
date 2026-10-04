@@ -44,6 +44,15 @@
 #status .marketPeriodCount{display:block;margin-bottom:8px;font:1000 clamp(25px,6.8vw,38px)/1.08 Arial,sans-serif;color:#fff;text-transform:uppercase;letter-spacing:.2px}
 #status .marketPeriodExtra{display:block;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.18);font:1000 clamp(25px,6.8vw,38px)/1.08 Arial,sans-serif;color:#fff;text-transform:uppercase;letter-spacing:.2px}
 #status:active{transform:scale(.995)}
+#gpsSettingsOverlay{position:fixed;inset:0;z-index:2147483646;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.88)}
+#gpsSettingsOverlay.open{display:flex}
+#gpsSettingsBox{width:min(520px,94vw);padding:22px;border:3px solid #62d8ff;border-radius:24px;background:#07111d;color:#fff;text-align:center;box-shadow:0 18px 50px #000c}
+#gpsSettingsBox h2{margin:0 0 10px;color:#ffd84a;font-size:27px}
+#gpsSettingsBox p{margin:8px 0 14px;font-weight:850;line-height:1.35}
+#gpsSettingsBox .gpsSettingsMain,#gpsSettingsBox .gpsSettingsRetry{width:100%;min-height:58px;border:0;border-radius:15px;color:#fff;font:950 17px Arial;cursor:pointer}
+#gpsSettingsBox .gpsSettingsMain{background:#138be8;margin-top:5px}
+#gpsSettingsBox .gpsSettingsRetry{background:#168a4e;margin-top:10px}
+#gpsSettingsBox small{display:block;margin-top:12px;color:#c9d8e8;line-height:1.35}
 </style>
 <script defer src="/accessibility-zoom-v466.js?v=470-direct-load"></script>
 <link rel="stylesheet" href="/subscription-locks.css?v=471-restore">
@@ -60,6 +69,15 @@
 </main>
 <div id="photoModal" class="photo-modal" role="dialog" aria-modal="true" aria-label="Photo agrandie du marché">
   <div class="photo-box"><button id="photoClose" class="photo-close" type="button" aria-label="Fermer">×</button><img id="photoLarge" alt=""></div>
+</div>
+<div id="gpsSettingsOverlay" role="dialog" aria-modal="true" aria-labelledby="gpsSettingsTitle">
+  <div id="gpsSettingsBox">
+    <h2 id="gpsSettingsTitle">📍 LOCALISATION DÉSACTIVÉE</h2>
+    <p id="gpsSettingsText">Active la localisation pour afficher les marchés à moins de 150 km autour de ta position actuelle.</p>
+    <button id="gpsSettingsOpen" class="gpsSettingsMain" type="button">OUVRIR LES RÉGLAGES DE LOCALISATION</button>
+    <button id="gpsSettingsRetry" class="gpsSettingsRetry" type="button">RÉESSAYER LE GPS</button>
+    <small id="gpsSettingsHint"></small>
+  </div>
 </div>
 <!-- V491 : données 150 km chargées par petits fichiers selon « Retourner sur la place ». -->
 <script src="/market-dedup-v511.js?v=511"></script>
@@ -84,6 +102,11 @@
   const cards = document.getElementById('cards');
   const photoModal = document.getElementById('photoModal');
   const photoLarge = document.getElementById('photoLarge');
+  const gpsSettingsOverlay = document.getElementById('gpsSettingsOverlay');
+  const gpsSettingsOpen = document.getElementById('gpsSettingsOpen');
+  const gpsSettingsRetry = document.getElementById('gpsSettingsRetry');
+  const gpsSettingsText = document.getElementById('gpsSettingsText');
+  const gpsSettingsHint = document.getElementById('gpsSettingsHint');
   let userLat=NaN,userLon=NaN;
   let disabledKeys = new Set();
   let disabledSignature = '';
@@ -461,14 +484,49 @@
 
   function currentPosition(){
     return new Promise(resolve=>{
-      if(!navigator.geolocation){resolve(null);return;}
+      if(!navigator.geolocation){resolve({ok:false,code:0,message:'GPS indisponible'});return;}
       navigator.geolocation.getCurrentPosition(
-        p=>resolve({lat:Number(p.coords.latitude),lon:Number(p.coords.longitude)}),
-        ()=>resolve(null),
-        {enableHighAccuracy:true,maximumAge:30000,timeout:8000}
+        p=>resolve({ok:true,lat:Number(p.coords.latitude),lon:Number(p.coords.longitude)}),
+        err=>resolve({ok:false,code:Number(err&&err.code||0),message:String(err&&err.message||'')}),
+        {enableHighAccuracy:true,maximumAge:15000,timeout:10000}
       );
     });
   }
+
+  function platformLocationHelp(){
+    const ua=navigator.userAgent||'',ios=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),android=/Android/i.test(ua);
+    if(ios)return{
+      platform:'ios',
+      hint:'iPhone : dans Réglages, autorise la localisation pour Couteau Suisse / Safari et active « Localisation précise » si elle est proposée.',
+      url:'app-settings:'
+    };
+    if(android)return{
+      platform:'android',
+      hint:'Android : active Localisation, puis autorise la position pour le navigateur ou l’application Couteau Suisse.',
+      url:'intent:#Intent;action=android.settings.LOCATION_SOURCE_SETTINGS;end'
+    };
+    return{
+      platform:'other',
+      hint:'Active la localisation dans les réglages de ton appareil, puis reviens ici et appuie sur « Réessayer le GPS ».',
+      url:''
+    };
+  }
+  function showLocationSettingsHelp(reason){
+    const info=platformLocationHelp();
+    gpsSettingsText.textContent=reason==='denied'
+      ? 'La localisation est refusée. Il faut la réactiver pour calculer les marchés à moins de 150 km autour de ta position actuelle.'
+      : 'Impossible d’obtenir ta position actuelle. Vérifie que la localisation est activée.';
+    gpsSettingsHint.textContent=info.hint;
+    gpsSettingsOpen.style.display=info.url?'block':'none';
+    gpsSettingsOpen.dataset.settingsUrl=info.url||'';
+    gpsSettingsOverlay.classList.add('open');
+  }
+  function hideLocationSettingsHelp(){gpsSettingsOverlay.classList.remove('open');}
+  gpsSettingsOpen.addEventListener('click',()=>{
+    const url=gpsSettingsOpen.dataset.settingsUrl||'';
+    if(url)window.location.href=url;
+  });
+  gpsSettingsRetry.addEventListener('click',()=>{hideLocationSettingsHelp();start();});
 
   function statusCopy(count){
     const period=showTomorrow?'demain':'aujourd’hui';
@@ -613,12 +671,14 @@
     status.textContent='Recherche de ta position GPS actuelle…';
     try{
       const live=await currentPosition();
-      if(!live||!Number.isFinite(live.lat)||!Number.isFinite(live.lon)){
+      if(!live||live.ok!==true||!Number.isFinite(live.lat)||!Number.isFinite(live.lon)){
         userLat=NaN;userLon=NaN;
-        status.textContent='Position actuelle introuvable. Active la localisation pour Couteau Suisse puis réessaie.';
+        status.textContent='Localisation désactivée ou refusée — ouvre les réglages pour la réactiver.';
         cards.innerHTML='';
+        showLocationSettingsHelp(live&&live.code===1?'denied':'unavailable');
         return;
       }
+      hideLocationSettingsHelp();
       userLat=live.lat;userLon=live.lon;referenceLabel='ta position actuelle';
       try{localStorage.setItem('marketDistanceReferenceV1',JSON.stringify({latitude:userLat,longitude:userLon,updatedAt:Date.now(),source:'current-gps'}))}catch(e){}
       status.textContent='Calcul depuis '+referenceLabel+' — marchés '+(showTomorrow?'de demain : ':'d’aujourd’hui : ')+selectedDay+' puis événements du mois…';
@@ -630,6 +690,10 @@
     }catch(e){status.textContent='Impossible de calculer les marchés. Réessaie.';}
   }
   start();
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden&&gpsSettingsOverlay.classList.contains('open'))setTimeout(()=>{hideLocationSettingsHelp();start();},300);
+  });
+  window.addEventListener('pageshow',()=>{if(gpsSettingsOverlay.classList.contains('open'))setTimeout(()=>{hideLocationSettingsHelp();start();},300);});
   setInterval(async()=>{
     const changed=await loadDisabledKeys();
     if(changed){start();return;}
