@@ -573,9 +573,10 @@
       const marketKey=identity(item.country,r);
       const destination=navigationDestination(r,marketKey);
       const link=navigationUrl(destination);
-      const details=item.special?('special-marches.html?country='+item.country+'&type='+item.special):((item.country==='be'?'belgique-marches-final.html':'marches-final.html')+'?area='+encodeURIComponent(r[0])+'&day='+encodeURIComponent(selectedDay)+'&q='+encodeURIComponent(r[3]||r[2]||''));
       const verifyKey=verificationKey(item.country,r);
-      const verifyUrl='verification-v9.html?k='+encodeURIComponent(verifyKey)+'&n='+encodeURIComponent(name)+'&t='+encodeURIComponent(r[5]||'')+'&c='+encodeURIComponent(r[7]||'')+'&mk='+encodeURIComponent(marketKey)+'&country='+encodeURIComponent(item.country)+'&lat='+encodeURIComponent(r[10]??'')+'&lon='+encodeURIComponent(r[11]??'')+'&back='+encodeURIComponent('nearby-markets.html')+'&photo=1';
+      const nearbyBack='nearby-markets.html?radius=100&v=519-return-100km';
+      const verifyUrl='verification-v9.html?k='+encodeURIComponent(verifyKey)+'&n='+encodeURIComponent(name)+'&t='+encodeURIComponent(r[5]||'')+'&c='+encodeURIComponent(r[7]||'')+'&mk='+encodeURIComponent(marketKey)+'&country='+encodeURIComponent(item.country)+'&lat='+encodeURIComponent(r[10]??'')+'&lon='+encodeURIComponent(r[11]??'')+'&back='+encodeURIComponent(nearbyBack)+'&photo=1'+(item.special?'&type='+encodeURIComponent(item.special):'');
+      const details=item.special?('special-marches.html?country='+item.country+'&type='+item.special+'&back='+encodeURIComponent(nearbyBack)):verifyUrl;
       const photo=r[14]&&/^https?:/i.test(String(r[14]))?'<button type="button" class="market-photo" data-src="'+esc(r[14])+'" data-caption="'+esc(r[15]||('Photo du '+name))+'"><img loading="eager" decoding="async" fetchpriority="high" src="'+esc(r[14])+'" alt="'+esc(r[15]||('Photo du '+name))+'"></button>':'<a class="market-photo-add" href="'+verifyUrl+'">📷 AJOUTER UNE PHOTO<br>GPS sur place + photo obligatoire</a>';
       const fav=isFavorite(item.country,r);
       const complete=s.time&&s.count&&s.draw, dotGreen=!!complete||builtInVerified(r);
@@ -602,9 +603,19 @@
     wireFavorites();
     wirePhotos();
     loadShared(list);
+    restoreNearbyScroll();
   }
 
-  function wireFavorites(){cards.querySelectorAll('.marketFavoriteStar').forEach(btn=>{if(btn.dataset.wired)return;btn.dataset.wired='1';btn.addEventListener('click',()=>{let on=false;try{on=localStorage.getItem(btn.dataset.favoriteKey)==='1';if(on)localStorage.removeItem(btn.dataset.favoriteKey);else localStorage.setItem(btn.dataset.favoriteKey,'1');on=!on}catch(e){}btn.classList.toggle('active',on);btn.textContent=on?'★':'☆';btn.setAttribute('aria-label',on?'Retirer des favoris':'Ajouter aux favoris');btn.setAttribute('title',on?'Retirer des favoris':'Ajouter aux favoris');});});}
+  function rememberNearbyScroll(){
+    try{sessionStorage.setItem('nearby100ScrollV519',String(Math.max(0,window.scrollY||0)))}catch(e){}
+  }
+  function restoreNearbyScroll(){
+    try{
+      const y=Number(sessionStorage.getItem('nearby100ScrollV519')||0);
+      if(y>0)setTimeout(()=>window.scrollTo(0,y),80);
+    }catch(e){}
+  }
+  function wireFavorites(){cards.querySelectorAll('.marketFavoriteStar').forEach(btn=>{if(btn.dataset.wired)return;btn.dataset.wired='1';btn.addEventListener('click',()=>{let on=false;try{on=localStorage.getItem(btn.dataset.favoriteKey)==='1';if(on)localStorage.removeItem(btn.dataset.favoriteKey);else localStorage.setItem(btn.dataset.favoriteKey,'1');on=!on}catch(e){}btn.classList.toggle('active',on);btn.textContent=on?'★':'☆';btn.setAttribute('aria-label',on?'Retirer des favoris':'Ajouter aux favoris');btn.setAttribute('title',on?'Retirer des favoris':'Ajouter aux favoris');});});cards.querySelectorAll('a.details').forEach(a=>{if(a.dataset.backWired)return;a.dataset.backWired='1';a.addEventListener('click',rememberNearbyScroll);});}
   function wirePhotos(){
     cards.querySelectorAll('.market-photo').forEach(button=>{
       const img=button.querySelector('img');
