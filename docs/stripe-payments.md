@@ -5,7 +5,7 @@ Paiement unique via Stripe Checkout, sans abonnement ni renouvellement automatiq
 ## Activation sur le Worker carplay-telephone
 
 1. Terminer l’activation du compte Stripe et utiliser le mode réel.
-2. Cloudflare → Workers & Pages → carplay-telephone → Settings → Variables and Secrets : ajouter **STRIPE_SECRET_KEY**, de type **Secret**, avec la clé Stripe réelle commençant par sk_live_. Ne jamais mettre cette clé dans GitHub, le navigateur ou une conversation.
+2. Cloudflare → Workers & Pages → carplay-telephone → Settings → Variables and Secrets : ajouter **STRIPE_SECRET_KEY**, de type **Secret**, avec la clé Stripe réelle commençant par sk_live_ ou rk_live_ (avec les autorisations Checkout nécessaires). Ne jamais mettre cette clé dans GitHub, le navigateur ou une conversation.
 3. Dans Stripe → Workbench → Webhooks, créer une destination pour les événements de **votre compte**, avec des événements snapshot : checkout.session.completed et checkout.session.async_payment_succeeded.
 4. URL de destination : https://carplay-telephone.appli-suzon.workers.dev/api/stripe-webhook
 5. Ajouter son secret de signature whsec_… dans Cloudflare, de type Secret, sous **STRIPE_WEBHOOK_SECRET**.

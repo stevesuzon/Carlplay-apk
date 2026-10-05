@@ -1,7 +1,7 @@
 // Server-only Stripe Checkout. No card details or Stripe secrets enter browser code.
 export function createStripePayments(h){
  const ORIGIN='https://carplay-telephone.appli-suzon.workers.dev',PRODUCT='couteau-suisse-365',PRICE=3000;
- const configured=env=>/^sk_live_/.test(env.STRIPE_SECRET_KEY||'')&&/^whsec_/.test(env.STRIPE_WEBHOOK_SECRET||'')&&!!env.CODE_PEPPER;
+ const configured=env=>/^(?:sk|rk)_live_/.test(env.STRIPE_SECRET_KEY||'')&&/^whsec_/.test(env.STRIPE_WEBHOOK_SECRET||'')&&!!env.CODE_PEPPER;
  async function schema(env){await h.ensureMarketSchemaOnce(env.DB,'stripe-checkout-v1',async()=>{
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS stripe_access_orders(id TEXT PRIMARY KEY,token_hash TEXT NOT NULL,device_id TEXT NOT NULL,email TEXT NOT NULL,first_name TEXT NOT NULL,last_name TEXT NOT NULL,created_at INTEGER NOT NULL,session_id TEXT UNIQUE,checkout_url TEXT,code_hash TEXT,code_box TEXT,paid_at INTEGER,email_sent_at INTEGER,email_lease INTEGER NOT NULL DEFAULT 0)`).run();
   await env.DB.prepare('CREATE INDEX IF NOT EXISTS stripe_orders_device ON stripe_access_orders(device_id,created_at)').run();

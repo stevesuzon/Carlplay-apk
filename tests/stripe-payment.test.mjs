@@ -19,6 +19,8 @@ await DB.prepare('INSERT INTO app_identities VALUES(?,?,?,?,?,?,?)').bind('devic
 let n=0,mails=0,stripeCalls=[];const digest=async x=>Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(x))).toString('hex');
 const h={json:(data,status=200)=>new Response(JSON.stringify(data),{status}),body:r=>r.json(),ensureMarketSchemaOnce:async(db,k,f)=>f(),ensureSubscriptionEmailColumns:async()=>{},ensureAppIdentityTables:async()=>{},validDevice:x=>x.length>=8,validEmail:x=>x.includes('@'),normalizeEmail:x=>x.toLowerCase(),sha256Text:digest,randomSubscriptionCode:()=>('CODE'+(++n).toString().padStart(2,'0')),hashCode:digest,sealRecoveryCode:async x=>'sealed:'+x,openRecoveryCode:async x=>x.slice(7),brevoSendHtml:async()=>{mails++;return true}};
 const env={DB,STRIPE_SECRET_KEY:'sk_live_test_fixture',STRIPE_WEBHOOK_SECRET:'whsec_fixture',CODE_PEPPER:'fixture'},pay=createStripePayments(h),token='a'.repeat(64),request=data=>new Request('https://app/api',{method:'POST',body:JSON.stringify(data)});
+for(const key of ['sk_live_fixture','rk_live_fixture'])assert.equal((await pay.config({...env,STRIPE_SECRET_KEY:key}).json()).configured,true);
+for(const key of ['sk_test_fixture','rk_test_fixture','pk_live_fixture',''])assert.equal((await pay.config({...env,STRIPE_SECRET_KEY:key})).configured,false);
 globalThis.fetch=async(url,opts)=>{stripeCalls.push({url,opts});return new Response(JSON.stringify({id:'cs_live_1',url:'https://checkout.stripe.com/c/pay/cs_live_1'}));};
 assert.equal((await pay.checkout(request({}),{...env,STRIPE_SECRET_KEY:''})).status,503);
 assert.equal((await pay.checkout(request({deviceId:'unknown12',token}),env)).status,403);
