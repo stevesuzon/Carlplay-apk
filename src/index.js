@@ -5219,10 +5219,10 @@ export default {
   async fetch(request, env, ctx) {
     try {
       const url = new URL(request.url);
-      if(url.pathname==="/api/payments/config"&&request.method==="GET")return stripePayments.config(env);
-      if(url.pathname==="/api/payments/checkout"&&request.method==="POST")return stripePayments.checkout(request,env);
-      if(url.pathname==="/api/payments/status"&&request.method==="POST")return stripePayments.status(request,env,ctx);
-      if(url.pathname==="/api/payments/webhook"&&request.method==="POST")return stripePayments.webhook(request,env,ctx);
+      if(url.pathname==="/api/payment-config"&&request.method==="GET")return stripePayments.config(env);
+      if(url.pathname==="/api/payment-checkout"&&request.method==="POST")return await stripePayments.checkout(request,env);
+      if(url.pathname==="/api/payment-status"&&request.method==="POST")return await stripePayments.status(request,env,ctx);
+      if(url.pathname==="/api/stripe-webhook"&&request.method==="POST")return await stripePayments.webhook(request,env,ctx);
     if (url.pathname === "/api/market-duplicate-decisions" && (request.method === "GET" || request.method === "POST")) return marketDuplicateDecisions(request,env);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     if (url.pathname === "/api/health" && request.method === "GET") return apiHealth(env);

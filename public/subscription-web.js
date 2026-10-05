@@ -40,7 +40,7 @@
   }
   var stripePaymentAvailable=false;
   function showStripePaymentLinks(){document.querySelectorAll(".stripe-payment-link").forEach(function(a){a.hidden=!stripePaymentAvailable;});}
-  fetch("/api/payments/config",{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){stripePaymentAvailable=!!(j.ok&&j.configured);showStripePaymentLinks();}).catch(function(){});
+  fetch("/api/payment-config",{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){stripePaymentAvailable=!!(j.ok&&j.configured);showStripePaymentLinks();}).catch(function(){});
   var KEY = "carplay_shared_subscription";
   var PAID_KEY = "carplay_paid_activated";
   var EMAIL_KEY = "carplay_recovery_email";
