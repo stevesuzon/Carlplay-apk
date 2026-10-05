@@ -1,4 +1,5 @@
 name: Deploy Cloudflare Worker
+# Relance du déploiement Stripe avec prise en charge des clés restreintes.
 
 on:
   push:
