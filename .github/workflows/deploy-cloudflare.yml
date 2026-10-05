@@ -22,6 +22,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Vérifier le paiement et les codes d’accès
+        run: node tests/stripe-payment.test.mjs
+
       - name: Deploy carplay-telephone to Cloudflare
         uses: cloudflare/wrangler-action@v4
         with:
@@ -87,3 +94,17 @@ jobs:
             echo "MARKET STAGING $method HTTP=$code"
             test "$code" = "401"
           done
+
+      - name: Vérifier les routes de paiement après déploiement
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://carplay-telephone.appli-suzon.workers.dev"
+          curl -fsS --max-time 20 "$BASE/api/payments/config" -o /tmp/payment-config.json
+          python -c 'import json; j=json.load(open("/tmp/payment-config.json")); assert j["ok"] and isinstance(j["configured"],bool) and j["amount"]==3000 and j["days"]==365'
+          curl -fsSL --max-time 20 "$BASE/stripe-payment-v1.js" -o /tmp/payment-client.js
+          node --check /tmp/payment-client.js
+          curl -fsSL --max-time 20 "$BASE/payment.html" -o /tmp/payment-page.html
+          python -c 'assert "ACTIVER MON ANNÉE" in open("/tmp/payment-page.html").read()'
+          code="$(curl -sS --max-time 20 -X POST -H 'content-type: application/json' --data '{}' -o /tmp/payment-webhook.json -w '%{http_code}' "$BASE/api/payments/webhook")"
+          test "$code" = "400" -o "$code" = "503"

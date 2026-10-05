@@ -1,3 +1,4 @@
+import { createStripePayments } from './stripe-payment.mjs';
 const cors = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, OPTIONS",
@@ -7,6 +8,7 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
   headers: { ...cors, "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
 });
+const stripePayments=createStripePayments({json,body,ensureMarketSchemaOnce,ensureSubscriptionEmailColumns,ensureAppIdentityTables,validDevice,validEmail,normalizeEmail,sha256Text,randomSubscriptionCode,hashCode,sealRecoveryCode,openRecoveryCode,brevoSendHtml});
 function cachedJson(data, ttl=300){
   return new Response(JSON.stringify(data),{status:200,headers:{...cors,"content-type":"application/json; charset=utf-8","cache-control":"public, max-age="+ttl}});
 }
@@ -554,6 +556,8 @@ async function activate(request, env) {
   const codeHash = await hashCode(code, env.CODE_PEPPER);
   const row = await env.DB.prepare("SELECT * FROM subscriptions WHERE code_hash=? AND active=1").bind(codeHash).first();
   if (!row) return json({ok:false,error:"CODE_INCORRECT"},403);
+  const paidOwner=await stripePayments.owner(env,codeHash);
+  if(paidOwner&&(normalizeEmail(paidOwner.email)!==email||subscriptionIdentityKey(paidOwner.first_name)!==subscriptionIdentityKey(firstName)||subscriptionIdentityKey(paidOwner.last_name)!==subscriptionIdentityKey(lastName)))return json({ok:false,error:"IDENTITE_NE_CORRESPOND_PAS"},403);
 
   const emailHash = await sha256Text(email);
   const column = type === "autoradio" ? "autoradio_device" : "phone_device";
@@ -4885,7 +4889,7 @@ class RemoveLegacyVoiceScripts {
 
 class InjectAppFiles {
   element(element) {
-    element.append(`<script>(function(){window.__phoneHomeV434=1;function cleanOldHome(){["autoradioHomeV381Web","autoradioHomeV382Web","autoradioHomeV383Web","autoradioHomeV385Web","autoradioDisplaySettingV381","autoradioDisplaySettingV382","autoradioDisplaySettingV383","autoradioDisplaySettingV385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});["autoradioHomeStyleV381","autoradioHomeStyleV382","autoradioHomeStyleV383","autoradioHomeStyleV385","autoradio-boot-hide-v381","autoradio-boot-hide-v382","autoradio-boot-hide-v383","autoradio-boot-hide-v385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});var oldMail=document.getElementById("contactMailButton");if(oldMail){oldMail.id="contestHomeButton";oldMail.className=String(oldMail.className||"").replace(/\bmailTopButton\b/g,"homeTopButton");oldMail.removeAttribute("onclick");oldMail.textContent="🏆 CONCOURS"}var oldOverlay=document.getElementById("contactMailOverlay");if(oldOverlay)oldOverlay.remove();document.documentElement.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385");if(document.body)document.body.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385")}cleanOldHome();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",cleanOldHome,{once:true});var mo=new MutationObserver(cleanOldHome);try{mo.observe(document.documentElement,{childList:true,subtree:true})}catch(_){}setTimeout(function(){try{mo.disconnect()}catch(_){}cleanOldHome()},5000)})();</script><script src="/accessibility-zoom-v466.js?v=469-all-pages"></script><script src="/phone-loading-v384.js?v=455-single-loader"></script><link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=506-confirmation-retour"></script><link rel="stylesheet" href="/mobile-overrides.css?v=432-home-clean"><link rel="stylesheet" href="/subscription-locks.css?v=426-current"><link rel="stylesheet" href="/home-work.css?v=432-home-clean"><script src="/weather-all-pages.js?v=426-current" defer></script><script src="/subscription-web.js?v=505-inscription-email" defer></script><script src="/voice-assist-v486.js?v=486-old-ios-engine" defer></script><script src="/market-update-notifications-v281.js?v=426-current" defer></script><script src="/notification-detail-v282.js?v=426-current" defer></script><script src="/home-work.js?v=432-home-clean" defer></script><script src="/market-presence-global.js?v=426-current" defer></script><script src="/market-auto-update-v319.js?v=426-current" defer></script><script src="/market-attendance-v317.js?v=426-current" defer></script><script src="/market-navigation-confirm-v189.js?v=480-longpress-guard" defer></script><script src="/contest-v188.js?v=464-referral-celebration" defer></script><script src="/referral-v232.js?v=464-referral-celebration" defer></script><script src="/app-access-gate-v506.js?v=506-confirmation-retour" defer></script><script src="/sanction-guard-v161.js?v=426-current" defer></script>`, { html: true });
+    element.append(`<script>(function(){window.__phoneHomeV434=1;function cleanOldHome(){["autoradioHomeV381Web","autoradioHomeV382Web","autoradioHomeV383Web","autoradioHomeV385Web","autoradioDisplaySettingV381","autoradioDisplaySettingV382","autoradioDisplaySettingV383","autoradioDisplaySettingV385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});["autoradioHomeStyleV381","autoradioHomeStyleV382","autoradioHomeStyleV383","autoradioHomeStyleV385","autoradio-boot-hide-v381","autoradio-boot-hide-v382","autoradio-boot-hide-v383","autoradio-boot-hide-v385"].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});var oldMail=document.getElementById("contactMailButton");if(oldMail){oldMail.id="contestHomeButton";oldMail.className=String(oldMail.className||"").replace(/\bmailTopButton\b/g,"homeTopButton");oldMail.removeAttribute("onclick");oldMail.textContent="🏆 CONCOURS"}var oldOverlay=document.getElementById("contactMailOverlay");if(oldOverlay)oldOverlay.remove();document.documentElement.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385");if(document.body)document.body.classList.remove("autoradio-home-ready-v381","autoradio-home-ready-v382","autoradio-home-ready-v383","autoradio-home-ready-v385")}cleanOldHome();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",cleanOldHome,{once:true});var mo=new MutationObserver(cleanOldHome);try{mo.observe(document.documentElement,{childList:true,subtree:true})}catch(_){}setTimeout(function(){try{mo.disconnect()}catch(_){}cleanOldHome()},5000)})();</script><script src="/accessibility-zoom-v466.js?v=469-all-pages"></script><script src="/phone-loading-v384.js?v=455-single-loader"></script><link rel="manifest" href="/manifest.webmanifest?v=283-icons"><script src="/persistent-user-data-v283.js?v=506-confirmation-retour"></script><link rel="stylesheet" href="/mobile-overrides.css?v=432-home-clean"><link rel="stylesheet" href="/subscription-locks.css?v=426-current"><link rel="stylesheet" href="/home-work.css?v=432-home-clean"><script src="/weather-all-pages.js?v=426-current" defer></script><script src="/subscription-web.js?v=530-stripe" defer></script><script src="/voice-assist-v486.js?v=486-old-ios-engine" defer></script><script src="/market-update-notifications-v281.js?v=426-current" defer></script><script src="/notification-detail-v282.js?v=426-current" defer></script><script src="/home-work.js?v=432-home-clean" defer></script><script src="/market-presence-global.js?v=426-current" defer></script><script src="/market-auto-update-v319.js?v=426-current" defer></script><script src="/market-attendance-v317.js?v=426-current" defer></script><script src="/market-navigation-confirm-v189.js?v=480-longpress-guard" defer></script><script src="/contest-v188.js?v=464-referral-celebration" defer></script><script src="/referral-v232.js?v=464-referral-celebration" defer></script><script src="/app-access-gate-v506.js?v=506-confirmation-retour" defer></script><script src="/sanction-guard-v161.js?v=426-current" defer></script>`, { html: true });
   }
 }
 
@@ -4899,7 +4903,7 @@ class InjectAutoradioFiles {
   element(element) {
     // Autoradio : accueil dédié léger + compte, notifications et navigation.
     // Les modules téléphone/pro et le concours ne sont pas chargés.
-    element.append('<style id="autoradio-boot-hide-v386">html,body{margin:0!important;padding:0!important;background:#07111f!important}.wrap,#connectedUsersBadge,#weatherBubble,#unifiedTop,.subscription-home-status,.gear,#fuelStationsQuickBtn,#fuelStationsQuickStyle,#fuelStationsQuickPosition{display:none!important}</style><script src="/persistent-user-data-v283.js?v=506-confirmation-retour"></script><script src="/voice-assist-v486.js?v=486-old-ios-engine" defer></script><link rel="stylesheet" href="/subscription-locks.css?v=62"><script src="/subscription-web.js?v=505-inscription-email" defer></script><script src="/autoradio-home-v386.js?v=386-responsive-images" defer></script><script src="/autoradio-subscription-v381.js?v=381" defer></script><script src="/autoradio-notifications-v376.js?v=376" defer></script><script src="/market-update-notifications-v281.js?v=376-shared-devices" defer></script><script src="/notification-detail-v282.js?v=376" defer></script><script src="/market-attendance-v317.js?v=317" defer></script><script src="/market-navigation-confirm-v189.js?v=480-longpress-guard" defer></script><script src="/app-access-gate-v506.js?v=506-confirmation-retour" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
+    element.append('<style id="autoradio-boot-hide-v386">html,body{margin:0!important;padding:0!important;background:#07111f!important}.wrap,#connectedUsersBadge,#weatherBubble,#unifiedTop,.subscription-home-status,.gear,#fuelStationsQuickBtn,#fuelStationsQuickStyle,#fuelStationsQuickPosition{display:none!important}</style><script src="/persistent-user-data-v283.js?v=506-confirmation-retour"></script><script src="/voice-assist-v486.js?v=486-old-ios-engine" defer></script><link rel="stylesheet" href="/subscription-locks.css?v=62"><script src="/subscription-web.js?v=530-stripe" defer></script><script src="/autoradio-home-v386.js?v=386-responsive-images" defer></script><script src="/autoradio-subscription-v381.js?v=381" defer></script><script src="/autoradio-notifications-v376.js?v=376" defer></script><script src="/market-update-notifications-v281.js?v=376-shared-devices" defer></script><script src="/notification-detail-v282.js?v=376" defer></script><script src="/market-attendance-v317.js?v=317" defer></script><script src="/market-navigation-confirm-v189.js?v=480-longpress-guard" defer></script><script src="/app-access-gate-v506.js?v=506-confirmation-retour" defer></script><script src="/sanction-guard-v161.js?v=242" defer></script>', { html: true });
   }
 }
 
@@ -5201,6 +5205,7 @@ async function nearHlmV473(url){
 // V502 — les routes /api passent toujours par le Worker avant le fallback PWA.
 export default {
   async scheduled(controller, env, ctx) {
+    ctx.waitUntil(stripePayments.retryMail(env));
     const minute=new Date(Number(controller.scheduledTime||Date.now())).getUTCMinutes();
     if (minute===0 && String(env.MARKET_AUTO_REFRESH || "1") !== "0") ctx.waitUntil(runSpecialEventRefresh(env));
     if (String(env.MARKET_JDM_AUTO_REFRESH || "1") !== "0") {
@@ -5214,6 +5219,10 @@ export default {
   async fetch(request, env, ctx) {
     try {
       const url = new URL(request.url);
+      if(url.pathname==="/api/payments/config"&&request.method==="GET")return stripePayments.config(env);
+      if(url.pathname==="/api/payments/checkout"&&request.method==="POST")return stripePayments.checkout(request,env);
+      if(url.pathname==="/api/payments/status"&&request.method==="POST")return stripePayments.status(request,env,ctx);
+      if(url.pathname==="/api/payments/webhook"&&request.method==="POST")return stripePayments.webhook(request,env,ctx);
     if (url.pathname === "/api/market-duplicate-decisions" && (request.method === "GET" || request.method === "POST")) return marketDuplicateDecisions(request,env);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     if (url.pathname === "/api/health" && request.method === "GET") return apiHealth(env);
@@ -5321,7 +5330,7 @@ export default {
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers: h });
     }
     const type = response.headers.get("content-type") || "";
-    if (type.includes("text/html") && url.pathname !== "/admin.html" && url.pathname !== "/admin" && url.pathname !== "/import-marches.html" && url.pathname !== "/installer.html" && url.pathname !== "/installer") {
+    if (type.includes("text/html") && url.pathname !== "/payment.html" && url.pathname !== "/admin.html" && url.pathname !== "/admin" && url.pathname !== "/import-marches.html" && url.pathname !== "/installer.html" && url.pathname !== "/installer") {
       const autoradio = /CouteauSuisseAutoradio/i.test(request.headers.get("user-agent") || "");
       const transformed = new HTMLRewriter().on("head", autoradio ? new InjectAutoradioFiles() : new InjectAppFiles()).on("a", new FixAndroidLinks()).on("script[src]", new RemoveLegacyVoiceScripts()).on("script", new InjectMarketLive()).transform(response);
       const headers = new Headers(transformed.headers);
