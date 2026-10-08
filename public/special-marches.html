@@ -310,7 +310,7 @@
         var requested=p.get("type")||"brocante";
         var allowed=["noel","brocante","saisonnier","periodique"];
         var type=allowed.indexOf(requested)>=0?requested:"brocante";
-        document.write('<script src="special-data/'+country+'-'+type+'.js?v=349"><\/script>');
+        if(!p.get('event'))document.write('<script src="special-data/'+country+'-'+type+'.js?v=349"><\/script>');
       })();
     </script>
     <script>
@@ -320,6 +320,9 @@
         var requested = p.get("type") || "brocante";
         var allowed = ["noel", "brocante", "saisonnier", "periodique"];
         var type = allowed.indexOf(requested) >= 0 ? requested : "brocante";
+        var selectedEvent=null;
+        try{selectedEvent=JSON.parse(sessionStorage.getItem('nearbyEventFicheV1:'+p.get('event'))||'null');}catch(_){}
+        if(!selectedEvent||selectedEvent.country!==country||selectedEvent.kind!==type||!Array.isArray(selectedEvent.row))selectedEvent=null;
         var requestedSubtype = p.get("subtype") || "";
         var subtype = ["foire","brocante","braderie"].indexOf(requestedSubtype) >= 0 ? requestedSubtype : "";
         function norm(s) {
@@ -485,7 +488,7 @@
                 : type === "brocante"
                   ? "Tri automatique du plus près de « Retourner sur la place » au plus loin."
                   : "Dates, horaires, adresse, places et GPS disponibles.";
-        if(type==="brocante"&&!subtype){
+        if(type==="brocante"&&!subtype&&!selectedEvent){
           document.querySelector(".filters").style.display="none";
           document.getElementById("count").style.display="none";
           var base="special-marches.html?country="+country+"&type=brocante&v=489&subtype=";
@@ -495,6 +498,14 @@
             '<a class="eventCategoryBig brocanteBig" href="'+base+'brocante"><span class="eventCategoryIcon">🧳</span>BROCANTES<br>VIDE-GRENIERS<span class="eventCategoryHelp">Voir les brocantes du plus près au plus loin</span></a>'+
             '<a class="eventCategoryBig braderieBig" href="'+base+'braderie"><span class="eventCategoryIcon">🛍️</span>BRADERIES<span class="eventCategoryHelp">Voir les braderies du plus près au plus loin</span></a>';
           return;
+        }
+        if(selectedEvent){
+          rows=[selectedEvent.row];
+          document.getElementById('title').textContent='FICHE DE L’ÉVÉNEMENT';
+          document.getElementById('subtitle').textContent='Dates, adresse et informations de cet événement.';
+          document.querySelector('.filters').style.display='none';
+          var eventBack=p.get('back')||'nearby-markets.html';
+          if(/^(?:\/)?nearby-markets\.html(?:\?|$)/.test(eventBack))document.querySelector('.back').href=eventBack;
         }
         function esc(x) {
           return String(x || "").replace(/[&<>\"]/g, function (c) {
@@ -819,6 +830,7 @@
             .join("");
         }
         async function refreshLiveSpecialEvents(){
+          if(selectedEvent)return;
           try{
             var response=await fetch('/api/markets?special_category_v490='+Date.now(),{cache:'no-store'});
             var data=await response.json();
@@ -845,3 +857,4 @@
   <script src="voice-assist-v486.js?v=487-stable"></script>
 </body>
 </html>
+

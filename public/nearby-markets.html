@@ -81,6 +81,7 @@
 </div>
 <!-- V516 : données 100 km chargées autour de la position GPS actuelle. -->
 <script src="/market-dedup-v511.js?v=511"></script>
+<script defer src="/nearby-event-alerts-v1.js?v=1"></script>
 <script>
 (() => {
   'use strict';
@@ -226,6 +227,14 @@
       const p=nearestPointToBox(lat,lon,a);return distanceKm(lat,lon,p.lat,p.lon)<=LIMIT_KM+15;
     });
     status.textContent='Position '+referenceLabel+' trouvée — chargement de '+candidates.length+' zone'+(candidates.length>1?'s':'')+' proche'+(candidates.length>1?'s':'')+'…';
+    const dayFile=norm(selectedDay);
+    const mainChunksPromise=Promise.all(candidates.map(async a=>{
+      try{
+        const area=String(a.area||'');
+        const url=a.country==='be'?('/market-chunks/be/'+encodeURIComponent(area)+'/'+dayFile+'.json?v=430'):('/market-chunks/fr/'+encodeURIComponent(area.toUpperCase())+'/'+dayFile+'.json?v=430');
+        const r=await fetch(url,{cache:'no-store'});return r.ok?{a,rows:await r.json()}:null;
+      }catch(_){return null}
+    }));
     const chunks=await Promise.all(candidates.map(async a=>{
       try{const r=await fetch('/nearby-shards/'+a.file+'?v=430',{cache:'no-store'});return r.ok?await r.json():null}catch(_){return null}
     }));
@@ -237,14 +246,7 @@
     }
     // V491 : la page 150 km recharge aussi les mêmes fichiers que la rubrique « Marchés ».
     // Cela évite qu'un marché présent dans Marchés disparaisse simplement parce que le shard 150 km est plus ancien.
-    const dayFile=norm(selectedDay);
-    const mainChunks=await Promise.all(candidates.map(async a=>{
-      try{
-        const area=String(a.area||'');
-        const url=a.country==='be'?('/market-chunks/be/'+encodeURIComponent(area)+'/'+dayFile+'.json?v=430'):('/market-chunks/fr/'+encodeURIComponent(area.toUpperCase())+'/'+dayFile+'.json?v=430');
-        const r=await fetch(url,{cache:'no-store'});return r.ok?{a,rows:await r.json()}:null;
-      }catch(_){return null}
-    }));
+    const mainChunks=await mainChunksPromise;
     for(const pack of mainChunks){if(!pack||!Array.isArray(pack.rows))continue;mergeRows(pack.a.country==='be'?window.NEAR_BE:window.NEAR_FR,pack.rows)}
     // V516 : afficher d'abord les fichiers locaux/proches + le cache serveur.
     // Le gros rafraîchissement serveur continue ensuite en arrière-plan et ne bloque plus l'écran.
@@ -258,6 +260,7 @@
       if(Number.isFinite(userLat)&&Number.isFinite(userLon)&&Math.abs(userLat-lat)<0.0005&&Math.abs(userLon-lon)<0.0005){
         await loadDisabledKeys();
         render(keepWithin80(rowsForToday(),lat,lon));
+        setTimeout(offerUpcomingEvents,0);
       }
     }).catch(()=>{});
   }
@@ -307,18 +310,18 @@
   function eventWindow(row){
     const raw=String(row?.[4]||'')+' '+String(row?.[6]||''), value=norm(raw);
     const monthMap={janvier:0,fevrier:1,mars:2,avril:3,mai:4,juin:5,juillet:6,aout:7,septembre:8,octobre:9,novembre:10,decembre:11,januari:0,februari:1,maart:2,april:3,mei:4,juni:5,juli:6,augustus:7,september:8,oktober:9,november:10,december:11};
-    const mk=(y,m,d)=>localDate(Number(y),Number(m),Number(d));
+    const mk=(y,m,d)=>{const date=localDate(Number(y),Number(m),Number(d));return date.getFullYear()===Number(y)&&date.getMonth()===Number(m)&&date.getDate()===Number(d)?date:new Date(NaN)};
     let m=raw.match(/(20\d{2})-(\d{2})-(\d{2})\s*(?:<->|au|a|–|—|-)\s*(20\d{2})-(\d{2})-(\d{2})/i);
     if(m)return{start:mk(m[1],Number(m[2])-1,m[3]),end:mk(m[4],Number(m[5])-1,m[6])};
-    m=value.match(/(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\s+(20\d{2})\s+(?:au|a|jusqu au|-)\s+(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\s+(20\d{2})/);
+    m=value.match(/(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre|januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(20\d{2})\s+(?:au|a|jusqu au|-)\s+(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre|januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(20\d{2})/);
     if(m)return{start:mk(m[3],monthMap[m[2]],m[1]),end:mk(m[6],monthMap[m[5]],m[4])};
-    m=value.match(/(\d{1,2})\s+(?:au|a|-)\s+(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\s+(20\d{2})/);
+    m=value.match(/(\d{1,2})\s+(?:au|a|-)\s+(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre|januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(20\d{2})/);
     if(m)return{start:mk(m[4],monthMap[m[3]],m[1]),end:mk(m[4],monthMap[m[3]],m[2])};
     m=raw.match(/(\d{1,2})[-\/.](\d{1,2})[-\/.](20\d{2})\s*(?:au|a|–|—|-)\s*(\d{1,2})[-\/.](\d{1,2})[-\/.](20\d{2})/i);
     if(m)return{start:mk(m[3],Number(m[2])-1,m[1]),end:mk(m[6],Number(m[5])-1,m[4])};
     const dates=[];
     for(const x of raw.matchAll(/\b(20\d{2})-(\d{2})-(\d{2})\b/g))dates.push(mk(x[1],Number(x[2])-1,x[3]));
-    for(const x of value.matchAll(/\b(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\s+(20\d{2})\b/g))dates.push(mk(x[3],monthMap[x[2]],x[1]));
+    for(const x of value.matchAll(/\b(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre|januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(20\d{2})\b/g))dates.push(mk(x[3],monthMap[x[2]],x[1]));
     for(const x of raw.matchAll(/\b(\d{1,2})[-\/.](\d{1,2})[-\/.](20\d{2})\b/g))dates.push(mk(x[3],Number(x[2])-1,x[1]));
     if(!dates.length)return null;
     dates.sort((a,b)=>a-b);return{start:dates[0],end:dates[dates.length-1]};
@@ -444,7 +447,7 @@
     for(const area of [{country:'fr'},{country:'be'}]){
       const source=window.MarketDedupV511.rows(area.country==='fr'?(window.NEAR_FR||[]):(window.NEAR_BE||[]),area.country);
       for(const row of source){
-        if(!isToday(row)) continue;
+        if(specialKind(row)||!isToday(row)) continue;
         if(isServerDisabled(area.country,row)) continue;
         const p=pointForRadiusV430(area.country,row);
         if(!p) continue; // aucun point exact ni autre marché géolocalisé dans cette ville
@@ -454,20 +457,29 @@
         seen.add(k);
         result.push({country:area.country,row,p});
       }
-      const specialSource=area.country==='fr'?(window.SPECIAL_FR||[]):(window.SPECIAL_BE||[]);
-      for(const row of specialSource){
-        if(isServerDisabled(area.country,row)) continue;
-        const kind=specialKind(row);
-        if(!kind||!specialVisibleNow(row,kind))continue;
-        const p=pointForRadiusV430(area.country,row);
-        if(!p)continue;
-        const k=area.country+'|'+norm(row?.[0])+'|'+norm(row?.[2])+'|'+norm(row?.[3])+'|'+norm(row?.[4])+'|'+norm(row?.[8]);
-        if(seen.has(k))continue;
-        seen.add(k);
-        result.push({country:area.country,row,p,special:kind});
-      }
+
     }
     return result;
+  }
+
+  function offerUpcomingEvents(){
+    if(!window.NearbyEventAlertsV1||!Number.isFinite(userLat)||!Number.isFinite(userLon))return;
+    const items=[],seen=new Set();
+    for(const country of ['fr','be']){
+      const source=[...(country==='fr'?window.SPECIAL_FR||[]:window.SPECIAL_BE||[]),...(country==='fr'?window.NEAR_FR||[]:window.NEAR_BE||[])];
+      for(const row of source){
+        const kind=specialKind(row);
+        if(!['brocante','noel'].includes(kind)||isServerDisabled(country,row))continue;
+        const dates=eventWindow(row);
+        if(!dates||!window.NearbyEventAlertsV1.eligible(dates.start,new Date()))continue;
+        const p=pointForRadiusV430(country,row);if(!p)continue;
+        const date=dates.start.getFullYear()+'-'+(dates.start.getMonth()+1)+'-'+dates.start.getDate();
+        const key=[country,norm(row[0]),norm(row[2]),norm(row[3]),date].join('|');
+        if(seen.has(key))continue;seen.add(key);
+        items.push({country,row,p,special:kind,start:dates.start,key});
+      }
+    }
+    window.NearbyEventAlertsV1.offer(keepWithin80(items,userLat,userLon));
   }
 
   function cachedVerifiedPoint(country,row){
@@ -542,7 +554,7 @@
     const period=showTomorrow?'demain':'aujourd’hui';
     const countText=count+' RÉSULTAT'+(count>1?'S':'');
     const main='MARCHÉS '+(showTomorrow?'DE DEMAIN':'AUJOURD’HUI');
-    const extra='Brocantes, braderies, foires et marchés de Noël dans les 30 prochains jours.';
+    const extra='Uniquement les marchés habituels. Les événements à venir sont annoncés séparément.';
     const voice=countText+'. '+main+'. '+extra;
     status.innerHTML='<span class="marketPeriodCount">'+esc(countText)+'</span><span class="marketPeriodMain">'+esc(main)+'</span><span class="marketPeriodExtra">'+esc(extra)+'</span>';
     status.setAttribute('data-voice-help',voice);
@@ -550,7 +562,7 @@
   }
   function render(list){
     const period=showTomorrow?'demain':'aujourd’hui';
-    if(!list.length){status.textContent='Aucun marché du jour ni événement prévu dans les 30 prochains jours à moins de '+LIMIT_KM+' km.';cards.innerHTML='';return;}
+    if(!list.length){status.textContent='Aucun marché habituel du jour à moins de '+LIMIT_KM+' km.';cards.innerHTML='';return;}
     const weekly=list.filter(item=>!item.special).sort((a,b)=>a.d-b.d);
     const special=list.filter(item=>!!item.special).sort((a,b)=>a.d-b.d);
     statusCopy(list.length);
@@ -598,7 +610,7 @@
     }
     let html='';
     if(weekly.length){ html+='<div class="sectionTitle">'+(showTomorrow?'MARCHÉS DE DEMAIN':'MARCHÉS DU JOUR')+'</div>'+weekly.map(renderCard).join(''); }
-    if(special.length){ html+='<div class="sectionTitle">BROCANTES · BRADERIES · FOIRES · NOËL</div>'+special.map(renderCard).join(''); }
+
     cards.innerHTML=html;
     wireFavorites();
     wirePhotos();
@@ -662,7 +674,7 @@
   }
   function refreshVisibleStatus(){
     const n=cards.querySelectorAll('.card').length,period=showTomorrow?'demain':'aujourd’hui';
-    if(!n){status.textContent='Aucun marché du jour ni événement prévu dans les 30 prochains jours à moins de '+LIMIT_KM+' km.';return}
+    if(!n){status.textContent='Aucun marché habituel du jour à moins de '+LIMIT_KM+' km.';return}
     statusCopy(n);
   }
 
@@ -688,7 +700,7 @@
   document.addEventListener('keydown',event=>{if(event.key==='Escape')closePhoto();});
 
   async function start(){
-    heading.textContent='📍 À MOINS DE '+LIMIT_KM+' KM — MARCHÉS PUIS ÉVÉNEMENTS';
+    heading.textContent='📍 À MOINS DE '+LIMIT_KM+' KM — MARCHÉS';
     status.textContent='Recherche de ta position GPS actuelle…';
     try{
       const live=await currentPosition();
@@ -702,12 +714,13 @@
       hideLocationSettingsHelp();
       userLat=live.lat;userLon=live.lon;referenceLabel='ta position actuelle';
       try{localStorage.setItem('marketDistanceReferenceV1',JSON.stringify({latitude:userLat,longitude:userLon,updatedAt:Date.now(),source:'current-gps'}))}catch(e){}
-      status.textContent='Calcul depuis '+referenceLabel+' — marchés '+(showTomorrow?'de demain : ':'d’aujourd’hui : ')+selectedDay+' puis événements du mois…';
+      status.textContent='Calcul depuis '+referenceLabel+' — marchés '+(showTomorrow?'de demain : ':'d’aujourd’hui : ')+selectedDay+'…';
       await loadNearbyShards(userLat,userLon);
       await loadDisabledKeys();
       const todayRows=rowsForToday();
       const nearby=keepWithin80(todayRows,userLat,userLon);
       render(nearby);
+      setTimeout(offerUpcomingEvents,0);
     }catch(e){status.textContent='Impossible de calculer les marchés. Réessaie.';}
   }
   start();
@@ -729,3 +742,4 @@
 <script src="new-feature-bubbles.js?v=20260905"></script><script src="voice-assist-v486.js?v=487-stable"></script>
 </body>
 </html>
+
