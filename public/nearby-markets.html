@@ -223,6 +223,10 @@
       await Promise.race([Promise.resolve(window.MarketDedupV511.ready).catch(()=>{}),new Promise(resolve=>setTimeout(resolve,2500))]);
     }
     window.NEAR_FR=[];window.NEAR_BE=[];window.SPECIAL_FR=[];window.SPECIAL_BE=[];
+    // Montrer les fiches serveur déjà enregistrées avant de charger les zones.
+    addServerMarketsFromCache(lat,lon);
+    rebuildCityPointIndexV430();
+    render(keepWithin80(rowsForToday(),lat,lon));
     const indexResponse=await fetch('/nearby-shards/index.json?v=335',{cache:'force-cache'});
     if(!indexResponse.ok)throw new Error('INDEX_NEARBY');
     const index=await indexResponse.json();
@@ -283,7 +287,6 @@
       mergeRows(window.NEAR_FR,window.MarketDedupV511.restoredRows('fr'));mergeRows(window.NEAR_BE,window.MarketDedupV511.restoredRows('be'));
       rebuildCityPointIndexV430();
       if(Number.isFinite(userLat)&&Number.isFinite(userLon)&&Math.abs(userLat-lat)<0.0005&&Math.abs(userLon-lon)<0.0005){
-        await loadDisabledKeys();
         render(keepWithin80(rowsForToday(),lat,lon));
         setTimeout(offerUpcomingEvents,0);
       }
