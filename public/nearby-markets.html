@@ -242,7 +242,6 @@
       finally{clearTimeout(timer)}
     }
     const dayFile=norm(selectedDay);
-    const dayFile=norm(selectedDay);
     const loads=candidates.map(async a=>{
       const area=String(a.area||'');
       const mainUrl=a.country==='be'?('/market-chunks/be/'+encodeURIComponent(area)+'/'+dayFile+'.json?v=430'):('/market-chunks/fr/'+encodeURIComponent(area.toUpperCase())+'/'+dayFile+'.json?v=430');
