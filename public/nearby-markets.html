@@ -231,26 +231,34 @@
     });
     status.textContent='Position '+referenceLabel+' trouvée — chargement de '+candidates.length+' zone'+(candidates.length>1?'s':'')+' proche'+(candidates.length>1?'s':'')+'…';
     const dayFile=norm(selectedDay);
-    const mainChunksPromise=Promise.all(candidates.map(async a=>{
+    // Chaque fichier a sa propre limite d'attente : une zone lente ne bloque pas les autres.
+    async function fetchNearbyJson(url){
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),4500);
       try{
-        const area=String(a.area||'');
-        const url=a.country==='be'?('/market-chunks/be/'+encodeURIComponent(area)+'/'+dayFile+'.json?v=430'):('/market-chunks/fr/'+encodeURIComponent(area.toUpperCase())+'/'+dayFile+'.json?v=430');
-        const r=await fetch(url,{cache:'no-store'});return r.ok?{a,rows:await r.json()}:null;
+        const response=await fetch(url,{cache:'no-store',signal:controller.signal});
+        return response.ok?await response.json():null;
       }catch(_){return null}
-    }));
-    const chunks=await Promise.all(candidates.map(async a=>{
-      try{const r=await fetch('/nearby-shards/'+a.file+'?v=430',{cache:'no-store'});return r.ok?await r.json():null}catch(_){return null}
-    }));
-    for(let i=0;i<chunks.length;i++){
-      const a=candidates[i],j=chunks[i];if(!j)continue;
-      const weekly=a.country==='be'?window.NEAR_BE:window.NEAR_FR;
-      const special=a.country==='be'?window.SPECIAL_BE:window.SPECIAL_FR;
-      mergeRows(weekly,j.weekly||[]);mergeRows(special,j.special||[]);
+      finally{clearTimeout(timer)}
     }
-    // V491 : la page 150 km recharge aussi les mêmes fichiers que la rubrique « Marchés ».
-    // Cela évite qu'un marché présent dans Marchés disparaisse simplement parce que le shard 150 km est plus ancien.
-    const mainChunks=await mainChunksPromise;
-    for(const pack of mainChunks){if(!pack||!Array.isArray(pack.rows))continue;mergeRows(pack.a.country==='be'?window.NEAR_BE:window.NEAR_FR,pack.rows)}
+    const dayFile=norm(selectedDay);
+    const loads=candidates.map(async a=>{
+      const area=String(a.area||'');
+      const mainUrl=a.country==='be'?('/market-chunks/be/'+encodeURIComponent(area)+'/'+dayFile+'.json?v=430'):('/market-chunks/fr/'+encodeURIComponent(area.toUpperCase())+'/'+dayFile+'.json?v=430');
+      const [shard,main]=await Promise.all([
+        fetchNearbyJson('/nearby-shards/'+a.file+'?v=430'),
+        fetchNearbyJson(mainUrl)
+      ]);
+      return {a,shard,main};
+    });
+    const packs=await Promise.all(loads);
+    for(const {a,shard,main} of packs){
+      if(shard){
+        mergeRows(a.country==='be'?window.NEAR_BE:window.NEAR_FR,shard.weekly||[]);
+        mergeRows(a.country==='be'?window.SPECIAL_BE:window.SPECIAL_FR,shard.special||[]);
+      }
+      if(Array.isArray(main))mergeRows(a.country==='be'?window.NEAR_BE:window.NEAR_FR,main);
+    }
     // V516 : afficher d'abord les fichiers locaux/proches + le cache serveur.
     // Le gros rafraîchissement serveur continue ensuite en arrière-plan et ne bloque plus l'écran.
     addServerMarketsFromCache(lat,lon);
