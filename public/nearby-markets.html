@@ -218,7 +218,10 @@
     }catch(_){ }
   }
   async function loadNearbyShards(lat,lon){
-    await window.MarketDedupV511.ready;
+    // Ne pas bloquer indéfiniment la page si le module de dédoublonnage tarde à démarrer.
+    if(window.MarketDedupV511?.ready){
+      await Promise.race([Promise.resolve(window.MarketDedupV511.ready).catch(()=>{}),new Promise(resolve=>setTimeout(resolve,2500))]);
+    }
     window.NEAR_FR=[];window.NEAR_BE=[];window.SPECIAL_FR=[];window.SPECIAL_BE=[];
     const indexResponse=await fetch('/nearby-shards/index.json?v=335',{cache:'force-cache'});
     if(!indexResponse.ok)throw new Error('INDEX_NEARBY');
@@ -536,7 +539,7 @@
   function showLocationSettingsHelp(reason){
     const info=platformLocationHelp();
     gpsSettingsText.textContent=reason==='denied'
-      ? 'La localisation est refusée. Il faut la réactiver pour calculer les marchés à moins de 150 km autour de ta position actuelle.'
+      ? 'La localisation est refusée. Il faut la réactiver pour calculer les marchés à moins de '+LIMIT_KM+' km autour de ta position actuelle.'
       : 'Impossible d’obtenir ta position actuelle. Vérifie que la localisation est activée.';
     gpsSettingsHint.textContent=info.hint;
     gpsSettingsOpen.style.display=info.url?'block':'none';
