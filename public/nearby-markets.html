@@ -230,7 +230,7 @@
       const p=nearestPointToBox(lat,lon,a);return distanceKm(lat,lon,p.lat,p.lon)<=LIMIT_KM+15;
     });
     status.textContent='Position '+referenceLabel+' trouvée — chargement de '+candidates.length+' zone'+(candidates.length>1?'s':'')+' proche'+(candidates.length>1?'s':'')+'…';
-    const dayFile=norm(selectedDay);
+
     // Chaque fichier a sa propre limite d'attente : une zone lente ne bloque pas les autres.
     async function fetchNearbyJson(url){
       const controller=new AbortController();
@@ -241,6 +241,7 @@
       }catch(_){return null}
       finally{clearTimeout(timer)}
     }
+    const dayFile=norm(selectedDay);
     const dayFile=norm(selectedDay);
     const loads=candidates.map(async a=>{
       const area=String(a.area||'');
