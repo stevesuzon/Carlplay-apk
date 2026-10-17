@@ -251,14 +251,28 @@
       ]);
       return {a,shard,main};
     });
-    const packs=await Promise.all(loads);
-    for(const {a,shard,main} of packs){
+    // Affichage progressif : ne pas attendre la zone la plus lente pour montrer les marchés.
+    addServerMarketsFromCache(lat,lon);
+    rebuildCityPointIndexV430();
+    let loaded=0,refreshTimer=null;
+    const refresh=()=>{
+      rebuildCityPointIndexV430();
+      if(Number.isFinite(userLat)&&Number.isFinite(userLon)&&Math.abs(userLat-lat)<0.0005&&Math.abs(userLon-lon)<0.0005){
+        render(keepWithin80(rowsForToday(),lat,lon));
+      }
+    };
+    const packs=loads.map(job=>job.then(({a,shard,main})=>{
       if(shard){
         mergeRows(a.country==='be'?window.NEAR_BE:window.NEAR_FR,shard.weekly||[]);
         mergeRows(a.country==='be'?window.SPECIAL_BE:window.SPECIAL_FR,shard.special||[]);
       }
       if(Array.isArray(main))mergeRows(a.country==='be'?window.NEAR_BE:window.NEAR_FR,main);
-    }
+      loaded++;
+      if(!refreshTimer)refreshTimer=setTimeout(()=>{refreshTimer=null;refresh()},120);
+    }).catch(()=>{loaded++}));
+    await Promise.all(packs);
+    if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null;}
+    refresh();
     // V516 : afficher d'abord les fichiers locaux/proches + le cache serveur.
     // Le gros rafraîchissement serveur continue ensuite en arrière-plan et ne bloque plus l'écran.
     addServerMarketsFromCache(lat,lon);
@@ -727,7 +741,7 @@
       try{localStorage.setItem('marketDistanceReferenceV1',JSON.stringify({latitude:userLat,longitude:userLon,updatedAt:Date.now(),source:'current-gps'}))}catch(e){}
       status.textContent='Calcul depuis '+referenceLabel+' — marchés '+(showTomorrow?'de demain : ':'d’aujourd’hui : ')+selectedDay+'…';
       await loadNearbyShards(userLat,userLon);
-      await loadDisabledKeys();
+      loadDisabledKeys().then(changed=>{if(changed)render(keepWithin80(rowsForToday(),userLat,userLon))}).catch(()=>{});
       const todayRows=rowsForToday();
       const nearby=keepWithin80(todayRows,userLat,userLon);
       render(nearby);
