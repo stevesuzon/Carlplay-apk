@@ -1,6 +1,6 @@
 // Server-only Stripe Checkout. No card details or Stripe secrets enter browser code.
 export function createStripePayments(h){
- const ORIGIN='https://carplay-telephone.appli-suzon.workers.dev',PRODUCT='couteau-suisse-365',PRICE=3000;
+ const ORIGIN='https://carplay-telephone.appli-suzon.workers.dev',PRODUCT='couteau-suisse-365',PRICE=1499;
  const configured=env=>/^(?:sk|rk)_live_/.test(env.STRIPE_SECRET_KEY||'')&&/^whsec_/.test(env.STRIPE_WEBHOOK_SECRET||'')&&!!env.CODE_PEPPER;
  async function schema(env){await h.ensureMarketSchemaOnce(env.DB,'stripe-checkout-v1',async()=>{
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS stripe_access_orders(id TEXT PRIMARY KEY,token_hash TEXT NOT NULL,device_id TEXT NOT NULL,email TEXT NOT NULL,first_name TEXT NOT NULL,last_name TEXT NOT NULL,created_at INTEGER NOT NULL,session_id TEXT UNIQUE,checkout_url TEXT,code_hash TEXT,code_box TEXT,paid_at INTEGER,email_sent_at INTEGER,email_lease INTEGER NOT NULL DEFAULT 0)`).run();
@@ -15,8 +15,8 @@ export function createStripePayments(h){
   if(!order.code_box||order.email_sent_at)return false;
   const now=Date.now(),claim=await env.DB.prepare('UPDATE stripe_access_orders SET email_lease=? WHERE id=? AND email_sent_at IS NULL AND email_lease<=?').bind(now+3600000,order.id,now).run();if(!claim.meta?.changes)return false;
   const code=await h.openRecoveryCode(order.code_box,env);if(!code)return false;
-  const text='Merci pour votre paiement de 30 €. Votre code Couteau Suisse est : '+code+'.\nIl ajoute 365 jours à votre accès lors de son activation, en conservant les jours payés restants.\nOuvrez Couteau Suisse, puis Réglages > Abonnement pour l’activer avec votre nom, prénom et votre adresse e-mail.';
-  const sent=await h.brevoSendHtml(env,order.email,'Votre code Couteau Suisse — 1 an',text,'<div style="font-family:Arial,sans-serif"><h2>Couteau Suisse</h2><p>Merci pour votre paiement de 30 €.</p><p>Votre code pour un an :</p><p style="font-size:32px;font-weight:bold;letter-spacing:6px">'+code+'</p><p>Activez-le dans Réglages → Abonnement. Vos jours payés restants sont conservés.</p></div>');
+  const text='Merci pour votre paiement de 14,99 €. Votre code Couteau Suisse est : '+code+'.\nIl ajoute 365 jours à votre accès lors de son activation, en conservant les jours payés restants.\nOuvrez Couteau Suisse, puis Réglages > Abonnement pour l’activer avec votre nom, prénom et votre adresse e-mail.';
+  const sent=await h.brevoSendHtml(env,order.email,'Votre code Couteau Suisse — 1 an',text,'<div style="font-family:Arial,sans-serif"><h2>Couteau Suisse</h2><p>Merci pour votre paiement de 14,99 €.</p><p>Votre code pour un an :</p><p style="font-size:32px;font-weight:bold;letter-spacing:6px">'+code+'</p><p>Activez-le dans Réglages → Abonnement. Vos jours payés restants sont conservés.</p></div>');
   if(sent)await env.DB.prepare('UPDATE stripe_access_orders SET email_sent_at=? WHERE id=?').bind(Date.now(),order.id).run();return sent;
  }
  async function fulfill(env,session){
@@ -53,7 +53,7 @@ export function createStripePayments(h){
   const current=await env.DB.prepare('SELECT lifetime FROM subscriptions WHERE active=1 AND recovery_email_hash=? AND lifetime=1 LIMIT 1').bind(await h.sha256Text(h.normalizeEmail(identity.email))).first();if(current)return h.json({ok:false,error:'ABONNEMENT_DEJA_A_VIE'},409);
   const token=String(data.token||'');if(!/^[a-f0-9]{64}$/.test(token))return h.json({ok:false,error:'DONNEES_INVALIDES'},400);
   const tokenHash=await h.sha256Text(token),email=h.normalizeEmail(identity.email);
-  let order=await env.DB.prepare('SELECT * FROM stripe_access_orders WHERE device_id=? AND token_hash=? AND email=? AND created_at>? AND code_hash IS NULL ORDER BY created_at DESC LIMIT 1').bind(device,tokenHash,email,Date.now()-1800000).first();
+  let order=await env.DB.prepare('SELECT * FROM stripe_access_orders WHERE device_id=? AND token_hash=? AND email=? AND created_at>? AND created_at>=1792320000000 AND code_hash IS NULL ORDER BY created_at DESC LIMIT 1').bind(device,tokenHash,email,Date.now()-1800000).first();
   if(!order){
    const recent=await env.DB.prepare('SELECT COUNT(*) n FROM stripe_access_orders WHERE device_id=? AND created_at>?').bind(device,Date.now()-3600000).first();if(Number(recent.n)>4)return h.json({ok:false,error:'REESSAYEZ_PLUS_TARD'},429);
    order={id:crypto.randomUUID(),token_hash:tokenHash,device_id:device,email,first_name:identity.first_name,last_name:identity.last_name,created_at:Date.now()};
