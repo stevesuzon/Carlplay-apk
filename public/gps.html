@@ -6,7 +6,16 @@
 iframe{display:block;width:100%;height:100dvh;margin:0;border:0}
 #homeReturn{position:fixed;z-index:2147483647;top:calc(env(safe-area-inset-top) + 8px);right:10px;padding:12px 15px;background:#10283d;color:#fff;border:2px solid #f39b19;border-radius:12px;font-size:14px;font-weight:900;text-decoration:none;box-shadow:0 3px 12px #0008}
 @media (orientation:landscape) and (max-height:600px){#homeReturn{top:calc(env(safe-area-inset-top) + 4px);right:calc(env(safe-area-inset-right) + 6px);left:auto;padding:8px 10px;font-size:12px}iframe{height:100dvh}}
+#fuelNearby{position:fixed;left:calc(env(safe-area-inset-left) + 10px);bottom:calc(env(safe-area-inset-bottom) + 12px);z-index:2147483646;display:block;max-width:190px;padding:9px 12px;border-radius:12px;background:#10283de8;border:2px solid #32c978;color:#fff;text-decoration:none;font-weight:900;font-size:14px;box-shadow:0 3px 12px #0008}#fuelNearby small{display:block;font-size:10px;font-weight:600;color:#cfe6dd}#fuelNearby strong{display:block;font-size:19px;margin-top:3px}@media(orientation:landscape) and (max-height:600px){#fuelNearby{left:calc(env(safe-area-inset-left) + 42px);bottom:calc(env(safe-area-inset-bottom) + 6px);font-size:12px;padding:5px 8px;max-width:145px}#fuelNearby strong{font-size:16px}}
 </style></head><body>
 <iframe title="GPS Couteau Suisse" src="https://couteau-suisse-gps.appli-suzon.workers.dev/" allow="geolocation; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe>
 <a id="homeReturn" href="/index.html">← RETOUR À L’ACCUEIL</a>
+<a id="fuelNearby" href="/stations-carburant.html" aria-live="polite">⛽ STATIONS PROCHES<strong id="fuelDistance">Recherche GPS…</strong><small>À proximité · pas forcément sur le trajet</small></a>
+<script>
+(function(){
+const el=document.getElementById('fuelDistance');let last=0,busy=false;
+async function update(position){if(busy||Date.now()-last<60000)return;busy=true;last=Date.now();try{const lat=position.coords.latitude,lon=position.coords.longitude;const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),7000);let response;try{response=await fetch('/api/fuel-stations?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon)+'&fuel=Gazole',{cache:'no-store',signal:ctrl.signal})}finally{clearTimeout(timer)}const data=await response.json();if(!response.ok||!data.ok)throw Error('API');const stations=(data.stations||[]).filter(x=>Number.isFinite(Number(x.distanceKm))&&Number(x.distanceKm)>=0).sort((a,b)=>Number(a.distanceKm)-Number(b.distanceKm));el.textContent=stations.length?'À '+Number(stations[0].distanceKm).toLocaleString('fr-FR',{maximumFractionDigits:1})+' km':'Aucune à 15 km';}catch(e){el.textContent='Voir les stations'}finally{busy=false}}
+if(navigator.geolocation){navigator.geolocation.watchPosition(update,()=>{el.textContent='Activer le GPS'},{enableHighAccuracy:false,maximumAge:60000,timeout:12000})}else el.textContent='GPS indisponible';
+})();
+</script>
 </body></html>
