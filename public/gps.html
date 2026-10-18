@@ -3,7 +3,8 @@
 <style>
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07111d;font-family:Arial,sans-serif}
 iframe{display:block;width:100%;height:100dvh;border:0}
-#homeReturn{position:fixed;z-index:2147483647;top:calc(env(safe-area-inset-top) + 8px);left:10px;padding:12px 15px;background:#10283d;color:#fff;border:2px solid #f39b19;border-radius:12px;font-size:14px;font-weight:900;text-decoration:none;box-shadow:0 3px 12px #0008}
+#homeReturn{position:fixed;z-index:2147483647;top:calc(env(safe-area-inset-top) + 8px);right:10px;padding:12px 15px;background:#10283d;color:#fff;border:2px solid #f39b19;border-radius:12px;font-size:14px;font-weight:900;text-decoration:none;box-shadow:0 3px 12px #0008}
+@media (orientation:landscape) and (max-height:600px){#homeReturn{top:calc(env(safe-area-inset-top) + 4px);right:calc(env(safe-area-inset-right) + 6px);left:auto;padding:8px 10px;font-size:12px}iframe{height:100dvh}}
 </style></head><body>
 <iframe title="GPS Couteau Suisse" src="https://couteau-suisse-gps.appli-suzon.workers.dev/" allow="geolocation; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe>
 <a id="homeReturn" href="/index.html">← RETOUR À L’ACCUEIL</a>
