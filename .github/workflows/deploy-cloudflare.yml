@@ -104,7 +104,7 @@ jobs:
           BASE="https://carplay-telephone.appli-suzon.workers.dev"
           curl -fsS --max-time 20 -H 'Cache-Control: no-cache' "$BASE/api/payment-config?deployment=$GITHUB_SHA" -o /tmp/payment-config.json
           head -c 300 /tmp/payment-config.json; echo
-          python -c 'import json; j=json.load(open("/tmp/payment-config.json")); assert j["ok"] and isinstance(j["configured"],bool) and j["amount"]==3000 and j["days"]==365'
+          python -c 'import json; j=json.load(open("/tmp/payment-config.json")); assert j["ok"] and isinstance(j["configured"],bool) and j["amount"]==1499 and j["days"]==365'
           curl -fsSL --max-time 20 "$BASE/stripe-payment-v1.js" -o /tmp/payment-client.js
           node --check /tmp/payment-client.js
           curl -fsSL --max-time 20 "$BASE/payment.html" -o /tmp/payment-page.html
