@@ -830,6 +830,7 @@ label[for="houseFirstName"],label[for="houseLastName"],label[for="housePhone"]{d
 /* Ancien carnet d'adresses retiré de l'interface; données et devis conservés. */
 #homeAddressBookBtn,#addressBackupSettingRow,#addressCountryChooser,#addressCreatorModal,#createAddressBtn{display:none!important}
 </style>
+<script id="retireOldAddressDataV2">(function(){try{if(localStorage.getItem('oldAddressPurgeV2')==='1')return;['saved_market_addresses','saved_market_addresses_be'].forEach(function(k){localStorage.removeItem(k)});localStorage.setItem('oldAddressPurgeV2','1')}catch(e){}})();</script>
 </head>
 <body class="homePage">
 
@@ -977,19 +978,6 @@ Si Android le demande, autorise l’installation d’applications provenant de c
 <div class="settingBody" id="shareMenu">
 <button onclick="shareApp()">🎁 PARRAINER / ENVOYER L’APPLICATION</button>
 <div class="settingNote"><b>Parrainage :</b> ton ami ajoute l’application à son écran d’accueil, renseigne nom, prénom et e-mail puis valide le lien reçu par e-mail.<br><b>Si tu es administrateur :</b> ton ami reçoit 150 points et tu ne reçois aucun point.<br><b>Si tu es utilisateur :</b> tu reçois 280 points et ton ami 190 points.<br>Une adresse e-mail et un appareil ne peuvent être récompensés qu’une seule fois.</div>
-</div>
-</div>
-<div class="settingRow" id="addressBackupSettingRow">
-<button class="settingHead" onclick="toggleSection('addressBackupMenu',this)">
-<span>📒 SAUVEGARDE DES ADRESSES</span><span>⌄</span>
-</button>
-<div class="settingBody" id="addressBackupMenu">
-<button id="addressExportBtn" type="button" onclick="exportMyAddresses()">💾 SAUVEGARDER LES ADRESSES/DEVIS</button>
-<button type="button" onclick="document.getElementById('addressImportFile').click()">📥 IMPORTER LES ADRESSES/DEVIS</button>
-<input id="addressImportFile" type="file" accept="application/json,.json" style="display:none" onchange="importMyAddresses(this.files&&this.files[0]);this.value=''">
-<div class="settingNote"><b>Sauvegarde :</b> Vous pouvez l'envoyer par WhatsApp, Messages, Mail ou Fichiers.<br><b>Récupération :</b> Importez le fichier JSON ou collez directement le texte reçu dans un message / WhatsApp ci-dessous.</div>
-<textarea id="addressImportText" placeholder="Collez ici la sauvegarde reçue par message, WhatsApp ou mail…" style="width:100%;min-height:110px;margin:7px 0;padding:10px;border-radius:12px;border:2px solid #536b80;background:#0b1724;color:#fff;font-size:14px"></textarea>
-<button type="button" onclick="importMyAddressesText()">📲 RÉCUPÉRER DEPUIS UN MESSAGE / WHATSAPP</button>
 </div>
 </div>
 <div class="settingRow"><button class="settingHead" onclick="toggleSection('notificationMenu',this)"><span>🔔 Notifications de l’application</span><span>⌄</span></button><div class="settingBody" id="notificationMenu"><div style="margin:10px 8px 14px;padding:16px;border:4px solid #ff9f13;border-radius:16px;background:#321400;color:#fff;text-align:center;font-size:19px;font-weight:1000;line-height:1.35">⚠️ IMPORTANT<br>SI LA CASE N’EST PAS COCHÉE, VOUS NE RECEVREZ PLUS AUCUNE NOTIFICATION DE L’APPLICATION : MÉTÉO, MARCHÉS, MISES À JOUR ET DEMANDES ADMINISTRATEUR.</div><label style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px;color:#fff;font-size:20px;font-weight:900">RECEVOIR TOUTES LES NOTIFICATIONS <input id="appNotificationToggle" type="checkbox" style="width:34px;height:34px"></label><div class="settingNote" id="appNotificationStatus">🔕 Aucune notification ne sera reçue sur ce téléphone.</div><div class="settingNote">Une seule case commande toutes les notifications. Cochez-la pour tout recevoir ; décochez-la pour tout arrêter.</div></div></div>
@@ -1685,176 +1673,7 @@ function openExternal(u){location.href=u}refreshPrefs();showStatuses();</script>
 
 .savedAddressFields{display:grid;gap:4px;margin-top:7px}.savedFieldLine{display:grid;grid-template-columns:minmax(92px,38%) 1fr;gap:7px;align-items:start;padding:5px 7px;border-radius:8px;background:#0b1724;color:#eef7ff;font-size:12px}.savedFieldLine b{color:#8edfff}.savedFieldLine span{overflow-wrap:anywhere}.clientTaken{margin-top:8px;padding:7px 9px;border-radius:9px;background:#1b2a15;color:#b9f58e;font-weight:950;font-size:12px}
 </style>
-<style id="addressCountryChooserStyle">
-#addressCountryChooser{display:none;position:fixed;inset:0;z-index:2147483646;background:#000e;align-items:center;justify-content:center;padding:14px;font-family:Arial,sans-serif}#addressCountryChooser.open{display:flex}#addressCountryChooser .countryPanel{width:min(540px,94vw);background:#101925;border:3px solid #61ddff;border-radius:22px;padding:18px;color:#fff;box-shadow:0 18px 55px #000}#addressCountryChooser h2{text-align:center;margin:0 0 8px;color:#61ddff;font-size:24px}#addressCountryChooser p{text-align:center;margin:0 0 15px;color:#d7eaff;font-weight:800;font-size:14px}.countryChoices{display:grid;grid-template-columns:1fr 1fr;gap:12px}.countryChoice{min-height:112px;border:3px solid #526b83;border-radius:18px;color:#fff;font:950 19px/1.18 Arial,sans-serif;padding:12px;background:#172638}.countryChoice strong{display:block;font-size:34px;margin-bottom:7px}.countryChoice.fr{border-color:#4aa8ff;background:linear-gradient(180deg,#0a5ba8,#103054)}.countryChoice.be{border-color:#ffd13a;background:linear-gradient(180deg,#5c4b00,#241f08)}#addressCountryCancel{width:100%;min-height:48px;margin-top:12px;border:0;border-radius:12px;background:#344154;color:#fff;font-weight:950}@media(max-width:430px){.countryChoices{grid-template-columns:1fr}.countryChoice{min-height:92px}}
-</style>
-<div id="addressCountryChooser" aria-hidden="true"><div class="countryPanel"><h2>📒 CHOISIR LE CARNET D’ADRESSES</h2><p>Choisissez le pays pour ouvrir le bon carnet.</p><div class="countryChoices"><button id="addressChooseFrance" type="button" class="countryChoice fr"><strong>🇫🇷</strong>ADRESSE FRANÇAISE<br><span style="font-size:13px">Carnet France</span></button><button id="addressChooseBelgium" type="button" class="countryChoice be"><strong>🇧🇪</strong>ADRESSE BELGE<br><span style="font-size:13px">Carnet Belgique</span></button></div><button id="addressCountryCancel" type="button">← RETOUR</button></div></div>
-<div id="addressCreatorModal" aria-hidden="true"><div class="addressPanel"><h2 id="addressBookTitle">📒 CARNET D’ADRESSES</h2><div id="addressAddSection"><div id="addressAddTitle" style="text-align:center;color:#ffd36d;font-size:17px;font-weight:950;margin:2px 0 8px">➕ AJOUTER UNE ADRESSE</div><p style="font-size:15px;font-weight:950">Renseignez l’adresse et le client.</p><div style="margin:8px 0 10px;padding:11px;border:2px solid #35d07f;border-radius:12px;background:#10251b;color:#58e69a;text-align:center;font-size:13px;font-weight:1000;line-height:1.4">🔒 Vos adresses restent privées<br><span style="color:#f3f7f5;font-weight:700">Elles sont enregistrées uniquement dans votre application et ne sont jamais partagées.</span></div>
-<div id="addressBelgiumLanguage" style="display:none;margin:6px 0 10px;gap:8px;grid-template-columns:1fr 1fr"><button id="addressLangFr" type="button" style="background:#174a7a;color:#fff;border:2px solid #61ddff">🇫🇷 FRANÇAIS</button><button id="addressLangNl" type="button" style="background:#3e3508;color:#fff;border:2px solid #ffd13a">🇳🇱 NEDERLANDS</button></div>
-<div id="addressStructuredFields">
- <div class="addrField"><label id="addressFirstNameLabel">PRÉNOM</label><input id="addressFirstName" type="text" autocomplete="given-name" placeholder="Prénom"></div>
- <div class="addrField"><label id="addressLastNameLabel">NOM</label><input id="addressLastName" type="text" autocomplete="family-name" placeholder="Nom"></div>
- <div class="addrField wide"><label id="addressPhoneLabel">TÉLÉPHONE</label><input id="addressPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="06 00 00 00 00"></div>
- <div id="addressStreetRow"><div class="addrField"><label id="addressStreetNumberLabel">N°</label><input id="addressStreetNumber" type="text" inputmode="numeric" placeholder="12"></div><div class="addrField" id="addressStreetTypeField"><label id="addressStreetTypeLabel">VOIE</label><select id="addressStreetType"><option>Rue</option><option>Chemin</option><option>Avenue</option><option>Route</option><option>Boulevard</option><option>Impasse</option><option>Allée</option><option>Place</option><option>Quai</option><option>Lieu-dit</option><option>Autre</option></select></div><div class="addrField"><label id="addressStreetNameLabel">NOM DE LA VOIE</label><input id="addressStreetName" type="text" autocomplete="address-line1" placeholder="de la Gare"></div></div>
- <div class="addrField" id="addressBoxField" style="display:none"><label id="addressBoxLabel">BUS</label><input id="addressBox" type="text" autocomplete="address-line2" placeholder="Ex. 3"></div>
- <div class="addrField"><label id="addressPostalLabel">CODE POSTAL</label><input id="addressPostalCode" type="text" inputmode="numeric" autocomplete="postal-code" placeholder="35000"></div>
- <div class="addrField"><label id="addressAreaLabel">DÉPARTEMENT</label><input id="addressDepartment" type="text" placeholder="35" list="addressAreaSuggestions"><datalist id="addressAreaSuggestions"></datalist></div>
- <div class="addrField wide"><label id="addressCityLabel">VILLE</label><input id="addressCity" type="text" autocomplete="address-level2" placeholder="Rennes"></div>
-</div>
-<div id="addressHousingBlock" style="margin-top:12px">
-  <div style="font-size:12px;font-weight:950;color:#bdefff;margin-bottom:6px">TYPE DE LOGEMENT</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-    <button id="addressHouse" type="button" class="housingChoice active">🏠 MAISON</button>
-    <button id="addressApartment" type="button" class="housingChoice">🏢 APPARTEMENT</button>
-  </div>
-  <input id="addressHousingType" type="hidden" value="Maison">
-  <div id="addressApartmentFields" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-    <div class="addrField"><label>ÉTAGE</label><select id="addressFloor"><option value="">Choisir</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option></select></div>
-    <div class="addrField"><label>CODE APPARTEMENT</label><input id="addressApartmentCode" type="text" autocomplete="off" placeholder="Ex. 2580, A12, B305"></div>
-  </div>
-</div>
-<div class="addressActions">
-<button id="addressLocate" type="button">📍 UTILISER MA LOCALISATION</button>
-<button id="addressSave" type="button">✓ ENREGISTRER TOUT</button>
-<button id="addressCreateQuote" type="button">🧾 CRÉER UN DEVIS</button>
-<button id="addressCancel" type="button">RETOUR</button>
-</div><div id="addressCreatorStatus" aria-live="polite"></div></div><button id="addressBookAdd" type="button" style="display:none;width:100%;margin:8px 0 8px;padding:12px;border:2px solid #35d07f;border-radius:12px;background:#103823;color:#fff;font-weight:950">➕ AJOUTER UNE ADRESSE</button><button id="addressBookClose" type="button" style="display:none;width:100%;margin:8px 0 12px;padding:12px;border:2px solid #61ddff;border-radius:12px;background:#102537;color:#fff;font-weight:950">← RETOUR À L’ACCUEIL</button><div id="savedAddressFolders"></div></div></div>
-<script id="savedAddressCreatorScript">
-(function(){
- var $=function(id){return document.getElementById(id)},openBtn=$('createAddressBtn'),modal=$('addressCreatorModal'),chooser=$('addressCountryChooser'),chooseFr=$('addressChooseFrance'),chooseBe=$('addressChooseBelgium'),chooserCancel=$('addressCountryCancel'),locateBtn=$('addressLocate'),save=$('addressSave'),cancel=$('addressCancel'),status=$('addressCreatorStatus'),folders=$('savedAddressFolders'),addSection=$('addressAddSection'),bookAdd=$('addressBookAdd'),bookClose=$('addressBookClose');
- if(!modal)return;var pendingLat=null,pendingLng=null,pendingGeo=null,currentCountry='fr';
- var provincesBE=['Anvers','Brabant flamand','Brabant wallon','Flandre-Occidentale','Flandre-Orientale','Hainaut','Liège','Limbourg','Luxembourg','Namur','Bruxelles-Capitale'];
- var beDisplayLang='nl';
- function clean(v){return String(v||'').replace(/\s+/g,' ').trim()}
- function val(id){var e=$(id);return e?clean(e.value):''}
- function set(id,v){var e=$(id);if(e)e.value=v||''}
- function storageKey(){return currentCountry==='be'?'saved_market_addresses_be':'saved_market_addresses'}
- function getAll(){try{var a=JSON.parse(localStorage.getItem(storageKey())||'[]');if(!Array.isArray(a))return [];var now=Date.now(),changed=false,prefix=currentCountry==='be'?'bea':'fra',seen={};a.forEach(function(x,i){if(!x||typeof x!=='object')return;var id=String(x.id||'').trim();if(!id||seen[id]){x.id=prefix+'-ancien-'+now+'-'+i+'-'+Math.random().toString(36).slice(2,7);changed=true}seen[x.id]=1;var b=x.buildingEstimate;if(!b)return;var exp=Date.parse(b.photosExpiresAt||'');if(exp&&now>=exp){['photo','gable1Photo','gable2Photo','frontFacadePhoto','backFacadePhoto'].forEach(function(k){if(b[k]){b[k]=null;changed=true}});b.photosExpired=true}});if(changed)try{localStorage.setItem(storageKey(),JSON.stringify(a))}catch(e){}return a}catch(e){return []}}
- function esc(s){return String(s||'').replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]})}
- function currentProfession(){try{return clean(localStorage.getItem('market_trade')||localStorage.getItem('profession')||'')}catch(e){return ''}}
- function savedDate(v){try{return new Date(v).toLocaleDateString('fr-FR')}catch(e){return ''}}
- function departmentFromPostal(pc){pc=clean(pc).replace(/\D/g,'');if(/^97[1-6]/.test(pc))return pc.slice(0,3);return pc.length>=2?pc.slice(0,2):''}
- function applyBelgiumLabels(lang){
-  beDisplayLang=lang==='fr'?'fr':'nl';
-  var fr=beDisplayLang==='fr';
-  var labels={addressFirstNameLabel:fr?'PRÉNOM':'VOORNAAM',addressLastNameLabel:fr?'NOM':'NAAM',addressPhoneLabel:fr?'TÉLÉPHONE':'TELEFOON',addressStreetNumberLabel:fr?'N°':'HUISNUMMER',addressStreetNameLabel:fr?'RUE':'STRAAT',addressBoxLabel:fr?'BOÎTE':'BUS',addressPostalLabel:fr?'CODE POSTAL':'POSTCODE',addressAreaLabel:fr?'PROVINCE':'PROVINCIE',addressCityLabel:fr?'COMMUNE':'GEMEENTE'};
-  Object.keys(labels).forEach(function(id){var e=$(id);if(e)e.textContent=labels[id]});
-  setLabelState();
-  renderFolders();
- }
- function setLabelState(){var frBtn=$('addressLangFr'),nlBtn=$('addressLangNl');if(frBtn)frBtn.style.opacity=beDisplayLang==='fr'?'1':'.55';if(nlBtn)nlBtn.style.opacity=beDisplayLang==='nl'?'1':'.55'}
- function applyCountryUI(country){
-  currentCountry=country==='be'?'be':'fr';window.__addressStorageKey=storageKey();
-  var be=currentCountry==='be',title=$('addressBookTitle'),addTitle=$('addressAddTitle'),area=$('addressDepartment'),pc=$('addressPostalCode'),suggest=$('addressAreaSuggestions'),streetTypeField=$('addressStreetTypeField'),boxField=$('addressBoxField'),housing=$('addressHousingBlock');
-  if(title)title.textContent=be?'🇧🇪 CARNET D’ADRESSES BELGIQUE':'🇫🇷 CARNET D’ADRESSES FRANCE';
-  if(addTitle)addTitle.textContent=be?'➕ NIEUW BELGISCH ADRES':'➕ AJOUTER UNE ADRESSE';
-  if(area){area.placeholder=be?'Provincie':'35';area.setAttribute('autocomplete','address-level1')}
-  if(pc)pc.placeholder=be?'1000':'35000';
-  if(suggest)suggest.innerHTML=be?provincesBE.map(function(x){return '<option value="'+esc(x)+'"></option>'}).join(''):'';
-  if(streetTypeField)streetTypeField.style.display=be?'none':'';
-  if(boxField)boxField.style.display=be?'flex':'none';
-  if(housing)housing.style.display=be?'none':'';
-  if(be){applyBelgiumLabels(beDisplayLang)}else{
-    var frLabels={addressFirstNameLabel:'PRÉNOM',addressLastNameLabel:'NOM',addressPhoneLabel:'TÉLÉPHONE',addressStreetNumberLabel:'N°',addressStreetTypeLabel:'VOIE',addressStreetNameLabel:'NOM DE LA VOIE',addressPostalLabel:'CODE POSTAL',addressAreaLabel:'DÉPARTEMENT',addressCityLabel:'VILLE'};
-    Object.keys(frLabels).forEach(function(id){var e=$(id);if(e)e.textContent=frLabels[id]});
-  }
-  if(bookClose)bookClose.textContent='← FRANCE / BELGIQUE';
- }
- function addressData(){
-  var n=val('addressStreetNumber'),type=val('addressStreetType'),name=val('addressStreetName'),box=val('addressBox'),pc=val('addressPostalCode'),area=val('addressDepartment'),city=val('addressCity'),first=val('addressFirstName'),last=val('addressLastName'),phone=val('addressPhone');
-  if(currentCountry==='fr'&&!area){area=departmentFromPostal(pc);if(area)set('addressDepartment',area)}
-  var street=currentCountry==='be'?name:clean([type,name].filter(Boolean).join(' '));
-  var boxText=(currentCountry==='be'&&box)?('bus '+box):'';
-  var address=clean([street,n,boxText,pc,city,currentCountry==='be'?'Belgique':'France'].filter(Boolean).join(' '));
-  return {streetNumber:n,street:street,box:box,postalCode:pc,department:area,province:currentCountry==='be'?area:'',city:city,firstName:first,lastName:last,personName:clean(first+' '+last),phone:phone,address:address,profession:currentProfession()}
- }
- async function reverseGeocode(lat,lng){try{var r=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lng),{headers:{'Accept-Language':'fr'}});if(!r.ok)throw 0;var j=await r.json(),a=j.address||{},pc=clean(a.postcode||''),city=clean(a.city||a.town||a.village||a.municipality||a.suburb||''),road=clean(a.road||a.pedestrian||a.residential||a.path||''),hn=clean(a.house_number||''),area=currentCountry==='be'?clean(a.state||a.province||a.county||''):departmentFromPostal(pc);return {houseNumber:hn,road:road,postalCode:pc,city:city,department:area}}catch(e){return null}}
- async function geocodeText(q){q=clean(q);if(!q)return null;try{var cc=currentCountry==='be'?'be':'fr',r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes='+cc+'&q='+encodeURIComponent(q),{headers:{'Accept-Language':'fr'}});if(!r.ok)throw 0;var a=await r.json();if(!Array.isArray(a)||!a[0])return null;return {lat:Number(a[0].lat),lng:Number(a[0].lon)}}catch(e){return null}}
- function splitRoad(road){var types=['Rue','Chemin','Avenue','Route','Boulevard','Impasse','Allée','Place','Quai','Lieu-dit','Chaussée','Steenweg','Straat','Laan','Weg','Dreef','Plein'];var low=clean(road).toLowerCase();for(var i=0;i<types.length;i++){var t=types[i];if(low.indexOf(t.toLowerCase()+' ')===0)return {type:t,name:clean(road.slice(t.length))}}return {type:'Autre',name:clean(road)}}
- function ensureStreetOptions(){var sel=$('addressStreetType'),extras=['Chaussée','Steenweg','Straat','Laan','Weg','Dreef','Plein'];if(!sel)return;extras.forEach(function(x){if(!Array.from(sel.options).some(function(o){return o.value===x||o.text===x})){var o=document.createElement('option');o.textContent=x;o.value=x;sel.appendChild(o)}})}ensureStreetOptions();
- if(locateBtn)locateBtn.onclick=function(){if(!navigator.geolocation){status.textContent='GPS indisponible sur cet appareil.';return}locateBtn.classList.add('loading');locateBtn.textContent='📍 LOCALISATION…';status.textContent='Recherche de votre adresse…';navigator.geolocation.getCurrentPosition(async function(p){if(window.CarPlayLocation)window.CarPlayLocation.success(p);pendingLat=p.coords.latitude;pendingLng=p.coords.longitude;pendingGeo=await reverseGeocode(pendingLat,pendingLng);locateBtn.classList.remove('loading');locateBtn.textContent='📍 UTILISER MA LOCALISATION';if(!pendingGeo){status.textContent='Position trouvée. Complétez les cases au clavier.';return}var sr=splitRoad(pendingGeo.road);set('addressStreetNumber',pendingGeo.houseNumber);if(currentCountry==='be'){set('addressStreetName',pendingGeo.road)}else{set('addressStreetType',sr.type);set('addressStreetName',sr.name)}set('addressPostalCode',pendingGeo.postalCode);set('addressDepartment',pendingGeo.department);set('addressCity',pendingGeo.city);status.textContent='✓ Adresse remplie avec votre position. Vérifiez les cases avant d’enregistrer.'},function(e){locateBtn.classList.remove('loading');locateBtn.textContent='📍 ACTIVER LA LOCALISATION';status.textContent=window.CarPlayLocation?window.CarPlayLocation.showHelp(e):'Activez la localisation pour remplir l’adresse.'},{enableHighAccuracy:true,timeout:15000,maximumAge:0})};
- function addressNavUrl(x){var dest=(x.lat!=null&&x.lng!=null)?(x.lat+','+x.lng):(x.address||x.fullDictation||'');var pref=localStorage.getItem('gps_pref')||'Google Maps';if(pref==='Waze')return 'https://waze.com/ul?q='+encodeURIComponent(dest)+'&navigate=yes';return 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(dest)+'&travelmode=driving&dir_action=navigate'}
- function updateSavedPhone(id,areaFilter,cityFilter){var all=getAll(),item=all.find(function(x){return x.id===id});if(!item)return;var value=prompt(item.phone?'Modifier le numéro de téléphone :':'Ajouter un numéro de téléphone :',item.phone||'');if(value===null)return;value=String(value).trim();item.phone=value;localStorage.setItem(storageKey(),JSON.stringify(all));renderFolders(areaFilter,cityFilter)}
- function deleteSavedAddress(id,areaFilter,cityFilter){var all=getAll(),item=all.find(function(x){return x.id===id});if(!item)return;var name=item.personName||item.address||'cette adresse';if(!confirm('Effacer '+name+' ?'))return;all=all.filter(function(x){return x.id!==id});localStorage.setItem(storageKey(),JSON.stringify(all));renderFolders(areaFilter,cityFilter)}
- function fieldLine(label,value){value=clean(value);return value?'<div class="savedFieldLine"><b>'+esc(label)+'</b><span>'+esc(value)+'</span></div>':''}
- function money(v){var n=Number(v);return Number.isFinite(n)?n.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':'—'}
- function buildingBlock(x){var b=x&&x.buildingEstimate;if(!b)return '';var lines=[],price=[];if(b.roofAreaM2!=null)lines.push('Toiture : <b>'+esc(Number(b.roofAreaM2).toLocaleString('fr-FR'))+' m²</b>');if(b.gable1M2!=null)lines.push('Pignon 1 : <b>'+esc(Number(b.gable1M2).toLocaleString('fr-FR'))+' m²</b>');if(b.gable2M2!=null)lines.push('Pignon 2 : <b>'+esc(Number(b.gable2M2).toLocaleString('fr-FR'))+' m²</b>');if(b.frontFacadeM2!=null)lines.push('Façade avant : <b>'+esc(Number(b.frontFacadeM2).toLocaleString('fr-FR'))+' m²</b>');if(b.backFacadeM2!=null)lines.push('Façade arrière : <b>'+esc(Number(b.backFacadeM2).toLocaleString('fr-FR'))+' m²</b>');if(b.hydroPriceM2!=null)price.push('Hydrofuge : '+money(b.hydroPriceM2)+'/m² → <b>'+money(b.hydroEstimatedPrice)+'</b>');if(b.paintPriceM2!=null)price.push('Peinture : '+money(b.paintPriceM2)+'/m² → <b>'+money(b.paintEstimatedPrice)+'</b>');if(b.antiMossPriceM2!=null)price.push('Anti-mousse : '+money(b.antiMossPriceM2)+'/m² → <b>'+money(b.antiMossEstimatedPrice)+'</b>');var photos=['photo','gable1Photo','gable2Photo','frontFacadePhoto','backFacadePhoto'].map(function(k){return b[k]}).filter(Boolean);var ph=photos.length?'<div class="savedHousePhotos">'+photos.map(function(src){return '<img src="'+src+'" alt="Photo maison enregistrée">'}).join('')+'</div>':'';var expiry=b.photosExpiresAt&&!b.photosExpired?'<div class="savedPhotoExpiry">Photos conservées jusqu’au '+esc(savedDate(b.photosExpiresAt))+'.</div>':(b.photosExpired?'<div class="savedPhotoExpiry">Photos supprimées automatiquement après 1 mois.</div>':'');return '<div class="savedHouseEstimate"><div class="savedHouseEstimateTitle">🏠 MESURE MAISON</div><div class="savedHousePrice">'+lines.join('<br>')+(price.length?'<br><br>'+price.join('<br>'):'')+'</div>'+ph+expiry+'</div>'}
 
- function renderFolders(areaFilter,cityFilter){
-  var all=getAll(),areas={};all.forEach(function(x){var d=x.province||x.department||x.folderDepartment||(currentCountry==='be'?'Sans province':'Sans département');(areas[d]||(areas[d]=[])).push(x)});
-  var areaWord=currentCountry==='be'?(beDisplayLang==='fr'?'PROVINCES':'PROVINCIES'):'DÉPARTEMENTS';
-  if(!areaFilter){folders.innerHTML=Object.keys(areas).sort().map(function(d){return '<button type="button" class="savedFolder folderNav" data-dep="'+esc(d)+'"><div class="savedFolderTitle">📁 '+esc(d)+'</div><div class="savedFolderText">'+areas[d].length+' fiche(s)</div></button>'}).join('')||'<div class="savedFolderText" style="text-align:center;padding:15px">Aucune adresse enregistrée dans ce carnet.</div>';folders.querySelectorAll('[data-dep]').forEach(function(b){b.onclick=function(){renderFolders(b.getAttribute('data-dep'))}});return}
-  var cities={};(areas[areaFilter]||[]).forEach(function(x){var c=x.city||x.folderName||'Sans ville';(cities[c]||(cities[c]=[])).push(x)});
-  if(!cityFilter){folders.innerHTML='<button type="button" class="savedFolder folderNav" id="folderBackDep">← '+areaWord+'</button>'+Object.keys(cities).sort().map(function(c){return '<button type="button" class="savedFolder folderNav" data-city="'+esc(c)+'"><div class="savedFolderTitle">📁 '+esc(c)+'</div><div class="savedFolderText">'+cities[c].length+' fiche(s)</div></button>'}).join('');$('folderBackDep').onclick=function(){renderFolders()};folders.querySelectorAll('[data-city]').forEach(function(b){b.onclick=function(){renderFolders(areaFilter,b.getAttribute('data-city'))}});return}
-  var be=currentCountry==='be',fr=beDisplayLang==='fr';
-  folders.innerHTML='<button type="button" class="savedFolder folderNav" id="folderBackCity">← '+esc(areaFilter)+'</button>'+(cities[cityFilter]||[]).map(function(x){
-    var id=esc(x.id||''),phone=String(x.phone||'').trim(),street=x.street||'',num=x.streetNumber||'',box=x.box||x.apartmentCode||'',pc=x.postalCode||'',city=x.city||'',province=x.province||x.department||x.folderDepartment||'';
-    var details='';
-    if(be){details+=fieldLine(fr?'Rue':'Straat',street)+fieldLine(fr?'N°':'Huisnummer',num)+fieldLine(fr?'Boîte':'Bus',box)+fieldLine(fr?'Code postal':'Postcode',pc)+fieldLine(fr?'Commune':'Gemeente',city)+fieldLine(fr?'Province':'Provincie',province)+fieldLine(fr?'Téléphone':'Telefoon',phone)}
-    else{details+=fieldLine('Adresse',x.address||x.fullDictation||'')+fieldLine('Téléphone',phone)}
-    var client=x.profession?'Client '+esc(x.profession)+' pris le '+esc(savedDate(x.createdAt||new Date().toISOString())):(x.createdAt?'Client pris le '+esc(savedDate(x.createdAt)):'');
-    return '<div class="savedFolder"><div class="savedFolderTitle">👤 '+esc(x.personName||'Fiche')+'</div><div class="savedAddressFields">'+details+'</div>'+(client?'<div class="clientTaken">'+client+'</div>':'')+buildingBlock(x)+'<div class="savedAddressActions"><button type="button" class="savedAddressGo" data-go="'+id+'">🧭 '+(be?(fr?'ALLER À L’ADRESSE':'NAAR ADRES'):'ALLER À L’ADRESSE')+'</button>'+(phone?'<a class="savedAddressCall" href="tel:'+esc(phone.replace(/[^+0-9]/g,''))+'">📞 '+(be?(fr?'APPELER':'BELLEN'):'APPELER')+'</a><button type="button" class="savedAddressPhone" data-phone="'+id+'">✏️ '+(be?(fr?'TÉLÉPHONE':'TELEFOON'):'TÉLÉPHONE')+'</button>':'<button type="button" class="savedAddressPhone" data-phone="'+id+'">➕ '+(be?(fr?'TÉLÉPHONE':'TELEFOON'):'TÉLÉPHONE')+'</button>')+'<button type="button" class="savedAddressDelete" data-delete="'+id+'" aria-label="Effacer cette adresse" title="Effacer">🗑️</button></div></div>'
-  }).join('');
-  $('folderBackCity').onclick=function(){renderFolders(areaFilter)};folders.querySelectorAll('[data-go]').forEach(function(b){b.onclick=function(){var item=getAll().find(function(x){return x.id===b.getAttribute('data-go')});if(item)location.href=addressNavUrl(item)}});folders.querySelectorAll('[data-phone]').forEach(function(b){b.onclick=function(){updateSavedPhone(b.getAttribute('data-phone'),areaFilter,cityFilter)}});folders.querySelectorAll('[data-delete]').forEach(function(b){b.onclick=function(){deleteSavedAddress(b.getAttribute('data-delete'),areaFilter,cityFilter)}})
- }
- function closeModal(){pendingLat=null;pendingLng=null;pendingGeo=null;modal.classList.remove('open');modal.setAttribute('aria-hidden','true');document.body.style.overflow='';status.textContent=''}
- function showModal(){if(chooser){chooser.classList.remove('open');chooser.setAttribute('aria-hidden','true')}modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden'}
- function showChooser(){closeModal();if(chooser){chooser.classList.add('open');chooser.setAttribute('aria-hidden','false');document.body.style.overflow='hidden'}}
- function clearFields(){['addressFirstName','addressLastName','addressPhone','addressStreetNumber','addressStreetName','addressBox','addressPostalCode','addressDepartment','addressCity'].forEach(function(id){set(id,'')});set('addressStreetType','Rue')}
- function openAdd(country){if(country==='be')beDisplayLang='nl';applyCountryUI(country);var lang=$('addressBelgiumLanguage');if(lang)lang.style.display='none';if(addSection)addSection.style.display='block';if(bookAdd)bookAdd.style.display='none';if(bookClose)bookClose.style.display='none';clearFields();pendingLat=null;pendingLng=null;pendingGeo=null;showModal();status.textContent=currentCountry==='be'?'Vul de vakken in en druk daarna op OPSLAAN.':'Remplissez les cases puis appuyez sur ENREGISTRER.';if(currentCountry==='be'){save.textContent='✓ OPSLAAN';cancel.textContent='TERUG';locateBtn.textContent='📍 MIJN LOCATIE GEBRUIKEN'}else{save.textContent='✓ ENREGISTRER TOUT';cancel.textContent='RETOUR';locateBtn.textContent='📍 UTILISER MA LOCALISATION'};renderFolders()}
- function openBook(country){if(country==='be')beDisplayLang='fr';applyCountryUI(country);var lang=$('addressBelgiumLanguage');if(lang)lang.style.display=currentCountry==='be'?'grid':'none';if(addSection)addSection.style.display='none';if(bookAdd){bookAdd.style.display='block';bookAdd.textContent=currentCountry==='be'?'➕ NOUVELLE ADRESSE / NIEUW ADRES':'➕ AJOUTER UNE ADRESSE'}if(bookClose)bookClose.style.display='block';showModal();status.textContent='';renderFolders()}
- window.openSavedAddressBook=showChooser;window.openSavedAddressBookCountry=openBook;window.openSavedAddressAddCountry=openAdd;if(openBtn)openBtn.onclick=showChooser;var langFr=$('addressLangFr'),langNl=$('addressLangNl');if(langFr)langFr.onclick=function(){if(currentCountry==='be')applyBelgiumLabels('fr')};if(langNl)langNl.onclick=function(){if(currentCountry==='be')applyBelgiumLabels('nl')};if(chooseFr)chooseFr.onclick=function(){openBook('fr')};if(chooseBe)chooseBe.onclick=function(){openBook('be')};if(chooserCancel)chooserCancel.onclick=function(){chooser.classList.remove('open');chooser.setAttribute('aria-hidden','true');document.body.style.overflow=''};if(bookAdd)bookAdd.onclick=function(){openAdd(currentCountry)};if(bookClose)bookClose.onclick=showChooser;if(cancel)cancel.onclick=function(){openBook(currentCountry)};
- $('addressPostalCode').addEventListener('input',function(){if(currentCountry==='fr'){var dep=departmentFromPostal(this.value);if(dep)set('addressDepartment',dep)}});
- save.onclick=async function(){var a=addressData();if(!a.city||(!a.street&&!a.address)){status.textContent='Indiquez au minimum la voie et la ville.';return}save.disabled=true;status.textContent='Enregistrement de la fiche…';var type=$('addressHousingType'),floor=$('addressFloor'),code=$('addressApartmentCode'),lat=pendingLat,lng=pendingLng;if((lat===null||lng===null)&&a.address){var g=await geocodeText(a.address);if(g){lat=g.lat;lng=g.lng}}var area=a.department||(currentCountry==='be'?'Sans province':'Sans département'),item={id:(currentCountry==='be'?'be':'fr')+'a'+Date.now(),country:currentCountry==='be'?'BE':'FR',fullDictation:a.address,address:a.address,streetNumber:a.streetNumber,street:a.street,box:a.box,postalCode:a.postalCode,department:a.department,province:a.province,city:a.city,folderDepartment:area,folderName:a.city||'Sans ville',housingType:type?type.value:'Maison',floor:floor?floor.value:'',apartmentCode:code?code.value:'',firstName:a.firstName,lastName:a.lastName,personName:a.personName,phone:a.phone,profession:a.profession,trade:a.profession,lat:lat,lng:lng,fromLocation:(pendingLat!==null&&pendingLng!==null),createdAt:new Date().toISOString()};var all=getAll(),sig=[item.address,item.phone,item.personName].join('|').toLowerCase();if(all.some(function(x){return [x.address||x.fullDictation||'',x.phone||'',x.personName||''].join('|').toLowerCase()===sig})){status.textContent='Cette fiche est déjà enregistrée.';save.disabled=false;return}all.unshift(item);localStorage.setItem(storageKey(),JSON.stringify(all.slice(0,100)));status.textContent='✓ Fiche enregistrée dans '+item.folderDepartment+' → '+item.folderName;renderFolders();save.disabled=false;setTimeout(function(){openBook(currentCountry)},650)};
- applyCountryUI('fr');
-})();
-</script>
-<script id="addressHousingScript">
-(function(){
-  var house=document.getElementById('addressHouse');
-  var apt=document.getElementById('addressApartment');
-  var type=document.getElementById('addressHousingType');
-  var fields=document.getElementById('addressApartmentFields');
-  var floor=document.getElementById('addressFloor');
-  var code=document.getElementById('addressApartmentCode');
-  if(!house||!apt||!type||!fields)return;
-
-  function setHousing(v){
-    var isA=v==='Appartement';
-    type.value=v;
-    fields.style.display=isA?'grid':'none';
-    house.classList.toggle('active',!isA);
-    apt.classList.toggle('active',isA);
-    if(!isA){
-      if(floor) floor.value='';
-      if(code) code.value='';
-    }
-  }
-
-  house.onclick=function(){setHousing('Maison')};
-  apt.onclick=function(){setHousing('Appartement')};
-  setHousing(type.value||'Maison');
-
-  // Attach housing information to the saved address immediately after save.
-  var save=document.getElementById('addressSave');
-  if(save){
-    save.addEventListener('click',function(){
-      setTimeout(function(){
-        try{
-          var key=window.__addressStorageKey||'saved_market_addresses';
-          var all=JSON.parse(localStorage.getItem(key)||'[]');
-          if(!all.length)return;
-          // newest saved address is first
-          all[0].housingType=type.value||'Maison';
-          all[0].floor=(floor&&floor.value)||'';
-          all[0].apartmentCode=(code&&code.value)||'';
-          localStorage.setItem(key,JSON.stringify(all));
-        }catch(e){}
-      },50);
-    });
-  }
-})();
-</script>
 
 <script>
 (function(){
