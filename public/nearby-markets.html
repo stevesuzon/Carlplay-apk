@@ -473,17 +473,20 @@
   function rowsForToday(){
     const result=[],seen=new Set();
     for(const area of [{country:'fr'},{country:'be'}]){
-      const source=window.MarketDedupV511.rows(area.country==='fr'?(window.NEAR_FR||[]):(window.NEAR_BE||[]),area.country);
+      const regular=area.country==='fr'?(window.NEAR_FR||[]):(window.NEAR_BE||[]);
+      const events=area.country==='fr'?(window.SPECIAL_FR||[]):(window.SPECIAL_BE||[]);
+      const source=window.MarketDedupV511.rows([...regular,...events],area.country);
       for(const row of source){
-        if(specialKind(row)||!isToday(row)) continue;
+        const kind=specialKind(row);
+        if(kind ? !specialVisibleNow(row,kind) : !isToday(row)) continue;
         if(isServerDisabled(area.country,row)) continue;
-        const p=pointForRadiusV430(area.country,row);
-        if(!p) continue; // aucun point exact ni autre marché géolocalisé dans cette ville
+        const p=pointForRadiusV430(area.country,row)||cachedVerifiedPoint(area.country,row);
+        if(!p) continue; // Sans position fiable, ne pas inventer de distance
         const k=area.country+'|'+norm(row?.[0])+'|'+norm(row?.[2])+'|'+norm(row?.[3])+'|'+norm(row?.[4])+'|'+norm(row?.[8]);
         if(seen.has(k)) continue;
         
         seen.add(k);
-        result.push({country:area.country,row,p});
+        result.push({country:area.country,row,p,special:kind});
       }
 
     }
@@ -639,6 +642,7 @@
     let html='';
     if(weekly.length){ html+='<div class="sectionTitle">'+(showTomorrow?'MARCHÉS DE DEMAIN':'MARCHÉS DU JOUR')+'</div>'+weekly.map(renderCard).join(''); }
 
+    if(special.length)html+='<div class="sectionTitle">ÉVÉNEMENTS ET MARCHÉS SPÉCIAUX À PROXIMITÉ</div>'+special.map(renderCard).join('');
     cards.innerHTML=html;
     wireFavorites();
     wirePhotos();
