@@ -20,9 +20,11 @@ export function createStripePayments(h){
   if(sent)await env.DB.prepare('UPDATE stripe_access_orders SET email_sent_at=? WHERE id=?').bind(Date.now(),order.id).run();return sent;
  }
  async function fulfill(env,session){
-  if(session.livemode!==true||session.payment_status!=='paid'||session.mode!=='payment'||session.amount_total!==PRICE||session.currency!=='eur'||session.metadata?.product!==PRODUCT)return null;
+  if(session.livemode!==true||session.payment_status!=='paid'||session.mode!=='payment'||![PRICE,3000].includes(session.amount_total)||session.currency!=='eur'||session.metadata?.product!==PRODUCT)return null;
   const order=await env.DB.prepare('SELECT * FROM stripe_access_orders WHERE id=? AND session_id=?').bind(session.metadata?.order_id||'',session.id).first();
   if(!order||session.client_reference_id!==order.id)throw Error('PAIEMENT_INCONNU');
+  // Honorer les anciennes sessions à 30 € déjà créées, sans proposer ce tarif aux nouveaux acheteurs.
+  if(session.amount_total!==(order.created_at<1792314000000?3000:PRICE))return null;
   if(!order.code_hash){
    for(let i=0;i<30;i++){
     const code=h.randomSubscriptionCode(),hash=await h.hashCode(code,env.CODE_PEPPER),exists=await env.DB.prepare('SELECT id FROM subscriptions WHERE code_hash=?').bind(hash).first();if(exists)continue;
@@ -53,7 +55,7 @@ export function createStripePayments(h){
   const current=await env.DB.prepare('SELECT lifetime FROM subscriptions WHERE active=1 AND recovery_email_hash=? AND lifetime=1 LIMIT 1').bind(await h.sha256Text(h.normalizeEmail(identity.email))).first();if(current)return h.json({ok:false,error:'ABONNEMENT_DEJA_A_VIE'},409);
   const token=String(data.token||'');if(!/^[a-f0-9]{64}$/.test(token))return h.json({ok:false,error:'DONNEES_INVALIDES'},400);
   const tokenHash=await h.sha256Text(token),email=h.normalizeEmail(identity.email);
-  let order=await env.DB.prepare('SELECT * FROM stripe_access_orders WHERE device_id=? AND token_hash=? AND email=? AND created_at>? AND created_at>=1792320000000 AND code_hash IS NULL ORDER BY created_at DESC LIMIT 1').bind(device,tokenHash,email,Date.now()-1800000).first();
+  let order=await env.DB.prepare('SELECT * FROM stripe_access_orders WHERE device_id=? AND token_hash=? AND email=? AND created_at>? AND created_at>=1792314000000 AND code_hash IS NULL ORDER BY created_at DESC LIMIT 1').bind(device,tokenHash,email,Date.now()-1800000).first();
   if(!order){
    const recent=await env.DB.prepare('SELECT COUNT(*) n FROM stripe_access_orders WHERE device_id=? AND created_at>?').bind(device,Date.now()-3600000).first();if(Number(recent.n)>4)return h.json({ok:false,error:'REESSAYEZ_PLUS_TARD'},429);
    order={id:crypto.randomUUID(),token_hash:tokenHash,device_id:device,email,first_name:identity.first_name,last_name:identity.last_name,created_at:Date.now()};
