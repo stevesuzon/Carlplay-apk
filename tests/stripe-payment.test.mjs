@@ -24,9 +24,9 @@ for(const key of ['sk_test_fixture','rk_test_fixture','pk_live_fixture',''])asse
 globalThis.fetch=async(url,opts)=>{stripeCalls.push({url,opts});return new Response(JSON.stringify({id:'cs_live_1',url:'https://checkout.stripe.com/c/pay/cs_live_1'}));};
 assert.equal((await pay.checkout(request({}),{...env,STRIPE_SECRET_KEY:''})).status,503);
 assert.equal((await pay.checkout(request({deviceId:'unknown12',token}),env)).status,403);
-const first=await (await pay.checkout(request({deviceId:'device123',token}),env)).json();assert(first.ok);assert.equal(stripeCalls.length,1);const form=new URLSearchParams(stripeCalls[0].opts.body);assert.equal(form.get('line_items[0][price_data][unit_amount]'),'3000');assert.equal(form.get('mode'),'payment');assert.equal(form.get('payment_method_types[0]'),'card');
+const first=await (await pay.checkout(request({deviceId:'device123',token}),env)).json();assert(first.ok);assert.equal(stripeCalls.length,1);const form=new URLSearchParams(stripeCalls[0].opts.body);assert.equal(form.get('line_items[0][price_data][unit_amount]'),'1499');assert.equal(form.get('mode'),'payment');assert.equal(form.get('payment_method_types[0]'),'card');
 await pay.checkout(request({deviceId:'device123',token}),env);assert.equal(stripeCalls.length,1,'reuse the checkout on retry');
-const paid={id:'cs_live_1',livemode:true,payment_status:'paid',mode:'payment',amount_total:3000,currency:'eur',client_reference_id:first.orderId,metadata:{product:'couteau-suisse-365',order_id:first.orderId}};
+const paid={id:'cs_live_1',livemode:true,payment_status:'paid',mode:'payment',amount_total:1499,currency:'eur',client_reference_id:first.orderId,metadata:{product:'couteau-suisse-365',order_id:first.orderId}};
 assert.equal(await pay.fulfill(env,{...paid,payment_status:'unpaid'}),null);assert.equal(await pay.fulfill(env,{...paid,amount_total:1}),null);assert.equal(await pay.fulfill(env,{...paid,livemode:false}),null);
 assert.equal((await DB.prepare('SELECT COUNT(*) n FROM subscriptions').first()).n,0);
 const both=await Promise.all([pay.fulfill(env,paid),pay.fulfill(env,paid)]);assert.equal(both[0].code_hash,both[1].code_hash);assert.equal((await DB.prepare('SELECT COUNT(*) n FROM subscriptions').first()).n,1);
