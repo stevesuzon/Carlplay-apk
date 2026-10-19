@@ -1,8 +1,9 @@
 (() => {
   'use strict';
   const camera=document.getElementById('walkCamera'),video=camera.querySelector('video'),layer=document.getElementById('walkFunLayer'),toggle=document.getElementById('toggleWalkFun'),status=document.getElementById('walkFunStatus');
-  let enabled=true,model=null,loading=null,running=false,timer=null,epoch=0,tracks=[],nextId=0;
-  try{enabled=localStorage.getItem('gps-walk-fun')!=='off';}catch{}
+  const checkbox=document.getElementById('enableWalkFun');
+  let enabled=false,model=null,loading=null,running=false,timer=null,epoch=0,tracks=[],nextId=0;
+  try{enabled=localStorage.getItem('gps-walk-fun')==='on';}catch{}
   const props=[['🐷','Tirelire'],['🛏️','Matelas'],['🛏️','Matelas + sommier'],['🪑','Chaise ancienne'],['🛋️','Canapé'],['🪞','Miroir ancien'],['🕰️','Pendule'],['🏺','Vase'],['🖼️','Tableau'],['🧰','Coffre ancien'],['🪑','Table + chaises'],['🛋️','Fauteuil'],['💡','Lampe vintage'],['🗄️','Commode']];
   let combinations=[];try{const saved=JSON.parse(localStorage.getItem('gps-fun-combinations')||'[]');if(Array.isArray(saved))combinations=saved.filter(v=>typeof v==='string').slice(-1000);}catch{}
   function surprise(){
@@ -48,11 +49,12 @@
       if(!model)status.textContent='Chargement des effets…';
       const detector=await load();if(run!==epoch||!active())return;
       const predictions=await detector.detect(video,8,.65);if(run!==epoch||!active())return;
-      update(predictions);status.textContent='Effets aléatoires';
+      update(predictions);status.textContent='';
     }catch{if(run===epoch){enabled=false;clear();sync();status.textContent='Effets indisponibles · guidage maintenu';}}
     finally{running=false;if(active())timer=setTimeout(tick,Math.max(250,650-(performance.now()-started)));}
   }
-  function sync(){toggle.textContent=enabled?'Effets : activés':'Effets : désactivés';toggle.setAttribute('aria-pressed',String(enabled));layer.hidden=!enabled;if(!active()){clear();if(!enabled)status.textContent='';}else void tick();}
+  function sync(){checkbox.checked=enabled;toggle.textContent=enabled?'Effets : activés':'Effets : désactivés';toggle.setAttribute('aria-pressed',String(enabled));layer.hidden=!enabled;if(!active()){clear();if(!enabled)status.textContent='';}else void tick();}
+  checkbox.addEventListener('change',()=>{enabled=checkbox.checked;try{localStorage.setItem('gps-walk-fun',enabled?'on':'off');}catch{}sync();});
   toggle.addEventListener('click',()=>{enabled=!enabled;try{localStorage.setItem('gps-walk-fun',enabled?'on':'off');}catch{}sync();});
   new MutationObserver(sync).observe(camera,{attributes:true,attributeFilter:['hidden']});
   video.addEventListener('playing',sync);video.addEventListener('pause',sync);document.addEventListener('visibilitychange',sync);window.addEventListener('resize',()=>{clear();sync();});window.addEventListener('pagehide',clear);sync();

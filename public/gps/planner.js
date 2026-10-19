@@ -47,7 +47,7 @@
     } catch {if(run===cameraRun){closeCamera();$('openWalkCamera').textContent='📷 Activer la caméra';$('openWalkCamera').title='Autorisez la caméra dans les réglages du navigateur. Le guidage reste disponible sur la carte.';}}
   }
   async function keepScreen(){try{if(navigator.wakeLock&&!wake&&wasActive&&!document.hidden){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null});}}catch{}}
-  function chooseMode(value){mode=value;planner.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));$('convoyOptions').hidden=mode!=='convoi';$('vehicleOptions').hidden=mode==='pieton';$('roadOptions').hidden=mode==='pieton';syncChoices();message('');}
+  function chooseMode(value){mode=value;planner.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));$('convoyOptions').hidden=mode!=='convoi';$('vehicleOptions').hidden=mode==='pieton';$('roadOptions').hidden=mode==='pieton';$('walkFunOptions').hidden=mode!=='pieton';syncChoices();message('');}
   let previewRun=0,previewAbort=null,previewTimeout=null;
   function stopPreview(){previewRun++;previewAbort?.abort();clearTimeout(previewTimeout);$('destinationStreet').hidden=true;$('destinationStreet').removeAttribute('src');}
   async function showDestinationPreview(place){
