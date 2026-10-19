@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {route, routeKind, convertIgn} from '../src/gps/index.mjs';
 import {payload, convert} from '../src/gps/convoy.mjs';
+import {search} from '../src/gps/commerce.mjs';
 const input={from:[48.6367,2.2358],to:[48.6198,2.3074],profile:{travelMode:'drive',vehicle:'truck',trailer:'large',height:'2.65',width:'2.50',length:12,weight:'6000',confirmed:true}};
 assert.equal(routeKind({travelMode:'pedestrian',trailer:'large'}),'pedestrian');assert.equal(routeKind({vehicle:'truck',trailer:'none'}),'car');assert.equal(routeKind({vehicle:'car',trailer:'small'}),'truck');
 const p=payload(input);assert.equal(p.costing_options.truck.weight,6);assert.equal(p.costing_options.truck.width,2.5);assert.equal(p.costing_options.truck.ignore_restrictions,false);assert.ok(!('axle_load' in p.costing_options.truck));assert.throws(()=>payload({...input,profile:{...input.profile,width:0}}));
@@ -18,4 +19,8 @@ const trip={status:0,units:'kilometers',summary:{length:1,time:180},legs:[{shape
 assert.equal(convert({trip},input).vehicleRestrictionsChecked,true);
 assert.throws(()=>convert({trip:{...trip,warnings:['restriction ignored']}},input));
 assert.throws(()=>convert({trip:{...trip,legs:[{...trip.legs[0],maneuvers:[{travel_type:'car',begin_shape_index:0}]}]}},input));
-globalThis.fetch=original;console.log('PASS GPS: dedicated pedestrian, convoy dimensions, invalid input, no car fallback, missing/wrong provider data.');
+globalThis.fetch=async()=>{throw Error('Address search must not wait for commerce');};
+const address={name:'Brétigny-sur-Orge',lat:48.6129,lon:2.3056,precision:'municipality'};
+const found=await search(new Request('https://app.test/gps/api/search?q=Bretigny&lat=48.63&lon=2.23'),{},ctx,{fetch:async()=>Response.json({results:[address]})});
+assert.deepEqual((await found.json()).results,[address]);
+globalThis.fetch=original;console.log('PASS GPS: dedicated pedestrian, convoy dimensions, invalid input, no car fallback, missing/wrong provider data, immediate address results.');

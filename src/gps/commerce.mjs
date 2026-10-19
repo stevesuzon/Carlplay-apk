@@ -37,6 +37,8 @@ export async function search(request,env,ctx,previous){
  if(url.searchParams.has('lat')&&url.searchParams.has('lon')){const lat=Number(url.searchParams.get('lat')),lon=Number(url.searchParams.get('lon'));if(Number.isFinite(lat)&&Number.isFinite(lon)&&Math.abs(lat)<=90&&Math.abs(lon)<=180)origin=[lat,lon];}
  const geocode=async q=>{const u=new URL('/gps/api/geocode',url);u.searchParams.set('q',q);const r=await previous.fetch(new Request(u),env,ctx);if(!r.ok)throw Error('Recherche d’adresse indisponible.');return (await r.json()).results||[];};
  let addresses=[];if(!c.known)try{addresses=await geocode(text);}catch{}
+ // An address result must not wait for the slower optional commerce lookup.
+ if(!c.known && addresses.length && !c.town)return Response.json({results:addresses,note:''},{headers:{'Cache-Control':'no-store'}});
  if(c.town){try{const town=(await geocode(c.town))[0];if(!town)throw Error();origin=[town.lat,town.lon];}catch{return Response.json({results:addresses,note:'Ville introuvable. Précisez son nom et son code postal.'});}}
  if(!origin)return Response.json({results:addresses,note:'Pour les commerces, activez la localisation ou indiquez une ville, par exemple « tabac à Paris ».'});
  if(/^\d+\s/.test(text))return Response.json({results:addresses,note:''});
