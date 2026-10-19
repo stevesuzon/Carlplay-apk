@@ -8,7 +8,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>
 (function(){
 const address=document.getElementById('address'),status=document.getElementById('status'),buttons=[...document.querySelectorAll('[data-mode]')];
-let mode='normal',map,marker,routeLine,originMarker,watchId=null,steps=[],lastSpoken=-1,destination=null,requestId=0,nextStepIndex=0,lastPosition=null,streetLayer,satelliteLayer,fuelMarkers=[];
+let mode='normal',map,marker,routeLine,originMarker,watchId=null,steps=[],lastSpoken=-1,destination=null,requestId=0,nextStepIndex=0,lastPosition=null,streetLayer,satelliteLayer,fuelMarkers=[],routeCoordinates=[],routeCumulative=[];
 const guidance=document.getElementById('guidance');
 const meters=(a,b)=>{const rad=Math.PI/180,dLat=(b[0]-a[0])*rad,dLon=(b[1]-a[1])*rad,q=Math.sin(dLat/2)**2+Math.cos(a[0]*rad)*Math.cos(b[0]*rad)*Math.sin(dLon/2)**2;return 12742000*Math.asin(Math.min(1,Math.sqrt(q)))};
 const instruction=(step)=>{const m=step.maneuver||{},type=m.type||'',mod=m.modifier||'',road=step.name?' sur '+step.name:'';if(type==='arrive')return 'Vous êtes arrivé à destination';if(type==='depart')return 'Démarrez'+road;if(type==='roundabout'||type==='rotary')return 'Entrez dans le rond-point'+(m.exit?', prenez la sortie '+m.exit:'');if(mod.includes('left'))return 'Tournez à gauche'+road;if(mod.includes('right'))return 'Tournez à droite'+road;if(mod==='uturn')return 'Faites demi-tour';return 'Continuez'+road};
@@ -30,8 +30,16 @@ async function loadFuelStations(route,token){
  stations.forEach(e=>{const name=e.tags&&e.tags.name||'Station-service',pos=[e.lat,e.lon];const button=document.createElement('button');button.type='button';button.textContent='⛽ '+name+' — afficher sur la carte';button.addEventListener('click',()=>map.setView(pos,16));list.appendChild(button);const pin=L.marker(pos).addTo(map).bindPopup(name);fuelMarkers.push(pin)});
  }catch(e){if(token===requestId){panel.hidden=false;list.textContent='Stations indisponibles pour le moment. Les prix des carburants ne sont pas encore intégrés.'}}
 }
+function remainingOnRoute(point){
+ if(!routeCoordinates.length)return null;
+ let nearest=0,best=Infinity;
+ // Approximate progress along the displayed polyline, never straight-line distance.
+ for(let i=0;i<routeCoordinates.length;i++){const d=meters(point,routeCoordinates[i]);if(d<best){best=d;nearest=i}}
+ if(best>250)return null;
+ return Math.max(0,(routeCumulative[routeCumulative.length-1]||0)-(routeCumulative[nearest]||0));
+}
 function speak(message){if(!('speechSynthesis' in window))return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(message);u.lang='fr-FR';u.rate=.95;speechSynthesis.speak(u)}catch(_){}}
-function stopGuide(){if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null}steps=[];lastSpoken=-1;nextStepIndex=0;guidance.hidden=true;document.getElementById('stop').classList.add('hidden');try{speechSynthesis.cancel()}catch(_){}}
+function stopGuide(){if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null}steps=[];lastSpoken=-1;nextStepIndex=0;routeCoordinates=[];routeCumulative=[];guidance.hidden=true;document.getElementById('stop').classList.add('hidden');try{speechSynthesis.cancel()}catch(_){}}
 document.getElementById('stop').addEventListener('click',()=>{stopGuide();status.textContent='Guidage arrêté.'});
 buttons.forEach(b=>b.addEventListener('click',()=>{requestId++;stopGuide();mode=b.dataset.mode;buttons.forEach(x=>x.setAttribute('aria-pressed',String(x===b)));status.textContent='Mode '+b.textContent.trim()+' sélectionné.'}));
 document.getElementById('change').addEventListener('click',()=>{requestId++;stopGuide();address.focus();address.select()});
@@ -56,6 +64,7 @@ document.getElementById('confirm').addEventListener('click',async()=>{
  if(!result||!result.geometry)throw Error('Aucun itinéraire trouvé');
  if(routeLine)map.removeLayer(routeLine);
  routeLine=L.geoJSON(result.geometry,{style:{color:'#258dff',weight:7,opacity:.9}}).addTo(map);
+ routeCoordinates=(result.geometry.coordinates||[]).map(p=>[p[1],p[0]]);routeCumulative=[0];for(let i=1;i<routeCoordinates.length;i++)routeCumulative.push(routeCumulative[i-1]+meters(routeCoordinates[i-1],routeCoordinates[i]));
  map.fitBounds(routeLine.getBounds().pad(.12));
  loadFuelStations(result,currentRequest);const km=(result.distance/1000).toFixed(1),minutes=Math.round(result.duration/60);
  status.textContent='Itinéraire voiture : '+km+' km · environ '+minutes+' min. Guidage indicatif : respectez la signalisation.';
@@ -75,7 +84,7 @@ document.getElementById('confirm').addEventListener('click',async()=>{
  }
  const st=steps[nextStepIndex],loc=[st.maneuver.location[1],st.maneuver.location[0]];
  const d=Math.round(meters(point,loc)),message=(d>30?'Dans '+d+' mètres, ':'')+instruction(st);
- guidance.textContent=message;
+ const remaining=remainingOnRoute(point);guidance.textContent=message+(remaining===null?' · Hors itinéraire, recalcul nécessaire':' · '+(remaining>=1000?(remaining/1000).toFixed(1)+' km':Math.round(remaining)+' m')+' restants');
  if(nextStepIndex!==lastSpoken&&d<250){lastSpoken=nextStepIndex;speak(message)}
  };
  watchId=navigator.geolocation.watchPosition(update,()=>{status.textContent='Signal GPS perdu : vérifiez la localisation.'},{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
