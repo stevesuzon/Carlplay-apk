@@ -4,13 +4,14 @@
   const checkbox=document.getElementById('enableWalkFun');
   let enabled=false,model=null,loading=null,running=false,timer=null,epoch=0,tracks=[],nextId=0;
   try{enabled=localStorage.getItem('gps-walk-fun')==='on';}catch{}
-  const props=[['🐷','Tirelire'],['🛏️','Matelas'],['🛏️','Matelas + sommier'],['🪑','Chaise ancienne'],['🛋️','Canapé'],['🪞','Miroir ancien'],['🕰️','Pendule'],['🏺','Vase'],['🖼️','Tableau'],['🧰','Coffre ancien'],['🪑','Table + chaises'],['🛋️','Fauteuil'],['💡','Lampe vintage'],['🗄️','Commode']];
+  const props=[['🐷','Tirelire'],['🛏️','Matelas'],['🛏️','Matelas + sommier'],['🪑','Chaise ancienne'],['🛋️','Canapé'],['🪞','Miroir ancien'],['🕰️','Pendule'],['🏺','Vase'],['🖼️','Tableau'],['🧰','Coffre ancien'],['🪑','Table + chaises'],['🛋️','Fauteuil'],['💡','Lampe vintage'],['🗄️','Commode'],['🏠','Refaire la toiture'],['🪑','Rempailler une chaise'],['🛏️','Matelas neuf'],['🪑','Meubles'],['🌳','Couper les arbres chez elle'],['🌿','Tailler la haie'],['🧹','Débarrasser le grenier'],['📦','Vider la cave'],['🎨','Refaire la peinture'],['🪟','Changer les fenêtres'],['🧱','Réparer le muret'],['🪵','Bois de chauffage'],['🛋️','Retapisser le fauteuil'],['🪑','Restaurer une table'],['🚿','Refaire la salle de bain'],['🏡','Nettoyer la terrasse'],['🧰','Petits travaux'],['🪴','Entretenir le jardin'],['👜','Sacoche']];
+  const quips=['Chinez celle-là, je la sens bonne !','Chine ! Celui-là, je le sens bien !','Il y a peut-être un trésor au grenier !','Une belle affaire en vue !','Un petit tour à la brocante ?','Ça sent la trouvaille !','Une chaise à sauver, une affaire à faire !','Le grenier réserve des surprises !'];
   let combinations=[];try{const saved=JSON.parse(localStorage.getItem('gps-fun-combinations')||'[]');if(Array.isArray(saved))combinations=saved.filter(v=>typeof v==='string').slice(-1000);}catch{}
   function surprise(){
     const used=new Set(combinations);let choice,price,key,attempt=0;
     do{choice=Math.floor(Math.random()*props.length);price=(4+Math.floor(Math.random()*497))*5;key=choice+':'+price;if(++attempt>50){let n=0;while(used.has((n%props.length)+':'+((4+Math.floor(n/props.length))*5)))n++;choice=n%props.length;price=(4+Math.floor(n/props.length))*5;key=choice+':'+price;break;}}while(used.has(key));
     combinations.push(key);combinations=combinations.slice(-1000);try{localStorage.setItem('gps-fun-combinations',JSON.stringify(combinations));}catch{}
-    return {choice,price,prop:props[choice],quip:Math.random()<.22,tutelle:Math.random()<.6};
+    return {choice,price,prop:props[choice],quip:Math.random()<.4?quips[Math.floor(Math.random()*quips.length)]:null,tutelle:Math.random()<.6};
   }
 
   function source(){return window.couteauWalkAR?.getFrame()||(!video.paused&&video.readyState>=2&&video.srcObject?video:null);}
@@ -33,7 +34,7 @@
       for(const t of tracks){const d=Math.hypot(cx-t.cx,cy-t.cy);if(!used.has(t.id)&&d<Math.max(w,h)*.5&&d<dist){best=t;dist=d;}}
       if(!best){
         const id=nextId++,gift=surprise(),el=document.createElement('div');el.className='walk-fun-prop';
-        el.innerHTML='<span class="fun-object" aria-hidden="true">'+gift.prop[0]+'</span><strong class="fun-price"><small>Trésorerie</small>'+gift.price.toLocaleString('fr-FR')+' €</strong><span class="fun-name">Besoin : '+gift.prop[1]+'</span>'+(gift.tutelle?'<span class="fun-tutelle">✕ Sous tutelle</span>':'')+(gift.quip?'<span class="fun-quip">Chine ! Celui-là,<br>je le sens bien !</span>':'');
+        el.innerHTML='<span class="fun-object" aria-hidden="true">'+gift.prop[0]+'</span><strong class="fun-price"><small>Trésorerie</small>👜 '+gift.price.toLocaleString('fr-FR')+' €</strong><span class="fun-name">Besoin : '+gift.prop[1]+'</span>'+(gift.tutelle?'<span class="fun-tutelle">✕ Sous tutelle</span>':'')+(gift.quip?'<span class="fun-quip">'+gift.quip+'</span>':'');
         if(gift.choice===0)el.classList.add('fun-pig');layer.appendChild(el);best={id,el};
       }
       used.add(best.id);best.cx=cx;best.cy=cy;
