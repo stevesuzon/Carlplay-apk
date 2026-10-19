@@ -44,14 +44,14 @@ export async function route(request, env, ctx) {
   catch(e) {return json({error:e.message || 'Demande invalide.'},400);}
   const profile=input.profile || {}, kind=routeKind(profile);
   try {
-    if(kind === 'truck') {
-      if(profile.confirmed !== true) return json({error:'Confirmez les dimensions de votre convoi.'},400);
+    if(kind === 'truck' || (kind === 'car' && profile.tolls === false)) {
+      if(kind === 'truck' && profile.confirmed !== true) return json({error:'Confirmez les dimensions de votre convoi.'},400);
       let body; try {body=payload(input);} catch(e) {return json({error:e.message},400);}
       const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(body))))].map(n=>n.toString(16).padStart(2,'0')).join('');
-      const key=new Request('https://gps-cache.invalid/integrated-3/'+hash);
+      const key=new Request('https://gps-cache.invalid/integrated-6/'+hash);
       const cache=await caches.default.match(key); if(cache) return json(await cache.json());
       const response=await fetch('https://valhalla1.openstreetmap.de/route',{method:'POST',headers:{'Content-Type':'application/json','User-Agent':'CouteauSuisseGPS/3.0 (https://carplay-telephone.appli-suzon.workers.dev)'},body:JSON.stringify(body),signal:AbortSignal.timeout(22000)});
-      if(!response.ok) return json({error:response.status === 429 ? 'Calcul convoi occupé. Réessayez dans un instant.' : 'Calcul convoi indisponible. Réessayez.'},503);
+      if(!response.ok) return json({error:response.status === 429 ? 'Calcul occupé. Réessayez dans un instant.' : 'Calcul indisponible. Réessayez.'},503);
       const result=convert(await response.json(),input);
       ctx.waitUntil(caches.default.put(key,Response.json(result,{headers:{'Cache-Control':'public,max-age=600'}})));
       return json(result);

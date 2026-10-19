@@ -34,7 +34,7 @@
     const occupied=[];
     for(const item of candidates.sort((a,b)=>a.priority-b.priority)){
       if(occupied.length>=6)break;
-      const w=Math.min(224,width*.57),h=122,left=Math.max(8,Math.min(width-w-8,item.x-w/2)),top=Math.max(12,item.y-h);
+      const w=Math.min(260,width*.68),h=116,left=Math.max(8,Math.min(width-w-8,item.x-w/2)),top=Math.max(12,item.y-h);
       if(occupied.some(r=>left<r.right+8&&left+w>r.left-8&&top<r.bottom+8&&top+h>r.top-8))continue;
       item.button.style.left=left+'px';item.button.style.top=top+'px';item.button.style.setProperty('--sign-stem-x',(item.x-left)+'px');shown.add(item.button);
       occupied.push({left,top,right:left+w,bottom:top+h});

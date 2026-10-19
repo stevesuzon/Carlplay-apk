@@ -1,5 +1,5 @@
-const VERSION = "V513-GPS-INTEGRE-5";
-const BASE_CACHE = "couteau-suisse-runtime-code-v513-gps-integre-5";
+const VERSION = "V513-GPS-INTEGRE-6";
+const BASE_CACHE = "couteau-suisse-runtime-code-v513-gps-integre-6";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v439-market-list";

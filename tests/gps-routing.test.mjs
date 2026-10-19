@@ -24,3 +24,12 @@ const address={name:'Brétigny-sur-Orge',lat:48.6129,lon:2.3056,precision:'munic
 const found=await search(new Request('https://app.test/gps/api/search?q=Bretigny&lat=48.63&lon=2.23'),{},ctx,{fetch:async()=>Response.json({results:[address]})});
 assert.deepEqual((await found.json()).results,[address]);
 globalThis.fetch=original;console.log('PASS GPS: dedicated pedestrian, convoy dimensions, invalid input, no car fallback, missing/wrong provider data, immediate address results.');
+const constrained={...input,profile:{...input.profile,tolls:false,roadMode:'direct'}};
+assert.throws(()=>convert({trip},constrained),'missing road flags must not pass');
+assert.throws(()=>convert({trip:{...trip,summary:{...trip.summary,has_toll:true,has_highway:false}}},constrained));
+assert.throws(()=>convert({trip:{...trip,summary:{...trip.summary,has_toll:false,has_highway:true}}},constrained));
+assert.equal(convert({trip:{...trip,summary:{...trip.summary,has_toll:false,has_highway:false}}},constrained).vehicleRestrictionsChecked,true);
+const auto={...input,profile:{trailer:'none',tolls:false,roadMode:'main'}};
+assert.equal(payload(auto).costing,'auto');assert.equal(payload(auto).costing_options.auto.use_highways,1);assert.equal(payload(auto).costing_options.auto.use_tolls,0);
+assert.equal(convert({trip:{...trip,summary:{...trip.summary,has_toll:false},legs:[{...trip.legs[0],maneuvers:[{travel_type:'car',begin_shape_index:0,instruction:'Départ'}]}]}},auto).mode,'classic');
+console.log('PASS road constraints: city excludes highways, no toll verified, auto permits free highways.');

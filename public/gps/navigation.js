@@ -26247,19 +26247,22 @@ Error generating stack: ` +
         O = () => {
           X.current || E();
         };
+      const rememberZoom=()=>{gpsNavigationZoom.current=m.getZoom();};
       return (
         m.on("dragstart", E),
         m.on("zoomstart", O),
+        m.on("zoomend", rememberZoom),
         m.on("move zoom", A),
         A(),
         () => {
-          (m.off("dragstart", E), m.off("zoomstart", O), m.off("move zoom", A));
+          (m.off("dragstart", E), m.off("zoomstart", O), m.off("zoomend", rememberZoom), m.off("move zoom", A));
         }
       );
     }, [_, K, z]),
       (0, R.useEffect)(() => {
         _ && Wt();
       }, [q, _, K, z, y]));
+    const gpsNavigationZoom = (0, R.useRef)(19);
     function Ka(m, A = !1) {
       let E = t.current;
       if (!E) return;
@@ -26281,7 +26284,7 @@ Error generating stack: ` +
           E.setBearing(-(Ko.current?.camera ?? m.heading)),
           (X.current = !0));
         try {
-          E.setView([m.lat, m.lon], Math.max(E.getZoom(), 19), { animate: !1 });
+          E.setView([m.lat, m.lon], gpsNavigationZoom.current, { animate: !1 });
         } finally {
           X.current = !1;
         }
@@ -26304,7 +26307,7 @@ Error generating stack: ` +
           )
             return;
           map.invalidateSize({ animate: false, pan: false });
-          if (K && wa.current && te) {
+          if (K && ut.current && wa.current && te) {
             const pos = sl(wa.current, te.points);
             if (Number.isFinite(pos.lat) && Number.isFinite(pos.lon)) Ka(pos);
           }
@@ -26361,7 +26364,8 @@ Error generating stack: ` +
           if(navigator.geolocation && Ma.current!==null) {navigator.geolocation.clearWatch(Ma.current);Ma.current=null;}
           try {sessionStorage.removeItem('gps-session-v37');speechSynthesis.cancel();} catch {}
         },
-        getState:()=>({route:te,destination:Y,profile:z,active:K,position:q}),
+        getState:()=>({route:te,destination:Y,profile:z,active:K,position:q,zoom:t.current?.getZoom()}),
+        zoom(delta){ut.current=false;const map=t.current;map.stop();map.setZoom(Math.max(8,Math.min(20,map.getZoom()+delta)),{animate:false});gpsNavigationZoom.current=map.getZoom();},
         recenter(){ut.current=true;Wa(true);if(q)Ka(sl(q,te?.points||[[q.lat,q.lon],[q.lat,q.lon]]));}
       };
       window.dispatchEvent(new Event('couteau-gps-ready'));
@@ -27939,6 +27943,7 @@ Error generating stack: ` +
                         onClick: () => {
                           window.couteauGpsPlanner.open(Y);
                         },
+                        className: "gps-stop-legacy",
                         children: "Arr\xEAter",
                       }),
                     ],
