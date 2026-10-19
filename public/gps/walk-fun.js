@@ -3,7 +3,15 @@
   const camera=document.getElementById('walkCamera'),video=camera.querySelector('video'),layer=document.getElementById('walkFunLayer'),toggle=document.getElementById('toggleWalkFun'),status=document.getElementById('walkFunStatus');
   let enabled=true,model=null,loading=null,running=false,timer=null,epoch=0,tracks=[],nextId=0;
   try{enabled=localStorage.getItem('gps-walk-fun')!=='off';}catch{}
-  const props=[['🐷','Tirelire'],['🛏️','Matelas'],['🪑','Brocante'],['🏚️','Maison farfelue'],['🏡','Villa de rêve'],['🛋️','Canapé']];
+  const props=[['🐷','Tirelire'],['🛏️','Matelas'],['🛏️','Matelas + sommier'],['🪑','Chaise ancienne'],['🛋️','Canapé'],['🪞','Miroir ancien'],['🕰️','Pendule'],['🏺','Vase'],['🖼️','Tableau'],['🧰','Coffre ancien'],['🪑','Table + chaises'],['🛋️','Fauteuil'],['💡','Lampe vintage'],['🗄️','Commode']];
+  let combinations=[];try{const saved=JSON.parse(localStorage.getItem('gps-fun-combinations')||'[]');if(Array.isArray(saved))combinations=saved.filter(v=>typeof v==='string').slice(-1000);}catch{}
+  function surprise(){
+    const used=new Set(combinations);let choice,price,key,attempt=0;
+    do{choice=Math.floor(Math.random()*props.length);price=(4+Math.floor(Math.random()*497))*5;key=choice+':'+price;if(++attempt>50){let n=0;while(used.has((n%props.length)+':'+((4+Math.floor(n/props.length))*5)))n++;choice=n%props.length;price=(4+Math.floor(n/props.length))*5;key=choice+':'+price;break;}}while(used.has(key));
+    combinations.push(key);combinations=combinations.slice(-1000);try{localStorage.setItem('gps-fun-combinations',JSON.stringify(combinations));}catch{}
+    return {choice,price,prop:props[choice],quip:Math.random()<.22};
+  }
+
   function active(){return enabled&&!camera.hidden&&!document.hidden&&!video.paused&&video.readyState>=2&&!!video.srcObject;}
   function clear(){epoch++;clearTimeout(timer);timer=null;tracks=[];layer.replaceChildren();}
   function script(src){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=()=>{s.remove();reject(Error('Effets indisponibles'));};document.head.appendChild(s);});}
@@ -21,11 +29,15 @@
       const cx=x+w/2,cy=y+h/2;
       let best=null,dist=Infinity;
       for(const t of tracks){const d=Math.hypot(cx-t.cx,cy-t.cy);if(!used.has(t.id)&&d<Math.max(w,h)*.5&&d<dist){best=t;dist=d;}}
-      if(!best){const id=nextId++,choice=Math.floor(Math.random()*props.length),prop=props[choice],el=document.createElement('div');el.className='walk-fun-prop';el.innerHTML='<span class="fun-object" aria-hidden="true">'+prop[0]+'</span><span class="fun-name">'+prop[1]+'</span>';if(choice===0)el.classList.add('fun-pig');layer.appendChild(el);best={id,el};}
+      if(!best){
+        const id=nextId++,gift=surprise(),el=document.createElement('div');el.className='walk-fun-prop';
+        el.innerHTML='<span class="fun-object" aria-hidden="true">'+gift.prop[0]+'</span><span class="fun-name">'+gift.prop[1]+'</span><strong class="fun-price">'+gift.price.toLocaleString('fr-FR')+' €</strong>'+(gift.quip?'<span class="fun-quip">Chine ! Celui-là,<br>je le sens bien !</span>':'');
+        if(gift.choice===0)el.classList.add('fun-pig');layer.appendChild(el);best={id,el};
+      }
       used.add(best.id);best.cx=cx;best.cy=cy;
       const px=cx*scale+ox,py=y*scale+oy-8,hud=camera.querySelector('.walk-hud').getBoundingClientRect();
       // Never move an accessory onto the directions or controls, or display it off-screen.
-      best.el.hidden=px<30||px>rect.width-30||py<Math.max(90,hud.bottom-rect.top+76)||py>rect.height-125;
+      best.el.hidden=px<30||px>rect.width-30||py<Math.max(90,hud.bottom-rect.top+110)||py>rect.height-125;
       best.el.style.left=px+'px';best.el.style.top=py+'px';fresh.push(best);
     }
     for(const t of tracks)if(!used.has(t.id))t.el.remove();tracks=fresh;
@@ -36,7 +48,7 @@
       if(!model)status.textContent='Chargement des effets…';
       const detector=await load();if(run!==epoch||!active())return;
       const predictions=await detector.detect(video,8,.65);if(run!==epoch||!active())return;
-      update(predictions);status.textContent='Accessoires au hasard · traitement sur le téléphone';
+      update(predictions);status.textContent='Jeu · objets et prix fictifs au hasard';
     }catch{if(run===epoch){enabled=false;clear();sync();status.textContent='Effets indisponibles · guidage maintenu';}}
     finally{running=false;if(active())timer=setTimeout(tick,Math.max(250,650-(performance.now()-started)));}
   }
