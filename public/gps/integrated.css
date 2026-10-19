@@ -73,3 +73,5 @@ html,body{overscroll-behavior-x:none}.gps-app .map{overscroll-behavior:none;touc
 .fun-price{display:block;padding:4px 7px;background:#ffd261;color:#202836;border-radius:0 0 8px 8px;font:800 18px Arial;white-space:nowrap}.walk-fun-prop .fun-name{border-radius:7px 7px 0 0;max-width:130px;white-space:normal;font-size:11px}.fun-quip{position:absolute;left:50%;top:calc(100% + 12px);transform:translateX(-50%);width:145px;padding:7px;background:#fff7db;color:#312312;border:2px solid #f4bf52;border-radius:10px;font:700 13px/1.25 Arial;animation:fun-quip 7s both;pointer-events:none}@keyframes fun-quip{0%,15%{opacity:0}22%,80%{opacity:1}100%{opacity:0;visibility:hidden}}@media(prefers-reduced-motion:reduce){.fun-quip{animation:none}}
 
 .walk-fun-prop .fun-price{border-radius:8px 8px 0 0}.fun-price small{display:block;font:700 10px Arial;margin-bottom:2px}.walk-fun-prop .fun-name{border-radius:0 0 8px 8px;max-width:145px;padding:5px 7px}
+
+.fun-tutelle{display:block;margin-top:4px;padding:4px 6px;background:#482d56;color:#fff;border:1px solid #e2c9f3;border-radius:7px;font:700 11px/1.3 Arial;white-space:nowrap}
