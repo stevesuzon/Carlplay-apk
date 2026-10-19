@@ -26339,6 +26339,23 @@ Error generating stack: ` +
         window.visualViewport?.removeEventListener("resize", schedule);
       };
     }, [_, K, te]);
+    (0, R.useEffect)(() => {
+      if(!t.current||!i.current||!_)return;
+      const layer=i.current.layerGroup().addTo(t.current);
+      const draw=event=>{
+        layer.clearLayers();
+        for(const station of (event?.detail||window.gpsFuelMarkers||[])){
+          if(!Number.isFinite(station.lat)||!Number.isFinite(station.lon))continue;
+          const label=document.createElement('div');
+          const title=document.createElement('strong');title.textContent='⛽ '+station.name;
+          const prices=document.createElement('div');prices.textContent=station.prices;
+          label.append(title,prices);
+          i.current.marker([station.lat,station.lon],{icon:i.current.divIcon({className:'gps-route-fuel-marker',html:'<span aria-hidden="true">⛽</span>',iconSize:[30,30],iconAnchor:[15,15]}),title:'Station sur le trajet : '+station.name}).bindPopup(label).addTo(layer);
+        }
+      };
+      window.addEventListener('gps-fuel-markers',draw);draw();
+      return ()=>{window.removeEventListener('gps-fuel-markers',draw);layer.remove();};
+    },[_]);
     const gpsBoot37 = (0, R.useRef)(true);
     (0, R.useEffect)(() => {
       if (te && Y && K) {
