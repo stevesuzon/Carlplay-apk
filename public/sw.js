@@ -1,5 +1,5 @@
-const VERSION = "V511-MARKET-REVIEW";
-const BASE_CACHE = "couteau-suisse-runtime-code-v511-market-review";
+const VERSION = "V512-GPS-HOME-REFRESH";
+const BASE_CACHE = "couteau-suisse-runtime-code-v512-gps-home-refresh";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v439-market-list";
