@@ -18,14 +18,14 @@ async function loadFuelStations(route,token){
  const coords=route.geometry.coordinates, samples=[];const step=Math.max(1,Math.ceil(coords.length/18));
  for(let i=0;i<coords.length;i+=step)samples.push(coords[i]);samples.push(coords[coords.length-1]);
  // Small bounding boxes around sampled road points, not a blanket city-wide search.
- const boxes=samples.map(p=>'(around:1800,'+p[1]+','+p[0]+')').join('');
- const query='[out:json][timeout:15];(node["amenity"="fuel"]'+boxes+';);out center 35;';
+ const selectors=samples.map(p=>'(around:1800,'+p[1]+','+p[0]+')').map(area=>'nwr["amenity"="fuel"]'+area+';').join('');
+ const query='[out:json][timeout:15];('+selectors+');out center 35;';
  try{
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),17000);
  let response;try{response=await fetch('https://overpass.kumi.systems/api/interpreter',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(query),signal:controller.signal})}finally{clearTimeout(timeout)}
  if(!response.ok)throw Error('Stations indisponibles');
  const data=await response.json();if(token!==requestId)return;
- const seen=new Set(),stations=(data.elements||[]).filter(e=>e.lat&&e.lon).filter(e=>{if(seen.has(e.id))return false;seen.add(e.id);return true}).slice(0,15);
+ const seen=new Set(),stations=(data.elements||[]).map(e=>({...e,lat:e.lat??e.center?.lat,lon:e.lon??e.center?.lon})).filter(e=>Number.isFinite(e.lat)&&Number.isFinite(e.lon)).filter(e=>{if(seen.has(e.id))return false;seen.add(e.id);return true}).slice(0,15);
  if(!stations.length)return;panel.hidden=false;
  stations.forEach(e=>{const name=e.tags&&e.tags.name||'Station-service',pos=[e.lat,e.lon];const button=document.createElement('button');button.type='button';button.textContent='⛽ '+name+' — afficher sur la carte';button.addEventListener('click',()=>map.setView(pos,16));list.appendChild(button);const pin=L.marker(pos).addTo(map).bindPopup(name);fuelMarkers.push(pin)});
  }catch(e){if(token===requestId){panel.hidden=false;list.textContent='Stations indisponibles pour le moment. Les prix des carburants ne sont pas encore intégrés.'}}
