@@ -32,6 +32,7 @@
   function setBusy(value){busy=value;$('confirmGps').disabled=value;$('cancelCalculation').hidden=!value;planner.querySelectorAll('[data-mode],[data-choice],input,select,#editAddress').forEach(el=>el.disabled=value);}
   function cancel(){generation++;controller?.abort();controller=null;setBusy(false);}
   function closeCamera(){cameraRun++;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('walkCamera').hidden=true;$('walkCamera').querySelector('video').srcObject=null;}
+  let resumeCamera=false;
   async function openCamera(){
     const run=++cameraRun;
     try {
@@ -39,8 +40,11 @@
       const media=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
       if(run!==cameraRun||!walking||!wasActive){media.getTracks().forEach(t=>t.stop());return;}
       if(stream)stream.getTracks().forEach(t=>t.stop());stream=media;
-      $('walkCamera').querySelector('video').srcObject=stream;$('walkCamera').hidden=false;
-    } catch {if(run===cameraRun){$('openWalkCamera').textContent='📷 Autoriser la caméra';$('openWalkCamera').title='Autorisez la caméra dans les réglages du navigateur. Le guidage reste disponible sur la carte.';}}
+      const video=$('walkCamera').querySelector('video');video.srcObject=stream;$('walkCamera').hidden=false;
+      await video.play();if(run!==cameraRun)return;
+      $('openWalkCamera').textContent='📷 Vue piéton';
+      media.getVideoTracks().forEach(track=>track.addEventListener('ended',()=>{if(stream===media)closeCamera();},{once:true}));
+    } catch {if(run===cameraRun){closeCamera();$('openWalkCamera').textContent='📷 Activer la caméra';$('openWalkCamera').title='Autorisez la caméra dans les réglages du navigateur. Le guidage reste disponible sur la carte.';}}
   }
   async function keepScreen(){try{if(navigator.wakeLock&&!wake&&wasActive&&!document.hidden){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null});}}catch{}}
   function chooseMode(value){mode=value;planner.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));$('convoyOptions').hidden=mode!=='convoi';$('vehicleOptions').hidden=mode==='pieton';$('roadOptions').hidden=mode==='pieton';syncChoices();message('');}
@@ -144,7 +148,7 @@
     $('walkInstruction').textContent=g.message;$('walkDistance').textContent='Dans '+meters(g.distance)+' · '+meters(g.remaining)+' restants';$('walkArrow').textContent=/demi.tour/i.test(g.message)?'↶':/gauche/i.test(g.message)?'↰':/droite/i.test(g.message)?'↱':'↑';
   });
   $('openWalkCamera').addEventListener('click',()=>void openCamera());$('closeWalkCamera').addEventListener('click',closeCamera);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)closeCamera();else void keepScreen();});window.addEventListener('pagehide',()=>{cancel();closeCamera();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){resumeCamera=!!stream;closeCamera();}else{void keepScreen();if(resumeCamera&&walking&&wasActive){resumeCamera=false;void openCamera();}}});window.addEventListener('pagehide',()=>{cancel();closeCamera();});
   // Accept old destination links without auto-selecting an ambiguous first search result.
   const params=new URLSearchParams(location.search||location.hash.slice(1)),raw=params.get('destination');
   if(raw){window.gpsExplicitDestination=true;let p;try{p=JSON.parse(raw);}catch{const pair=raw.split(',').map(Number);if(pair.length===2&&pair.every(Number.isFinite))p={lat:pair[0],lon:pair[1]};}if(valid(p))open({...p,name:params.get('name')||p.name||'Destination'});else{input.value=raw;void search();}history.replaceState(null,'','/gps/');}
