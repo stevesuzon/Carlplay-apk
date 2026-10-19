@@ -3,6 +3,21 @@
   const $=id=>document.getElementById(id), planner=$('gpsPlanner'), status=$('plannerStatus'), input=$('gpsAddress');
   let mode='normal',destination=null,controller=null,generation=0,searchId=0,searchController=null,timer=0,busy=false,lastFix=null,stream=null,cameraRun=0,walking=false,wasActive=false,cameraAttempted=false,wake=null;
   const valid=p=>p && Number.isFinite(p.lat)&&Number.isFinite(p.lon)&&Math.abs(p.lat)<=90&&Math.abs(p.lon)<=180;
+  const recentKey='gps-recent-addresses-v1',recentSelect=$('gpsRecentAddresses');
+  const addressKey=p=>Number(p.lat).toFixed(5)+','+Number(p.lon).toFixed(5);
+  let recent=[];try{const stored=JSON.parse(localStorage.getItem(recentKey)||'[]');if(Array.isArray(stored)){const seen=new Set();recent=stored.filter(p=>{if(!valid(p)||typeof p.name!=='string'||!p.name.trim()||seen.has(addressKey(p)))return false;seen.add(addressKey(p));return true;}).slice(0,30);}}catch{}
+  function renderRecent(){
+    recentSelect.replaceChildren(new Option(recent.length?'Mes adresses ('+recent.length+')':'Mes adresses (0)',''));
+    recent.forEach((p,index)=>recentSelect.appendChild(new Option(p.name,String(index))));recentSelect.value='';
+  }
+  function rememberAddress(place){
+    const name=String(place.label||place.name||place.address||'Destination').trim().slice(0,300);
+    const entry={name,address:String(place.address||name).slice(0,300),lat:place.lat,lon:place.lon};
+    recent=[entry,...recent.filter(p=>addressKey(p)!==addressKey(entry))].slice(0,30);
+    try{localStorage.setItem(recentKey,JSON.stringify(recent));}catch{}renderRecent();
+  }
+  recentSelect.addEventListener('change',()=>{if(recentSelect.value==='')return;const place=recent[Number(recentSelect.value)];if(place){input.blur();recentSelect.blur();open(place);}});
+  renderRecent();
   const meters=n=>n>=1000?(n/1000).toFixed(1).replace('.',',')+' km':Math.max(0,Math.round(n/10)*10)+' m';
   let savedProfile={};try{savedProfile=JSON.parse(localStorage.getItem('gps-voyage-profile')||'{}');}catch{}
   let convoyProfiles={};try{convoyProfiles=JSON.parse(localStorage.getItem('gps-convoy-profiles-v5')||'{}');}catch{}
@@ -32,6 +47,7 @@
   function open(place=null){
     cancel();searchController?.abort();searchId++;clearTimeout(timer);closeCamera();window.couteauGps?.stop();
     destination=valid(place)?{id:place.id||'couteau-destination',kind:place.kind||'terrain',city:'',day:'',hours:'',merchants:'',...place,address:place.address||place.name}:null;
+    if(destination)rememberAddress(destination);
     document.body.classList.add('gps-planning');planner.hidden=false;$('addressForm').hidden=!!destination;$('modeStep').hidden=!destination;$('gpsResults').replaceChildren();
     if(destination){$('chosenAddress').textContent=destination.name||destination.address;chooseMode(mode);}else {input.value='';message('');input.focus({preventScroll:true});}
   }

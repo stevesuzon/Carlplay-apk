@@ -63,3 +63,5 @@ html,body{overscroll-behavior-x:none}.gps-app .map{overscroll-behavior:none;touc
 .readable-market-sign::after{display:none}
 .readable-market-sign .sign-face{top:10px;height:94px;min-height:94px;padding:12px 42px 12px 12px;border:0;border-radius:0;clip-path:polygon(0 8%,80% 8%,80% 0,100% 50%,80% 100%,80% 92%,0 92%);background:repeating-linear-gradient(2deg,#0000 0 5px,#744a211d 6px 7px),linear-gradient(100deg,#be9361,#e4bd83 43%,#c59a63);box-shadow:inset 0 3px 4px #fff7,inset 0 -3px 4px #6e431b66;gap:2px}
 .readable-market-sign .sign-face strong{font-size:16px;line-height:18px;color:#2f1c0c;text-shadow:0 1px #fbe4b3}.readable-market-sign .sign-face small{font-size:13px;line-height:15px;color:#3f2812}.readable-market-sign .sign-tap-hint{color:#3f2812;font-size:11px;line-height:13px}
+
+.planner-head a{flex-shrink:0}.planner-card #gpsRecentAddresses{width:auto;max-width:52%;min-width:0;min-height:42px;margin:0;padding:8px 22px 8px 8px;font:13px Arial,sans-serif;border:1px solid #728ba5;border-radius:8px;background:#233e59;color:#fff;text-overflow:ellipsis}.planner-card #gpsRecentAddresses option{background:#233e59;color:#fff}
