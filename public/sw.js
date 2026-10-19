@@ -1,4 +1,4 @@
-const VERSION = "V513-GPS-INTEGRE-7";
+const VERSION = "V513-GPS-INTEGRE-8";
 const BASE_CACHE = "couteau-suisse-runtime-code-v513-gps-integre-6";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";

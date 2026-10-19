@@ -12,7 +12,7 @@
   }
   function rememberAddress(place){
     const name=String(place.label||place.name||place.address||'Destination').trim().slice(0,300);
-    const entry={name,address:String(place.address||name).slice(0,300),lat:place.lat,lon:place.lon};
+    const entry={name,address:String(place.address||name).slice(0,300),lat:place.lat,lon:place.lon,precision:place.precision||''};
     recent=[entry,...recent.filter(p=>addressKey(p)!==addressKey(entry))].slice(0,30);
     try{localStorage.setItem(recentKey,JSON.stringify(recent));}catch{}renderRecent();
   }
@@ -44,12 +44,32 @@
   }
   async function keepScreen(){try{if(navigator.wakeLock&&!wake&&wasActive&&!document.hidden){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null});}}catch{}}
   function chooseMode(value){mode=value;planner.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));$('convoyOptions').hidden=mode!=='convoi';$('vehicleOptions').hidden=mode==='pieton';$('roadOptions').hidden=mode==='pieton';syncChoices();message('');}
+  let previewRun=0,previewAbort=null,previewTimeout=null;
+  function stopPreview(){previewRun++;previewAbort?.abort();clearTimeout(previewTimeout);$('destinationStreet').hidden=true;$('destinationStreet').removeAttribute('src');}
+  async function showDestinationPreview(place){
+    stopPreview();const run=previewRun,frame=$('destinationStreet'),status=$('destinationImageStatus');
+    status.hidden=false;status.textContent='Recherche d’une photo de rue…';$('destinationCaption').textContent='Photo de rue · Panoramax';
+    const abort=new AbortController();previewAbort=abort;previewTimeout=setTimeout(()=>abort.abort(),12000);
+    try{
+      const response=await fetch('/gps/api/panorama?'+new URLSearchParams({lat:place.lat,lon:place.lon}),{signal:abort.signal});const data=await response.json();if(run!==previewRun)return;clearTimeout(previewTimeout);
+      if(!response.ok||!data.panorama?.viewer?.startsWith('/gps/panorama-viewer?'))throw Error();
+      const p=data.panorama,approximate=['municipality','city','locality'].includes(place.precision);
+      $('destinationCaption').textContent='Photo de rue · Panoramax · à '+p.distance+' m du point'+(approximate?' · centre de la ville':'');
+      frame.src=p.viewer;frame.hidden=false;status.textContent='Chargement de la photo de rue…';
+      previewTimeout=setTimeout(()=>{if(run===previewRun){frame.hidden=true;frame.removeAttribute('src');status.hidden=false;status.textContent='Photo de rue indisponible. Vous pouvez confirmer le trajet.';}},22000);
+    }catch{if(run!==previewRun)return;clearTimeout(previewTimeout);status.textContent='Aucune photo de rue disponible ici. Vous pouvez confirmer le trajet.';}
+  }
+  window.addEventListener('message',event=>{
+    const frame=$('destinationStreet');if(event.origin!==location.origin||event.source!==frame.contentWindow||frame.hidden)return;
+    if(event.data?.type==='gps-panorama-ready'){clearTimeout(previewTimeout);$('destinationImageStatus').hidden=true;}
+    if(event.data?.type==='gps-panorama-error'){clearTimeout(previewTimeout);frame.hidden=true;frame.removeAttribute('src');$('destinationImageStatus').hidden=false;$('destinationImageStatus').textContent='Photo de rue indisponible. Vous pouvez confirmer le trajet.';}
+  });
   function open(place=null){
     cancel();searchController?.abort();searchId++;clearTimeout(timer);closeCamera();window.couteauGps?.stop();
     destination=valid(place)?{id:place.id||'couteau-destination',kind:place.kind||'terrain',city:'',day:'',hours:'',merchants:'',...place,address:place.address||place.name}:null;
-    if(destination)rememberAddress(destination);
+    if(destination)rememberAddress(destination);else stopPreview();
     document.body.classList.add('gps-planning');planner.hidden=false;$('addressForm').hidden=!!destination;$('modeStep').hidden=!destination;$('gpsResults').replaceChildren();
-    if(destination){$('chosenAddress').textContent=destination.name||destination.address;chooseMode(mode);}else {input.value='';message('');input.focus({preventScroll:true});}
+    if(destination){showDestinationPreview(destination);input.blur();planner.scrollTop=0;$('chosenAddress').textContent=destination.name||destination.address;chooseMode(mode);}else {input.value='';message('');input.focus({preventScroll:true});}
   }
   window.couteauGpsPlanner={open, getSelection:()=>({destination,profile:profile()}),restore(saved){open(saved.destination);const p=saved.profile;for(const key of ['vehicle','trailer','roadMode'])if(p[key]!=null)$(key).value=p[key];$('tolls').checked=p.tolls!==false;loadConvoy();for(const key of ['length','height','width','weight'])if(Number(p[key])>0)$(key).value=p[key];chooseMode(p.travelMode==='pedestrian'?'pieton':p.trailer!=='none'?'convoi':'normal');syncChoices();}};
   async function search(){
@@ -88,7 +108,7 @@
     function cleanup(){clearTimeout(timeout);window.removeEventListener('couteau-gps-ready',done);signal.removeEventListener('abort',abort);}
     window.addEventListener('couteau-gps-ready',done,{once:true});signal.addEventListener('abort',abort,{once:true});
   });}
-  function showNavigation(){planner.hidden=true;document.body.classList.remove('gps-planning');message('');}
+  function showNavigation(){stopPreview();planner.hidden=true;document.body.classList.remove('gps-planning');message('');}
   $('confirmGps').addEventListener('click',async()=>{
     if(busy||!destination)return;let selected;try{selected=profile();}catch(e){message(e.message);return;}
     cancel();const run=generation,abort=new AbortController();controller=abort;setBusy(true);message('Recherche de votre position…');
