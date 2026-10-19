@@ -34,7 +34,6 @@
   document.addEventListener('touchstart',event=>{edge=!!window.couteauGps?.getState().active&&event.touches.length===1&&!!event.target.closest('.map')&&(event.touches[0].clientX<24||event.touches[0].clientX>innerWidth-24);if(edge&&event.cancelable)event.preventDefault();},{passive:false,capture:true});
   document.addEventListener('touchmove',event=>{if(edge&&event.cancelable)event.preventDefault();},{passive:false,capture:true});
   document.addEventListener('touchend',()=>{edge=false;},{passive:true});
-  $('gpsZoomIn').addEventListener('click',()=>window.couteauGps?.zoom(1));$('gpsZoomOut').addEventListener('click',()=>window.couteauGps?.zoom(-1));
   window.addEventListener('pagehide',()=>persist(true));document.addEventListener('visibilitychange',()=>{if(document.hidden)persist(true);});setInterval(()=>persist(),10000);
   let saved;try{saved=JSON.parse(localStorage.getItem(key)||sessionStorage.getItem('gps-session-v37')||'null');}catch{}
   const explicitDestination=window.gpsExplicitDestination||new URLSearchParams(location.search||location.hash.slice(1)).has('destination');

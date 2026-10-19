@@ -26262,7 +26262,8 @@ Error generating stack: ` +
       (0, R.useEffect)(() => {
         _ && Wt();
       }, [q, _, K, z, y]));
-    const gpsNavigationZoom = (0, R.useRef)(19);
+    const GPS_DRIVING_ZOOM = 19;
+    const gpsNavigationZoom = (0, R.useRef)(GPS_DRIVING_ZOOM);
     function Ka(m, A = !1) {
       let E = t.current;
       if (!E) return;
@@ -26350,6 +26351,7 @@ Error generating stack: ` +
         start({route,destination,profile}) {
           if (!Array.isArray(route?.points) || route.points.length<2 || !route.summary || !destination) throw Error('Trajet invalide.');
           pa.current?.abort();
+          if(profile.travelMode!=='pedestrian')gpsNavigationZoom.current=GPS_DRIVING_ZOOM;
           ue(profile); Ze(destination); Kt(route); fo(0); Mi.current=-1; mo(null); T('');
           f.current?.remove();
           f.current=i.current.featureGroup([
@@ -26366,7 +26368,7 @@ Error generating stack: ` +
         },
         getState:()=>({route:te,destination:Y,profile:z,active:K,position:q,zoom:t.current?.getZoom()}),
         zoom(delta){ut.current=false;const map=t.current;map.stop();map.setZoom(Math.max(8,Math.min(20,map.getZoom()+delta)),{animate:false});gpsNavigationZoom.current=map.getZoom();},
-        recenter(){ut.current=true;Wa(true);if(q)Ka(sl(q,te?.points||[[q.lat,q.lon],[q.lat,q.lon]]));}
+        recenter(){if(z.travelMode!=='pedestrian')gpsNavigationZoom.current=GPS_DRIVING_ZOOM;ut.current=true;Wa(true);if(q)Ka(sl(q,te?.points||[[q.lat,q.lon],[q.lat,q.lon]]));}
       };
       window.dispatchEvent(new Event('couteau-gps-ready'));
       return () => {delete window.couteauGps;};
@@ -26374,6 +26376,7 @@ Error generating stack: ` +
     (0, R.useEffect)(()=>{window.dispatchEvent(new CustomEvent('couteau-gps-state',{detail:{active:K,destination:Y,profile:z,arrived:!!wi}}));},[K,Y,z,wi]);
     function Bi(m = te) {
       if (!m) return;
+      if(z.travelMode!=='pedestrian')gpsNavigationZoom.current=GPS_DRIVING_ZOOM;
       gpsGuideStates46.delete(m);
       ((Va.current.next = Date.now() + (180 + Math.random() * 180) * 1e3),
         (ut.current = !0),
@@ -27870,6 +27873,7 @@ Error generating stack: ` +
                       (0, S.jsxs)("button", {
                         className: "recenter-trip",
                         onClick: () => {
+                          if(z.travelMode!=='pedestrian')gpsNavigationZoom.current=GPS_DRIVING_ZOOM;
                           q && (Ka(sl(q, te.points)), Wt());
                         },
                         children: [(0, S.jsx)(nl, { size: 15 }), "Recentrer"],
