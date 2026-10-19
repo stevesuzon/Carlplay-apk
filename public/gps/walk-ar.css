@@ -15,3 +15,5 @@
 @media(orientation:landscape) and (max-height:500px){#walkCamera .walk-hud{width:260px;padding:8px}.walk-trip{max-width:400px;margin:auto}#walkCamera .walk-trip{padding:7px 4px;bottom:calc(82px + env(safe-area-inset-bottom))}#walkARStatus{left:auto;right:12px;width:230px;bottom:95px}#walkCamera .walk-hud strong{font-size:38px}#walkTurnDistance{font-size:28px}}
 
 #walkARCredit{position:absolute;left:14px;bottom:calc(4px + env(safe-area-inset-bottom));color:#cbd8e6;font:8px Arial;text-decoration:none;max-width:calc(50% - 60px)}
+
+#walkFunLayer{z-index:2}.walk-fun-prop.fun-compact .fun-object{font-size:25px;line-height:28px}.walk-fun-prop.fun-compact .fun-quip{display:none}.walk-fun-prop.fun-compact .fun-price{font-size:14px;padding:2px 6px}.walk-fun-prop.fun-compact .fun-price small{display:none}.walk-fun-prop.fun-compact .fun-name{padding:2px 6px;font-size:10px}#walkCamera .walk-hud,#walkCamera .walk-trip,#walkCamera .walk-capture-controls,#walkCamera .walk-fun-controls,#closeWalkCamera,#walkARStart,#walkARAlign,#walkARStatus{z-index:3}

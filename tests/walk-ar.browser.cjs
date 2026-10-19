@@ -26,6 +26,15 @@ assert.equal(await page.evaluate(()=>testScene.children.length),1);
 const coords=await page.evaluate(()=>Array.from(testScene.children[0].children[0].geometry.attributes.position.array));
 await page.evaluate(()=>{testCam.position.x+=2;testCam.rotation.y=.6;pipeline.onUpdate({processCpuResult:{reality:{trackingStatus:'NORMAL'}}});});
 assert.deepEqual(await page.evaluate(()=>Array.from(testScene.children[0].children[0].geometry.attributes.position.array)),coords);
+// Effects must detect the AR canvas even when the original video is paused.
+await page.evaluate(()=>{
+ window.tf={ready:async()=>{}};window.cocoSsd={load:async()=>({detect:async input=>{window.effectInputCanvas=input instanceof HTMLCanvasElement;return [{class:'person',score:.95,bbox:[100,130,90,420]}];}})};
+ const cb=document.getElementById('enableWalkFun');cb.checked=true;cb.dispatchEvent(new Event('change'));
+});
+await page.waitForFunction(()=>document.querySelector('#walkFunLayer .walk-fun-prop:not([hidden])'));
+assert.equal(await page.evaluate(()=>effectInputCanvas),true);
+assert.equal(await page.locator('#walkFunLayer').isVisible(),true);
+assert(await page.locator('.fun-price').textContent());
 await page.screenshot({path:'webar-layout.png'});
 await page.evaluate(()=>pipeline.onUpdate({processCpuResult:{reality:{trackingStatus:'LIMITED'}}}));assert.equal(await page.evaluate(()=>testScene.children.length),0);
 assert((await page.textContent('#walkARStatus')).includes('Suivi perdu'));

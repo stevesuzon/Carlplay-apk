@@ -82,7 +82,7 @@
           if(group&&anchor&&Math.hypot(cam.position.x-anchor.x,cam.position.z-anchor.z)>35)invalidate('Nouvelle portion : visez le sol et réalignez le chemin.');
           if(group&&window.couteauGps?.getState().route!==route)invalidate('Itinéraire modifié : réalignez le chemin.');
         },
-        onRender:()=>{if(token!==generation||!running)return;ready=true;lastFrameAt=performance.now();if(frame.width!==canvas.width||frame.height!==canvas.height){frame.width=canvas.width;frame.height=canvas.height;}frameCtx.drawImage(canvas,0,0);},
+        onRender:()=>{if(token!==generation||!running)return;const firstFrame=!ready;ready=true;lastFrameAt=performance.now();if(frame.width!==canvas.width||frame.height!==canvas.height){frame.width=canvas.width;frame.height=canvas.height;}frameCtx.drawImage(canvas,0,0);if(firstFrame)window.dispatchEvent(new Event('couteau-ar-frame-ready'));},
         onException:e=>{if(token===generation)fail(e);}
       }]);
       startTimeout=setTimeout(()=>{if(token===generation&&!ready)fail(Error('Le suivi AR ne démarre pas. Réessayez dans Safari.'));},25000);

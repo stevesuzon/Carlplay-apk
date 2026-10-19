@@ -13,16 +13,17 @@
     return {choice,price,prop:props[choice],quip:Math.random()<.22,tutelle:Math.random()<.6};
   }
 
-  function active(){return enabled&&!camera.hidden&&!document.hidden&&!video.paused&&video.readyState>=2&&!!video.srcObject;}
+  function source(){return window.couteauWalkAR?.getFrame()||(!video.paused&&video.readyState>=2&&video.srcObject?video:null);}
+  function active(){return enabled&&!camera.hidden&&!document.hidden&&!!source();}
   function clear(){epoch++;clearTimeout(timer);timer=null;tracks=[];layer.replaceChildren();}
-  function script(src){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=()=>{s.remove();reject(Error('Effets indisponibles'));};document.head.appendChild(s);});}
+  function script(src){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;const timeout=setTimeout(()=>{s.remove();reject(Error('Chargement trop long'));},30000);s.onload=()=>{clearTimeout(timeout);resolve();};s.onerror=()=>{clearTimeout(timeout);s.remove();reject(Error('Effets indisponibles'));};document.head.appendChild(s);});}
   async function load(){
     if(model)return model;if(loading)return loading;
     loading=(async()=>{if(!window.tf)await script('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js');if(!window.cocoSsd)await script('https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js');await window.tf.ready();model=await window.cocoSsd.load({base:'lite_mobilenet_v2'});return model;})();
     try{return await loading;}finally{loading=null;}
   }
-  function update(predictions){
-    const rect=video.getBoundingClientRect(),scale=Math.max(rect.width/video.videoWidth,rect.height/video.videoHeight),ox=(rect.width-video.videoWidth*scale)/2,oy=(rect.height-video.videoHeight*scale)/2;
+  function update(predictions,input){
+    const rect=camera.getBoundingClientRect(),width=input.videoWidth||input.width,height=input.videoHeight||input.height,scale=Math.max(rect.width/width,rect.height/height),ox=(rect.width-width*scale)/2,oy=(rect.height-height*scale)/2;
     const boxes=predictions.filter(p=>p.class==='person'&&p.score>=.65&&p.bbox?.length===4&&p.bbox.every(Number.isFinite)).sort((a,b)=>b.score-a.score).slice(0,4);
     const used=new Set(),fresh=[];
     for(const p of boxes){
@@ -37,9 +38,13 @@
       }
       used.add(best.id);best.cx=cx;best.cy=cy;
       const px=cx*scale+ox,py=y*scale+oy-8,hud=camera.querySelector('.walk-hud').getBoundingClientRect();
-      // Never move an accessory onto the directions or controls, or display it off-screen.
-      best.el.hidden=px<30||px>rect.width-30||py<Math.max(90,hud.bottom-rect.top+135)||py>rect.height-125;
-      best.el.style.left=px+'px';best.el.style.top=py+'px';fresh.push(best);
+      // Keep the label attached to the person; use a compact badge when the head is near the HUD.
+      const top=Math.max(8,hud.bottom-rect.top+8),bottom=rect.height-190;
+      best.el.classList.toggle('fun-compact',py-150<top);
+      best.el.hidden=px<0||px>rect.width||py>bottom||y*scale+oy+h*scale<top;
+      const labelHeight=best.el.classList.contains('fun-compact')?76:150;
+      best.el.style.left=Math.max(78,Math.min(rect.width-78,px))+'px';
+      best.el.style.top=Math.min(bottom,Math.max(top+labelHeight,py))+'px';fresh.push(best);
     }
     for(const t of tracks)if(!used.has(t.id))t.el.remove();tracks=fresh;
   }
@@ -48,8 +53,9 @@
     try{
       if(!model)status.textContent='Chargement des effets…';
       const detector=await load();if(run!==epoch||!active())return;
-      const predictions=await detector.detect(video,8,.65);if(run!==epoch||!active())return;
-      update(predictions);status.textContent='';
+      const input=source();if(!input)return;
+      const predictions=await detector.detect(input,8,.65);if(run!==epoch||!active())return;
+      update(predictions,input);status.textContent=tracks.some(t=>!t.el.hidden)?'':'Visez une personne pour afficher les effets';
     }catch{if(run===epoch){enabled=false;clear();sync();status.textContent='Effets indisponibles · guidage maintenu';}}
     finally{running=false;if(active())timer=setTimeout(tick,Math.max(250,650-(performance.now()-started)));}
   }
@@ -57,5 +63,6 @@
   checkbox.addEventListener('change',()=>{enabled=checkbox.checked;try{localStorage.setItem('gps-walk-fun',enabled?'on':'off');}catch{}sync();});
   toggle.addEventListener('click',()=>{enabled=!enabled;try{localStorage.setItem('gps-walk-fun',enabled?'on':'off');}catch{}sync();});
   new MutationObserver(sync).observe(camera,{attributes:true,attributeFilter:['hidden']});
-  video.addEventListener('playing',sync);video.addEventListener('pause',sync);document.addEventListener('visibilitychange',sync);window.addEventListener('resize',()=>{clear();sync();});window.addEventListener('pagehide',clear);sync();
+  window.addEventListener('couteau-ar-frame-ready',sync);video.addEventListener('playing',sync);video.addEventListener('pause',sync);document.addEventListener('visibilitychange',sync);window.addEventListener('resize',()=>{clear();sync();});window.addEventListener('pagehide',clear);sync();
 })();
+
