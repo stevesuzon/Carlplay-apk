@@ -158,7 +158,8 @@ body.homePage.homeChromeHidden #directArticle{opacity:1!important;pointer-events
 #nearby80Button .pencil{font-size:25px;line-height:1;filter:grayscale(1) brightness(.1)}
 #nearby80Button .nearText{line-height:1.08;text-align:center}
 @media(max-width:720px){#homeDepartmentSearch{margin:-38px 0 9px}#nearby80Button{min-height:56px;font-size:15px;padding:9px 12px}#nearby80Button .pencil{font-size:22px}}
-.addressBookTile{position:relative;overflow:hidden;cursor:pointer;padding:0!important;background:#08752f!important}
+body.homePage #homeGpsBtn{padding:0!important;background:none!important;border:0!important;overflow:hidden}
+#homeGpsBtn>img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:fill;border-radius:inherit}
 .addressBookTitle{display:none!important}
 .addressBookVisual{display:none!important}
 .addressBookVisual img{display:none!important}
@@ -880,8 +881,8 @@ opacity:.9;
     <div class="vehicleVisual"><img src="master-front-transparent.png" alt="Marchés"></div>
     <div class="marketText"><div class="title">MARCHÉS</div><div class="marketKinds">FOIRES • NOËL • BROCANTES</div></div>
   </div>
-  <a id="homeGpsBtn" class="card orange addressBookTile" href="/gps/" aria-label="Ouvrir le GPS intégré Couteau Suisse" data-voice-help="GPS intégré. Ouvrir la navigation.">
-    <img src="/gps-trafic-caravane-v1.webp" alt="GPS — Trafic et caravane" width="512" height="512" style="display:block;width:100%;height:auto;aspect-ratio:1;object-fit:contain;border-radius:inherit">
+  <a id="homeGpsBtn" class="card gpsHomeTile" href="/gps/" aria-label="Ouvrir le GPS intégré Couteau Suisse" data-voice-help="GPS intégré. Ouvrir la navigation.">
+    <img src="/gps-trafic-caravane-v1.webp" alt="GPS — Trafic et caravane" width="512" height="512" >
   </a>
 
   <a class="directBtn place homeBigTile" href="mes-papiers.html">
