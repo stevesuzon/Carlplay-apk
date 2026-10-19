@@ -31,7 +31,7 @@
       for(const t of tracks){const d=Math.hypot(cx-t.cx,cy-t.cy);if(!used.has(t.id)&&d<Math.max(w,h)*.5&&d<dist){best=t;dist=d;}}
       if(!best){
         const id=nextId++,gift=surprise(),el=document.createElement('div');el.className='walk-fun-prop';
-        el.innerHTML='<span class="fun-object" aria-hidden="true">'+gift.prop[0]+'</span><span class="fun-name">'+gift.prop[1]+'</span><strong class="fun-price">'+gift.price.toLocaleString('fr-FR')+' €</strong>'+(gift.quip?'<span class="fun-quip">Chine ! Celui-là,<br>je le sens bien !</span>':'');
+        el.innerHTML='<span class="fun-object" aria-hidden="true">'+gift.prop[0]+'</span><strong class="fun-price"><small>Trésorerie</small>'+gift.price.toLocaleString('fr-FR')+' €</strong><span class="fun-name">Besoin : '+gift.prop[1]+'</span>'+(gift.quip?'<span class="fun-quip">Chine ! Celui-là,<br>je le sens bien !</span>':'');
         if(gift.choice===0)el.classList.add('fun-pig');layer.appendChild(el);best={id,el};
       }
       used.add(best.id);best.cx=cx;best.cy=cy;
@@ -48,7 +48,7 @@
       if(!model)status.textContent='Chargement des effets…';
       const detector=await load();if(run!==epoch||!active())return;
       const predictions=await detector.detect(video,8,.65);if(run!==epoch||!active())return;
-      update(predictions);status.textContent='Jeu · objets et prix fictifs au hasard';
+      update(predictions);status.textContent='Jeu · trésorerie et besoins fictifs';
     }catch{if(run===epoch){enabled=false;clear();sync();status.textContent='Effets indisponibles · guidage maintenu';}}
     finally{running=false;if(active())timer=setTimeout(tick,Math.max(250,650-(performance.now()-started)));}
   }
