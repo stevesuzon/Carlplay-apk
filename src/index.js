@@ -5140,7 +5140,7 @@ async function fuelStationVerificationBatch(request, env) {
     const q = `SELECT station_key,payment,boutique,open24,gpl,cigarettes,opinion,manual_hours,updated_at FROM fuel_station_verifications WHERE station_key IN (${keys.map(()=>'?').join(',')})`;
     const rows = (await env.DB.prepare(q).bind(...keys).all()).results || [];
     const states = {};
-    for (const r of rows) states[r.station_key] = {verified:!!r.cigarettes,opinion:r.opinion||'',manualHours:r.manual_hours||'',payment:r.payment||'',boutique:r.boutique||'',open24:r.open24||'',gpl:r.gpl||'',cigarettes:r.cigarettes||'',updatedAt:r.updated_at||''};
+    for (const r of rows) states[r.station_key] = {verified:!!r.gpl&&(r.boutique==='Non'||!!r.cigarettes),opinion:r.opinion||'',manualHours:r.manual_hours||'',payment:r.payment||'',boutique:r.boutique||'',open24:r.open24||'',gpl:r.gpl||'',cigarettes:r.cigarettes||'',updatedAt:r.updated_at||''};
     return json({ok:true,states});
   } catch (e) {
     return json({ok:false,error:'STATION_VERIFICATION_BATCH',message:String(e&&e.message||e)},500);
@@ -5149,24 +5149,19 @@ async function fuelStationVerificationBatch(request, env) {
 
 async function submitFuelStationVerification(request, env) {
   try {
-    if (!await ensureFuelStationVerificationTable(env)) return json({ok:false,error:'DB_INDISPONIBLE'},503);
-    const body = await request.json().catch(()=>({}));
-    const stationKey = cleanFuelStationKey(body.stationKey);
-    const deviceId = String(body.deviceId || '').trim().slice(0,180);
-    const cigarettes = normalizeStationChoice('yesno', body.cigarettes);
-    const gpl = normalizeStationChoice('yesno', body.gpl || 'Oui') || 'Oui';
-    const opinion = gpl === 'Oui' ? normalizeStationChoice('opinion', body.opinion) : '';
-    const manualHours = String(body.manualHours || '').replace(/[\u0000-\u001f]/g,' ').trim().slice(0,120);
-    if (!stationKey || !deviceId || !cigarettes) return json({ok:false,error:'CHOIX_INCOMPLETS',message:'Choisissez Cigarettes OUI ou NON.'},400);
-    if (gpl === 'Oui' && !opinion) return json({ok:false,error:'AVIS_GPL_MANQUANT',message:'Choisissez l’avis GPL.'},400);
+    if (!await ensureFuelStationVerificationTable(env)) return json({ok:false,message:'Enregistrement partagé indisponible.'},503);
+    const body=await request.json().catch(()=>({}));
+    const stationKey=cleanFuelStationKey(body.stationKey),deviceId=String(body.deviceId||'').trim().slice(0,180);
+    const yesno=v=>v==='Oui'||v==='Non'?v:'';
+    const boutique=yesno(body.boutique),gpl=yesno(body.gpl),cigarettes=boutique==='Oui'?yesno(body.cigarettes):'';
+    const manualHours=String(body.manualHours||'').replace(/[\u0000-\u001f]/g,' ').trim().slice(0,120);
+    if(!stationKey||!deviceId||!boutique||!gpl||(boutique==='Oui'&&!cigarettes))return json({ok:false,message:'Choisissez Boutique, GPL et, avec boutique, Cigarettes : OUI ou NON.'},400);
     await env.DB.prepare(`INSERT INTO fuel_station_verifications(station_key,payment,boutique,open24,gpl,cigarettes,opinion,device_id,manual_hours,updated_at)
       VALUES(?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
-      ON CONFLICT(station_key) DO UPDATE SET gpl=excluded.gpl,cigarettes=excluded.cigarettes,opinion=CASE WHEN excluded.opinion<>'' THEN excluded.opinion ELSE fuel_station_verifications.opinion END,manual_hours=CASE WHEN excluded.manual_hours<>'' THEN excluded.manual_hours ELSE fuel_station_verifications.manual_hours END,device_id=excluded.device_id,updated_at=CURRENT_TIMESTAMP`)
-      .bind(stationKey,'','','',gpl,cigarettes,opinion,deviceId,manualHours).run();
-    return json({ok:true,state:{verified:true,opinion,manualHours,payment:'',boutique:'',open24:'',gpl,cigarettes,updatedAt:new Date().toISOString()}});
-  } catch (e) {
-    return json({ok:false,error:'STATION_VERIFICATION',message:String(e&&e.message||e)},500);
-  }
+      ON CONFLICT(station_key) DO UPDATE SET boutique=excluded.boutique,gpl=excluded.gpl,cigarettes=excluded.cigarettes,opinion='',manual_hours=excluded.manual_hours,device_id=excluded.device_id,updated_at=CURRENT_TIMESTAMP`)
+      .bind(stationKey,'',boutique,'',gpl,cigarettes,'',deviceId,manualHours).run();
+    return json({ok:true,state:{verified:true,boutique,gpl,cigarettes,manualHours,opinion:'',payment:'',open24:'',updatedAt:new Date().toISOString()}});
+  }catch{return json({ok:false,message:'Enregistrement partagé indisponible pour le moment. Réessayez plus tard.'},503);}
 }
 
 
