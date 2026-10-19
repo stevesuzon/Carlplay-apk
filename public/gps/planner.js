@@ -5,11 +5,16 @@
   const valid=p=>p && Number.isFinite(p.lat)&&Number.isFinite(p.lon)&&Math.abs(p.lat)<=90&&Math.abs(p.lon)<=180;
   const meters=n=>n>=1000?(n/1000).toFixed(1).replace('.',',')+' km':Math.max(0,Math.round(n/10)*10)+' m';
   let savedProfile={};try{savedProfile=JSON.parse(localStorage.getItem('gps-voyage-profile')||'{}');}catch{}
-  for(const key of ['length','height','width','weight'])if(Number(savedProfile[key])>0)$(key).value=savedProfile[key];
+  let convoyProfiles={};try{convoyProfiles=JSON.parse(localStorage.getItem('gps-convoy-profiles-v5')||'{}');}catch{}
+  const convoyKey=()=>$('vehicle').value+':'+$('trailer').value;
+  function loadConvoy(){const saved=convoyProfiles[convoyKey()]||{};for(const key of ['length','height','width','weight'])$(key).value=saved[key]||({length:'12',height:'2.65',width:'2.50',weight:''}[key]);}
+  function rememberConvoy(){convoyProfiles[convoyKey()]=Object.fromEntries(['length','height','width','weight'].map(key=>[key,$(key).value]));}
+  function syncChoices(){planner.querySelectorAll('[data-choice]').forEach(b=>{const field=$(b.dataset.choice),value=field.type==='checkbox'?String(field.checked):field.value;b.setAttribute('aria-pressed',String(b.dataset.value===value));});}
   if(['car','truck'].includes(savedProfile.vehicle))$('vehicle').value=savedProfile.vehicle;
   if(['small','large','trailer'].includes(savedProfile.trailer))$('trailer').value=savedProfile.trailer;
+  loadConvoy();syncChoices();
   function message(text){status.textContent=text;}
-  function setBusy(value){busy=value;$('confirmGps').disabled=value;$('cancelCalculation').hidden=!value;planner.querySelectorAll('[data-mode],input,select,#editAddress').forEach(el=>el.disabled=value);}
+  function setBusy(value){busy=value;$('confirmGps').disabled=value;$('cancelCalculation').hidden=!value;planner.querySelectorAll('[data-mode],[data-choice],input,select,#editAddress').forEach(el=>el.disabled=value);}
   function cancel(){generation++;controller?.abort();controller=null;setBusy(false);}
   function closeCamera(){cameraRun++;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('walkCamera').hidden=true;$('walkCamera').querySelector('video').srcObject=null;}
   async function openCamera(){
@@ -23,7 +28,7 @@
     } catch {if(run===cameraRun){$('openWalkCamera').textContent='📷 Autoriser la caméra';$('openWalkCamera').title='Autorisez la caméra dans les réglages du navigateur. Le guidage reste disponible sur la carte.';}}
   }
   async function keepScreen(){try{if(navigator.wakeLock&&!wake&&wasActive&&!document.hidden){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null});}}catch{}}
-  function chooseMode(value){mode=value;planner.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));$('convoyOptions').hidden=mode!=='convoi';$('vehicleOptions').hidden=mode==='pieton';$('roadOptions').hidden=mode==='pieton';if(mode==='convoi'&&savedProfile.vehicle==null)$('vehicle').value='truck';message('');}
+  function chooseMode(value){mode=value;planner.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));$('convoyOptions').hidden=mode!=='convoi';$('vehicleOptions').hidden=mode==='pieton';$('roadOptions').hidden=mode==='pieton';syncChoices();message('');}
   function open(place=null){
     cancel();searchController?.abort();searchId++;clearTimeout(timer);closeCamera();window.couteauGps?.stop();
     destination=valid(place)?{id:place.id||'couteau-destination',kind:place.kind||'terrain',city:'',day:'',hours:'',merchants:'',...place,address:place.address||place.name}:null;
@@ -47,11 +52,12 @@
   input.addEventListener('input',()=>{searchId++;searchController?.abort();clearTimeout(timer);timer=setTimeout(search,300);});
   $('addressForm').addEventListener('submit',event=>{event.preventDefault();clearTimeout(timer);void search();});
   planner.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>chooseMode(button.dataset.mode)));
+  planner.querySelectorAll('[data-choice]').forEach(button=>button.addEventListener('click',()=>{if(busy)return;const key=button.dataset.choice,field=$(key);if(key==='vehicle'||key==='trailer')rememberConvoy();if(field.type==='checkbox')field.checked=button.dataset.value==='true';else field.value=button.dataset.value;if(key==='vehicle'||key==='trailer')loadConvoy();syncChoices();message('');}));
   $('editAddress').addEventListener('click',()=>open());$('changeGpsAddress').addEventListener('click',()=>open());
   $('cancelCalculation').addEventListener('click',()=>{cancel();message('Calcul annulé.');});
   function profile(){
     const p={travelMode:mode==='pieton'?'pedestrian':'drive',vehicle:mode==='pieton'?'car':$('vehicle').value,trailer:mode==='convoi'?$('trailer').value:'none',tolls:$('tolls').checked,roadMode:mode==='pieton'?'direct':$('roadMode').value,confirmed:true};
-    if(mode==='convoi')for(const key of ['length','height','width','weight']){const field=$(key);if(!field.value||!field.checkValidity())throw Error('Renseignez une valeur valide pour '+({length:'la longueur',height:'la hauteur',width:'la largeur',weight:'le poids total chargé'}[key])+'.');p[key]=field.value;}
+    if(mode==='convoi')for(const key of ['length','height','width','weight']){const field=$(key);if(!field.value||!field.checkValidity()){$('convoyDimensions').open=true;field.focus();throw Error('Renseignez une valeur valide pour '+({length:'la longueur',height:'la hauteur',width:'la largeur',weight:'le poids total chargé'}[key])+'.');}p[key]=field.value;}
     else Object.assign(p,p.vehicle==='truck'?{length:5.8,height:'2.53',width:'2.50',weight:'3500'}:{length:4.4,height:'1.50',width:'2.10',weight:'1500'});
     return p;
   }
@@ -81,6 +87,7 @@
       if(mode==='convoi'&&route.vehicleRestrictionsChecked!==true)throw Error('Les paramètres du convoi ne sont pas appliqués.');
       if(mode==='pieton'&&route.mode!=='pedestrian')throw Error('Le trajet piéton n’a pas été calculé.');
       await ready(abort.signal);if(run!==generation||abort.signal.aborted)return;
+      if(mode==='convoi'){rememberConvoy();try{localStorage.setItem('gps-convoy-profiles-v5',JSON.stringify(convoyProfiles));}catch{}}
       savedProfile=selected;try{localStorage.setItem('gps-voyage-profile',JSON.stringify(selected));}catch{}
       window.couteauGps.start({route,destination,profile:selected});showNavigation();
     }catch(e){if(run===generation)message(e.name==='AbortError'?'Calcul interrompu. Réessayez.':e.message);}
