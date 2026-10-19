@@ -1,5 +1,5 @@
-const VERSION = "V512-GPS-HOME-REFRESH";
-const BASE_CACHE = "couteau-suisse-runtime-code-v512-gps-home-refresh";
+const VERSION = "V513-GPS-INTEGRE-3";
+const BASE_CACHE = "couteau-suisse-runtime-code-v513-gps-integre-3";
 const ICON_CACHE = "couteau-suisse-module-icons-v283";
 const CONTEST_CACHE = "couteau-suisse-module-contest-v439-direct";
 const ADMIN_CACHE = "couteau-suisse-module-admin-v439-market-list";
@@ -76,7 +76,7 @@ self.addEventListener('activate',e=>{e.waitUntil((async()=>{
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET')return;
   const u=new URL(e.request.url);
-  if(u.pathname.startsWith('/api/'))return;
+  if(u.pathname.startsWith('/api/')||u.pathname.startsWith('/gps/api/'))return;
   if(u.pathname==='/sw.js'||u.pathname==='/app-version.json'||u.pathname==='/autoradio-version.json'){
     e.respondWith(fetch(e.request,{cache:'no-store'}));return;
   }

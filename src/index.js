@@ -1,3 +1,4 @@
+import { handleGps } from './gps/index.mjs';
 import { createStripePayments } from './stripe-payment.mjs';
 const cors = {
   "access-control-allow-origin": "*",
@@ -5203,7 +5204,7 @@ async function nearHlmV473(url){
 }
 
 // V502 — les routes /api passent toujours par le Worker avant le fallback PWA.
-export default {
+const appWorker = {
   async scheduled(controller, env, ctx) {
     ctx.waitUntil(stripePayments.retryMail(env));
     const minute=new Date(Number(controller.scheduledTime||Date.now())).getUTCMinutes();
@@ -5219,6 +5220,7 @@ export default {
   async fetch(request, env, ctx) {
     try {
       const url = new URL(request.url);
+      if(url.pathname === "/gps" || url.pathname.startsWith("/gps/") || ["/gps.html","/gps-integre-v2.html"].includes(url.pathname)) return await handleGps(request,env,ctx,r=>appWorker.fetch(r,env,ctx));
       if(url.pathname==="/api/payment-config"&&request.method==="GET")return stripePayments.config(env);
       if(url.pathname==="/api/payment-checkout"&&request.method==="POST")return await stripePayments.checkout(request,env);
       if(url.pathname==="/api/payment-status"&&request.method==="POST")return await stripePayments.status(request,env,ctx);
@@ -5354,3 +5356,5 @@ export default {
     }
   }
 };
+
+export default appWorker;

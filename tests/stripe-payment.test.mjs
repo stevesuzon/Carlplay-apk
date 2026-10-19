@@ -41,7 +41,7 @@ assert.equal((await pay.webhook(new Request('https://app/webhook',{method:'POST'
 console.log('PASS: confirmed identity, fixed price, single payment, retries, unpaid/test/wrong amounts rejected, atomic concurrent fulfillment, 365-day code, receipt token, email deduplication, signed and tampered webhooks');
 
 const server=fs.readFileSync(new URL('../src/index.js',import.meta.url),'utf8');
-const actual=new Function('createStripePayments',server.replace(/^import[^\n]+\n/,'').replace('export default','const unusedWorker=')+';return {activate,hashCode};')(createStripePayments);
+const actual=new Function('createStripePayments',server.replace(/^import[^\n]+\n/gm,'').replace('export default','const unusedWorker=')+';return {activate,hashCode};')(createStripePayments);
 await DB.prepare('ALTER TABLE subscriptions ADD COLUMN phone_device TEXT').run();
 await DB.prepare('ALTER TABLE subscriptions ADD COLUMN autoradio_device TEXT').run();
 await DB.prepare('ALTER TABLE subscriptions ADD COLUMN updated_at TEXT').run();

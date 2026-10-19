@@ -31,6 +31,9 @@ jobs:
       - name: Vérifier le paiement et les codes d’accès
         run: node tests/stripe-payment.test.mjs
 
+      - name: Vérifier les profils du GPS intégré
+        run: node tests/gps-routing.test.mjs
+
       - name: Deploy carplay-telephone to Cloudflare
         uses: cloudflare/wrangler-action@v4
         with:

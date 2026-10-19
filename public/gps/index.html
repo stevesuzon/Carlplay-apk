@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#112944"><title>GPS · Couteau Suisse</title>
+<link rel="stylesheet" href="/gps/gps.css?v=3"><link rel="stylesheet" href="/gps/legacy-layout.css?v=3"><link rel="stylesheet" href="/gps/integrated.css?v=3"></head>
+<body class="gps-planning"><div id="gps-root"></div>
+<section id="gpsPlanner" role="dialog" aria-modal="true" aria-labelledby="plannerTitle">
+ <div class="planner-card">
+  <header class="planner-head"><a href="/" aria-label="Retour à Couteau Suisse">‹ Couteau Suisse</a><span>GPS INTÉGRÉ</span></header>
+  <form id="addressForm"><h1 id="plannerTitle">Où voulez-vous aller ?</h1><label for="gpsAddress">Adresse, ville ou commerce</label><div class="address-row"><input id="gpsAddress" type="search" autocomplete="off" enterkeyhint="search" maxlength="180" placeholder="Saisissez votre destination"><button type="submit" aria-label="Rechercher l’adresse">⌕</button></div><div id="gpsResults" role="list" aria-label="Adresses proposées"></div></form>
+  <section id="modeStep" hidden><h1>Choisissez votre mode</h1><p id="chosenAddress"></p><button id="editAddress" class="text-button" type="button">Changer l’adresse</button>
+   <div class="mode-grid" role="group" aria-label="Mode de déplacement"><button type="button" data-mode="normal" aria-pressed="true"><span>🚗</span>Normal</button><button type="button" data-mode="convoi" aria-pressed="false"><span>🚛</span>Convoi</button><button type="button" data-mode="pieton" aria-pressed="false"><span>🚶</span>Piéton</button></div>
+   <div id="vehicleOptions"><label for="vehicle">Véhicule</label><select id="vehicle"><option value="car">Voiture</option><option value="truck">Camion / fourgon</option></select></div>
+   <fieldset id="convoyOptions" hidden><legend>Dimensions de l’ensemble chargé</legend><label for="trailer">Attelage</label><select id="trailer"><option value="large">Grande caravane</option><option value="small">Petite caravane</option><option value="trailer">Remorque</option></select><div class="dimension-grid"><label>Longueur (m)<input id="length" type="number" inputmode="decimal" min="2" max="25" step="0.01" value="12"></label><label>Hauteur (m)<input id="height" type="number" inputmode="decimal" min="1" max="5" step="0.01" value="2.65"></label><label>Largeur (m)<input id="width" type="number" inputmode="decimal" min="1" max="3.5" step="0.01" value="2.50"></label><label>Poids total (kg)<input id="weight" type="number" inputmode="numeric" min="500" max="60000" step="10" placeholder="Véhicule + attelage"></label></div><p class="planner-note">Vérifiez ces valeurs avant de confirmer. Le calcul utilise les restrictions connues de la carte ; respectez les panneaux sur place.</p></fieldset>
+   <div id="roadOptions"><label for="roadMode">Itinéraire</label><select id="roadMode"><option value="main">Le plus rapide</option><option value="direct">Par les villes</option></select><label class="check"><input id="tolls" type="checkbox" checked> Autoriser les autoroutes à péage</label></div>
+   <button id="confirmGps" class="primary" type="button">CONFIRMER</button>
+  </section>
+  <p id="plannerStatus" role="status" aria-live="polite"></p><button id="cancelCalculation" type="button" hidden>Annuler le calcul</button>
+ </div>
+</section>
+<div id="gpsFuelInfo" hidden>⛽ Stations du trajet</div><button id="changeGpsAddress" type="button" hidden>Changer l’adresse</button><div id="gpsNextDirection" hidden aria-live="off"></div>
+<section id="walkCamera" hidden><video autoplay muted playsinline></video><div class="walk-hud"><strong id="walkArrow">↑</strong><p id="walkInstruction">Suivez le trajet piéton</p><p id="walkDistance"></p></div><button id="closeWalkCamera" type="button">REVENIR À LA CARTE</button></section><button id="openWalkCamera" type="button" hidden>📷 Vue piéton</button>
+<script src="/gps/planner.js?v=3"></script><script src="/gps/fuel.js?v=3"></script><script src="/gps/nearby.js?v=3"></script><script defer src="/gps/navigation.js?v=3"></script>
+</body></html>

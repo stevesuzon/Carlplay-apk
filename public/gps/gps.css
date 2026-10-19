@@ -1,0 +1,824 @@
+/* required styles */
+
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container,
+.leaflet-pane > svg,
+.leaflet-pane > canvas,
+.leaflet-zoom-box,
+.leaflet-image-layer,
+.leaflet-layer {
+	position: absolute;
+	left: 0;
+	top: 0;
+	}
+.leaflet-container {
+	overflow: hidden;
+	}
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+	-webkit-user-select: none;
+	   -moz-user-select: none;
+	        user-select: none;
+	  -webkit-user-drag: none;
+	}
+/* Prevents IE11 from highlighting tiles in blue */
+.leaflet-tile::selection {
+	background: transparent;
+}
+/* Safari renders non-retina tile on retina better with this, but Chrome is worse */
+.leaflet-safari .leaflet-tile {
+	image-rendering: -webkit-optimize-contrast;
+	}
+/* hack that prevents hw layers "stretching" when loading new tiles */
+.leaflet-safari .leaflet-tile-container {
+	width: 1600px;
+	height: 1600px;
+	-webkit-transform-origin: 0 0;
+	}
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+	display: block;
+	}
+/* .leaflet-container svg: reset svg max-width decleration shipped in Joomla! (joomla.org) 3.x */
+/* .leaflet-container img: map is broken in FF if you have max-width: 100% on tiles */
+.leaflet-container .leaflet-overlay-pane svg {
+	max-width: none !important;
+	max-height: none !important;
+	}
+.leaflet-container .leaflet-marker-pane img,
+.leaflet-container .leaflet-shadow-pane img,
+.leaflet-container .leaflet-tile-pane img,
+.leaflet-container img.leaflet-image-layer,
+.leaflet-container .leaflet-tile {
+	max-width: none !important;
+	max-height: none !important;
+	width: auto;
+	padding: 0;
+	}
+
+.leaflet-container img.leaflet-tile {
+	/* See: https://bugs.chromium.org/p/chromium/issues/detail?id=600120 */
+	mix-blend-mode: plus-lighter;
+}
+
+.leaflet-container.leaflet-touch-zoom {
+	-ms-touch-action: pan-x pan-y;
+	touch-action: pan-x pan-y;
+	}
+.leaflet-container.leaflet-touch-drag {
+	-ms-touch-action: pinch-zoom;
+	/* Fallback for FF which doesn't support pinch-zoom */
+	touch-action: none;
+	touch-action: pinch-zoom;
+}
+.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom {
+	-ms-touch-action: none;
+	touch-action: none;
+}
+.leaflet-container {
+	-webkit-tap-highlight-color: transparent;
+}
+.leaflet-container a {
+	-webkit-tap-highlight-color: rgba(51, 181, 229, 0.4);
+}
+.leaflet-tile {
+	filter: inherit;
+	visibility: hidden;
+	}
+.leaflet-tile-loaded {
+	visibility: inherit;
+	}
+.leaflet-zoom-box {
+	width: 0;
+	height: 0;
+	-moz-box-sizing: border-box;
+	     box-sizing: border-box;
+	z-index: 800;
+	}
+/* workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=888319 */
+.leaflet-overlay-pane svg {
+	-moz-user-select: none;
+	}
+
+.leaflet-pane         { z-index: 400; }
+
+.leaflet-tile-pane    { z-index: 200; }
+.leaflet-overlay-pane { z-index: 400; }
+.leaflet-shadow-pane  { z-index: 500; }
+.leaflet-marker-pane  { z-index: 600; }
+.leaflet-tooltip-pane   { z-index: 650; }
+.leaflet-popup-pane   { z-index: 700; }
+
+.leaflet-map-pane canvas { z-index: 100; }
+.leaflet-map-pane svg    { z-index: 200; }
+
+.leaflet-vml-shape {
+	width: 1px;
+	height: 1px;
+	}
+.lvml {
+	behavior: url(#default#VML);
+	display: inline-block;
+	position: absolute;
+	}
+
+
+/* control positioning */
+
+.leaflet-control {
+	position: relative;
+	z-index: 800;
+	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+	pointer-events: auto;
+	}
+.leaflet-top,
+.leaflet-bottom {
+	position: absolute;
+	z-index: 1000;
+	pointer-events: none;
+	}
+.leaflet-top {
+	top: 0;
+	}
+.leaflet-right {
+	right: 0;
+	}
+.leaflet-bottom {
+	bottom: 0;
+	}
+.leaflet-left {
+	left: 0;
+	}
+.leaflet-control {
+	float: left;
+	clear: both;
+	}
+.leaflet-right .leaflet-control {
+	float: right;
+	}
+.leaflet-top .leaflet-control {
+	margin-top: 10px;
+	}
+.leaflet-bottom .leaflet-control {
+	margin-bottom: 10px;
+	}
+.leaflet-left .leaflet-control {
+	margin-left: 10px;
+	}
+.leaflet-right .leaflet-control {
+	margin-right: 10px;
+	}
+
+
+/* zoom and fade animations */
+
+.leaflet-fade-anim .leaflet-popup {
+	opacity: 0;
+	-webkit-transition: opacity 0.2s linear;
+	   -moz-transition: opacity 0.2s linear;
+	        transition: opacity 0.2s linear;
+	}
+.leaflet-fade-anim .leaflet-map-pane .leaflet-popup {
+	opacity: 1;
+	}
+.leaflet-zoom-animated {
+	-webkit-transform-origin: 0 0;
+	    -ms-transform-origin: 0 0;
+	        transform-origin: 0 0;
+	}
+svg.leaflet-zoom-animated {
+	will-change: transform;
+}
+
+.leaflet-zoom-anim .leaflet-zoom-animated {
+	-webkit-transition: -webkit-transform 0.25s cubic-bezier(0,0,0.25,1);
+	   -moz-transition:    -moz-transform 0.25s cubic-bezier(0,0,0.25,1);
+	        transition:         transform 0.25s cubic-bezier(0,0,0.25,1);
+	}
+.leaflet-zoom-anim .leaflet-tile,
+.leaflet-pan-anim .leaflet-tile {
+	-webkit-transition: none;
+	   -moz-transition: none;
+	        transition: none;
+	}
+
+.leaflet-zoom-anim .leaflet-zoom-hide {
+	visibility: hidden;
+	}
+
+
+/* cursors */
+
+.leaflet-interactive {
+	cursor: pointer;
+	}
+.leaflet-grab {
+	cursor: -webkit-grab;
+	cursor:    -moz-grab;
+	cursor:         grab;
+	}
+.leaflet-crosshair,
+.leaflet-crosshair .leaflet-interactive {
+	cursor: crosshair;
+	}
+.leaflet-popup-pane,
+.leaflet-control {
+	cursor: auto;
+	}
+.leaflet-dragging .leaflet-grab,
+.leaflet-dragging .leaflet-grab .leaflet-interactive,
+.leaflet-dragging .leaflet-marker-draggable {
+	cursor: move;
+	cursor: -webkit-grabbing;
+	cursor:    -moz-grabbing;
+	cursor:         grabbing;
+	}
+
+/* marker & overlays interactivity */
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-image-layer,
+.leaflet-pane > svg path,
+.leaflet-tile-container {
+	pointer-events: none;
+	}
+
+.leaflet-marker-icon.leaflet-interactive,
+.leaflet-image-layer.leaflet-interactive,
+.leaflet-pane > svg path.leaflet-interactive,
+svg.leaflet-image-layer.leaflet-interactive path {
+	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+	pointer-events: auto;
+	}
+
+/* visual tweaks */
+
+.leaflet-container {
+	background: #ddd;
+	outline-offset: 1px;
+	}
+.leaflet-container a {
+	color: #0078A8;
+	}
+.leaflet-zoom-box {
+	border: 2px dotted #38f;
+	background: rgba(255,255,255,0.5);
+	}
+
+
+/* general typography */
+.leaflet-container {
+	font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	font-size: 0.75rem;
+	line-height: 1.5;
+	}
+
+
+/* general toolbar styles */
+
+.leaflet-bar {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+	border-radius: 4px;
+	}
+.leaflet-bar a {
+	background-color: #fff;
+	border-bottom: 1px solid #ccc;
+	width: 26px;
+	height: 26px;
+	line-height: 26px;
+	display: block;
+	text-align: center;
+	text-decoration: none;
+	color: black;
+	}
+.leaflet-bar a,
+.leaflet-control-layers-toggle {
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	display: block;
+	}
+.leaflet-bar a:hover,
+.leaflet-bar a:focus {
+	background-color: #f4f4f4;
+	}
+.leaflet-bar a:first-child {
+	border-top-left-radius: 4px;
+	border-top-right-radius: 4px;
+	}
+.leaflet-bar a:last-child {
+	border-bottom-left-radius: 4px;
+	border-bottom-right-radius: 4px;
+	border-bottom: none;
+	}
+.leaflet-bar a.leaflet-disabled {
+	cursor: default;
+	background-color: #f4f4f4;
+	color: #bbb;
+	}
+
+.leaflet-touch .leaflet-bar a {
+	width: 30px;
+	height: 30px;
+	line-height: 30px;
+	}
+.leaflet-touch .leaflet-bar a:first-child {
+	border-top-left-radius: 2px;
+	border-top-right-radius: 2px;
+	}
+.leaflet-touch .leaflet-bar a:last-child {
+	border-bottom-left-radius: 2px;
+	border-bottom-right-radius: 2px;
+	}
+
+/* zoom control */
+
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+	font: bold 18px 'Lucida Console', Monaco, monospace;
+	text-indent: 1px;
+	}
+
+.leaflet-touch .leaflet-control-zoom-in, .leaflet-touch .leaflet-control-zoom-out  {
+	font-size: 22px;
+	}
+
+
+/* layers control */
+
+.leaflet-control-layers {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+	background: #fff;
+	border-radius: 5px;
+	}
+.leaflet-control-layers-toggle {
+	background-image: url(images/layers.png);
+	width: 36px;
+	height: 36px;
+	}
+.leaflet-retina .leaflet-control-layers-toggle {
+	background-image: url(images/layers-2x.png);
+	background-size: 26px 26px;
+	}
+.leaflet-touch .leaflet-control-layers-toggle {
+	width: 44px;
+	height: 44px;
+	}
+.leaflet-control-layers .leaflet-control-layers-list,
+.leaflet-control-layers-expanded .leaflet-control-layers-toggle {
+	display: none;
+	}
+.leaflet-control-layers-expanded .leaflet-control-layers-list {
+	display: block;
+	position: relative;
+	}
+.leaflet-control-layers-expanded {
+	padding: 6px 10px 6px 6px;
+	color: #333;
+	background: #fff;
+	}
+.leaflet-control-layers-scrollbar {
+	overflow-y: scroll;
+	overflow-x: hidden;
+	padding-right: 5px;
+	}
+.leaflet-control-layers-selector {
+	margin-top: 2px;
+	position: relative;
+	top: 1px;
+	}
+.leaflet-control-layers label {
+	display: block;
+	font-size: 13px;
+	font-size: 1.08333em;
+	}
+.leaflet-control-layers-separator {
+	height: 0;
+	border-top: 1px solid #ddd;
+	margin: 5px -10px 5px -6px;
+	}
+
+/* Default icon URLs */
+.leaflet-default-icon-path { /* used only in path-guessing heuristic, see L.Icon.Default */
+	background-image: url(images/marker-icon.png);
+	}
+
+
+/* attribution and scale controls */
+
+.leaflet-container .leaflet-control-attribution {
+	background: #fff;
+	background: rgba(255, 255, 255, 0.8);
+	margin: 0;
+	}
+.leaflet-control-attribution,
+.leaflet-control-scale-line {
+	padding: 0 5px;
+	color: #333;
+	line-height: 1.4;
+	}
+.leaflet-control-attribution a {
+	text-decoration: none;
+	}
+.leaflet-control-attribution a:hover,
+.leaflet-control-attribution a:focus {
+	text-decoration: underline;
+	}
+.leaflet-attribution-flag {
+	display: inline !important;
+	vertical-align: baseline !important;
+	width: 1em;
+	height: 0.6669em;
+	}
+.leaflet-left .leaflet-control-scale {
+	margin-left: 5px;
+	}
+.leaflet-bottom .leaflet-control-scale {
+	margin-bottom: 5px;
+	}
+.leaflet-control-scale-line {
+	border: 2px solid #777;
+	border-top: none;
+	line-height: 1.1;
+	padding: 2px 5px 1px;
+	white-space: nowrap;
+	-moz-box-sizing: border-box;
+	     box-sizing: border-box;
+	background: rgba(255, 255, 255, 0.8);
+	text-shadow: 1px 1px #fff;
+	}
+.leaflet-control-scale-line:not(:first-child) {
+	border-top: 2px solid #777;
+	border-bottom: none;
+	margin-top: -2px;
+	}
+.leaflet-control-scale-line:not(:first-child):not(:last-child) {
+	border-bottom: 2px solid #777;
+	}
+
+.leaflet-touch .leaflet-control-attribution,
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+	box-shadow: none;
+	}
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+	border: 2px solid rgba(0,0,0,0.2);
+	background-clip: padding-box;
+	}
+
+
+/* popup */
+
+.leaflet-popup {
+	position: absolute;
+	text-align: center;
+	margin-bottom: 20px;
+	}
+.leaflet-popup-content-wrapper {
+	padding: 1px;
+	text-align: left;
+	border-radius: 12px;
+	}
+.leaflet-popup-content {
+	margin: 13px 24px 13px 20px;
+	line-height: 1.3;
+	font-size: 13px;
+	font-size: 1.08333em;
+	min-height: 1px;
+	}
+.leaflet-popup-content p {
+	margin: 17px 0;
+	margin: 1.3em 0;
+	}
+.leaflet-popup-tip-container {
+	width: 40px;
+	height: 20px;
+	position: absolute;
+	left: 50%;
+	margin-top: -1px;
+	margin-left: -20px;
+	overflow: hidden;
+	pointer-events: none;
+	}
+.leaflet-popup-tip {
+	width: 17px;
+	height: 17px;
+	padding: 1px;
+
+	margin: -10px auto 0;
+	pointer-events: auto;
+
+	-webkit-transform: rotate(45deg);
+	   -moz-transform: rotate(45deg);
+	    -ms-transform: rotate(45deg);
+	        transform: rotate(45deg);
+	}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+	background: white;
+	color: #333;
+	box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+	}
+.leaflet-container a.leaflet-popup-close-button {
+	position: absolute;
+	top: 0;
+	right: 0;
+	border: none;
+	text-align: center;
+	width: 24px;
+	height: 24px;
+	font: 16px/24px Tahoma, Verdana, sans-serif;
+	color: #757575;
+	text-decoration: none;
+	background: transparent;
+	}
+.leaflet-container a.leaflet-popup-close-button:hover,
+.leaflet-container a.leaflet-popup-close-button:focus {
+	color: #585858;
+	}
+.leaflet-popup-scrolled {
+	overflow: auto;
+	}
+
+.leaflet-oldie .leaflet-popup-content-wrapper {
+	-ms-zoom: 1;
+	}
+.leaflet-oldie .leaflet-popup-tip {
+	width: 24px;
+	margin: 0 auto;
+
+	-ms-filter: "progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678)";
+	filter: progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678);
+	}
+
+.leaflet-oldie .leaflet-control-zoom,
+.leaflet-oldie .leaflet-control-layers,
+.leaflet-oldie .leaflet-popup-content-wrapper,
+.leaflet-oldie .leaflet-popup-tip {
+	border: 1px solid #999;
+	}
+
+
+/* div icon */
+
+.leaflet-div-icon {
+	background: #fff;
+	border: 1px solid #666;
+	}
+
+
+/* Tooltip */
+/* Base styles for the element that has a tooltip */
+.leaflet-tooltip {
+	position: absolute;
+	padding: 6px;
+	background-color: #fff;
+	border: 1px solid #fff;
+	border-radius: 3px;
+	color: #222;
+	white-space: nowrap;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+	pointer-events: none;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+	}
+.leaflet-tooltip.leaflet-interactive {
+	cursor: pointer;
+	pointer-events: auto;
+	}
+.leaflet-tooltip-top:before,
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before {
+	position: absolute;
+	pointer-events: none;
+	border: 6px solid transparent;
+	background: transparent;
+	content: "";
+	}
+
+/* Directions */
+
+.leaflet-tooltip-bottom {
+	margin-top: 6px;
+}
+.leaflet-tooltip-top {
+	margin-top: -6px;
+}
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-top:before {
+	left: 50%;
+	margin-left: -6px;
+	}
+.leaflet-tooltip-top:before {
+	bottom: 0;
+	margin-bottom: -12px;
+	border-top-color: #fff;
+	}
+.leaflet-tooltip-bottom:before {
+	top: 0;
+	margin-top: -12px;
+	margin-left: -6px;
+	border-bottom-color: #fff;
+	}
+.leaflet-tooltip-left {
+	margin-left: -6px;
+}
+.leaflet-tooltip-right {
+	margin-left: 6px;
+}
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before {
+	top: 50%;
+	margin-top: -6px;
+	}
+.leaflet-tooltip-left:before {
+	right: 0;
+	margin-right: -12px;
+	border-left-color: #fff;
+	}
+.leaflet-tooltip-right:before {
+	left: 0;
+	margin-left: -12px;
+	border-right-color: #fff;
+	}
+
+/* Printing */
+
+@media print {
+	/* Prevent printers from removing background-images of controls. */
+	.leaflet-control {
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+		}
+	}
+
+:root{--navy:#112944;--green:#16744e;--muted:#65778b;--border:#e0e7ec;--shadow:0 8px 30px #18334a18}*{box-sizing:border-box}html,body{margin:0;color:var(--navy);font-family:Arial,Helvetica,sans-serif;font-size:16px}button,input{font:inherit}button{cursor:pointer;border:0;color:inherit;background:none}button:disabled{opacity:.6;cursor:wait}button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #319be0;outline-offset:3px}h1,h2,h3,p{margin:0}.gps-app{height:100dvh;min-height:480px;position:relative;overflow:hidden;background:#e5ebde}.map{position:absolute;inset:0;z-index:0}.appbar{position:absolute;top:0;left:0;right:0;height:78px;background:#fff;box-shadow:0 2px 12px #193a4510;display:flex;align-items:center;justify-content:space-between;padding:0 28px;z-index:500}.brand{display:flex;align-items:center;gap:12px}.brandmark{background:var(--green);color:white;display:grid;place-items:center;width:43px;height:43px;border-radius:13px}.brand strong{font-size:22px;letter-spacing:-.7px;display:block}.brand small{display:block;font-size:12px;letter-spacing:2.2px;color:var(--muted);margin-top:3px}.settings-button{border:1px solid var(--border);display:flex;gap:10px;align-items:center;padding:12px 16px;border-radius:12px;font-weight:600;font-size:14px}.top-controls{position:absolute;top:98px;left:28px;right:28px;z-index:500;pointer-events:none}.top-controls>*{pointer-events:auto}.search-box{display:flex;align-items:center;gap:12px;background:white;border:1px solid #d9e4e9;border-radius:14px;padding:10px 12px 10px 18px;width:410px;box-shadow:var(--shadow)}.search-box>svg{color:var(--green);flex-shrink:0}.search-box input{border:0;outline:none;min-width:0;width:100%;font-size:16px;padding:8px 0;color:var(--navy)}.search-submit{background:#eef4f1;border-radius:8px;padding:10px;color:var(--green);font-size:14px;font-weight:700}.category-strip{position:absolute;left:440px;top:5px;display:flex;gap:8px;max-width:calc(100% - 440px);overflow:auto;padding:4px 3px 12px}.chip{display:flex;gap:7px;align-items:center;white-space:nowrap;background:#ffffffdc;border:1px solid #d8e1e6;border-radius:100px;padding:11px 15px;font-size:14px;font-weight:600;box-shadow:0 2px 5px #17283110;opacity:.65}.chip.active{opacity:1;border-color:var(--category);color:var(--category)}.chip span{font-size:18px;line-height:16px}.places-panel{position:absolute;z-index:450;top:179px;left:28px;bottom:111px;width:410px;background:white;box-shadow:var(--shadow);border-radius:17px;display:flex;flex-direction:column;border:1px solid #dce5e9;overflow:hidden;transition:transform .2s}.places-panel.collapsed{display:none}.panel-top{display:flex;justify-content:space-between;align-items:center;padding:22px 22px 12px}.eyebrow{color:var(--green);font-size:12px;font-weight:700;letter-spacing:1.6px}.panel-top h1{font-size:25px;font-weight:700;letter-spacing:-.8px;margin-top:6px}.panel-top>button{background:#f1f5f6;padding:8px;border-radius:50%}.panel-meta{padding:0 22px 17px;color:var(--muted);font-size:14px;border-bottom:1px solid var(--border)}.panel-meta span{display:block;font-size:12px;margin-top:5px}.place-list{overflow:auto;flex:1;padding:4px 16px}.place-card{display:flex;width:100%;gap:13px;padding:17px 6px;border-bottom:1px solid #edf0f3;text-align:left;align-items:flex-start}.place-card:hover{background:#f6faf8}.category-icon{width:37px;height:37px;border-radius:11px;display:grid;place-items:center;font-size:24px;flex-shrink:0}.place-card>div{min-width:0;flex:1}.place-card strong{font-size:16px;line-height:1.25;display:block}.place-city{display:block;margin-top:4px;font-size:14px;color:var(--muted)}.place-card small{font-size:13px;display:block;margin-top:7px;line-height:1.4;color:#576578}.place-card .open-status,.open-status{color:var(--green)!important;font-weight:700}.km{font-size:12px;white-space:nowrap;color:var(--muted);padding-top:3px}.panel-footer{font-size:12px;background:#f7faf8;color:#627b6b;padding:15px 19px;display:flex;gap:8px;align-items:center;border-top:1px solid #eaf0ec}.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}.map-tools{position:absolute;right:26px;top:188px;z-index:450;display:flex;flex-direction:column;gap:8px}.map-tools button{width:44px;height:44px;display:grid;place-items:center;background:white;border:1px solid var(--border);border-radius:11px;box-shadow:var(--shadow)}.map-tools .locate{margin-top:9px;color:var(--green)}.show-list{position:absolute;left:28px;bottom:111px;display:flex;gap:9px;align-items:center;background:white;padding:15px 20px;border-radius:13px;z-index:450;box-shadow:var(--shadow);font-weight:700}.vehicle-badge{position:absolute;z-index:450;bottom:32px;left:28px;background:#112944;color:white;border-radius:16px;display:flex;align-items:center;gap:14px;padding:12px 17px;max-width:calc(100% - 56px);cursor:pointer;box-shadow:var(--shadow)}.vehicle-badge strong{font-size:14px;display:block}.vehicle-badge small{font-size:13px;display:block;color:#bad3cc;margin-top:4px}.mini-vehicles{display:flex;gap:3px}.mini-vehicles img{width:45px;height:35px;object-fit:contain;border-radius:6px;background:#fff}.vehicle-badge>svg{margin-left:10px}.place-pin{width:auto!important;height:auto!important}.pin{display:flex;align-items:center;position:relative;background:#fff;border:1px solid var(--pin);border-radius:10px;box-shadow:0 3px 9px #152a4729;min-height:35px;width:max-content;max-width:250px;cursor:pointer}.pin:after{content:'';position:absolute;left:12px;bottom:-6px;width:10px;height:10px;transform:rotate(45deg);background:white;border-right:1px solid var(--pin);border-bottom:1px solid var(--pin)}.pin>span{display:grid;place-items:center;background:var(--pin);color:white;align-self:stretch;border-radius:8px 0 0 8px;width:31px;min-height:34px;font-size:22px}.pin>div{padding:7px 11px;max-width:216px}.pin strong{display:block;color:var(--navy);font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.pin small{display:block;color:#677889;font-size:12px;max-width:200px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin-top:3px}.vehicle-pointer{width:66px;height:66px;position:relative;display:grid;place-items:center;background:white;border:3px solid #16744e;border-radius:50%;box-shadow:0 0 0 8px #16744e20}.vehicle-emoji{font-size:25px;letter-spacing:-9px;margin-left:-7px}.vehicle-pointer i{position:absolute;top:-16px;border-left:10px solid transparent;border-right:10px solid transparent;border-bottom:16px solid var(--green)}.address-results{background:white;border-radius:14px;margin-top:8px;width:410px;box-shadow:var(--shadow);overflow:hidden}.address-results button{display:flex;gap:10px;padding:16px;width:100%;text-align:left;border-bottom:1px solid var(--border);font-size:14px}.address-results svg{flex-shrink:0}.destination-card{position:absolute;z-index:550;background:white;bottom:32px;left:50%;transform:translateX(-50%);width:440px;max-width:calc(100% - 36px);border-radius:20px;border:1px solid var(--border);box-shadow:0 12px 60px #12284330;padding:23px}.destination-heading{display:flex;gap:12px;align-items:center;margin-bottom:17px}.destination-heading>div{flex:1;min-width:0}.destination-heading small{font-size:12px;color:var(--muted)}.destination-heading h2{font-size:22px;margin-top:3px;line-height:1.2;letter-spacing:-.4px}.destination-card p,.phone{display:flex;gap:9px;align-items:center;margin:12px 0;font-size:14px;line-height:1.4;flex-wrap:wrap}.destination-card p svg{flex-shrink:0}.phone{color:var(--green)}.approx{font-size:12px;color:#93611c;display:block;width:100%;padding-left:25px}.primary{background:var(--green);color:white;font-weight:700;border-radius:12px;padding:15px 20px;width:100%;display:flex;gap:9px;justify-content:center;align-items:center;margin-top:17px;min-height:50px}.primary:hover{background:#115c3e}.place-photo{width:100%;height:150px;object-fit:cover;border-radius:11px}.toast{position:absolute;z-index:1200;top:170px;left:50%;transform:translateX(-50%);background:var(--navy);color:white;border-radius:13px;padding:15px 18px;box-shadow:var(--shadow);max-width:calc(100% - 36px);width:max-content;display:flex;gap:16px;align-items:center;font-size:14px;line-height:1.5}.toast.warning{background:#fff4de;color:#65490f;border:1px solid #e4c98f;max-width:480px}.toast button{flex-shrink:0}.modal-backdrop{position:absolute;inset:0;background:#0e213b60;backdrop-filter:blur(5px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:25px}.vehicle-modal,.layers-modal{background:#fff;border-radius:25px;padding:28px;width:570px;max-width:100%;max-height:calc(100dvh - 50px);overflow:auto;box-shadow:0 25px 100px #10233040}.modal-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.modal-heading h2{font-size:27px;letter-spacing:-.7px;margin-top:4px}.modal-heading button{border-radius:50%;background:#f0f4f5;padding:9px;display:grid;place-items:center}.vehicle-modal h3{font-size:15px;margin:19px 0 12px;font-weight:700}.vehicle-options{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.trailer-options{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.vehicle-option{position:relative;display:flex;flex-direction:column;align-items:center;border:2px solid #e1e8ea;background:#fff;border-radius:13px;padding:12px 8px;gap:7px;text-align:center}.vehicle-option.chosen{border-color:var(--green);background:#f0f8f4}.vehicle-option img{width:100%;height:90px;object-fit:contain;background:#fff;border-radius:7px}.trailer-options .vehicle-option img{height:60px}.vehicle-option strong{font-size:14px;line-height:1.3}.vehicle-option small{font-size:12px;line-height:1.35;color:var(--muted)}.check{position:absolute;top:6px;right:6px;display:grid;place-items:center;background:var(--green);color:white;width:22px;height:22px;border-radius:50%}.no-trailer{height:60px;display:grid;place-items:center;color:#8aa29a}.length-result{display:flex;align-items:center;justify-content:space-between;border-radius:14px;padding:17px 20px;background:var(--navy);color:white;margin-top:20px}.length-result>span{font-size:14px}.length-result strong{font-size:30px}.length-result small{font-size:17px;font-weight:400;color:#b7cec7}.dimensions{margin-top:17px;padding:15px;border:1px solid var(--border);border-radius:12px}.dimensions summary{font-size:14px;font-weight:700;cursor:pointer}.dimensions p{font-size:13px;color:var(--muted);margin:12px 0;line-height:1.5}.dimension-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.dimension-grid label{font-size:13px;font-weight:600}.dimension-grid input{display:block;width:100%;border:1px solid #cedbdc;border-radius:8px;padding:10px;margin-top:7px;font-size:16px}.illustration-note{display:block;font-size:12px;color:var(--muted);line-height:1.5;margin-top:12px}.secondary{width:100%;padding:14px;margin-top:6px;font-size:14px;color:var(--muted)}.layer-row{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:16px 0;width:100%;border-bottom:1px solid var(--border);text-align:left}.layer-row strong{flex:1;font-size:15px}.switch{width:40px;height:24px;background:#d2dcda;border-radius:50px;position:relative}.switch:after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%}.switch.on{background:var(--green)}.switch.on:after{left:19px}.availability,.empty{font-size:14px;line-height:1.6;color:var(--muted);padding:16px 0}.route-summary{display:flex;align-items:center;gap:15px;flex-wrap:wrap;background:#eff7f3;padding:16px;border-radius:10px;margin-top:15px}.route-summary strong{font-size:25px;color:var(--green)}.route-summary small{width:100%;font-size:12px;color:var(--muted)}.instruction{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:17px}.instruction strong{flex:1;font-size:16px}.stop{color:#a73d35;font-size:14px}.leaflet-control-attribution{font-size:10px!important}
+@media(max-width:1100px){.category-strip{position:static;margin-top:12px;max-width:100%;width:100%}.places-panel{top:235px;width:360px}.search-box{width:360px}.top-controls{right:20px}.destination-card{left:auto;right:90px;transform:none;width:400px}.vehicle-badge{max-width:365px}.panel-top h1{font-size:23px}}
+@media(max-width:650px){.appbar{height:67px;padding:0 16px}.brand strong{font-size:20px}.brandmark{width:37px;height:37px}.brand small{font-size:10px}.settings-button{padding:10px;border-radius:10px}.settings-button span{display:none}.top-controls{top:81px;left:14px;right:14px}.search-box{width:100%;padding:8px 10px 8px 14px;border-radius:12px}.search-submit{padding:9px}.category-strip{margin-top:9px;gap:7px;padding-bottom:9px}.chip{padding:9px 12px;font-size:13px}.places-panel{left:14px;right:14px;top:auto;bottom:99px;height:34vh;min-height:190px;width:auto;border-radius:19px}.panel-top{padding:15px 17px 9px}.panel-top h1{font-size:20px;margin-top:3px}.panel-top .eyebrow{display:none}.panel-meta{padding:0 17px 10px;display:flex;justify-content:space-between;font-size:12px}.panel-meta span{margin:0;font-size:11px}.panel-footer{display:none}.place-list{padding:0 12px}.place-card{padding:12px 4px}.place-card strong{font-size:15px}.place-card small{font-size:12px;margin-top:4px}.map-tools{top:210px;right:14px;gap:6px}.map-tools button{width:40px;height:40px}.vehicle-badge{left:14px;right:14px;bottom:28px;padding:10px 13px;border-radius:13px;max-width:none}.vehicle-badge>div:nth-child(2){flex:1}.vehicle-badge strong{font-size:13px}.mini-vehicles img{width:35px;height:31px}.vehicle-badge>svg{margin-left:0}.vehicle-badge small{font-size:12px}.destination-card{left:14px;right:14px;bottom:99px;width:auto;max-width:none;padding:19px;max-height:calc(100dvh - 270px);overflow:auto;border-radius:18px}.destination-heading h2{font-size:20px}.destination-card p{font-size:14px}.toast{top:192px;width:calc(100% - 28px);max-width:calc(100% - 28px)}.modal-backdrop{padding:12px}.vehicle-modal,.layers-modal{border-radius:20px;padding:20px;max-height:calc(100dvh - 24px)}.modal-heading h2{font-size:24px}.trailer-options{grid-template-columns:repeat(2,1fr)}.trailer-options .vehicle-option img{height:63px}.vehicle-options .vehicle-option img{height:76px}.vehicle-option strong{font-size:14px}.show-list{left:14px;bottom:109px;padding:13px 16px}.address-results{width:100%}.place-photo{height:110px}}
+@media(max-height:550px) and (min-width:651px){.appbar{height:56px}.top-controls{top:68px}.places-panel{top:185px;bottom:85px}.vehicle-badge{bottom:23px}.destination-card{bottom:25px;max-height:calc(100dvh - 175px);overflow:auto}.map-tools{top:150px}.category-strip{margin-top:7px}}
+.home-map-button{position:absolute;left:28px;top:calc(50% - 25px);width:50px;height:50px;border-radius:14px;background:white;color:var(--green);box-shadow:var(--shadow);z-index:460;display:grid;place-items:center;border:1px solid var(--border)}.places-panel:not(.collapsed)~.home-map-button{left:450px}.setting-section{border:1px solid var(--border);border-radius:12px;margin:12px 0;padding:15px}.setting-section summary{font-size:15px;font-weight:700;cursor:pointer}.setting-section summary>span{float:right;color:var(--green);font-size:13px;font-weight:400}.toll-options{display:flex;gap:10px;margin-top:15px}.toll-options button{border:1px solid var(--border);border-radius:9px;padding:12px;font-size:14px;flex:1;display:flex;gap:9px;align-items:center;justify-content:center}.toll-options .chosen{border-color:var(--green);background:#edf7f1;color:var(--green)}.home-entry{margin-top:16px;display:flex;border:1px solid #cedbdc;border-radius:10px;overflow:hidden}.home-entry input{width:100%;min-width:0;border:0;padding:12px;font-size:16px}.home-entry button{padding:10px;color:var(--green)}.small-action{color:var(--green);font-weight:700;margin:5px 0 0;padding:9px}.home-result{font-size:14px;line-height:1.4;display:flex;text-align:left;gap:8px;align-items:center;border-top:1px solid var(--border);width:100%;padding:12px 0}.home-result svg{flex-shrink:0;color:var(--green)}.saved-address{font-size:13px;line-height:1.5;color:var(--green);display:flex;gap:7px;align-items:flex-start;margin-top:12px}.saved-address svg{flex-shrink:0}@media(max-width:650px){.home-map-button,.places-panel:not(.collapsed)~.home-map-button{left:14px;top:210px;width:44px;height:44px}.setting-section summary>span{font-size:12px}.toll-options button{padding:10px}}
+.cluster-pin{display:grid;place-items:center;border:3px solid white;background:#16744e;color:white;border-radius:50%;box-shadow:0 0 0 5px #16744e22,0 5px 15px #17283130;font-size:15px;font-weight:700}
+.vehicle-icons{display:flex;flex-direction:column;align-items:center;gap:2px}.vehicle-icons img{width:34px;height:22px;object-fit:contain;background:white;border-radius:4px}
+.road-options{display:flex;flex-direction:column;gap:9px;margin-top:14px}.road-options button{display:flex;justify-content:space-between;align-items:center;text-align:left;padding:13px;border:1px solid var(--border);border-radius:10px}.road-options .chosen{border-color:var(--green);color:var(--green);background:#edf7f1}.road-options strong{display:block;font-size:14px}.road-options small{display:block;font-size:12px;color:var(--muted);margin-top:5px}
+.route-summary>div{flex:1;min-width:130px}.route-summary>div strong{font-size:24px;display:block}.route-summary>div small{font-size:12px;display:block;margin-top:5px}.route-summary>small{width:100%}.arrival-backdrop{z-index:1300}.arrival-modal{background:white;width:460px;max-width:100%;border-radius:25px;padding:30px;text-align:center;box-shadow:0 20px 80px #12284345}.arrival-check{display:grid;place-items:center;width:74px;height:74px;background:#e5f5ec;color:var(--green);border-radius:50%;margin:0 auto 20px}.arrival-modal h2{font-size:30px;letter-spacing:-.8px;margin-top:10px}.arrival-modal>p{color:var(--muted);font-size:15px;margin-top:10px;line-height:1.5}.arrival-difference{background:#edf7f2;color:var(--green);padding:22px;border-radius:17px;margin:24px 0}.arrival-difference.late{background:#fff1e4;color:#9a571c}.arrival-difference strong{display:block;font-size:44px;letter-spacing:-1px}.arrival-difference span{display:block;font-size:16px;margin-top:6px}.arrival-times{display:grid;grid-template-columns:1fr 1fr}.arrival-times>div+div{border-left:1px solid var(--border)}.arrival-times small{display:block;font-size:13px;color:var(--muted)}.arrival-times strong{display:block;font-size:25px;margin-top:9px}.arrival-modal .trip-distance{font-size:13px;margin:20px 0 10px}@media(max-width:650px){.route-summary>div{min-width:100px}.route-summary>div strong{font-size:21px}.arrival-modal{padding:25px 20px}}
+.list-photo{width:58px;height:53px;object-fit:cover;flex-shrink:0;border-radius:9px;background:#edf1ef}.pin-photo{width:43px;height:43px;object-fit:cover;border-radius:9px 0 0 9px;flex-shrink:0}.pin:has(.pin-photo)>div{padding:7px 10px}
+
+/* Transparent vehicle cutouts in selectors, badge and live GPS marker. */
+.vehicle-option img,.mini-vehicles img,.vehicle-icons img{background:transparent;border-radius:0}
+.vehicle-pointer{width:78px;height:86px;background:transparent;border:0;border-radius:0;box-shadow:none;filter:drop-shadow(0 3px 3px #102b4266)}
+.vehicle-icons{gap:0;justify-content:center;width:78px;height:86px}
+.vehicle-icons img{width:72px;height:43px}
+.vehicle-icons img:only-child{height:64px}
+.vehicle-pointer i{top:-8px;left:31px;border-left-width:8px;border-right-width:8px;border-bottom-width:12px}
+
+.oval-pin{border-radius:999px;padding:2px 8px;border:2px solid var(--pin);min-width:150px;max-width:215px;background:#fffffff5;text-align:center;box-shadow:0 3px 12px #0004}
+.oval-pin:after{display:none}.oval-pin>div{padding:6px 10px;width:100%}.oval-pin strong{color:var(--pin);font-size:14px}.oval-pin small{font-size:11px;max-width:185px}.destination-no{margin-top:9px;width:100%}
+
+.position-icon{background:transparent;border:0;pointer-events:none}.heading-arrow{position:absolute;top:-25px;left:19px;width:40px;height:44px;filter:drop-shadow(0 2px 3px #10294488)}.vehicle-pointer{filter:drop-shadow(0 0 2px white) drop-shadow(0 3px 3px #102b4280)}.vehicle-icons img{position:relative;z-index:1}.destination-card.guiding{padding:12px 16px}.destination-card.guiding>.destination-heading,.destination-card.guiding>.place-photo,.destination-card.guiding>p,.destination-card.guiding>.phone,.destination-card.guiding>.destination-no{display:none}.destination-card.guiding .route-summary{margin:0;padding:10px 12px}.destination-card.guiding .route-summary strong{font-size:22px}.destination-card.guiding .instruction{margin-top:10px}.is-navigating .vehicle-badge{display:none}
+@media(max-width:650px){.destination-card{transform:none}.destination-card.guiding{bottom:calc(16px + env(safe-area-inset-bottom));max-height:200px}.is-navigating .map-tools{top:150px}.is-navigating .home-map-button{display:none}}
+
+
+
+.vehicle-pointer{width:68px;height:86px;transform-origin:34px 43px}.vehicle-pointer.towing{height:138px;transform-origin:34px 40px}.vehicle-pointer .vehicle-icons{width:68px;height:86px;gap:0;justify-content:flex-start;transform:none}.vehicle-pointer.towing .vehicle-icons{height:138px}.vehicle-pointer .vehicle-icons img{width:52px;height:76px;object-fit:contain}.vehicle-pointer .vehicle-icons img:only-child{height:86px}.vehicle-pointer .vehicle-icons img+img{margin-top:-10px;height:72px}.vehicle-pointer.towing .vehicle-icons img:first-child{height:72px}
+@media(orientation:landscape) and (max-height:600px){.appbar{height:50px;padding:0 12px}.brand small{display:none}.brand strong{font-size:19px}.brandmark{width:32px;height:32px}.settings-button{padding:7px}.settings-button span{display:none}.top-controls{top:60px;left:calc(12px + env(safe-area-inset-left));right:330px}.search-box{width:100%;padding:5px 9px}.search-box input{font-size:15px}.search-submit{padding:8px}.destination-card,.destination-card.guiding{left:auto;right:calc(12px + env(safe-area-inset-right));bottom:calc(12px + env(safe-area-inset-bottom));top:60px;width:292px;max-width:40vw;max-height:none;transform:none;padding:12px;overflow:auto}.destination-card.guiding{top:auto}.destination-card.guiding .instruction strong{font-size:15px}.destination-card.guiding .route-summary strong{font-size:21px}.destination-card.guiding .route-summary{gap:10px}.map-tools{top:auto;bottom:18px;right:330px}.home-map-button{top:120px;left:14px}.vehicle-badge{bottom:12px;max-width:calc(100% - 360px)}.places-panel{top:112px;left:12px;right:330px;bottom:85px;width:auto;height:auto}.show-list{bottom:85px;left:14px}.toast{top:105px;font-size:13px}}
+
+.speed-warning{position:absolute;left:50%;top:150px;transform:translateX(-50%);z-index:800;background:#fff3db;color:#803c0b;border:2px solid #d97924;border-radius:14px;padding:12px 16px;width:max-content;max-width:calc(100% - 28px);display:flex;gap:12px;align-items:center;box-shadow:0 4px 20px #10294430;font-size:15px}.speed-warning span{white-space:nowrap;font-weight:700}.speed-sway .rig-trailer>img{animation:trailer-warning-sway .9s ease-in-out infinite;transform-origin:50% 5%}@keyframes trailer-warning-sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}@media(orientation:landscape) and (max-height:600px){.speed-warning{top:110px;left:12px;right:330px;transform:none;max-width:none;width:auto;font-size:14px}}@media(prefers-reduced-motion:reduce){.speed-sway .rig-trailer>img{animation:none;outline:2px solid #d97924}}
+
+.vehicle-pointer{width:80px;height:98px;transform-origin:40px 49px}.vehicle-pointer.towing{height:156px;transform-origin:40px 45px}.vehicle-pointer .vehicle-icons{width:80px;height:98px}.vehicle-pointer.towing .vehicle-icons{height:156px}.vehicle-pointer .vehicle-icons img{width:60px;height:88px}.vehicle-pointer .vehicle-icons img:only-child{height:98px}.vehicle-pointer .vehicle-icons img+img{height:82px;margin-top:-12px}.vehicle-pointer.towing .vehicle-icons img:first-child{height:84px}
+
+.vehicle-pointer .vehicle-icons{position:relative;display:block}.vehicle-pointer .vehicle-icons img[data-rig-car],.vehicle-pointer.towing .vehicle-icons img[data-rig-car]{position:absolute;top:0;left:10px;width:60px;height:84px;transform-origin:30px 45px;z-index:2;margin:0}.rig-trailer{position:absolute;left:10px;top:72px;width:60px;height:82px;transform-origin:30px 4px;z-index:1}.vehicle-pointer .rig-trailer>img{position:static;width:60px;height:82px;margin:0;display:block;object-fit:contain}
+
+/* A pitched satellite camera while driving; controls stay in screen space. */
+.is-navigating .map{inset:auto;left:-50%;top:-105%;width:200%;height:260%;transform-origin:50% 70%;transform:perspective(1000px) rotateX(40deg);will-change:transform}
+.position-icon,.vehicle-pointer,.vehicle-icons,.rig-trailer{overflow:visible!important}
+.vehicle-pointer,.vehicle-pointer.towing{transform-origin:40px 45px;filter:none}
+.vehicle-pointer img{max-width:none!important;backface-visibility:visible}
+.gps-app:not(.is-navigating) .destination-card{bottom:calc(16px + env(safe-area-inset-bottom))}
+@media(orientation:landscape) and (max-height:600px){.gps-app{min-height:0}}
+.navigation-rig{position:absolute;left:50%;top:70%;transform:translate(-40px,-45px);z-index:650;width:80px;height:160px;pointer-events:none;overflow:visible}
+.navigation-rig .vehicle-pointer{transform:scale(.2)}
+
+/* Couteau Suisse colours and compact guidance, leaving the road clear. */
+:root{--navy:#edf2f9;--green:#76e2a3;--muted:#bdc8db;--border:#526079}
+.gps-app{background:#101724}
+.appbar,.vehicle-modal,.layers-modal,.destination-card,.places-panel,.address-results,.search-box{background:#1d293c;color:#f4f6fb;border-color:#526079}
+.settings-button,.search-submit,.primary,.map-tools button,.vehicle-option,.toll-options button,.road-options button,.modal-heading button,.address-results button{background:#293950;color:#f4f6fb;border:1px solid #526079;border-radius:18px}
+.primary:hover{background:#354961}
+.search-box input,.home-entry input{background:transparent;color:#f4f6fb}
+.search-box input::placeholder{color:#bdc8db}
+.vehicle-option.chosen,.toll-options .chosen,.road-options .chosen{background:#149d59;color:white;border-color:#70e6a5}
+.vehicle-option img{background:transparent}
+.length-result,.route-summary{background:#293950;color:white}
+.length-result small,.vehicle-option small,.saved-address{color:#d1dbee}
+.destination-card p,.place-card small,.place-city,.panel-meta{color:#ccd6e5}
+.is-navigating .top-controls,.is-navigating .map-tools{display:none}
+.navigation-hud{position:absolute;z-index:700;right:12px;top:90px;width:230px;max-width:calc(100% - 24px);background:#1d293cf2;color:white;border:1px solid #63718a;border-radius:18px;padding:12px;box-shadow:0 3px 15px #0003}
+.hud-totals{display:flex;justify-content:space-between;gap:12px;font-size:21px}
+.hud-totals small{display:block;font-size:11px;font-weight:400;color:#c8d3e5;margin-top:3px}
+.hud-direction{display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:14px;line-height:1.35}
+.hud-direction svg{flex-shrink:0;margin-top:1px}
+.hud-actions{display:flex;justify-content:flex-end;gap:12px;align-items:center;margin-top:9px}
+.hud-actions button{padding:4px;font-size:12px;color:#d6e0ee}
+.arrival-notification{position:absolute;inset:0;z-index:1300;display:flex;align-items:center;justify-content:center;gap:20px;padding:30px;background:#444950f5;color:white;text-align:left}
+.arrival-notification>svg{flex-shrink:0;width:46px;height:46px}
+.arrival-notification strong{font-size:30px}
+.arrival-notification p{font-size:24px;line-height:1.4;margin-top:12px}
+@media(max-width:650px){.navigation-hud{top:80px;width:210px}.hud-totals{font-size:20px}}
+@media(orientation:landscape) and (max-height:600px){.navigation-hud{top:60px;width:245px}.arrival-notification strong{font-size:27px}.arrival-notification p{font-size:22px}}
+
+/* Rear chase camera: the towed body is closest to the viewer. */
+.is-navigating .map{left:-60%;top:-120%;width:220%;height:260%;transform:perspective(1000px) rotateX(50deg)}
+.navigation-rig .vehicle-icons img[data-rig-car]{height:66px;object-fit:contain}
+.navigation-rig .rig-trailer{width:76px;height:82px;transform-origin:38px 4px;z-index:3}
+.navigation-rig .rig-trailer>img{width:76px;height:82px;object-fit:contain}
+
+.road-report-tools{position:absolute;left:12px;top:190px;z-index:700;display:flex;flex-direction:column;gap:8px}.road-report-tools button{width:66px;min-height:62px;border:1px solid #60728c;border-radius:16px;background:#25354e;color:white;box-shadow:0 4px 12px #0003;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}.road-report-tools span{font-size:25px}.road-report-tools small{font-size:10px;font-weight:700}.road-report-pin span{display:grid;place-items:center;width:38px;height:38px;background:#fff;border:2px solid #df9c28;border-radius:50%;font-size:23px}.road-alert{position:absolute;left:15px;right:15px;top:42%;z-index:1100;padding:22px;background:#26364ef5;color:white;border:2px solid #f5b34b;border-radius:20px;box-shadow:0 10px 50px #0005;text-align:center}.road-alert strong{font-size:26px;display:block}.road-alert>div{display:flex;gap:10px;margin-top:20px}.road-alert button{flex:1;min-height:52px;background:#ecf1f8;border-radius:12px;color:#17233b;font-weight:700}.road-alert button:first-child{background:#16a363;color:white}.report-message{position:absolute;z-index:1150;left:12px;right:12px;bottom:24px;border-radius:14px;background:#26364e;color:white;padding:16px;text-align:center}@media(orientation:landscape) and (max-height:600px){.road-report-tools{top:90px;gap:5px}.road-report-tools button{min-height:52px;width:62px}.road-alert{top:30%;left:20%;right:20%;padding:16px}.road-alert strong{font-size:22px}}
+
+.street-view{margin:12px 0;border-radius:12px;overflow:hidden;background:#1b293f}.street-view iframe{display:block;border:0;width:100%;height:220px;min-width:200px}.street-view small{display:block;padding:10px 12px;font-size:12px;color:#dce5f0;line-height:1.4}.destination-card{max-height:calc(100dvh - 185px);overflow:auto}@media(orientation:landscape) and (max-height:600px){.destination-card{max-height:calc(100dvh - 80px)}.street-view iframe{height:200px}}
+
+.navigation-rig .vehicle-icons{transform-style:preserve-3d}.navigation-rig img[data-rig-car]{transform-origin:50% 80%}.navigation-rig .rig-trailer{transform-origin:50% 80%}.navigation-rig .vehicle-pointer{filter:drop-shadow(0 3px 2px #0005)}
+
+.navigation-rig .vehicle-pointer{filter:none}.navigation-rig .vehicle-pointer::after{content:'';position:absolute;left:12px;top:62px;width:56px;height:8px;border-radius:50%;background:#12221c55;filter:blur(2px);z-index:0}.navigation-rig .vehicle-pointer.towing::after{left:2px;top:105px;width:76px;height:10px}.navigation-rig .vehicle-icons{z-index:1}
+
+.navigation-rig [data-rig-car].turn-sprite{position:absolute;top:0;left:10px;width:60px;height:66px;z-index:2;margin:0}.navigation-rig .turn-sprite{overflow:visible!important}.navigation-rig .turn-sprite>[data-view-rear]{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;margin:0}.navigation-rig .turn-sprite>[data-view-side]{display:block;position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;background-repeat:no-repeat;background-size:200% 100%;background-position:0% 50%;pointer-events:none}.navigation-rig .rig-trailer.turn-sprite{width:76px;height:82px}.speed-sway .rig-trailer.turn-sprite>[data-view-side]{animation:trailer-warning-sway .9s ease-in-out infinite;transform-origin:50% 80%}
+/* Destination and trip progress stay above the driving view. */
+.trip-progress{position:absolute;top:78px;left:12px;right:12px;z-index:710;padding:10px 16px 14px;border:1px solid #71829d;border-radius:14px;background:#1d293cf2;color:#fff;box-shadow:0 3px 15px #0003}.trip-destination{display:flex;gap:12px;align-items:center;font-size:13px}.trip-destination strong{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.trip-destination span{white-space:nowrap;color:#d9e6f8;font-size:12px}.trip-track{position:relative;margin:17px 24px 0;height:5px;border-radius:10px;background:#617088}.trip-fill{display:block;height:100%;background:#71d3a0;border-radius:10px}.trip-vehicle{position:absolute;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:row-reverse;gap:0;align-items:center;transition:left .6s linear}.trip-vehicle img{width:30px;height:22px;object-fit:contain;filter:drop-shadow(0 2px 2px #0006)}.navigation-hud{top:157px}.recenter-trip{align-self:center;display:flex;align-items:center;gap:4px;font-size:11px;padding:8px;border:1px solid #71829d;border-radius:9px;background:#263954}.road-alert .alert-close{position:absolute;right:8px;top:8px;min-height:40px;width:40px;display:grid;place-items:center;background:#40506a;color:#fff}.alert-illustration{display:block;margin:0 auto 10px}.alert-illustration svg{width:110px;height:110px}.road-alert strong{padding:0 12px}
+@media(max-width:650px){.trip-progress{top:76px;left:8px;right:8px;padding:9px 12px 13px}.navigation-hud{top:149px}.trip-destination{font-size:12px}.trip-destination span{font-size:11px}}
+@media(orientation:landscape) and (max-height:600px){.trip-progress{top:56px;padding:7px 12px 10px}.trip-track{margin-top:13px}.navigation-hud{top:119px}.road-report-tools{top:125px}.road-alert{top:25%;padding:14px}.alert-illustration svg{width:72px;height:72px}.road-alert strong{font-size:20px}}
+
+/* The foot of each roadside sign is anchored to the place coordinates. */
+.market-sign{position:relative;display:block;width:180px;height:88px;padding:0;text-align:center;overflow:visible;transform-origin:90px 88px;filter:drop-shadow(0 3px 3px #0005)}.market-sign::before{content:"";position:absolute;left:87px;top:57px;width:6px;height:29px;background:linear-gradient(90deg,#647384,#d5dce4,#536274);border-radius:0 0 2px 2px}.market-sign::after{content:"";position:absolute;left:80px;bottom:0;width:20px;height:4px;border-radius:50%;background:#17263466}.sign-face{position:relative;height:64px;width:180px;border:2px solid var(--pin);border-radius:10px;padding:7px 9px;background:#20334df5;color:#fff;display:flex;flex-direction:column;justify-content:center;gap:3px;box-shadow:inset 0 0 0 1px #ffffff30}.sign-face strong{font-size:13px;line-height:15px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.sign-face small{font-size:10px;line-height:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#e7d3aa}.sign-face .sign-open{color:#8ee8b2;font-weight:bold}.sign-approx{font-size:9px;color:#bbc9dc}.is-navigating .market-sign{transform:rotateX(-50deg)}
+
+.gps-return{color:inherit;display:flex;align-items:center;padding:8px}.appbar{gap:8px}.brand{margin-right:auto}
+.navigation-rig [data-rig-hitch]{position:absolute;inset:0;width:80px;height:130px;overflow:visible;z-index:1;pointer-events:none}
+.navigation-rig .turn-sprite::after{content:"";position:absolute;left:12%;right:12%;bottom:3%;height:3px;border-radius:50%;background:#0a101d66;filter:blur(1.5px);pointer-events:none}
+.navigation-rig.rig-rolling [data-view-rear]{animation:gps-road-roll var(--wheel-period,.4s) linear infinite;transform-origin:50% 95%}
+@keyframes gps-road-roll{0%,100%{transform:translateY(0)}50%{transform:translateY(.25px)}}
+.speed-warning{flex-wrap:wrap;max-width:min(430px,calc(100% - 28px));font-size:15px}.speed-warning strong{flex:1 1 240px;line-height:1.4}.speed-warning button{margin-left:auto;padding:10px 18px;min-height:44px;border:1px solid #9a510e;border-radius:10px;background:#803c0b;color:white;font:inherit;font-weight:700;cursor:pointer}
+.navigation-rig .speed-sway .rig-trailer>[data-view-rear],.navigation-rig .speed-sway .rig-trailer>[data-view-side]{animation:trailer-warning-sway .9s ease-in-out infinite;transform-origin:50% 15%}
+@media(prefers-reduced-motion:reduce){.navigation-rig .speed-sway .rig-trailer>[data-view-rear],.navigation-rig .speed-sway .rig-trailer>[data-view-side],.navigation-rig.rig-rolling [data-view-rear]{animation:none}}
+
+.destination-card{max-height:calc(100dvh - 165px);overflow-y:auto;overscroll-behavior:contain}.route-choices{margin:14px 0;text-align:left}.route-choices h3{margin:0 0 10px;font-size:17px}.route-choice-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.route-choice{display:flex;flex-direction:column;gap:6px;text-align:left;padding:12px;border:1px solid #71829d;border-radius:14px;background:#293950;color:#f4f6fb;min-width:0;font:inherit}.route-choice.chosen{border:2px solid #76e2a3;background:#174a3d;padding:11px}.route-choice:disabled{opacity:.7}.route-choice strong{font-size:15px}.route-choice-time{font-size:23px;font-weight:800}.route-choice span{font-size:13px}.route-choice .route-choice-time{font-size:23px}.route-choice small{font-size:11px;color:#d9e6f8;line-height:1.3}.route-estimate-note{display:block;margin-top:8px;font-size:11px;color:#c7d2e2}.travel-mode{margin:15px 0}.travel-mode h3{margin:0 0 9px}.arrival-notification{position:fixed;inset:0;z-index:1800}.arrival-notification small{display:block;margin-top:18px;font-size:17px}.arrival-understood{display:block;margin-top:22px;padding:13px 25px;background:#76e2a3;color:#123329;border:0;border-radius:13px;font-size:18px;font-weight:700}.is-pedestrian .road-report-tools,.is-pedestrian .trip-vehicle img{display:none}.is-pedestrian .vehicle-icons{visibility:hidden}.is-pedestrian .vehicle-pointer::before{content:'🚶';position:absolute;left:10px;top:5px;font-size:52px;line-height:60px}.is-pedestrian .trip-vehicle::before{content:'🚶';font-size:25px}.is-pedestrian .route-choice-list{grid-template-columns:1fr}
+@media(orientation:landscape) and (max-height:600px){.destination-card{max-height:calc(100dvh - 95px)}}
+
+@media(orientation:landscape) and (max-height:600px){.road-report-tools{left:calc(48px + env(safe-area-inset-left,0px))!important}.settings-button{left:calc(48px + env(safe-area-inset-left,0px))!important}}
+
+/* Clear driving view and elevated caravan. */
+.appbar{display:contents!important}.appbar>*:not(.settings-button){display:none!important}
+.settings-button{position:absolute!important;left:12px!important;right:auto!important;top:76px!important;z-index:720;width:62px;height:46px;justify-content:center;padding:8px!important}.settings-button span{display:none!important}
+.top-controls{top:10px!important}.trip-progress{top:8px!important}.navigation-hud{top:76px!important}
+.road-report-tools{top:130px!important;left:12px!important;gap:5px!important}.road-report-tools button{width:62px;min-height:52px}
+.navigation-rig .rig-trailer.turn-sprite:has(img[src*="caravan-roof"]){height:110px;width:76px;transform-origin:50% 5%!important}
+.navigation-rig .rig-trailer img[src*="caravan-roof"]{height:110px!important;width:76px!important;object-fit:fill!important}
+.navigation-rig .vehicle-pointer.towing::after{top:151px;height:4px;filter:blur(1px)}
+@media(orientation:landscape) and (max-height:420px){.road-report-tools{gap:3px!important}.road-report-tools button{min-height:43px}.road-report-tools span{font-size:21px}}
+
+/* v29: consistent elevated views and articulated coupling. */
+.navigation-rig [data-rig-car].turn-sprite{height:90px;top:-24px}
+.navigation-rig [data-rig-car].turn-sprite>[data-view-rear]{height:90px!important;width:60px!important;object-fit:fill!important}
+.navigation-rig [data-rig-car].turn-sprite{transform-origin:30px 90px!important}
+.navigation-rig .rig-trailer.turn-sprite{height:110px;width:76px;transform-origin:38px 5.5px!important}
+.navigation-rig .rig-trailer.turn-sprite>[data-view-rear]{height:110px!important;width:76px!important;object-fit:fill!important}
+.navigation-rig [data-view-side]{display:none!important}
+.navigation-rig [data-rig-hitch]{position:absolute;left:0;top:0;width:80px;height:190px;overflow:visible;z-index:1;pointer-events:none}
+
+/* iPhone paysage: déplacer le conteneur ENTIER du guidage hors des boutons. */
+@media(orientation:landscape) and (max-height:600px){.road-report-tools,.settings-button{left:calc(38px + env(safe-area-inset-left,0px))!important;right:auto!important}.navigation-hud, .route-panel, .navigation-panel, div:has(> .route-summary){position:fixed!important;left:auto!important;right:calc(38px + env(safe-area-inset-right,0px))!important;top:calc(120px + env(safe-area-inset-top,0px))!important;width:min(43vw,430px)!important;max-width:43vw!important;z-index:805!important}.route-summary .instruction,.instruction{position:static!important;left:auto!important;right:auto!important;width:auto!important;max-width:100%!important}.trip-progress{top:8px!important}}
+
+/* v32: actual turn instruction panel on right; report buttons remain left. */
+@media(orientation:landscape) and (max-height:600px){.road-report-tools,.settings-button{left:calc(38px + env(safe-area-inset-left,0px))!important;right:auto!important}.route-summary .instruction,.instruction{position:fixed!important;top:calc(78px + env(safe-area-inset-top,0px))!important;left:auto!important;right:calc(38px + env(safe-area-inset-right,0px))!important;width:min(43vw,400px)!important;max-width:43vw!important;z-index:800!important;box-sizing:border-box!important}}
+
+/* Landscape: reports left, navigation instructions right, camera safe area. */
+@media(orientation:landscape) and (max-height:600px){.road-report-tools{left:calc(40px + env(safe-area-inset-left,0px))!important;right:auto!important}.settings-button{left:calc(40px + env(safe-area-inset-left,0px))!important;right:auto!important}.navigation-hud{left:auto!important;right:calc(12px + env(safe-area-inset-right,0px))!important;max-width:min(48vw,440px)!important}.instruction{max-width:100%!important}}
+
+/* v31: slightly left of previous position, keep camera clearance. */
+@media(orientation:landscape) and (max-height:600px){.road-report-tools{left:calc(40px + env(safe-area-inset-left,0px))!important;right:auto!important}.settings-button{left:calc(40px + env(safe-area-inset-left,0px))!important;right:auto!important}.navigation-hud{left:calc(40px + env(safe-area-inset-left,0px))!important;right:auto!important;max-width:calc(100vw - 110px)!important}}
+
+/* Landscape iPhone camera cutout: keep all road buttons visible. */
+@media(orientation:landscape) and (max-height:600px){.road-report-tools{left:calc(58px + env(safe-area-inset-left,0px))!important;right:auto!important}.settings-button{left:calc(58px + env(safe-area-inset-left,0px))!important;right:auto!important}.trip-progress{top:8px!important}}
+
+/* v30: wooden signposts anchored at the recorded GPS position. */
+.market-sign[data-kind="marche"],.market-sign[data-kind="foire"],.market-sign[data-kind="brocante"],.market-sign[data-kind="voyageur"],.market-sign[data-kind="noel"]{height:100px;background:none;border:0;padding:0;transform-origin:90px 100px}
+.market-sign[data-kind]::before{left:84px;top:0;width:12px;height:98px;border-radius:1px;background:repeating-linear-gradient(88deg,#977046 0 2px,#be9565 3px 6px,#a77c4f 7px 8px);box-shadow:1px 1px 2px #0006}
+.market-sign[data-kind]::after{left:78px;bottom:0;width:26px;height:5px}
+.market-sign[data-kind] .sign-face{top:12px;height:65px;padding:7px 23px 7px 10px;border:0;border-radius:0;clip-path:polygon(0 8%,80% 8%,80% 0,100% 50%,80% 100%,80% 92%,0 92%);background:repeating-linear-gradient(2deg,#0000 0 5px,#744a211d 6px 7px),linear-gradient(100deg,#be9361,#e4bd83 43%,#c59a63);color:#2f1c0c;box-shadow:inset 0 3px 4px #fff7,inset 0 -3px 4px #6e431b66;gap:2px}
+.market-sign[data-kind] .sign-face strong{font-size:12px;line-height:14px;text-shadow:0 1px #fbe4b3}
+.market-sign[data-kind] .sign-face small{font-size:10px;color:#402510;font-weight:700}
+.market-sign[data-kind] .sign-face .sign-open{color:#124b22}
+.market-sign[data-kind] .sign-approx{font-size:8px;color:#503619}
+.gps-sign-shade{position:fixed;inset:0;z-index:950;display:grid;place-items:center;background:#071521aa;padding:18px}
+.gps-sign-dialog{width:min(520px,100%);max-height:90dvh;overflow:auto;background:#fffaf0;color:#242b34;border-radius:20px;padding:24px;box-shadow:0 12px 50px #0007;text-align:center}
+.gps-sign-dialog h2{font-size:26px;margin:0 0 16px}.gps-sign-dialog>strong{font-size:21px}.gps-sign-dialog p{margin:12px 0}.gps-sign-dialog [role=alert]{color:#a32a1f;font-weight:700}.gps-sign-actions{display:flex;gap:12px;margin-top:20px}.gps-sign-actions button{flex:1;min-height:52px;cursor:pointer}
+.speed-warning{position:fixed!important;inset:50% auto auto 50%!important;transform:translate(-50%,-50%)!important;width:min(680px,calc(100% - 32px))!important;max-width:none!important;max-height:calc(100dvh - 24px);overflow:auto;padding:24px!important;font-size:24px!important;z-index:1100!important;border:3px solid #d97924;box-shadow:0 0 0 100vmax #14202b66,0 12px 50px #0006;gap:16px}
+.speed-warning strong{flex:1 1 100%;line-height:1.35}.speed-warning span{font-size:28px}.speed-warning button{font-size:17px;min-height:48px}.speed-warning .mute-attelage{background:#fffaf0;color:#803c0b}
+@keyframes gps-attelage-sway{0%,100%{rotate:-6deg}50%{rotate:6deg}}
+.navigation-rig .speed-sway .rig-trailer.turn-sprite>[data-view-rear]{animation:gps-attelage-sway 1.1s ease-in-out infinite!important;transform-origin:50% 5.5px!important;outline:none!important}
+@media(max-height:460px){.speed-warning{font-size:20px!important;padding:16px!important;gap:10px}.gps-sign-dialog{padding:16px}.gps-sign-dialog h2{margin-bottom:8px}}

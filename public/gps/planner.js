@@ -1,0 +1,115 @@
+(() => {
+  'use strict';
+  const $=id=>document.getElementById(id), planner=$('gpsPlanner'), status=$('plannerStatus'), input=$('gpsAddress');
+  let mode='normal',destination=null,controller=null,generation=0,searchId=0,searchController=null,timer=0,busy=false,lastFix=null,stream=null,cameraRun=0,walking=false,wasActive=false,cameraAttempted=false,wake=null;
+  const valid=p=>p && Number.isFinite(p.lat)&&Number.isFinite(p.lon)&&Math.abs(p.lat)<=90&&Math.abs(p.lon)<=180;
+  const meters=n=>n>=1000?(n/1000).toFixed(1).replace('.',',')+' km':Math.max(0,Math.round(n/10)*10)+' m';
+  let savedProfile={};try{savedProfile=JSON.parse(localStorage.getItem('gps-voyage-profile')||'{}');}catch{}
+  for(const key of ['length','height','width','weight'])if(Number(savedProfile[key])>0)$(key).value=savedProfile[key];
+  if(['car','truck'].includes(savedProfile.vehicle))$('vehicle').value=savedProfile.vehicle;
+  if(['small','large','trailer'].includes(savedProfile.trailer))$('trailer').value=savedProfile.trailer;
+  function message(text){status.textContent=text;}
+  function setBusy(value){busy=value;$('confirmGps').disabled=value;$('cancelCalculation').hidden=!value;planner.querySelectorAll('[data-mode],input,select,#editAddress').forEach(el=>el.disabled=value);}
+  function cancel(){generation++;controller?.abort();controller=null;setBusy(false);}
+  function closeCamera(){cameraRun++;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('walkCamera').hidden=true;$('walkCamera').querySelector('video').srcObject=null;}
+  async function openCamera(){
+    const run=++cameraRun;
+    try {
+      if(!navigator.mediaDevices?.getUserMedia)throw Error('Caméra indisponible.');
+      const media=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+      if(run!==cameraRun||!walking||!wasActive){media.getTracks().forEach(t=>t.stop());return;}
+      if(stream)stream.getTracks().forEach(t=>t.stop());stream=media;
+      $('walkCamera').querySelector('video').srcObject=stream;$('walkCamera').hidden=false;
+    } catch {if(run===cameraRun){$('openWalkCamera').textContent='📷 Autoriser la caméra';$('openWalkCamera').title='Autorisez la caméra dans les réglages du navigateur. Le guidage reste disponible sur la carte.';}}
+  }
+  async function keepScreen(){try{if(navigator.wakeLock&&!wake&&wasActive&&!document.hidden){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null});}}catch{}}
+  function chooseMode(value){mode=value;planner.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));$('convoyOptions').hidden=mode!=='convoi';$('vehicleOptions').hidden=mode==='pieton';$('roadOptions').hidden=mode==='pieton';if(mode==='convoi'&&savedProfile.vehicle==null)$('vehicle').value='truck';message('');}
+  function open(place=null){
+    cancel();searchController?.abort();searchId++;clearTimeout(timer);closeCamera();window.couteauGps?.stop();
+    destination=valid(place)?{id:place.id||'couteau-destination',kind:place.kind||'terrain',city:'',day:'',hours:'',merchants:'',...place,address:place.address||place.name}:null;
+    document.body.classList.add('gps-planning');planner.hidden=false;$('addressForm').hidden=!!destination;$('modeStep').hidden=!destination;$('gpsResults').replaceChildren();
+    if(destination){$('chosenAddress').textContent=destination.name||destination.address;chooseMode(mode);}else {input.value='';message('');input.focus({preventScroll:true});}
+  }
+  window.couteauGpsPlanner={open};
+  async function search(){
+    searchController?.abort();const id=++searchId,q=input.value.trim();$('gpsResults').replaceChildren();
+    if(q.length<3){message(q?'Saisissez au moins trois caractères.':'');return;}
+    const abort=new AbortController();searchController=abort;message('Recherche…');
+    const query=new URLSearchParams({q});if(lastFix){query.set('lat',lastFix.lat);query.set('lon',lastFix.lon);}
+    const timeout=setTimeout(()=>abort.abort(),25000);
+    try{
+      const response=await fetch('/gps/api/search?'+query,{signal:abort.signal});const data=await response.json();if(id!==searchId)return;
+      if(!response.ok)throw Error(data.error||'Recherche indisponible.');
+      const rows=(data.results||[]).filter(valid);message(rows.length?'':data.note||'Aucune adresse trouvée. Précisez la ville et le numéro.');
+      for(const place of rows){const button=document.createElement('button');button.type='button';button.setAttribute('role','listitem');button.textContent=place.label||place.name;button.addEventListener('click',()=>{searchId++;abort.abort();open(place);});$('gpsResults').appendChild(button);}
+    }catch(e){if(id===searchId)message(e.name==='AbortError'?'La recherche prend trop de temps. Réessayez.':e.message);}finally{clearTimeout(timeout);}
+  }
+  input.addEventListener('input',()=>{searchId++;searchController?.abort();clearTimeout(timer);timer=setTimeout(search,300);});
+  $('addressForm').addEventListener('submit',event=>{event.preventDefault();clearTimeout(timer);void search();});
+  planner.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>chooseMode(button.dataset.mode)));
+  $('editAddress').addEventListener('click',()=>open());$('changeGpsAddress').addEventListener('click',()=>open());
+  $('cancelCalculation').addEventListener('click',()=>{cancel();message('Calcul annulé.');});
+  function profile(){
+    const p={travelMode:mode==='pieton'?'pedestrian':'drive',vehicle:mode==='pieton'?'car':$('vehicle').value,trailer:mode==='convoi'?$('trailer').value:'none',tolls:$('tolls').checked,roadMode:mode==='pieton'?'direct':$('roadMode').value,confirmed:true};
+    if(mode==='convoi')for(const key of ['length','height','width','weight']){const field=$(key);if(!field.value||!field.checkValidity())throw Error('Renseignez une valeur valide pour '+({length:'la longueur',height:'la hauteur',width:'la largeur',weight:'le poids total chargé'}[key])+'.');p[key]=field.value;}
+    else Object.assign(p,p.vehicle==='truck'?{length:5.8,height:'2.53',width:'2.50',weight:'3500'}:{length:4.4,height:'1.50',width:'2.10',weight:'1500'});
+    return p;
+  }
+  function position(signal){return new Promise((resolve,reject)=>{
+    if(!navigator.geolocation){reject(Error('Localisation indisponible sur cet appareil.'));return;}
+    const onAbort=()=>reject(new DOMException('Annulé','AbortError'));signal.addEventListener('abort',onAbort,{once:true});
+    navigator.geolocation.getCurrentPosition(p=>{signal.removeEventListener('abort',onAbort);if(signal.aborted)return;if(p.coords.accuracy>100){reject(Error('Position trop imprécise. Réessayez à l’extérieur.'));return;}resolve(p);},e=>{signal.removeEventListener('abort',onAbort);reject(Error(e.code===1?'Autorisez la localisation dans les réglages du navigateur, puis confirmez à nouveau.':'Position introuvable. Réessayez à l’extérieur.'));},{enableHighAccuracy:true,timeout:18000,maximumAge:3000});
+  });}
+  function ready(signal){return new Promise((resolve,reject)=>{
+    if(window.couteauGps){resolve();return;}
+    const done=()=>{cleanup();resolve();},abort=()=>{cleanup();reject(new DOMException('Annulé','AbortError'));},timeout=setTimeout(()=>{cleanup();reject(Error('La carte ne se charge pas. Vérifiez votre connexion.'));},15000);
+    function cleanup(){clearTimeout(timeout);window.removeEventListener('couteau-gps-ready',done);signal.removeEventListener('abort',abort);}
+    window.addEventListener('couteau-gps-ready',done,{once:true});signal.addEventListener('abort',abort,{once:true});
+  });}
+  function showNavigation(){planner.hidden=true;document.body.classList.remove('gps-planning');$('changeGpsAddress').hidden=false;message('');}
+  $('confirmGps').addEventListener('click',async()=>{
+    if(busy||!destination)return;let selected;try{selected=profile();}catch(e){message(e.message);return;}
+    cancel();const run=generation,abort=new AbortController();controller=abort;setBusy(true);message('Recherche de votre position…');
+    try{
+      const fix=await position(abort.signal);if(run!==generation)return;
+      const from=[fix.coords.latitude,fix.coords.longitude];message('Calcul de l’itinéraire '+(mode==='pieton'?'piéton':mode==='convoi'?'adapté au convoi':'normal')+'…');
+      const timeout=setTimeout(()=>abort.abort(),28000);let response;
+      try{response=await fetch('/gps/api/route',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from,to:[destination.lat,destination.lon],profile:selected}),signal:abort.signal});}finally{clearTimeout(timeout);}
+      const route=await response.json();if(run!==generation)return;
+      if(!response.ok)throw Error(route.error||'Calcul indisponible.');
+      if(!Array.isArray(route.points)||route.points.length<2||!route.summary||!route.instructions?.length)throw Error('Itinéraire incomplet. Réessayez.');
+      if(mode==='convoi'&&route.vehicleRestrictionsChecked!==true)throw Error('Les paramètres du convoi ne sont pas appliqués.');
+      if(mode==='pieton'&&route.mode!=='pedestrian')throw Error('Le trajet piéton n’a pas été calculé.');
+      await ready(abort.signal);if(run!==generation||abort.signal.aborted)return;
+      savedProfile=selected;try{localStorage.setItem('gps-voyage-profile',JSON.stringify(selected));}catch{}
+      window.couteauGps.start({route,destination,profile:selected});showNavigation();
+    }catch(e){if(run===generation)message(e.name==='AbortError'?'Calcul interrompu. Réessayez.':e.message);}
+    finally{if(run===generation){controller=null;setBusy(false);}}
+  });
+  window.addEventListener('gps-fuel-state-v35',event=>{const {position:p}=event.detail||{};if(p&&valid(p))lastFix=p;});
+  window.addEventListener('couteau-gps-state',event=>{
+    const state=event.detail||{};walking=state.profile?.travelMode==='pedestrian';wasActive=!!state.active;
+    $('gpsFuelInfo').hidden=!wasActive||walking;$('openWalkCamera').hidden=!wasActive||!walking;$('changeGpsAddress').hidden=!wasActive&&!state.arrived;
+    if(wasActive){void keepScreen();if(walking&&!cameraAttempted){cameraAttempted=true;void openCamera();}}
+    else {closeCamera();cameraAttempted=false;$('gpsNextDirection').hidden=true;if(wake){void wake.release();wake=null;}}
+    if(!walking)closeCamera();
+    if(state.arrived){$('gpsNextDirection').textContent='Vous êtes arrivé';$('gpsNextDirection').hidden=false;}
+    if(!wasActive&&!state.arrived&&!state.destination&&planner.hidden)open();
+  });
+  window.addEventListener('couteau-gps-guidance',event=>{
+    const g=event.detail;$('gpsNextDirection').hidden=true;
+    $('walkInstruction').textContent=g.message;$('walkDistance').textContent='Dans '+meters(g.distance)+' · '+meters(g.remaining)+' restants';$('walkArrow').textContent=/demi.tour/i.test(g.message)?'↶':/gauche/i.test(g.message)?'↰':/droite/i.test(g.message)?'↱':'↑';
+  });
+  $('openWalkCamera').addEventListener('click',()=>void openCamera());$('closeWalkCamera').addEventListener('click',closeCamera);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)closeCamera();else void keepScreen();});window.addEventListener('pagehide',()=>{cancel();closeCamera();});
+  // Accept old destination links without auto-selecting an ambiguous first search result.
+  const params=new URLSearchParams(location.search||location.hash.slice(1)),raw=params.get('destination');
+  if(raw){let p;try{p=JSON.parse(raw);}catch{const pair=raw.split(',').map(Number);if(pair.length===2&&pair.every(Number.isFinite))p={lat:pair[0],lon:pair[1]};}if(valid(p))open({...p,name:params.get('name')||p.name||'Destination'});else{input.value=raw;void search();}history.replaceState(null,'','/gps/');}
+  else {
+    let saved;try{saved=JSON.parse(sessionStorage.getItem('gps-session-v37')||'null');}catch{}
+    if(saved?.active&&Date.now()-saved.at<7200000&&valid(saved.destination)&&saved.route?.points?.length&&saved.route?.instructions?.length){
+      const abort=new AbortController();message('Reprise du trajet…');
+      ready(abort.signal).then(()=>{if(!planner.hidden&&!destination){window.couteauGps.start(saved);showNavigation();}}).catch(e=>message(e.message));
+    }
+  }
+})();

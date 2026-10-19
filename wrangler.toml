@@ -16,3 +16,8 @@ database_id = "8c139641-68af-44cc-aa8f-2a68af669c4a"
 
 [triggers]
 crons = ["0 * * * *"]
+
+[[d1_databases]]
+binding = "ROAD_REPORTS"
+database_name = "gps-road-reports"
+database_id = "3aea8337-27c2-4d86-aa55-a540563ca698"
