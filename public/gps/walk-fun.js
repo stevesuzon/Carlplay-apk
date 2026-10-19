@@ -1,0 +1,47 @@
+(() => {
+  'use strict';
+  const camera=document.getElementById('walkCamera'),video=camera.querySelector('video'),layer=document.getElementById('walkFunLayer'),toggle=document.getElementById('toggleWalkFun'),status=document.getElementById('walkFunStatus');
+  let enabled=true,model=null,loading=null,running=false,timer=null,epoch=0,tracks=[],nextId=0;
+  try{enabled=localStorage.getItem('gps-walk-fun')!=='off';}catch{}
+  const props=[['🐷','Tirelire'],['🛏️','Matelas'],['🪑','Brocante'],['🏚️','Maison farfelue'],['🏡','Villa de rêve'],['🛋️','Canapé']];
+  function active(){return enabled&&!camera.hidden&&!document.hidden&&!video.paused&&video.readyState>=2&&!!video.srcObject;}
+  function clear(){epoch++;clearTimeout(timer);timer=null;tracks=[];layer.replaceChildren();}
+  function script(src){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=()=>{s.remove();reject(Error('Effets indisponibles'));};document.head.appendChild(s);});}
+  async function load(){
+    if(model)return model;if(loading)return loading;
+    loading=(async()=>{if(!window.tf)await script('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js');if(!window.cocoSsd)await script('https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js');await window.tf.ready();model=await window.cocoSsd.load({base:'lite_mobilenet_v2'});return model;})();
+    try{return await loading;}finally{loading=null;}
+  }
+  function update(predictions){
+    const rect=video.getBoundingClientRect(),scale=Math.max(rect.width/video.videoWidth,rect.height/video.videoHeight),ox=(rect.width-video.videoWidth*scale)/2,oy=(rect.height-video.videoHeight*scale)/2;
+    const boxes=predictions.filter(p=>p.class==='person'&&p.score>=.65&&p.bbox?.length===4&&p.bbox.every(Number.isFinite)).sort((a,b)=>b.score-a.score).slice(0,4);
+    const used=new Set(),fresh=[];
+    for(const p of boxes){
+      const [x,y,w,h]=p.bbox;if(w<15||h<35)continue;
+      const cx=x+w/2,cy=y+h/2;
+      let best=null,dist=Infinity;
+      for(const t of tracks){const d=Math.hypot(cx-t.cx,cy-t.cy);if(!used.has(t.id)&&d<Math.max(w,h)*.5&&d<dist){best=t;dist=d;}}
+      if(!best){const id=nextId++,choice=Math.floor(Math.random()*props.length),prop=props[choice],el=document.createElement('div');el.className='walk-fun-prop';el.innerHTML='<span class="fun-object" aria-hidden="true">'+prop[0]+'</span><span class="fun-name">'+prop[1]+'</span>';if(choice===0)el.classList.add('fun-pig');layer.appendChild(el);best={id,el};}
+      used.add(best.id);best.cx=cx;best.cy=cy;
+      const px=cx*scale+ox,py=y*scale+oy-8,hud=camera.querySelector('.walk-hud').getBoundingClientRect();
+      // Never move an accessory onto the directions or controls, or display it off-screen.
+      best.el.hidden=px<30||px>rect.width-30||py<Math.max(90,hud.bottom-rect.top+76)||py>rect.height-125;
+      best.el.style.left=px+'px';best.el.style.top=py+'px';fresh.push(best);
+    }
+    for(const t of tracks)if(!used.has(t.id))t.el.remove();tracks=fresh;
+  }
+  async function tick(){
+    if(running||!active())return;running=true;const run=epoch;const started=performance.now();
+    try{
+      if(!model)status.textContent='Chargement des effets…';
+      const detector=await load();if(run!==epoch||!active())return;
+      const predictions=await detector.detect(video,8,.65);if(run!==epoch||!active())return;
+      update(predictions);status.textContent='Accessoires au hasard · traitement sur le téléphone';
+    }catch{if(run===epoch){enabled=false;clear();sync();status.textContent='Effets indisponibles · guidage maintenu';}}
+    finally{running=false;if(active())timer=setTimeout(tick,Math.max(250,650-(performance.now()-started)));}
+  }
+  function sync(){toggle.textContent=enabled?'Effets : activés':'Effets : désactivés';toggle.setAttribute('aria-pressed',String(enabled));layer.hidden=!enabled;if(!active()){clear();if(!enabled)status.textContent='';}else void tick();}
+  toggle.addEventListener('click',()=>{enabled=!enabled;try{localStorage.setItem('gps-walk-fun',enabled?'on':'off');}catch{}sync();});
+  new MutationObserver(sync).observe(camera,{attributes:true,attributeFilter:['hidden']});
+  video.addEventListener('playing',sync);video.addEventListener('pause',sync);document.addEventListener('visibilitychange',sync);window.addEventListener('resize',()=>{clear();sync();});window.addEventListener('pagehide',clear);sync();
+})();
