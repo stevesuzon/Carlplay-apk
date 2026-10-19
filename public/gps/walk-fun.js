@@ -43,8 +43,8 @@
       const top=Math.max(8,hud.bottom-rect.top+8),bottom=rect.height-190;
       best.el.classList.toggle('fun-compact',py-150<top);
       best.el.hidden=px<0||px>rect.width||py>bottom||y*scale+oy+h*scale<top;
-      const labelHeight=best.el.classList.contains('fun-compact')?76:150;
-      best.el.style.left=Math.max(78,Math.min(rect.width-78,px))+'px';
+      const labelHeight=best.el.offsetHeight||180,halfWidth=(best.el.offsetWidth||190)/2+8;
+      best.el.style.left=Math.max(halfWidth,Math.min(rect.width-halfWidth,px))+'px';
       best.el.style.top=Math.min(bottom,Math.max(top+labelHeight,py))+'px';fresh.push(best);
     }
     for(const t of tracks)if(!used.has(t.id))t.el.remove();tracks=fresh;
