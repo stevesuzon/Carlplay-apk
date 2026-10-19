@@ -1,0 +1,17 @@
+/* Camera UI: compact instruction, unobstructed street, trip summary above shutter. */
+#walkCamera .walk-hud{top:calc(12px + env(safe-area-inset-top));left:12px;right:auto;width:min(64vw,340px);box-sizing:border-box;padding:12px 14px;border:0;border-radius:16px;background:#10283ddd;text-align:left;display:grid;grid-template-columns:54px 1fr;gap:2px 10px;backdrop-filter:blur(9px)}
+#walkCamera .walk-hud strong{font:700 54px/1 Arial;color:#fff;grid-row:1}
+#walkTurnDistance{align-self:center;font:700 clamp(25px,8vw,40px)/1 Arial;white-space:nowrap}
+#walkCamera .walk-hud #walkInstruction{grid-column:1/-1;margin:6px 0 0;font:500 13px/1.3 Arial;max-height:3.9em;overflow:hidden}
+#walkCamera .walk-trip{position:absolute;left:12px;right:12px;bottom:calc(94px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(3,1fr);padding:13px 4px;background:#10283de8;border-radius:14px;text-align:center;backdrop-filter:blur(9px)}
+.walk-trip>div+div{border-left:1px solid #ffffff55}.walk-trip strong{display:block;font:700 clamp(18px,5vw,26px)/1.2 Arial}.walk-trip small{display:block;margin-top:5px;font:12px Arial;color:#e4eef8}
+#walkARCanvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}#walkARCanvas[hidden]{display:none}
+#walkARStart,#walkARAlign{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top));width:calc(30vw - 12px);max-width:150px;min-height:48px;padding:9px;border:1px solid #a1e4ff;border-radius:12px;background:#123b59ed;color:white;font:700 12px/1.3 Arial}
+#walkARAlign{top:calc(12px + env(safe-area-inset-top))}#walkARAlign[hidden],#walkARStart[hidden]{display:none}
+#walkARStatus{position:absolute;left:12px;right:12px;bottom:calc(178px + env(safe-area-inset-bottom));margin:0 auto;max-width:440px;padding:8px 10px;border-radius:9px;background:#10283de8;color:white;font:13px/1.35 Arial;text-align:center;pointer-events:none}#walkARStatus:empty{display:none}
+.walk-ar-running>video{opacity:0;pointer-events:none}#walkFunLayer{pointer-events:none}
+#walkCamera #captureStatus{bottom:calc(188px + env(safe-area-inset-bottom))}
+#walkCamera .walk-fun-controls #walkFunStatus{bottom:155px}
+@media(orientation:landscape) and (max-height:500px){#walkCamera .walk-hud{width:260px;padding:8px}.walk-trip{max-width:400px;margin:auto}#walkCamera .walk-trip{padding:7px 4px;bottom:calc(82px + env(safe-area-inset-bottom))}#walkARStatus{left:auto;right:12px;width:230px;bottom:95px}#walkCamera .walk-hud strong{font-size:38px}#walkTurnDistance{font-size:28px}}
+
+#walkARCredit{position:absolute;left:14px;bottom:calc(4px + env(safe-area-inset-bottom));color:#cbd8e6;font:8px Arial;text-decoration:none;max-width:calc(50% - 60px)}

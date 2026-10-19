@@ -3,7 +3,7 @@
   const $=id=>document.getElementById(id),camera=$('walkCamera'),video=camera.querySelector('video'),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d'),dialog=$('captureResult'),shutter=$('walkShutter');
   let recorder=null,microphone=null,output=null,chunks=[],drawTimer=null,stopTimer=null,started=0,pending=false,run=0,file=null,url=null;
   const note=t=>$('captureStatus').textContent=t;
-  function available(){return !camera.hidden&&!document.hidden&&video.readyState>=2&&video.videoWidth>0;}
+  function available(){return !camera.hidden&&!document.hidden&&(!!window.couteauWalkAR?.getFrame()||video.readyState>=2&&video.videoWidth>0);}
   function textBox(text,x,y,w,size,color,bg){
     const lines=String(text).split('\n');ctx.font=`700 ${size}px Arial`;ctx.textAlign='center';ctx.textBaseline='middle';
     if(bg){ctx.fillStyle=bg;ctx.fillRect(x,y,w,lines.length*(size+4)+8);}ctx.fillStyle=color;
@@ -11,11 +11,11 @@
   }
   function draw(){
     if(!available())return false;
-    const r=video.getBoundingClientRect(),ratio=Math.min(2,1280/Math.max(r.width,r.height));
+    const r=camera.getBoundingClientRect(),ratio=Math.min(2,1280/Math.max(r.width,r.height));
     if(!recorder||recorder.state==='inactive'){canvas.width=Math.round(r.width*ratio);canvas.height=Math.round(r.height*ratio);}
     ctx.setTransform(canvas.width/r.width,0,0,canvas.height/r.height,0,0);ctx.clearRect(0,0,r.width,r.height);
-    const scale=Math.max(r.width/video.videoWidth,r.height/video.videoHeight),w=video.videoWidth*scale,h=video.videoHeight*scale;ctx.drawImage(video,(r.width-w)/2,(r.height-h)/2,w,h);
-    const hud=camera.querySelector('.walk-hud').getBoundingClientRect();textBox($('walkArrow').textContent+' '+$('walkInstruction').textContent+'\n'+$('walkDistance').textContent,hud.x-r.x,hud.y-r.y,hud.width,15,'#fff','#112944dc');
+    const ar=window.couteauWalkAR?.getFrame();if(ar){ctx.drawImage(ar,0,0,r.width,r.height);}else{const scale=Math.max(r.width/video.videoWidth,r.height/video.videoHeight),w=video.videoWidth*scale,h=video.videoHeight*scale;ctx.drawImage(video,(r.width-w)/2,(r.height-h)/2,w,h);}
+    const hud=camera.querySelector('.walk-hud').getBoundingClientRect();textBox($('walkArrow').textContent+' '+$('walkTurnDistance').textContent+'\n'+$('walkInstruction').textContent,hud.x-r.x,hud.y-r.y,hud.width,15,'#fff','#112944dc');const trip=camera.querySelector('.walk-trip').getBoundingClientRect();textBox($('walkMinutes').textContent+' · '+$('walkRemaining').textContent+' · '+$('walkArrival').textContent,trip.x-r.x,trip.y-r.y,trip.width,15,'#fff','#112944dc');
     for(const prop of camera.querySelectorAll('.walk-fun-prop:not([hidden])')){
       if(prop.parentElement.hidden)continue;
       for(const el of prop.querySelectorAll('.fun-object,.fun-price,.fun-name,.fun-tutelle,.fun-quip')){
@@ -72,3 +72,4 @@
   $('closeCapture').addEventListener('click',()=>{dialog.hidden=true;$('capturePreview').querySelector('video')?.pause();if(url)URL.revokeObjectURL(url);url=null;file=null;$('capturePreview').replaceChildren();});
   new MutationObserver(()=>{if(camera.hidden){unpress(true);stop();}}).observe(camera,{attributes:true,attributeFilter:['hidden']});document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();});window.addEventListener('pagehide',()=>{stop();release();});
 })();
+

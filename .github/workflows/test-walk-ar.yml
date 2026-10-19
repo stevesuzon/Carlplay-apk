@@ -1,0 +1,29 @@
+name: Verify pedestrian WebAR
+on:
+  push:
+    branches: [main, codex/webar-pieton]
+    paths: ['public/gps/**', 'tests/walk-ar*', '.github/workflows/test-walk-ar.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --package-lock=false playwright@1.51.1 three@0.160.1 @8thwall/engine-binary@1.0.0
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/walk-ar-math.test.cjs
+      - name: Browser integration and real engine load
+        run: |
+          python3 -m http.server 8765 --directory public > /tmp/webar-server.log 2>&1 &
+          node tests/walk-ar.browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: webar-layout
+          path: webar-layout.png

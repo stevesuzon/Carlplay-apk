@@ -31,7 +31,8 @@
   function message(text){status.textContent=text;}
   function setBusy(value){busy=value;$('confirmGps').disabled=value;$('cancelCalculation').hidden=!value;planner.querySelectorAll('[data-mode],[data-choice],input,select,#editAddress').forEach(el=>el.disabled=value);}
   function cancel(){generation++;controller?.abort();controller=null;setBusy(false);}
-  function closeCamera(){cameraRun++;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('walkCamera').hidden=true;$('walkCamera').querySelector('video').srcObject=null;}
+  function closeCamera(){cameraRun++;window.couteauWalkAR?.stop();if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('walkCamera').hidden=true;$('walkCamera').querySelector('video').srcObject=null;}
+  window.couteauWalkCamera={releaseForAR(){cameraRun++;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;},open:()=>openCamera()};
   let resumeCamera=false;
   async function openCamera(){
     const run=++cameraRun;
@@ -153,3 +154,4 @@
   const params=new URLSearchParams(location.search||location.hash.slice(1)),raw=params.get('destination');
   if(raw){window.gpsExplicitDestination=true;let p;try{p=JSON.parse(raw);}catch{const pair=raw.split(',').map(Number);if(pair.length===2&&pair.every(Number.isFinite))p={lat:pair[0],lon:pair[1]};}if(valid(p))open({...p,name:params.get('name')||p.name||'Destination'});else{input.value=raw;void search();}history.replaceState(null,'','/gps/');}
 })();
+
