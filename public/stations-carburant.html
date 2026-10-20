@@ -58,7 +58,7 @@
 .manualHoursHint{margin-top:6px;color:#aebdca;font-size:12px;font-weight:800}
 .fuelVerifyResult{display:flex;align-items:center;justify-content:center;gap:8px;min-height:60px;padding:9px 10px;border-radius:15px;font-weight:1000}
 .fuelVerifyResult.good{background:#07983f;border:2px solid #33f07c;color:#fff}
-.fuelVerifyResult.depends{background:#8a6114;border:2px solid #e6ae36;color:#fff}
+.fuelVerifyResult.depends{background:#c45100;border:2px solid #ffab46;color:#fff}
 .fuelVerifyResult.bad{background:#b62a32;border:2px solid #ff626c;color:#fff}
 .fuelVerifyIcon{font-size:25px}
 .fuelVerifyText{font-size:18px;line-height:1.08}
@@ -79,9 +79,13 @@
 <script defer src="/subscription-web.js?v=471-restore"></script>
 
 <style id="gpl-readable-cards">
-.card{padding:20px!important}.name{font-size:25px!important;line-height:1.2!important}.price b{font-size:32px!important}.price span,.addr,.badge,.meta{font-size:17px!important;line-height:1.4!important}.fuelVerifyResult,.cigLine{font-size:24px!important;line-height:1.3!important;padding:14px!important}.actions{grid-template-columns:1fr!important}.actions a,.actions button{font-size:19px!important;min-height:58px!important}.modal{width:min(680px,100%);padding:20px}.modal h2{font-size:28px}.modal p,.vgroup label,.manualHoursInput{font-size:20px!important;line-height:1.4}.choiceGrid{gap:10px!important}#gplAvailableGroup .choiceGrid{grid-template-columns:1fr!important}.choice span{font-size:23px!important;min-height:62px!important;padding:12px!important}.stationShopInfo{background:#1c3c55;border-radius:12px;padding:12px}.fuelVerifyResult.depends{background:#795311;color:#fff2c3}.manualHoursInput{width:100%;min-height:56px}.modalActions button{min-height:60px;font-size:19px}
+.card{padding:20px!important}.name{font-size:25px!important;line-height:1.2!important}.price b{font-size:32px!important}.price span,.addr,.badge,.meta{font-size:17px!important;line-height:1.4!important}.fuelVerifyResult,.cigLine{font-size:24px!important;line-height:1.3!important;padding:14px!important}.actions{grid-template-columns:1fr!important}.actions a,.actions button{font-size:19px!important;min-height:58px!important}.modal{width:min(680px,100%);padding:20px}.modal h2{font-size:28px}.modal p,.vgroup label,.manualHoursInput{font-size:20px!important;line-height:1.4}.choiceGrid{gap:10px!important}#gplAvailableGroup .choiceGrid{grid-template-columns:1fr!important}.choice span{font-size:23px!important;min-height:62px!important;padding:12px!important}.stationShopInfo{background:#1c3c55;border-radius:12px;padding:12px}.manualHoursInput{width:100%;min-height:56px}.modalActions button{min-height:60px;font-size:19px}
 </style>
-</head>
+<style id="gpl-choice-colors">
+#gplAvailableGroup input[value="Oui"]:checked+span{background:#07983f!important;color:#fff!important;border-color:#33f07c!important}
+#gplAvailableGroup input[value="Non"]:checked+span{background:#b62a32!important;color:#fff!important;border-color:#ff626c!important}
+#gplAvailableGroup input[value="À négocier"]:checked+span{background:#c45100!important;color:#fff!important;border-color:#ffab46!important}
+</style></head>
 <body>
 <div class="wrap">
   <div class="top">
