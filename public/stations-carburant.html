@@ -65,7 +65,7 @@
 .fuelVerifyText small{display:block;margin-top:3px;font-size:11px;font-weight:800}
 @media(max-width:430px){.choiceGrid.verifyChoices{grid-template-columns:1fr}.choiceGrid.verifyChoices .choice span{min-height:52px}}
 
-</style>
+.favorites{display:block;margin:0 0 14px;padding:15px 18px;border:2px solid #ffd36c;border-radius:16px;background:#20354c;color:white;font-size:19px;font-weight:900;text-align:left;min-height:56px}.favorites[aria-pressed="true"]{background:#775117}.actions{grid-template-columns:1fr}.actions .go{min-height:64px;height:auto;padding:14px 8px;font-size:21px;border:2px solid #65eaa0}.favStar{min-width:52px;min-height:52px}.savedNote{color:#ffd184;margin:8px 0;font-size:14px}</style>
 <style id="voiceNoCopyV391">
 [data-voice-card],[data-voice-card] *,button,button *,a,a *,[onclick],[onclick] *{
   -webkit-user-select:none!important;
@@ -88,6 +88,7 @@
 </style></head>
 <body>
 <div class="wrap">
+<button id="favorites" class="favorites" type="button" aria-pressed="false">⭐ Mes stations préférées (0)</button>
   <div class="top">
     <button class="back" type="button" onclick="history.length>1?history.back():location.href='index.html'">‹</button>
     <img class="logo" src="/couteau-suisse-v283-192.png?v=283" alt="Couteau Suisse">
@@ -95,8 +96,8 @@
   </div>
 
   <section class="hero">
-    <div class="heroTitle">Du moins cher au plus cher</div>
-    <div class="heroSub">Choisissez votre carburant. Les prix, horaires et services se réactualisent automatiquement depuis les données officielles françaises.</div>
+    <div class="heroTitle">Stations sans boutique en premier</div>
+    <div class="heroSub">Stations GPL dans un rayon de 20 km à vol d’oiseau. Touchez ★ pour enregistrer une station préférée.</div>
     <div class="controls">
       <input id="fuel" type="hidden" value="GPLc"><span class="fuel" style="display:flex;align-items:center;justify-content:center">GPL uniquement</span>
       <button id="refresh" class="refresh" type="button">↻ ACTUALISER</button>
@@ -104,7 +105,7 @@
     <div id="gpsLine" class="gpsLine">📍 Recherche de votre position…</div>
   </section>
 
-  <div class="notice"><b>Stations :</b> prix, horaires et automate 24/24 viennent automatiquement de la source officielle. Pour le <b>GPL</b>, seul le mot GPL change de couleur : <b>vert uniquement pour une station sans boutique / sans gérant avec automate 24/24</b>, rouge si un utilisateur confirme « Pas la peine d’y aller ». Les autres GPL restent à vérifier.</div>
+  <div class="notice"><b>GPL :</b> vert = disponible, rouge = indisponible, orange = à négocier. Vos signalements sont partagés. Les favoris sont conservés sur ce téléphone.</div>
 
   <div class="statusLine"><strong id="resultTitle">Stations trouvées</strong><span id="updated"></span></div>
   <div id="loader" class="loader">Recherche des stations…</div>
@@ -133,7 +134,8 @@
   'use strict';
   var fuelEl=document.getElementById('fuel'), list=document.getElementById('list'), loader=document.getElementById('loader'), gpsLine=document.getElementById('gpsLine'), title=document.getElementById('resultTitle'), updated=document.getElementById('updated');
   var modal=document.getElementById('verifyModal'), verifyMsg=document.getElementById('verifyMsg');
-  var lastPos=null, fetching=false, lastLoadAt=0, currentItems=[], currentFuel='GPLc', verificationStates={}, verifyingIndex=-1;
+  var lastPos=null, fetching=false, lastLoadAt=0, currentItems=[], currentFuel='GPLc', verificationStates={}, verifyingIndex=-1, nearbyItems=[], favoritesMode=false;
+var favoritesButton=document.getElementById('favorites');
   fuelEl.value='GPLc';
 
   function esc(v){return String(v==null?'':v).replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -143,7 +145,13 @@
   function stationKey(s){return String(s.id||((s.lat||'')+'|'+(s.lon||'')+'|'+(s.address||'')+'|'+(s.city||''))).slice(0,180)}
   function favoriteKey(s){return 'fuelStationFavoriteV330:'+stationKey(s)}
   function isFavorite(s){try{return localStorage.getItem(favoriteKey(s))==='1'}catch(_){return false}}
-  function toggleFavorite(s){try{var k=favoriteKey(s),on=localStorage.getItem(k)==='1';if(on)localStorage.removeItem(k);else localStorage.setItem(k,'1');return !on}catch(_){return false}}
+  var favoritesStore='fuelStationFavoritesV1';
+function savedFavorites(){try{var a=JSON.parse(localStorage.getItem(favoritesStore)||'[]');return Array.isArray(a)?a.filter(function(s){return s&&s.fuel==='GPLc'&&isFavorite(s)}):[]}catch(_){return []}}
+function rememberFavorites(items){var saved=savedFavorites();(items||[]).forEach(function(s){if(!isFavorite(s))return;var i=saved.findIndex(function(x){return stationKey(x)===stationKey(s)});if(i<0)saved.push(s);else saved[i]=s;});localStorage.setItem(favoritesStore,JSON.stringify(saved));}
+function toggleFavorite(s){try{if(isFavorite(s))localStorage.removeItem(favoriteKey(s));else localStorage.setItem(favoriteKey(s),'1');rememberFavorites([s]);}catch(_){alert('Impossible de conserver les favoris sur ce navigateur.');}}
+function favoriteItems(){return savedFavorites().map(function(s){var fresh=nearbyItems.find(function(n){return stationKey(n)===stationKey(s)});return fresh||Object.assign({},s,{savedOnly:true,distanceKm:null});})}
+function renderCurrent(){favoritesButton.textContent=(favoritesMode?'‹ Stations · 20 km':'⭐ Mes stations préférées')+' ('+savedFavorites().length+')';favoritesButton.setAttribute('aria-pressed',String(favoritesMode));render(favoritesMode?favoriteItems():nearbyItems,'GPLc');}
+favoritesButton.onclick=function(){favoritesMode=!favoritesMode;renderCurrent();};
   function deviceId(){var k='fuel_station_verify_device_v330',v='';try{v=localStorage.getItem(k)||'';if(!v){v='fs-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12);localStorage.setItem(k,v)}}catch(_){v='fs-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12)}return v}
   function dayStatus(st){
     if(st.automate24)return {text:'OUVERT 24/24',cls:'open',detail:'Automate carburant accessible 24/24'};
@@ -263,18 +271,18 @@
     return s.automate24&&services.length?'Non':'';
   }
   function render(items,fuel){
-    currentItems=(items||[]).filter(function(s){return s.fuel==='GPLc'&&s.gplAvailable===true&&s.available!==false&&Number(s.price)>0&&Number(s.distanceKm)<=20;}).sort(function(a,b){var aNoShop=shopState(a,verificationStates[stationKey(a)])==='Non',bNoShop=shopState(b,verificationStates[stationKey(b)])==='Non';return Number(bNoShop)-Number(aNoShop)||Number(a.price)-Number(b.price)||Number(a.distanceKm)-Number(b.distanceKm)});currentFuel='GPLc';
-    title.textContent=currentItems.length+' stations GPL à ≤ 20 km';
-    if(!currentItems.length){list.innerHTML='<div class="empty">Aucune station GPL déclarée disponible dans un rayon de 20 km.</div>';return;}
+    currentItems=(items||[]).filter(function(s){return favoritesMode||s.fuel==='GPLc'&&s.gplAvailable===true&&s.available!==false&&Number(s.price)>0&&Number(s.distanceKm)<=20;}).sort(function(a,b){var aNoShop=shopState(a,verificationStates[stationKey(a)])==='Non',bNoShop=shopState(b,verificationStates[stationKey(b)])==='Non';return Number(bNoShop)-Number(aNoShop)||Number(a.price)-Number(b.price)||Number(a.distanceKm)-Number(b.distanceKm)});currentFuel='GPLc';
+    title.textContent=favoritesMode?'⭐ Mes stations préférées ('+currentItems.length+')':currentItems.length+' stations GPL à ≤ 20 km';
+    if(!currentItems.length){list.innerHTML='<div class="empty">'+(favoritesMode?'Touchez l’étoile ★ d’une station pour la retrouver ici. Favoris enregistrés sur ce téléphone.':'Aucune station GPL déclarée disponible dans un rayon de 20 km.')+'</div>';return;}
     list.innerHTML=currentItems.map(function(s,i){
       var v=verificationStates[stationKey(s)]||{},shop=shopState(s,v),state=currentStationStatus(s,v),gpl=['Oui','Non','À négocier'].includes(v.gpl)?v.gpl:s.gplAvailable?'Oui':'',name=s.name||s.brand||s.city||'Station GPL';
       var gplText=gpl==='Oui'?'🟢 GPL DISPONIBLE':gpl==='Non'?'🔴 GPL INDISPONIBLE':gpl==='À négocier'?'🟠 GPL : À NÉGOCIER':'GPL À VÉRIFIER';
       var source=v.gpl?'Signalement utilisateur'+(v.updatedAt?' · '+new Date(v.updatedAt).toLocaleString('fr-FR'):''):'Disponibilité déclarée par la source officielle';
       var cigarettes=shop==='Non'?'':shop==='Oui'?'<div class="cigLine">🚬 Cigarettes : '+esc(v.cigarettes||'à vérifier')+'</div>':'';
-      return '<article class="card"><div class="cardTools"><button class="favStar '+(isFavorite(s)?'active':'')+'" type="button" data-fav="'+i+'">★</button></div><div class="cardTop"><div class="rank">'+(i+1)+'</div><div class="main"><div class="name">'+esc(name)+'</div><div class="addr">'+esc(s.address)+' · '+esc(s.city)+'</div></div><div class="price"><b>'+money(s.price)+'</b><span>/ litre GPL</span></div></div><div class="fuelVerifyResult '+(gpl==='Oui'?'good':gpl==='Non'?'bad':'depends')+'">'+gplText+'</div><div class="meta">'+esc(source)+'</div><div class="badges"><span class="badge distance">📍 '+esc(dist(s.distanceKm))+' à vol d’oiseau</span><span class="badge shop">'+(shop==='Non'?'Sans boutique déclarée':shop==='Oui'?'🏪 Avec boutique':'Boutique non renseignée')+'</span></div><div class="meta">🕒 '+esc(state.detail||state.text||'Horaires non renseignés')+'</div>'+cigarettes+'<div class="actions"><a class="go" target="_blank" rel="noopener" href="'+esc(navUrl(s))+'">ALLER À LA STATION</a><button class="details" type="button" data-verify="'+i+'">HORAIRES / INFORMATIONS</button></div></article>';
+      return '<article class="card">'+(s.savedOnly?'<div class="savedNote">Station enregistrée · prix et disponibilité à actualiser</div>':'')+'<div class="cardTools"><button class="favStar '+(isFavorite(s)?'active':'')+'" type="button" aria-label="'+(isFavorite(s)?'Retirer des favoris':'Ajouter aux favoris')+'" aria-pressed="'+isFavorite(s)+'" data-fav="'+i+'">★</button></div><div class="cardTop"><div class="rank">'+(i+1)+'</div><div class="main"><div class="name">'+esc(name)+'</div><div class="addr">'+esc(s.address)+' · '+esc(s.city)+'</div></div><div class="price"><b>'+money(s.price)+'</b><span>/ litre GPL</span></div></div><div class="fuelVerifyResult '+(gpl==='Oui'?'good':gpl==='Non'?'bad':'depends')+'">'+gplText+'</div><div class="meta">'+esc(source)+'</div><div class="badges"><span class="badge distance">📍 '+(s.savedOnly?'Distance à actualiser':esc(dist(s.distanceKm))+' à vol d’oiseau')+'</span><span class="badge shop">'+(shop==='Non'?'Sans boutique déclarée':shop==='Oui'?'🏪 Avec boutique':'Boutique non renseignée')+'</span></div><div class="meta">🕒 '+esc(state.detail||state.text||'Horaires non renseignés')+'</div>'+cigarettes+'<div class="actions"><a class="go" target="_blank" rel="noopener" href="'+esc(navUrl(s))+'">ALLER À LA STATION</a><button class="details" type="button" data-verify="'+i+'">HORAIRES / INFORMATIONS</button></div></article>';
     }).join('');
     list.querySelectorAll('[data-verify]').forEach(function(btn){btn.onclick=function(){openVerify(Number(btn.dataset.verify));};});
-    list.querySelectorAll('[data-fav]').forEach(function(btn){btn.onclick=function(){var on=toggleFavorite(currentItems[Number(btn.dataset.fav)]);btn.classList.toggle('active',on);};});
+    list.querySelectorAll('[data-fav]').forEach(function(btn){btn.onclick=function(){toggleFavorite(currentItems[Number(btn.dataset.fav)]);renderCurrent();};});
   }
   async function loadVerificationStates(items){
     var keys=(items||[]).map(stationKey).filter(Boolean);verificationStates={};if(!keys.length)return;
@@ -303,15 +311,15 @@
       var payload={stationKey:stationKey(s),deviceId:deviceId(),boutique:shop.value,gpl:gpl.value,cigarettes:shop.value==='Oui'?cig.value:'',manualHours:document.getElementById('manualHours').value.trim()};
       var r=await fetch('/api/fuel-station-verifications',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload),cache:'no-store'}),j=await r.json();
       if(!r.ok||!j.ok)throw Error(j.message||'Enregistrement impossible. Réessayez.');
-      verificationStates[payload.stationKey]=j.state;closeVerify();render(currentItems,'GPLc');
+      verificationStates[payload.stationKey]=j.state;closeVerify();renderCurrent();
     }catch(e){verifyMsg.textContent=e.message||'Enregistrement impossible';}finally{b.disabled=false;}
   };
   async function loadAt(lat,lon){
     if(fetching)return;fetching=true;loader.classList.add('on');list.innerHTML='';var fuel='GPLc';gpsLine.textContent='📍 GPS actuel utilisé — rayon maximum 20 km';
-    try{var r=await fetch('/api/fuel-stations?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon)+'&fuel='+encodeURIComponent(fuel),{cache:'no-store'}),j=await r.json();if(!r.ok||!j||!j.ok)throw new Error((j&&j.message)||'Recherche indisponible');await loadVerificationStates(j.stations||[]);render(j.stations||[],fuel);lastLoadAt=Date.now();updated.textContent='Actualisé '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}catch(e){list.innerHTML='<div class="empty">Impossible de récupérer les stations pour le moment.<br>'+esc(e.message||'Réessayez dans quelques instants.')+'</div>';title.textContent='Stations à ≤ 20 km';}finally{fetching=false;loader.classList.remove('on')}
+    try{var r=await fetch('/api/fuel-stations?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon)+'&fuel='+encodeURIComponent(fuel),{cache:'no-store'}),j=await r.json();if(!r.ok||!j||!j.ok)throw new Error((j&&j.message)||'Recherche indisponible');nearbyItems=j.stations||[];try{rememberFavorites(nearbyItems)}catch(_){}await loadVerificationStates(nearbyItems.concat(savedFavorites()));renderCurrent();lastLoadAt=Date.now();updated.textContent='Actualisé '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}catch(e){list.innerHTML='<div class="empty">Impossible de récupérer les stations pour le moment.<br>'+esc(e.message||'Réessayez dans quelques instants.')+'</div>';title.textContent='Stations à ≤ 20 km';}finally{if(favoritesMode)renderCurrent();fetching=false;loader.classList.remove('on')}
   }
-  function locate(force){if(!navigator.geolocation){gpsLine.textContent='❌ GPS non disponible sur ce téléphone';list.innerHTML='<div class="empty">La géolocalisation est nécessaire pour chercher dans un rayon de 20 km.</div>';return}gpsLine.textContent='📍 Recherche de votre position actuelle…';navigator.geolocation.getCurrentPosition(function(p){lastPos={lat:p.coords.latitude,lon:p.coords.longitude};loadAt(lastPos.lat,lastPos.lon)},function(){gpsLine.textContent='❌ Autorisez la localisation pour voir les stations proches';list.innerHTML='<div class="empty">Activez la localisation du navigateur puis appuyez sur ACTUALISER.</div>';},{enableHighAccuracy:true,maximumAge:force?0:45000,timeout:12000})}
-  document.getElementById('refresh').addEventListener('click',function(){locate(true)});document.addEventListener('visibilitychange',function(){if(!document.hidden&&Date.now()-lastLoadAt>120000)locate(true)});setInterval(function(){if(!document.hidden)locate(true)},300000);locate(false);
+  function locate(force){if(!navigator.geolocation){gpsLine.textContent='❌ GPS non disponible sur ce téléphone';list.innerHTML='<div class="empty">La géolocalisation est nécessaire pour chercher dans un rayon de 20 km.</div>';return}gpsLine.textContent='📍 Recherche de votre position actuelle…';navigator.geolocation.getCurrentPosition(function(p){lastPos={lat:p.coords.latitude,lon:p.coords.longitude};loadAt(lastPos.lat,lastPos.lon)},function(){gpsLine.textContent='❌ Autorisez la localisation pour voir les stations proches';list.innerHTML='<div class="empty">Activez la localisation du navigateur puis appuyez sur ACTUALISER.</div>';if(favoritesMode)renderCurrent();},{enableHighAccuracy:true,maximumAge:force?0:45000,timeout:12000})}
+  document.getElementById('refresh').addEventListener('click',function(){locate(true)});document.addEventListener('visibilitychange',function(){if(!document.hidden&&Date.now()-lastLoadAt>120000)locate(true)});setInterval(function(){if(!document.hidden)locate(true)},300000);renderCurrent();locate(false);
 })();
 </script>
 <script src="voice-assist-v486.js?v=487-stable"></script>
