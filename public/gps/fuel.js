@@ -60,18 +60,7 @@
   const distanceText = distance => distance < .02 ? 'Station à proximité' : 'Prochaine ≈ ' + (distance < 1 ? Math.max(10, Math.round(distance * 1000 / 10) * 10) + ' m' : distance.toFixed(1).replace('.', ',') + ' km');
   const stationKey = st => st.id + ':' + st.point.map(v=>v.toFixed(5)).join(',') + ':' + profileKey;
   const roadDistance = (st, here) => {const a=accessDistances.get(stationKey(st));return a && Number.isFinite(a.km)?Math.max(0,st.s-here.s)+a.km:null;};
-  function cheapest(list, types) {
-    let best = null;
-    for (const station of list) for (const type of types) {
-      const value = station[type];
-      if (Number.isFinite(value) && value > 0 && (!best || value < best.value)) best = {station,type,value};
-    }
-    return best;
-  }
-  const fuels = st => {
-    const petrol = cheapest([st], ['SP95','E10','SP98']);
-    return 'Gazole : '+price(st.Gazole)+' · Essence'+(petrol?' ('+petrol.type+')':'')+' : '+price(petrol?.value);
-  };
+  const fuels = st => 'Gazole : '+price(st.Gazole)+' · SP98 : '+price(st.SP98);
   let markerSignature='';
   function publishMarkers(list){const markers=list.map(st=>({id:st.id,lat:st.coords[0],lon:st.coords[1],name:st.name||st.city||'Station',prices:fuels(st)}));const signature=JSON.stringify(markers);if(signature===markerSignature)return;markerSignature=signature;window.gpsFuelMarkers=markers;window.dispatchEvent(new CustomEvent('gps-fuel-markers',{detail:markers}));}
   const modeName = () => profile.travelMode === 'pedestrian' ? 'À pied' : profile.roadMode === 'direct' ? 'Par les villes' : 'Grandes routes';
@@ -127,8 +116,7 @@
     panel.title = modeName() + ' · ' + list.length + ' stations repérées restantes · ' + cityCounts + ' · ' + (next.name || next.city || '') + ' · ' + status + ' · Accès vérifié sur le parcours sélectionné' + (next.updated ? ' · Prix déclaré le ' + new Date(next.updated).toLocaleDateString('fr-FR') : '');
     const dist = distance === null ? 'Distance routière indisponible' : distanceText(distance);
     const countLabel = pending || failures ? ' repérées · recherche en cours/incomplète' : ' restantes sur le trajet';
-    const petrol=cheapest([next],['SP95','E10','SP98']);
-    panel.innerHTML = '<b>⛽ '+list.length+' station'+(list.length>1?'s':'')+countLabel+'</b><div class="gps-station-distance">'+dist+'</div><div>Gazole : '+price(next.Gazole)+'</div><div>Essence'+(petrol?' ('+petrol.type+')':'')+' : '+price(petrol?.value)+'</div>';
+    panel.innerHTML = '<b>⛽ '+list.length+' station'+(list.length>1?'s':'')+countLabel+'</b><div class="gps-station-distance">'+dist+'</div><div>Gazole : '+price(next.Gazole)+'</div><div>SP98 : '+price(next.SP98)+'</div>';
     panel.dataset.remaining = String(list.length);
     panel.dataset.total = String(list.length);
     panel.dataset.mode = profile.roadMode || 'main';
