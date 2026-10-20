@@ -13,25 +13,43 @@ function render(){
  for(const button of buttons){const result=results[button.dataset.value];const el=button.querySelector('.route-metrics');
  if(!result){el.textContent='Calcul en attente…';continue;}
  if(!result.route){el.textContent=result.error||'Calcul…';continue;}
- const r=result.route,stats=result.stats,prefix=stats?.partial?'au moins ':'';
+ const r=result.route,stats=result.stats;
  el.textContent='Arrivée '+clock(Date.now()+r.summary.travelTimeInSeconds*1000)+' · '+duration(r.summary.travelTimeInSeconds)+' · '+(r.summary.lengthInMeters/1000).toLocaleString('fr-FR',{maximumFractionDigits:1})+' km'
  +(r.vehicleRestrictionsChecked?'\nProfil poids lourd · gabarit appliqué':'')
- +'\n'+(!stats?'Signalements : chargement…':stats.unavailable?'Signalements indisponibles':'Radars signalés : '+prefix+stats.danger+' · Bouchons : '+prefix+stats.traffic+' · Travaux : '+prefix+stats.works);
+ +'\n'+statsLabel(stats);
  }
 }
 function onRoute(report,points){
  const lat=Number(report.lat),lon=Number(report.lon);if(!Number.isFinite(lat)||!Number.isFinite(lon))return false;
- const scale=111195,cos=Math.cos(lat*Math.PI/180),radius=Math.max(65,Math.min(500,Number(report.radius)||65));
+ const scale=111195,cos=Math.cos(lat*Math.PI/180),radius=Math.max(20,Math.min(500,Number(report.radius)||65));
  for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i],x=(a[1]-lon)*cos*scale,y=(a[0]-lat)*scale,dx=(b[1]-a[1])*cos*scale,dy=(b[0]-a[0])*scale;const t=Math.max(0,Math.min(1,-(x*dx+y*dy)/(dx*dx+dy*dy||1)));if(Math.hypot(x+t*dx,y+t*dy)<=radius)return true;}return false;
 }
 async function stats(route,signal){
- try{const bounds=route.points.reduce((b,p)=>[Math.min(b[0],p[0]),Math.min(b[1],p[1]),Math.max(b[2],p[0]),Math.max(b[3],p[1])],[90,180,-90,-180]);
- const response=await fetch('/gps/api/route-reports?'+new URLSearchParams({bounds:bounds.join(',')}),{signal,cache:'no-store'});const data=await response.json();
- if(!response.ok||data.unavailable||!Array.isArray(data.reports))throw Error();
- const result={danger:0,traffic:0,works:0,partial:!!data.partial},seen=new Set();
- for(const report of data.reports){if(seen.has(report.id)||Number(report.expires)<=Date.now()||!onRoute(report,route.points))continue;seen.add(report.id);if(Object.hasOwn(result,report.kind))result[report.kind]++;}
+ const bounds=route.points.reduce((b,p)=>[Math.min(b[0],p[0]),Math.min(b[1],p[1]),Math.max(b[2],p[0]),Math.max(b[3],p[1])],[90,180,-90,-180]),query=new URLSearchParams({bounds:bounds.join(',')});
+ const [community,official]=await Promise.allSettled([
+ fetch('/gps/api/route-reports?'+query,{signal,cache:'no-store'}).then(async r=>{const d=await r.json();if(!r.ok||d.unavailable||!Array.isArray(d.reports))throw Error();return d;}),
+ fetch('/gps/api/road-context?'+query,{signal,cache:'no-store'}).then(async r=>{if(!r.ok)throw Error();return r.json();})
+ ]);
+ if(signal.aborted)throw new DOMException('Annulé','AbortError');
+ const result={danger:0,traffic:0,works:0,partial:false,userAvailable:community.status==='fulfilled',fixed:null,liveTraffic:null,liveWorks:null,congestions:[]};
+ if(result.userAvailable){result.partial=community.value.partial;const seen=new Set();for(const r of community.value.reports){if(seen.has(r.id)||Number(r.expires)<=Date.now()||!onRoute(r,route.points))continue;seen.add(r.id);if(['danger','traffic','works'].includes(r.kind))result[r.kind]++;}}
+ if(official.status==='fulfilled'){
+ const d=official.value;
+ if(d.fixed?.available)result.fixed=new Set(d.fixed.items.filter(r=>onRoute(r,route.points)).map(r=>r.id)).size;
+ if(d.traffic?.available){const events=d.traffic.events.filter(r=>onRoute(r,route.points));result.liveTraffic=new Set(events.filter(r=>r.kind==='traffic').map(r=>r.id)).size;result.liveWorks=new Set(events.filter(r=>r.kind==='works').map(r=>r.id)).size;result.updatedAt=d.traffic.updatedAt;result.congestions=[...new Map(events.filter(r=>r.kind==='traffic'&&Number.isFinite(r.lengthKm)&&r.lengthKm>0).map(r=>[r.id,r.lengthKm])).values()];}
+ }
  return result;
- }catch(e){if(signal.aborted)throw e;return {unavailable:true};}
+}
+function statsLabel(s){
+ if(!s)return 'Informations en cours…';
+ const user=k=>s.userAvailable?(s.partial?'au moins ':'')+s[k]:'indisponibles',live=n=>n===null?'indisponible':String(n);
+ const alerts=[];
+ if(s.liveTraffic>0||s.traffic>0){
+ const lengths=(s.congestions||[]).map(km=>km.toLocaleString('fr-FR',{maximumFractionDigits:1})+' km').join(', ');
+ alerts.push('⚠️ '+(lengths?'Bouchon signalé : '+lengths+' sur cette route':'Bouchon sur le trajet')+' — arrivée possiblement retardée');
+ }
+ if(s.liveWorks>0||s.works>0)alerts.push('⚠️ Travaux sur le trajet — arrivée possiblement retardée');
+ return 'Radars fixes près du tracé : '+live(s.fixed)+' (12/2025)\nRadars signalés : '+user('danger')+'\nBouchons : '+live(s.liveTraffic)+' en cours · '+user('traffic')+' signalés\nTravaux : '+live(s.liveWorks)+' en cours · '+user('works')+' signalés'+(alerts.length?'\n'+alerts.join('\n'):'')+(s.updatedAt?'\nBison Futé · '+clock(s.updatedAt):'');
 }
 async function calculate(force=false){
  const selection=window.couteauGpsPlanner.getSelection();if(!selection.destination||$('gpsPlanner').hidden)return;
@@ -64,6 +82,8 @@ window.addEventListener('gps-route-options-change',schedule);
 for(const id of ['length','width','height','weight'])$(id).addEventListener('input',schedule);
 $('retryRouteComparison').onclick=()=>calculate(true).catch(e=>{$('routeComparisonStatus').textContent=e.message;});
 window.addEventListener('pagehide',cancel);
+let refreshBusy=false;
+setInterval(async()=>{if(document.hidden||$('gpsPlanner').hidden||walking||refreshBusy)return;refreshBusy=true;const run=generation,abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),25000);try{for(const result of Object.values(results)){if(!result.route)continue;const updated=await stats(result.route,abort.signal);if(run!==generation)return;result.stats=updated;}render();}catch{}finally{clearTimeout(timeout);refreshBusy=false;}},120000);
 setInterval(()=>{if(!$('gpsPlanner').hidden)render();},30000);
 schedule();
 })();

@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {lambert93,normalizeEvents,congestionLength} from '../src/gps/road-context.mjs';
+const [lat,lon]=lambert93(700000,6600000);assert(Math.abs(lat-46.5)<.00001);assert(Math.abs(lon-3)<.00001);
+const feature={id:'123-0',properties:{type:'BOUCHON',etat_evenement:'EFFECTIF',timestampCreation:100,urlcpc:'/data/data-20261020-142926/evenementsOL6/maintenant/cpc/123.json'},geometry:{type:'Point',coordinates:[700000,6600000]}};
+const result=normalizeEvents({features:[feature]},200);assert.equal(result.length,1);assert.equal(result[0].id,'123');assert(result[0].detailPath);
+for(const state of ['TERMINE','PREVISIONNEL','ANNULE'])assert.equal(normalizeEvents({features:[{...feature,properties:{...feature.properties,etat_evenement:state}}]},200).length,0);
+assert.equal(normalizeEvents({features:[feature]},50).length,0);
+assert.equal(congestionLength([['title','works',[],['Chantier','de 8 km','Ralentissement','de 4,6 km<br/>entre les PR']]]),4.6);
+assert.equal(congestionLength([['Chantier','de 8 km']]),null);
+assert.equal(congestionLength([['Bouchon','de 5 km']]),5);
+console.log('PASS projection, active events, safe source path and sourced congestion length');

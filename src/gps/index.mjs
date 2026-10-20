@@ -1,3 +1,4 @@
+import { roadContext } from './road-context.mjs';
 import { routeFuel } from './fuel.mjs';
 import { payload, convert } from './convoy.mjs';
 import { search } from './commerce.mjs';
@@ -115,6 +116,7 @@ export async function handleGps(request,env,ctx,mainFetch) {
   try {
     if(['/gps.html','/gps-integre-v2.html','/gps/index.html','/gps'].includes(path)) return new Response(null,{status:302,headers:{Location:'/gps/'+url.search,'Cache-Control':'no-store'}});
     if(path==='/gps/api/route'&&request.method==='POST')return route(request,env,ctx);
+    if(path==='/gps/api/road-context'&&request.method==='GET')return roadContext(request,ctx);
     if(path==='/gps/api/fuel'&&request.method==='GET')return routeFuel(request);
     if(path==='/gps/api/geocode'&&request.method==='GET')return geocode(request);
     if(path==='/gps/api/search'&&request.method==='GET')return search(request,env,ctx,{fetch:geocode});
