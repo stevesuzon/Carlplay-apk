@@ -53,16 +53,16 @@
   function stopPreview(){previewRun++;previewAbort?.abort();clearTimeout(previewTimeout);$('destinationStreet').hidden=true;$('destinationStreet').removeAttribute('src');}
   async function showDestinationPreview(place){
     stopPreview();const run=previewRun,frame=$('destinationStreet'),status=$('destinationImageStatus');
-    status.hidden=false;status.textContent='Recherche d’une photo de rue…';$('destinationCaption').textContent='Photo de rue · Panoramax';
+    status.hidden=false;status.textContent='Recherche d’une vue à 360°…';$('destinationCaption').textContent='Photo de rue · Panoramax';
     const abort=new AbortController();previewAbort=abort;previewTimeout=setTimeout(()=>abort.abort(),12000);
     try{
       const response=await fetch('/gps/api/panorama?'+new URLSearchParams({lat:place.lat,lon:place.lon}),{signal:abort.signal});const data=await response.json();if(run!==previewRun)return;clearTimeout(previewTimeout);
-      if(!response.ok||!data.panorama?.viewer?.startsWith('/gps/panorama-viewer?'))throw Error();
+      if(!response.ok||!data.panorama?.panoramic||!data.panorama?.viewer?.startsWith('/gps/panorama-viewer?'))throw Error();
       const p=data.panorama,approximate=['municipality','city','locality'].includes(place.precision);
-      $('destinationCaption').textContent='Photo de rue · Panoramax · à '+p.distance+' m du point'+(approximate?' · centre de la ville':'');
+      $('destinationCaption').textContent='Vue à 360° · faites glisser pour regarder autour · à '+p.distance+' m du point'+(approximate?' · centre de la ville':'');
       frame.src=p.viewer;frame.hidden=false;status.textContent='Chargement de la photo de rue…';
       previewTimeout=setTimeout(()=>{if(run===previewRun){frame.hidden=true;frame.removeAttribute('src');status.hidden=false;status.textContent='Photo de rue indisponible. Vous pouvez confirmer le trajet.';}},22000);
-    }catch{if(run!==previewRun)return;clearTimeout(previewTimeout);status.textContent='Aucune photo de rue disponible ici. Vous pouvez confirmer le trajet.';}
+    }catch{if(run!==previewRun)return;clearTimeout(previewTimeout);status.textContent='Aucune vue à 360° disponible à moins de 200 m. Vous pouvez confirmer le trajet.';}
   }
   window.addEventListener('message',event=>{
     const frame=$('destinationStreet');if(event.origin!==location.origin||event.source!==frame.contentWindow||frame.hidden)return;
