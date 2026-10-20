@@ -11,7 +11,7 @@
     const used=new Set(combinations);let choice,price,key,attempt=0;
     do{choice=Math.floor(Math.random()*props.length);price=(4+Math.floor(Math.random()*497))*5;key=choice+':'+price;if(++attempt>50){let n=0;while(used.has((n%props.length)+':'+((4+Math.floor(n/props.length))*5)))n++;choice=n%props.length;price=(4+Math.floor(n/props.length))*5;key=choice+':'+price;break;}}while(used.has(key));
     combinations.push(key);combinations=combinations.slice(-1000);try{localStorage.setItem('gps-fun-combinations',JSON.stringify(combinations));}catch{}
-    return {choice,price,prop:props[choice],quip:Math.random()<.4?quips[Math.floor(Math.random()*quips.length)]:null,tutelle:Math.random()<.6};
+    return {choice,price,prop:props[choice],quip:Math.random()<.4?quips[Math.floor(Math.random()*quips.length)]:null,tutelle:Math.random()<.15};
   }
 
   function source(){return window.couteauWalkAR?.getFrame()||(!video.paused&&video.readyState>=2&&video.srcObject?video:null);}
