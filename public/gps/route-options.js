@@ -42,14 +42,19 @@ async function stats(route,signal){
 }
 function statsLabel(s){
  if(!s)return 'Informations en cours…';
- const user=k=>s.userAvailable?(s.partial?'au moins ':'')+s[k]:'indisponibles',live=n=>n===null?'indisponible':String(n);
+ const total=(official,key)=>{
+ const hasOfficial=Number.isFinite(official),hasCommunity=s.userAvailable;
+ if(!hasOfficial&&!hasCommunity)return 'indisponible';
+ const count=(hasOfficial?official:0)+(hasCommunity?s[key]:0);
+ return ((!hasOfficial||!hasCommunity||s.partial)?'au moins ':'')+count;
+ };
  const alerts=[];
  if(s.liveTraffic>0||s.traffic>0){
  const lengths=(s.congestions||[]).map(km=>km.toLocaleString('fr-FR',{maximumFractionDigits:1})+' km').join(', ');
  alerts.push('⚠️ '+(lengths?'Bouchon signalé : '+lengths+' sur cette route':'Bouchon sur le trajet')+' — arrivée possiblement retardée');
  }
  if(s.liveWorks>0||s.works>0)alerts.push('⚠️ Travaux sur le trajet — arrivée possiblement retardée');
- return 'Radars fixes près du tracé : '+live(s.fixed)+' (12/2025)\nRadars signalés : '+user('danger')+'\nBouchons : '+live(s.liveTraffic)+' en cours · '+user('traffic')+' signalés\nTravaux : '+live(s.liveWorks)+' en cours · '+user('works')+' signalés'+(alerts.length?'\n'+alerts.join('\n'):'')+(s.updatedAt?'\nBison Futé · '+clock(s.updatedAt):'');
+ return 'Radars signalés : '+total(s.fixed,'danger')+'\nBouchons signalés : '+total(s.liveTraffic,'traffic')+'\nTravaux signalés : '+total(s.liveWorks,'works')+(alerts.length?'\n'+alerts.join('\n'):'');
 }
 async function calculate(force=false){
  const selection=window.couteauGpsPlanner.getSelection();if(!selection.destination||$('gpsPlanner').hidden)return;
