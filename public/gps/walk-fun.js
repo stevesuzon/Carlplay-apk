@@ -38,14 +38,14 @@
         if(gift.choice===0)el.classList.add('fun-pig');layer.appendChild(el);best={id,el};
       }
       used.add(best.id);best.cx=cx;best.cy=cy;
-      const px=cx*scale+ox,py=y*scale+oy-8,hud=camera.querySelector('.walk-hud').getBoundingClientRect();
-      // Keep the label attached to the person; use a compact badge when the head is near the HUD.
+      const px=cx*scale+ox,py=y*scale+oy-Math.max(32,Math.min(64,h*scale*.08)),hud=camera.querySelector('.walk-hud').getBoundingClientRect();
+      // Anchor the entire badge above the head; never push it down onto the face.
       const top=Math.max(8,hud.bottom-rect.top+8),bottom=rect.height-190;
       best.el.classList.toggle('fun-compact',py-150<top);
-      best.el.hidden=px<0||px>rect.width||py>bottom||y*scale+oy+h*scale<top;
-      const labelHeight=best.el.offsetHeight||180,halfWidth=(best.el.offsetWidth||190)/2+8;
+      best.el.hidden=px<0||px>rect.width||py>bottom||py<top+40;
+      const halfWidth=(best.el.offsetWidth||190)/2+8;
       best.el.style.left=Math.max(halfWidth,Math.min(rect.width-halfWidth,px))+'px';
-      best.el.style.top=Math.min(bottom,Math.max(top+labelHeight,py))+'px';fresh.push(best);
+      best.el.style.top=Math.min(bottom,py)+'px';fresh.push(best);
     }
     for(const t of tracks)if(!used.has(t.id))t.el.remove();tracks=fresh;
   }

@@ -30,3 +30,6 @@
 #walkFunLayer .fun-compact .fun-object{font-size:36px;line-height:40px}
 #walkFunLayer .fun-compact .fun-price{font-size:22px;padding:4px 7px}
 #walkFunLayer .fun-compact .fun-name{font-size:15px;padding:5px 7px}
+
+/* Include the extra message inside the badge so nothing hangs over the face. */
+#walkFunLayer .fun-quip{position:static;left:auto;top:auto;transform:none;box-sizing:border-box;width:100%;margin-top:8px}
