@@ -4969,7 +4969,7 @@ function fuelStationAutomate24(fields, services) {
 }
 
 async function fuelStationNamesFromOsm(lat, lon) {
-  const q = `[out:json][timeout:8];nwr(around:30500,${lat},${lon})["amenity"="fuel"];out center tags;`;
+  const q = `[out:json][timeout:8];nwr(around:20500,${lat},${lon})["amenity"="fuel"];out center tags;`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 2600);
   try {
@@ -5031,7 +5031,7 @@ async function fuelStationsNearby(request) {
   }
   const cfg = FUEL_STATION_FIELDS[fuel];
   const point = `geom'POINT(${lon} ${lat})'`;
-  const where = `within_distance(geom, ${point}, 30km) AND ${cfg.price} is not null`;
+  const where = `within_distance(geom, ${point}, 20km) AND ${cfg.price} is not null`;
   const v2 = new URL(`https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/${FUEL_STATION_DATASET}/records`);
   v2.searchParams.set("where", where);
   v2.searchParams.set("order_by", `${cfg.price} ASC`);
@@ -5050,7 +5050,7 @@ async function fuelStationsNearby(request) {
       v1.searchParams.set("dataset", FUEL_STATION_DATASET);
       v1.searchParams.set("rows", "100");
       v1.searchParams.set("sort", cfg.price);
-      v1.searchParams.set("geofilter.distance", `${lat},${lon},30000`);
+      v1.searchParams.set("geofilter.distance", `${lat},${lon},20000`);
       const r = await fetch(v1.toString(), { headers: { "User-Agent":"Couteau-Suisse/330 (+fuel-stations)" }, cf: { cacheTtl: 120, cacheEverything: true } });
       if (!r.ok) throw new Error(`HTTP_${r.status}`);
       const j = await r.json();
@@ -5067,7 +5067,7 @@ async function fuelStationsNearby(request) {
     const price = Number(f[cfg.price]);
     if (!coords || !Number.isFinite(price) || price <= 0) continue;
     const distanceKm = haversineMeters(lat, lon, coords.lat, coords.lon) / 1000;
-    if (!Number.isFinite(distanceKm) || distanceKm > 30) continue;
+    if (!Number.isFinite(distanceKm) || distanceKm > 20) continue;
     const services = fuelStationServices(f);
     const automate24 = fuelStationAutomate24(f, services);
     stations.push({
@@ -5097,7 +5097,7 @@ async function fuelStationsNearby(request) {
     applyFuelStationNames(stations, osmStations);
   } catch (_) {}
   stations.sort((a,b) => a.price - b.price || a.distanceKm - b.distanceKm);
-  return json({ ok:true, radiusKm:30, fuel, source, stations, count:stations.length, dataNotice:"Prix et informations issus du flux officiel français. Nom/enseigne complété depuis OpenStreetMap quand disponible." });
+  return json({ ok:true, radiusKm:20, fuel, source, stations, count:stations.length, dataNotice:"Prix et informations issus du flux officiel français. Nom/enseigne complété depuis OpenStreetMap quand disponible." });
 }
 
 async function ensureFuelStationVerificationTable(env) {
