@@ -17,7 +17,7 @@ body{background:#10283d}
 .navigation-hud{top:calc(78px + env(safe-area-inset-top))!important}.gps-app .brand{display:none!important}
 .appbar .gps-return{display:flex!important;position:fixed;top:var(--gps-rail-top);left:var(--gps-ui-left);width:62px;height:42px;z-index:1000;background:#273d59;color:white;border:1px solid #94a2ba;border-radius:14px;justify-content:center;text-decoration:none;padding:5px}.appbar .gps-return::after{content:'Accueil';font-size:9px}.appbar .gps-return svg{width:20px}.gps-planning .gps-app>*:not(.map){visibility:hidden!important}
 #walkCamera{position:fixed;inset:0;z-index:4000;background:#06101b;color:#fff;font-family:Arial}#walkCamera video{position:absolute;width:100%;height:100%;object-fit:cover}.walk-hud{position:absolute;top:calc(18px + env(safe-area-inset-top));left:16px;right:16px;text-align:center;background:#112944dc;border:2px solid #70d4ff;border-radius:18px;padding:16px;font-size:21px}.walk-hud strong{font-size:70px;color:#67e9ae}.walk-hud p{margin:8px}#closeWalkCamera{position:absolute;bottom:calc(24px + env(safe-area-inset-bottom));left:10%;width:80%;padding:16px;background:#10283d;color:white;border:2px solid white;border-radius:12px;font-weight:bold}#openWalkCamera{position:fixed;bottom:calc(70px + env(safe-area-inset-bottom));right:12px;z-index:1100;padding:12px;background:#155c45;color:white;border:1px solid #72f4bb;border-radius:12px}
-@media(orientation:landscape) and (max-height:600px){#gpsPlanner{padding-top:8px}.planner-card{max-width:760px}.planner-head{padding-bottom:6px}.mode-grid{margin:8px 0}.mode-grid button span{font-size:24px;margin:0}.planner-card h1{font-size:22px;margin-bottom:10px}#gpsNextDirection{top:calc(57px + env(safe-area-inset-top));font-size:16px;padding:6px 10px}.navigation-hud{top:calc(94px + env(safe-area-inset-top))!important;max-width:37vw!important}#changeGpsAddress{min-height:36px;padding:7px 10px}}
+@media(orientation:landscape) and (max-height:600px){#gpsPlanner{padding-top:8px}.planner-card{max-width:760px}.planner-head{padding-bottom:6px}.mode-grid{margin:8px 0}.mode-grid button span{font-size:24px;margin:0}.planner-card h1{font-size:22px;margin-bottom:10px}#gpsNextDirection{top:calc(57px + env(safe-area-inset-top));font-size:16px;padding:6px 10px}#changeGpsAddress{min-height:36px;padding:7px 10px}}
 
 /* CSS3 mode pictograms: no generated image assets. */
 .mode-grid .mode-icon{display:block;position:relative;width:60px;height:40px;margin:0 auto 8px;color:currentColor}
@@ -90,3 +90,34 @@ html,body{overscroll-behavior-x:none}.gps-app .map{overscroll-behavior:none;touc
 .walk-route-preview{padding:14px;border:1px solid #75cdd6;border-radius:12px;color:#fff;font-size:19px;font-weight:700;line-height:1.5;background:#193b50}.walk-route-preview[hidden]{display:none}
 
 #roadOptions [data-choice="roadMode"]{font-size:25px;padding:18px}#roadOptions .route-metrics{font-size:19px;font-weight:650;line-height:1.55}#routeComparisonStatus[hidden]{display:none}
+
+/* Clear driving view: compact guidance above, fuel below, report rail unobstructed. */
+.navigation-hud{
+ top:var(--gps-rail-top)!important;
+ width:min(245px,calc(100vw - 96px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)))!important;
+ max-width:none!important;padding:8px 10px!important;border-radius:13px!important;
+ background:rgba(16,35,54,.63)!important;box-shadow:0 2px 8px #0003!important;
+ backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+ text-shadow:0 1px 3px #000,0 0 5px #0008;
+ display:grid!important;grid-template-columns:minmax(0,1fr) 34px;gap:5px 6px!important;
+}
+.navigation-hud .hud-totals{grid-column:1/-1;font-size:17px!important;align-items:center}
+.navigation-hud .hud-totals small{font-size:10px;margin-top:1px}
+.navigation-hud .hud-direction{grid-column:1;min-width:0;font-size:13px!important;line-height:1.3!important;margin:0!important;gap:5px}
+.navigation-hud .hud-direction>strong{min-width:0;overflow-wrap:anywhere}
+.navigation-hud .gps-turn-distance{font-size:21px;margin-bottom:2px}
+.navigation-hud .hud-actions{grid-column:2;grid-row:2;align-self:start;margin:0!important}
+.navigation-hud .hud-actions button{min-width:34px;min-height:34px;padding:6px!important}
+.navigation-hud .recenter-trip{background:#19354bbd;border-radius:9px;min-height:36px}
+#gpsFuelInfo{left:auto!important;right:var(--gps-ui-right)!important;width:195px!important;background:#10283dd9!important}
+.road-report-tools button{box-sizing:border-box;overflow:hidden}
+.road-report-tools button>span{display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0}
+.road-report-tools button>span svg{display:block;width:36px!important;height:27px!important;max-width:100%}
+@media(orientation:landscape){
+ .navigation-hud{top:calc(60px + env(safe-area-inset-top,0px))!important;width:min(260px,34vw)!important}
+ .road-report-tools{top:calc(var(--gps-rail-top) + 96px)!important;gap:5px!important}
+ .road-report-tools button{height:44px!important;min-height:44px!important;gap:1px!important}
+ .road-report-tools button>span{height:26px;font-size:22px!important}
+ .road-report-tools small{font-size:10px!important;line-height:12px}
+ #gpsFuelInfo{width:205px!important;bottom:calc(6px + env(safe-area-inset-bottom,0px))!important;padding:6px 8px!important}
+}
