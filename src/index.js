@@ -5153,9 +5153,9 @@ async function submitFuelStationVerification(request, env) {
     const body=await request.json().catch(()=>({}));
     const stationKey=cleanFuelStationKey(body.stationKey),deviceId=String(body.deviceId||'').trim().slice(0,180);
     const yesno=v=>v==='Oui'||v==='Non'?v:'';
-    const boutique=yesno(body.boutique),gpl=yesno(body.gpl),cigarettes=boutique==='Oui'?yesno(body.cigarettes):'';
+    const boutique=['Oui','Non','Non renseignée'].includes(body.boutique)?body.boutique:'',gpl=['Oui','Non','À négocier'].includes(body.gpl)?body.gpl:'',cigarettes=boutique==='Oui'?yesno(body.cigarettes):'';
     const manualHours=String(body.manualHours||'').replace(/[\u0000-\u001f]/g,' ').trim().slice(0,120);
-    if(!stationKey||!deviceId||!boutique||!gpl||(boutique==='Oui'&&!cigarettes))return json({ok:false,message:'Choisissez Boutique, GPL et, avec boutique, Cigarettes : OUI ou NON.'},400);
+    if(!stationKey||!deviceId||!boutique||!gpl||(boutique==='Oui'&&!cigarettes))return json({ok:false,message:'Choisissez GPL : OUI, NON ou À NÉGOCIER, et Cigarettes OUI/NON si la station a une boutique.'},400);
     await env.DB.prepare(`INSERT INTO fuel_station_verifications(station_key,payment,boutique,open24,gpl,cigarettes,opinion,device_id,manual_hours,updated_at)
       VALUES(?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
       ON CONFLICT(station_key) DO UPDATE SET boutique=excluded.boutique,gpl=excluded.gpl,cigarettes=excluded.cigarettes,opinion='',manual_hours=excluded.manual_hours,device_id=excluded.device_id,updated_at=CURRENT_TIMESTAMP`)

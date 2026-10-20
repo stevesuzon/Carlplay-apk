@@ -77,6 +77,10 @@
 <script defer src="/accessibility-zoom-v466.js?v=470-direct-load"></script>
 <link rel="stylesheet" href="/subscription-locks.css?v=471-restore">
 <script defer src="/subscription-web.js?v=471-restore"></script>
+
+<style id="gpl-readable-cards">
+.card{padding:20px!important}.name{font-size:25px!important;line-height:1.2!important}.price b{font-size:32px!important}.price span,.addr,.badge,.meta{font-size:17px!important;line-height:1.4!important}.fuelVerifyResult,.cigLine{font-size:24px!important;line-height:1.3!important;padding:14px!important}.actions{grid-template-columns:1fr!important}.actions a,.actions button{font-size:19px!important;min-height:58px!important}.modal{width:min(680px,100%);padding:20px}.modal h2{font-size:28px}.modal p,.vgroup label,.manualHoursInput{font-size:20px!important;line-height:1.4}.choiceGrid{gap:10px!important}#gplAvailableGroup .choiceGrid{grid-template-columns:1fr!important}.choice span{font-size:23px!important;min-height:62px!important;padding:12px!important}.stationShopInfo{background:#1c3c55;border-radius:12px;padding:12px}.fuelVerifyResult.depends{background:#795311;color:#fff2c3}.manualHoursInput{width:100%;min-height:56px}.modalActions button{min-height:60px;font-size:19px}
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -107,8 +111,8 @@
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="verifyTitle">
     <h2 id="verifyTitle">⛽ Informations de la station</h2>
     <p id="verifyHelp">Complète uniquement les informations à vérifier.</p>
-<div id="boutiqueGroup" class="vgroup"><label>Boutique présente</label><div class="choiceGrid two"><label class="choice"><input type="radio" name="vBoutique" value="Oui"><span>OUI</span></label><label class="choice"><input type="radio" name="vBoutique" value="Non"><span>NON</span></label></div></div>
-<div id="gplAvailableGroup" class="vgroup"><label>GPL disponible</label><div class="choiceGrid two"><label class="choice"><input type="radio" name="vGpl" value="Oui"><span>OUI</span></label><label class="choice"><input type="radio" name="vGpl" value="Non"><span>NON</span></label></div></div>
+<input id="verifiedBoutique" type="hidden"><p id="boutiqueInfo" class="stationShopInfo"></p>
+<div id="gplAvailableGroup" class="vgroup"><label>GPL disponible</label><div class="choiceGrid two"><label class="choice"><input type="radio" name="vGpl" value="Oui"><span>OUI</span></label><label class="choice"><input type="radio" name="vGpl" value="Non"><span>NON</span></label><label class="choice"><input type="radio" name="vGpl" value="À négocier"><span>À NÉGOCIER</span></label></div></div>
 <div id="cigarettesGroup" class="vgroup"><label>Cigarettes vendues dans la boutique</label><div class="choiceGrid two"><label class="choice"><input type="radio" name="vCigarettes" value="Oui"><span>OUI</span></label><label class="choice"><input type="radio" name="vCigarettes" value="Non"><span>NON</span></label></div></div>
     <div id="manualHoursGroup" class="vgroup" style="display:none">
       <label>Horaires d’ouverture de la station</label>
@@ -259,11 +263,11 @@
     title.textContent=currentItems.length+' stations GPL à ≤ 30 km';
     if(!currentItems.length){list.innerHTML='<div class="empty">Aucune station GPL déclarée disponible dans un rayon de 30 km.</div>';return;}
     list.innerHTML=currentItems.map(function(s,i){
-      var v=verificationStates[stationKey(s)]||{},shop=shopState(s,v),state=currentStationStatus(s,v),gpl=v.gpl==='Non'?'Non':v.gpl==='Oui'?'Oui':s.gplAvailable?'Oui':'',name=s.name||s.brand||s.city||'Station GPL';
-      var gplText=gpl==='Oui'?'🟢 GPL DISPONIBLE':gpl==='Non'?'🔴 GPL INDISPONIBLE':'GPL À VÉRIFIER';
+      var v=verificationStates[stationKey(s)]||{},shop=shopState(s,v),state=currentStationStatus(s,v),gpl=['Oui','Non','À négocier'].includes(v.gpl)?v.gpl:s.gplAvailable?'Oui':'',name=s.name||s.brand||s.city||'Station GPL';
+      var gplText=gpl==='Oui'?'🟢 GPL DISPONIBLE':gpl==='Non'?'🔴 GPL INDISPONIBLE':gpl==='À négocier'?'🟠 GPL : À NÉGOCIER':'GPL À VÉRIFIER';
       var source=v.gpl?'Signalement utilisateur'+(v.updatedAt?' · '+new Date(v.updatedAt).toLocaleString('fr-FR'):''):'Disponibilité déclarée par la source officielle';
       var cigarettes=shop==='Non'?'':shop==='Oui'?'<div class="cigLine">🚬 Cigarettes : '+esc(v.cigarettes||'à vérifier')+'</div>':'';
-      return '<article class="card"><div class="cardTools"><button class="favStar '+(isFavorite(s)?'active':'')+'" type="button" data-fav="'+i+'">★</button></div><div class="cardTop"><div class="rank">'+(i+1)+'</div><div class="main"><div class="name">'+esc(name)+'</div><div class="addr">'+esc(s.address)+' · '+esc(s.city)+'</div></div><div class="price"><b>'+money(s.price)+'</b><span>/ litre GPL</span></div></div><div class="fuelVerifyResult '+(gpl==='Oui'?'good':'bad')+'">'+gplText+'</div><div class="meta">'+esc(source)+'</div><div class="badges"><span class="badge distance">📍 '+esc(dist(s.distanceKm))+' à vol d’oiseau</span><span class="badge shop">'+(shop==='Non'?'Sans boutique':shop==='Oui'?'🏪 Avec boutique':'Boutique à vérifier')+'</span></div><div class="meta">🕒 '+esc(state.detail||state.text||'Horaires non renseignés')+'</div>'+cigarettes+'<div class="actions"><a class="go" target="_blank" rel="noopener" href="'+esc(navUrl(s))+'">ALLER À LA STATION</a><button class="details" type="button" data-verify="'+i+'">HORAIRES / INFORMATIONS</button></div></article>';
+      return '<article class="card"><div class="cardTools"><button class="favStar '+(isFavorite(s)?'active':'')+'" type="button" data-fav="'+i+'">★</button></div><div class="cardTop"><div class="rank">'+(i+1)+'</div><div class="main"><div class="name">'+esc(name)+'</div><div class="addr">'+esc(s.address)+' · '+esc(s.city)+'</div></div><div class="price"><b>'+money(s.price)+'</b><span>/ litre GPL</span></div></div><div class="fuelVerifyResult '+(gpl==='Oui'?'good':gpl==='Non'?'bad':'depends')+'">'+gplText+'</div><div class="meta">'+esc(source)+'</div><div class="badges"><span class="badge distance">📍 '+esc(dist(s.distanceKm))+' à vol d’oiseau</span><span class="badge shop">'+(shop==='Non'?'Sans boutique déclarée':shop==='Oui'?'🏪 Avec boutique':'Boutique non renseignée')+'</span></div><div class="meta">🕒 '+esc(state.detail||state.text||'Horaires non renseignés')+'</div>'+cigarettes+'<div class="actions"><a class="go" target="_blank" rel="noopener" href="'+esc(navUrl(s))+'">ALLER À LA STATION</a><button class="details" type="button" data-verify="'+i+'">HORAIRES / INFORMATIONS</button></div></article>';
     }).join('');
     list.querySelectorAll('[data-verify]').forEach(function(btn){btn.onclick=function(){openVerify(Number(btn.dataset.verify));};});
     list.querySelectorAll('[data-fav]').forEach(function(btn){btn.onclick=function(){var on=toggleFavorite(currentItems[Number(btn.dataset.fav)]);btn.classList.toggle('active',on);};});
@@ -272,14 +276,14 @@
     var keys=(items||[]).map(stationKey).filter(Boolean);verificationStates={};if(!keys.length)return;
     try{var r=await fetch('/api/fuel-station-verifications/batch',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({keys:keys}),cache:'no-store'}),j=await r.json();if(r.ok&&j&&j.ok)verificationStates=j.states||{}}catch(_){}
   }
-  function updateShopFields(){var shop=document.querySelector('input[name="vBoutique"]:checked');document.getElementById('cigarettesGroup').style.display=shop&&shop.value==='Oui'?'block':'none';}
-  document.querySelectorAll('input[name="vBoutique"]').forEach(function(input){input.addEventListener('change',updateShopFields);});
+  function updateShopFields(){var shop=document.getElementById('verifiedBoutique');document.getElementById('cigarettesGroup').style.display=shop&&shop.value==='Oui'?'block':'none';}
   function openVerify(i){
     var s=currentItems[i];if(!s)return;var v=verificationStates[stationKey(s)]||{};verifyingIndex=i;
     document.getElementById('verifyTitle').textContent='⛽ '+(s.name||s.city||'Informations de la station');
     document.getElementById('manualHoursGroup').style.display='block';
     document.getElementById('verifyHelp').textContent='Prix GPL : '+money(s.price)+' / litre. '+(s.updatedAt?'Prix déclaré le '+new Date(s.updatedAt).toLocaleString('fr-FR')+'. ':'')+'Vos réponses seront partagées avec les autres utilisateurs. Horaires actuels : '+(currentStationStatus(s,v).detail||currentStationStatus(s,v).text||'non renseignés');
-    var values={vBoutique:shopState(s,v),vGpl:v.gpl|| (s.gplAvailable?'Oui':''),vCigarettes:v.cigarettes||''};
+    var knownShop=shopState(s,v);document.getElementById('verifiedBoutique').value=knownShop||'Non renseignée';document.getElementById('boutiqueInfo').textContent=knownShop==='Oui'?'🏪 Boutique présente':knownShop==='Non'?'Station sans boutique déclarée':'Boutique : non renseignée par la source';
+    var values={vGpl:v.gpl|| (s.gplAvailable?'Oui':''),vCigarettes:v.cigarettes||''};
     Object.keys(values).forEach(function(name){document.querySelectorAll('input[name="'+name+'"]').forEach(function(input){input.checked=input.value===values[name];});});
     updateShopFields();document.getElementById('manualHours').value=v.manualHours||'';
     verifyMsg.textContent='';modal.classList.add('on');modal.setAttribute('aria-hidden','false');
@@ -289,8 +293,8 @@
   document.getElementById('saveVerify').onclick=async function(){
     var s=currentItems[verifyingIndex];if(!s)return;var b=this;b.disabled=true;verifyMsg.textContent='Enregistrement…';
     try{
-      var shop=document.querySelector('input[name="vBoutique"]:checked'),gpl=document.querySelector('input[name="vGpl"]:checked'),cig=document.querySelector('input[name="vCigarettes"]:checked');
-      if(!shop||!gpl)throw Error('Choisissez Boutique et GPL : OUI ou NON.');
+      var shop=document.getElementById('verifiedBoutique'),gpl=document.querySelector('input[name="vGpl"]:checked'),cig=document.querySelector('input[name="vCigarettes"]:checked');
+      if(!gpl)throw Error('Choisissez GPL : OUI, NON ou À NÉGOCIER.');
       if(shop.value==='Oui'&&!cig)throw Error('Choisissez Cigarettes : OUI ou NON.');
       var payload={stationKey:stationKey(s),deviceId:deviceId(),boutique:shop.value,gpl:gpl.value,cigarettes:shop.value==='Oui'?cig.value:'',manualHours:document.getElementById('manualHours').value.trim()};
       var r=await fetch('/api/fuel-station-verifications',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload),cache:'no-store'}),j=await r.json();
