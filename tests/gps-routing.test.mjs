@@ -30,6 +30,11 @@ assert.throws(()=>convert({trip:{...trip,summary:{...trip.summary,has_toll:true,
 assert.throws(()=>convert({trip:{...trip,summary:{...trip.summary,has_toll:false,has_highway:true}}},constrained));
 assert.equal(convert({trip:{...trip,summary:{...trip.summary,has_toll:false,has_highway:false}}},constrained).vehicleRestrictionsChecked,true);
 const auto={...input,profile:{trailer:'none',tolls:false,roadMode:'main'}};
-assert.equal(payload(auto).costing,'auto');assert.equal(payload(auto).costing_options.auto.use_highways,1);assert.equal(payload(auto).costing_options.auto.use_tolls,0);
-assert.equal(convert({trip:{...trip,summary:{...trip.summary,has_toll:false},legs:[{...trip.legs[0],maneuvers:[{travel_type:'car',begin_shape_index:0,instruction:'Départ'}]}]}},auto).mode,'classic');
-console.log('PASS road constraints: city excludes highways, no toll verified, auto permits free highways.');
+assert.equal(payload(auto).costing,'auto');assert.equal(payload(auto).costing_options.auto.use_highways,0);assert.equal(payload(auto).costing_options.auto.use_tolls,0);
+assert.equal(convert({trip:{...trip,summary:{...trip.summary,has_toll:false,has_highway:false},legs:[{...trip.legs[0],maneuvers:[{travel_type:'car',begin_shape_index:0,instruction:'Départ'}]}]}},auto).mode,'classic');
+console.log('PASS road constraints: city excludes highways, no toll verified, main avoids highways; motorway option remains explicit.');
+
+for(const roadMode of ['main','direct','highway']){const p=payload({...input,profile:{...input.profile,roadMode}});assert.equal(p.costing,'truck');assert.equal(p.costing_options.truck.height,2.65);assert.equal(p.costing_options.truck.hgv_no_access_penalty,43200);assert.equal(p.costing_options.truck.use_highways,roadMode==='highway'?1:0);assert.equal(p.costing_options.truck.shortest,false);assert.equal(p.costing_options.truck.low_class_penalty,roadMode==='direct'?0:120);}
+assert.throws(()=>convert({trip:{...trip,summary:{...trip.summary,has_highway:false}}},{...input,profile:{...input.profile,roadMode:'highway'}}));
+assert.equal(convert({trip:{...trip,summary:{...trip.summary,has_highway:true}}},{...input,profile:{...input.profile,roadMode:'highway'}}).hasHighway,true);
+console.log('PASS three road policies and motorway result validation');

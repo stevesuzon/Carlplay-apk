@@ -5,7 +5,7 @@ export function payload(input){
  const truck=['small','large','trailer'].includes(p.trailer);
  const height=Number(p.height),length=Number(p.length),weight=Number(p.weight)/1000,width=p.width===''||p.width==null?2.6:Number(p.width);
  if(truck&&!(height>=1&&height<=5&&length>=2&&length<=25&&weight>=.5&&weight<=60&&width>=1&&width<=3.5))throw Error('Vérifiez les dimensions et le poids de votre attelage.');
- return {locations:[{lat:from[0],lon:from[1]},{lat:to[0],lon:to[1]}],costing:truck?'truck':'auto',costing_options:{[truck?'truck':'auto']:{...(truck?{height,length,weight,width,hgv_no_access_penalty:43200}:{}),ignore_restrictions:false,ignore_access:false,exclude_unpaved:true,use_highways:p.roadMode==='direct'?0:1,use_tolls:p.tolls===false?0:.5,low_class_penalty:p.roadMode==='direct'?30:120}},units:'kilometers',language:'fr-FR',shape_format:'geojson'};
+ return {locations:[{lat:from[0],lon:from[1]},{lat:to[0],lon:to[1]}],costing:truck?'truck':'auto',costing_options:{[truck?'truck':'auto']:{...(truck?{height,length,weight,width,hgv_no_access_penalty:43200}:{}),ignore_restrictions:false,ignore_access:false,exclude_unpaved:true,shortest:false,use_highways:p.roadMode==='highway'?1:0,use_tolls:p.tolls===false?0:.5,low_class_penalty:p.roadMode==='direct'?0:120}},units:'kilometers',language:'fr-FR',shape_format:'geojson'};
 }
 export function decode(shape){
  if(typeof shape!=='string')return shape?.coordinates;
@@ -18,7 +18,8 @@ export function convert(data,input){
  if(trip?.status!==0||!trip.legs?.length||!Number.isFinite(trip.summary?.length)||!Number.isFinite(trip.summary?.time)||trip.units!=='kilometers')throw Error('Aucun itinéraire adapté disponible.');
  if(trip.warnings?.length||data.warnings?.length)throw Error('Le moteur ne peut pas appliquer tous les paramètres. Aucun guidage lancé.');
  if(input.profile?.tolls===false&&trip.summary.has_toll!==false)throw Error('Aucun trajet sans péage vérifié trouvé. Modifiez vos choix de route.');
- if(input.profile?.roadMode==='direct'&&trip.summary.has_highway!==false)throw Error('Aucun trajet hors autoroute vérifié trouvé pour ce véhicule. Modifiez vos choix de route.');
+ if(['main','direct'].includes(input.profile?.roadMode)&&trip.summary.has_highway!==false)throw Error('Aucun trajet hors autoroute vérifié trouvé pour ce véhicule. Modifiez vos choix de route.');
+ if(input.profile?.roadMode==='highway'&&trip.summary.has_highway!==true)throw Error('Aucun trajet par autoroute disponible pour ces choix.');
  const points=[],instructions=[];let offset=0;
  for(const leg of trip.legs){
   const coords=decode(leg.shape);if(!Array.isArray(coords)||coords.length<2)throw Error('Géométrie du trajet indisponible.');
@@ -27,5 +28,5 @@ export function convert(data,input){
   points.push(...coords.map(c=>[c[1],c[0]]));offset+=lengths.at(-1);
  }
  if(!instructions.length)throw Error('Instructions de guidage indisponibles.');
- return {mode:truck?'large-trailer':'classic',provider:'Valhalla / OpenStreetMap',traffic:false,vehicleRestrictionsChecked:truck,vehicleDimensionsConfirmed:input.profile.confirmed===true,routingDimensions:truck?payload(input).costing_options.truck:undefined,summary:{lengthInMeters:trip.summary.length*1000,travelTimeInSeconds:trip.summary.time},points,instructions,notice:'Restrictions cartographiées prises en compte. Largeur de calcul '+(input.profile.width||'2.60')+' m'+(!input.profile.width?' provisoire, à confirmer':'')+'. Respectez la signalisation réelle.'};
+ return {mode:truck?'large-trailer':'classic',provider:'Valhalla / OpenStreetMap',traffic:false,roadMode:input.profile?.roadMode,hasHighway:trip.summary.has_highway,hasToll:trip.summary.has_toll,vehicleRestrictionsChecked:truck,vehicleDimensionsConfirmed:input.profile.confirmed===true,routingDimensions:truck?payload(input).costing_options.truck:undefined,summary:{lengthInMeters:trip.summary.length*1000,travelTimeInSeconds:trip.summary.time},points,instructions,notice:'Restrictions cartographiées prises en compte. Largeur de calcul '+(input.profile.width||'2.60')+' m'+(!input.profile.width?' provisoire, à confirmer':'')+'. Respectez la signalisation réelle.'};
 }

@@ -156,11 +156,7 @@ function gpsDuration(seconds) {
 }
 function gpsArrivalDifference(minutes) {
   if (!Math.round(minutes)) return "Vous êtes arrivé à l’heure prévue.";
-  return (
-    "Vous avez mis " +
-    gpsDuration(Math.abs(minutes) * 60) +
-    (minutes > 0 ? " de plus que prévu." : " de moins que prévu.")
-  );
+  return minutes > 0 ? "Vous avez mis "+gpsDuration(minutes*60)+" de plus que prévu au départ." : "Vous êtes arrivé avec "+gpsDuration(Math.abs(minutes)*60)+" d’avance.";
 }
 function gpsRouteBounds(points) {
   return points.reduce(
@@ -26365,7 +26361,7 @@ Error generating stack: ` +
     (0, R.useEffect)(() => {
       if (!_ || !i.current || !t.current) return;
       window.couteauGps = {
-        start({route,destination,profile}) {
+        start({route,destination,profile,timing}) {
           if (!Array.isArray(route?.points) || route.points.length<2 || !route.summary || !destination) throw Error('Trajet invalide.');
           pa.current?.abort();
           if(profile.travelMode!=='pedestrian')gpsNavigationZoom.current=GPS_DRIVING_ZOOM;
@@ -26375,7 +26371,7 @@ Error generating stack: ` +
             i.current.polyline(route.points,{color:'#ffffff',weight:12,opacity:.95}),
             i.current.polyline(route.points,{color:'#2466ed',weight:7,opacity:1})
           ]).addTo(t.current);
-          Bi(route);
+          Bi(route,timing);
         },
         stop() {
           pa.current?.abort(); qe.current=false; zt(false); Kt(null); Ze(null); mo(null);
@@ -26383,7 +26379,7 @@ Error generating stack: ` +
           if(navigator.geolocation && Ma.current!==null) {navigator.geolocation.clearWatch(Ma.current);Ma.current=null;}
           try {sessionStorage.removeItem('gps-session-v37');speechSynthesis.cancel();} catch {}
         },
-        getState:()=>({route:te,destination:Y,profile:z,active:K,position:q,zoom:t.current?.getZoom()}),
+        getState:()=>({timing:Ot.current?{started:Ot.current.started,planned:Ot.current.planned}:null,route:te,destination:Y,profile:z,active:K,position:q,zoom:t.current?.getZoom()}),
         zoom(delta){ut.current=false;const map=t.current;map.stop();map.setZoom(Math.max(8,Math.min(20,map.getZoom()+delta)),{animate:false});gpsNavigationZoom.current=map.getZoom();},
         recenter(){if(z.travelMode!=='pedestrian')gpsNavigationZoom.current=GPS_DRIVING_ZOOM;ut.current=true;Wa(true);if(q)Ka(sl(q,te?.points||[[q.lat,q.lon],[q.lat,q.lon]]));}
       };
@@ -26391,7 +26387,7 @@ Error generating stack: ` +
       return () => {delete window.couteauGps;};
     },[_,te,Y,K,z,q]);
     (0, R.useEffect)(()=>{window.dispatchEvent(new CustomEvent('couteau-gps-state',{detail:{active:K,destination:Y,profile:z,arrived:!!wi}}));},[K,Y,z,wi]);
-    function Bi(m = te) {
+    function Bi(m = te, timing = null) {
       if (!m) return;
       if(z.travelMode!=='pedestrian')gpsNavigationZoom.current=GPS_DRIVING_ZOOM;
       gpsGuideStates46.delete(m);
@@ -26402,8 +26398,8 @@ Error generating stack: ` +
         (Wo.current = 0));
       let A = Date.now();
       ((Ot.current = {
-        started: A,
-        planned: A + m.summary.travelTimeInSeconds * 1e3,
+        started: Number.isFinite(timing?.started)&&timing.started<=A?timing.started:A,
+        planned: Number.isFinite(timing?.planned)&&Number.isFinite(timing?.started)&&timing.planned>=timing.started?timing.planned:A + m.summary.travelTimeInSeconds * 1e3,
         finished: !1,
       }),
         (ha.current = 0),
@@ -26440,13 +26436,7 @@ Error generating stack: ` +
         ((A.lang = "fr-FR"), speechSynthesis.speak(A));
       }
     }
-    (0, R.useEffect)(() => {
-      if (!wi) return;
-      let m = setTimeout(() => {
-        (mo(null), Kt(null), Ze(null), f.current?.remove());
-      }, 1e4);
-      return () => clearTimeout(m);
-    }, [wi]);
+    // Arrival remains visible until the driver taps Compris.
     let Qa = (m) =>
       new Date(m).toLocaleTimeString("fr-FR", {
         hour: "2-digit",

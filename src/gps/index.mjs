@@ -45,11 +45,11 @@ export async function route(request, env, ctx) {
   catch(e) {return json({error:e.message || 'Demande invalide.'},400);}
   const profile=input.profile || {}, kind=routeKind(profile);
   try {
-    if(kind === 'truck' || (kind === 'car' && profile.tolls === false)) {
+    if(kind === 'truck' || kind === 'car') {
       if(kind === 'truck' && profile.confirmed !== true) return json({error:'Confirmez les dimensions de votre convoi.'},400);
       let body; try {body=payload(input);} catch(e) {return json({error:e.message},400);}
       const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(body))))].map(n=>n.toString(16).padStart(2,'0')).join('');
-      const key=new Request('https://gps-cache.invalid/integrated-6/'+hash);
+      const key=new Request('https://gps-cache.invalid/integrated-7/'+hash);
       const cache=await caches.default.match(key); if(cache) return json(await cache.json());
       const response=await fetch('https://valhalla1.openstreetmap.de/route',{method:'POST',headers:{'Content-Type':'application/json','User-Agent':'CouteauSuisseGPS/3.0 (https://carplay-telephone.appli-suzon.workers.dev)'},body:JSON.stringify(body),signal:AbortSignal.timeout(22000)});
       if(!response.ok) return json({error:response.status === 429 ? 'Calcul occupé. Réessayez dans un instant.' : 'Calcul indisponible. Réessayez.'},503);
@@ -127,7 +127,7 @@ export async function handleGps(request,env,ctx,mainFetch) {
     if(path==='/gps/api/route-reports'&&request.method==='GET') {
       const bounds=(url.searchParams.get('bounds')||'').split(',').map(Number);
       if(bounds.length!==4||!bounds.every(Number.isFinite)||bounds[0]>bounds[2]||bounds[1]>bounds[3])return json({error:'Zone invalide.'},400);
-      if(!env.ROAD_REPORTS) return json({reports:[],partial:true});
+      if(!env.ROAD_REPORTS) return json({reports:[],partial:true,unavailable:true});
       const r=await env.ROAD_REPORTS.prepare('SELECT r.* FROM reports r WHERE expires>? AND lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? AND (SELECT COUNT(*) FROM votes WHERE report=r.id AND active=1)>=3 AND (SELECT COUNT(*) FROM votes WHERE report=r.id AND active=0)<3 LIMIT 300').bind(Date.now(),bounds[0]-.03,bounds[2]+.03,bounds[1]-.04,bounds[3]+.04).all();
       return json({reports:r.results,partial:r.results.length>=300});
     }

@@ -1,6 +1,7 @@
 (() => {
   'use strict';
   const $=id=>document.getElementById(id), planner=$('gpsPlanner'), status=$('plannerStatus'), input=$('gpsAddress');
+  let resumeTiming=null;
   let mode='normal',destination=null,controller=null,generation=0,searchId=0,searchController=null,timer=0,busy=false,lastFix=null,stream=null,cameraRun=0,walking=false,wasActive=false,cameraAttempted=false,wake=null;
   const valid=p=>p && Number.isFinite(p.lat)&&Number.isFinite(p.lon)&&Math.abs(p.lat)<=90&&Math.abs(p.lon)<=180;
   const recentKey='gps-recent-addresses-v1',recentSelect=$('gpsRecentAddresses');
@@ -48,7 +49,7 @@
     } catch {if(run===cameraRun){closeCamera();$('openWalkCamera').textContent='📷 Activer la caméra';$('openWalkCamera').title='Autorisez la caméra dans les réglages du navigateur. Le guidage reste disponible sur la carte.';}}
   }
   async function keepScreen(){try{if(navigator.wakeLock&&!wake&&wasActive&&!document.hidden){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null});}}catch{}}
-  function chooseMode(value){mode=value;planner.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));$('convoyOptions').hidden=mode!=='convoi';$('vehicleOptions').hidden=mode==='pieton';$('roadOptions').hidden=mode==='pieton';$('walkFunOptions').hidden=mode!=='pieton';syncChoices();message('');}
+  function chooseMode(value){mode=value;planner.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));$('convoyOptions').hidden=mode!=='convoi';$('vehicleOptions').hidden=mode==='pieton';$('roadOptions').hidden=mode==='pieton';$('walkFunOptions').hidden=mode!=='pieton';syncChoices();message('');window.dispatchEvent(new Event('gps-route-options-change'));}
   let previewRun=0,previewAbort=null,previewTimeout=null;
   function stopPreview(){previewRun++;previewAbort?.abort();clearTimeout(previewTimeout);$('destinationStreet').hidden=true;$('destinationStreet').removeAttribute('src');}
   async function showDestinationPreview(place){
@@ -70,13 +71,14 @@
     if(event.data?.type==='gps-panorama-error'){clearTimeout(previewTimeout);frame.hidden=true;frame.removeAttribute('src');$('destinationImageStatus').hidden=false;$('destinationImageStatus').textContent='Photo de rue indisponible. Vous pouvez confirmer le trajet.';}
   });
   function open(place=null){
+    resumeTiming=null;window.couteauRouteOptions?.cancel();
     cancel();searchController?.abort();searchId++;clearTimeout(timer);closeCamera();window.couteauGps?.stop();
     destination=valid(place)?{id:place.id||'couteau-destination',kind:place.kind||'terrain',city:'',day:'',hours:'',merchants:'',...place,address:place.address||place.name}:null;
     if(destination)rememberAddress(destination);else stopPreview();
     document.body.classList.add('gps-planning');planner.hidden=false;$('addressForm').hidden=!!destination;$('modeStep').hidden=!destination;$('gpsResults').replaceChildren();
     if(destination){showDestinationPreview(destination);input.blur();planner.scrollTop=0;$('chosenAddress').textContent=destination.name||destination.address;chooseMode(mode);}else {input.value='';message('');input.focus({preventScroll:true});}
   }
-  window.couteauGpsPlanner={open, getSelection:()=>({destination,profile:profile()}),restore(saved){open(saved.destination);const p=saved.profile;for(const key of ['vehicle','trailer','roadMode'])if(p[key]!=null)$(key).value=p[key];$('tolls').checked=p.tolls!==false;loadConvoy();for(const key of ['length','height','width','weight'])if(Number(p[key])>0)$(key).value=p[key];chooseMode(p.travelMode==='pedestrian'?'pieton':p.trailer!=='none'?'convoi':'normal');syncChoices();}};
+  window.couteauGpsPlanner={open, getSelection:()=>({destination,profile:profile()}),restore(saved){open(saved.destination);resumeTiming=saved.timing||null;const p=saved.profile;for(const key of ['vehicle','trailer','roadMode'])if(p[key]!=null)$(key).value=p[key];$('tolls').checked=p.tolls!==false;loadConvoy();for(const key of ['length','height','width','weight'])if(Number(p[key])>0)$(key).value=p[key];chooseMode(p.travelMode==='pedestrian'?'pieton':p.trailer!=='none'?'convoi':'normal');syncChoices();}};
   async function search(){
     searchController?.abort();const id=++searchId,q=input.value.trim();$('gpsResults').replaceChildren();
     if(q.length<3){message(q?'Saisissez au moins trois caractères.':'');return;}
@@ -93,7 +95,7 @@
   input.addEventListener('input',()=>{searchId++;searchController?.abort();clearTimeout(timer);timer=setTimeout(search,300);});
   $('addressForm').addEventListener('submit',event=>{event.preventDefault();clearTimeout(timer);void search();});
   planner.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>chooseMode(button.dataset.mode)));
-  planner.querySelectorAll('[data-choice]').forEach(button=>button.addEventListener('click',()=>{if(busy)return;const key=button.dataset.choice,field=$(key);if(key==='vehicle'||key==='trailer')rememberConvoy();if(field.type==='checkbox')field.checked=button.dataset.value==='true';else field.value=button.dataset.value;if(key==='vehicle'||key==='trailer')loadConvoy();syncChoices();message('');}));
+  planner.querySelectorAll('[data-choice]').forEach(button=>button.addEventListener('click',()=>{if(busy)return;const key=button.dataset.choice,field=$(key);if(key==='vehicle'||key==='trailer')rememberConvoy();if(field.type==='checkbox')field.checked=button.dataset.value==='true';else field.value=button.dataset.value;if(key==='vehicle'||key==='trailer')loadConvoy();syncChoices();message('');window.dispatchEvent(new Event('gps-route-options-change'));}));
   $('editAddress').addEventListener('click',()=>open());
   $('cancelCalculation').addEventListener('click',()=>{cancel();message('Calcul annulé.');});
   function profile(){
@@ -116,7 +118,7 @@
   function showNavigation(){stopPreview();planner.hidden=true;document.body.classList.remove('gps-planning');message('');}
   $('confirmGps').addEventListener('click',async()=>{
     if(busy||!destination)return;let selected;try{selected=profile();}catch(e){message(e.message);return;}
-    cancel();const run=generation,abort=new AbortController();controller=abort;setBusy(true);message('Recherche de votre position…');
+    window.couteauRouteOptions?.cancel();cancel();const run=generation,abort=new AbortController();controller=abort;setBusy(true);message('Recherche de votre position…');
     try{
       const fix=await position(abort.signal);if(run!==generation)return;
       const from=[fix.coords.latitude,fix.coords.longitude];message('Calcul de l’itinéraire '+(mode==='pieton'?'piéton':mode==='convoi'?'adapté au convoi':'normal')+'…');
@@ -130,7 +132,7 @@
       await ready(abort.signal);if(run!==generation||abort.signal.aborted)return;
       if(mode==='convoi'){rememberConvoy();try{localStorage.setItem('gps-convoy-profiles-v5',JSON.stringify(convoyProfiles));}catch{}}
       savedProfile=selected;try{localStorage.setItem('gps-voyage-profile',JSON.stringify(selected));}catch{}
-      window.couteauGps.start({route,destination,profile:selected});showNavigation();
+      window.couteauGps.start({route,destination,profile:selected,timing:resumeTiming});resumeTiming=null;showNavigation();
     }catch(e){if(run===generation)message(e.name==='AbortError'?'Calcul interrompu. Réessayez.':e.message);}
     finally{if(run===generation){controller=null;setBusy(false);}}
   });
