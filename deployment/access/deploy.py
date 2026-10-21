@@ -15,15 +15,6 @@ for name,sha in expected.items():
 if set(modules)!=set(expected):raise SystemExit('Live module inventory changed. Review required.')
 original=dict(modules)
 core=modules['index.js'].decode()
-def replace_once(old,new):
-    global core
-    if core.count(old)!=1:raise SystemExit('Source anchor mismatch: '+old[:80])
-    core=core.replace(old,new)
-replace_once('var index_default = withWalkRepair(appWorker);','var index_default = withAccessPolicy(withWalkRepair(appWorker), adminAuthorized);')
-replace_once('async function saveVerifiedAppIdentity(env, data, verifiedAt) {','async function saveVerifiedAppIdentity(env, data, verifiedAt) {\n  if (await blocked(env.DB, data || {})) throw new Error("COMPTE_SUPPRIME_DEFINITIVEMENT");')
-replace_once('async function verifiedAppIdentityState(env, email, deviceId) {','async function verifiedAppIdentityState(env, email, deviceId) {\n  if (await blocked(env.DB, {email, deviceId})) return {verified:false, permanent:true};')
-core='import {withAccessPolicy, blocked} from "./access-policy.mjs";\n'+core
-modules['index.js']=core.encode()
 modules['access-policy.mjs']=(ROOT/'access-policy.mjs').read_bytes()
 # Syntax-check every changed JavaScript module before uploading.
 for name in ['index.js','access-policy.mjs']:
@@ -50,4 +41,3 @@ except Exception:
     upload(original)
     print('Verification failed: original live Worker restored.')
     raise
-

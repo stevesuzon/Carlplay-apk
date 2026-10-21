@@ -51,3 +51,12 @@ test('frontend transformations compile and remove the expired trial gate',async(
  const out=await (await w.fetch(new Request('https://app/admin.html'),{},{})).text();assert.ok(out.includes('onclick="deleteUserPermanently('));
  for(const script of out.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))new vm.Script(script[1]);
 });
+test('admin login quota failure is explained without weakening authentication',async()=>{
+ let called=0;
+ const w=withAccessPolicy({fetch:async()=>{called++;throw Error("D1_ERROR: Your account has exceeded D1's free tier daily row read limit.")}},async()=>false);
+ const r=await w.fetch(new Request('https://app/api/admin/login/request',{method:'POST',headers:{'content-type':'application/json'},body:'{}'}),{},{});
+ assert.equal(called,1);assert.equal(r.status,503);const j=await r.json();assert.equal(j.error,'SERVEUR_BASE_QUOTA');assert.match(j.message,/heure de Paris/);assert.ok(Date.parse(j.retryAt)>Date.now());assert.equal(j.challengeId,undefined);
+ const html=readFileSync(new URL('../../public/admin.html',import.meta.url),'utf8');
+ const page=withAccessPolicy({fetch:async()=>new Response(html,{headers:{'content-type':'text/html'}})},async()=>false);
+ assert.ok((await(await page.fetch(new Request('https://app/admin'),{},{})).text()).includes("new Error(j.message||j.error||'Envoi impossible')"));
+});

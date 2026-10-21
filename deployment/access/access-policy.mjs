@@ -1,5 +1,5 @@
 // Access policy 2026-10-21. Wraps the live Worker; preserves assets and GPS modules.
-export const VERSION = 'access-20261021';
+export const VERSION = 'access-20261021-quota';
 const ADMIN = 'appli.suzon@gmail.com';
 const norm = value => String(value || '').trim().toLowerCase();
 const reply = (value, status = 200) => Response.json(value, {status, headers:{'cache-control':'no-store'}});
@@ -125,6 +125,7 @@ export function withAccessPolicy(worker, authorized) {
       if(isScript)text=patchAsset(path,text);
       if(isAdmin){
         text=text.replace("+action+'</div>'",`+action+(u.isAdmin?'':'<button class="banBtn" style="background:#9c1728" onclick="deleteUserPermanently('+i+')">SUPPRIMER ET BLOQUER DÉFINITIVEMENT</button>')+'</div>'`);
+        text=text.replace("new Error(j.error||'Envoi impossible')","new Error(j.message||j.error||'Envoi impossible')");
         text=text.replace('</body>','<script>'+adminScript+'</script></body>');
       }else if(isHtml){
         // Unique URL breaks legacy service-worker caches without disturbing GPS scripts.
@@ -133,6 +134,15 @@ export function withAccessPolicy(worker, authorized) {
       }
       const headers=new Headers(response.headers);headers.set('cache-control','no-store');headers.delete('content-length');headers.delete('etag');headers.set('x-access-policy',VERSION);
       return new Response(text,{status:response.status,headers});
-    }catch(e){console.error('access-policy',e);return reply({ok:false,error:'ACCES_INDISPONIBLE'},503)}
+    }catch(e){
+      console.error('access-policy',e);
+      const detail=String(e&&e.message||e||'');
+      if(/daily row read limit|daily row write limit/i.test(detail)){
+        const now=new Date(),retryAt=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()+1,0,0,5));
+        const when=new Intl.DateTimeFormat('fr-FR',{timeZone:'Europe/Paris',hour:'2-digit',minute:'2-digit'}).format(retryAt);
+        return reply({ok:false,error:'SERVEUR_BASE_QUOTA',message:'La limite quotidienne de la base de données est atteinte. Réessayez après '+when+' (heure de Paris). Votre compte est conservé.',retryAt:retryAt.toISOString()},503);
+      }
+      return reply({ok:false,error:'ACCES_INDISPONIBLE',message:'Connexion momentanément indisponible. Réessayez dans quelques instants.'},503)
+    }
   }};
 }
