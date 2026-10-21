@@ -1,0 +1,27 @@
+name: Deploy account access policy
+on:
+  push:
+    branches: [fix/access-permanent-block-20261021]
+    paths:
+      - deployment/access/**
+      - .github/workflows/deploy-access-policy.yml
+permissions:
+  contents: read
+concurrency:
+  group: couteau-suisse-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Test account erasure and access rules
+        run: node --test deployment/access/access-policy.test.mjs
+      - name: Deploy against verified live source
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: python deployment/access/deploy.py
