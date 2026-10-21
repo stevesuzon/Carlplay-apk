@@ -19,7 +19,7 @@ jobs:
           test -n "$CF_TOKEN"
           test -n "$CF_ACCOUNT"
           mkdir snapshot
-          curl --fail-with-body -sS -D snapshot/content-headers.txt -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/workers/scripts/carplay-telephone/content" -o snapshot/worker-content.bin
+          curl --fail-with-body -sS -D snapshot/content-headers.txt -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/workers/scripts/carplay-telephone" -o snapshot/worker-content.bin
           python3 - <<'PY'
           from pathlib import Path
           from email import policy
