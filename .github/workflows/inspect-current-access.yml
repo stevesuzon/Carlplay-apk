@@ -1,0 +1,49 @@
+name: Inspect current Couteau Suisse deployment
+on:
+  push:
+    branches: ["fix/access-permanent-block-20261021"]
+    paths: [".github/workflows/inspect-current-access.yml"]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retrieve deployed Worker without changing production
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CF_TOKEN"
+          test -n "$CF_ACCOUNT"
+          mkdir snapshot
+          curl --fail-with-body -sS -D snapshot/content-headers.txt -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/workers/scripts/carplay-telephone/content" -o snapshot/worker-content.bin
+          python3 - <<'PY'
+          from pathlib import Path
+          from email import policy
+          from email.parser import BytesParser
+          headers=Path('snapshot/content-headers.txt').read_text()
+          ct=next((l.split(':',1)[1].strip() for l in headers.splitlines() if l.lower().startswith('content-type:')),'')
+          data=Path('snapshot/worker-content.bin').read_bytes()
+          if 'multipart/' in ct:
+              msg=BytesParser(policy=policy.default).parsebytes(('Content-Type: '+ct+'\r\nMIME-Version: 1.0\r\n\r\n').encode()+data)
+              for part in msg.iter_parts():
+                  name=part.get_filename() or part.get_param('name',header='content-disposition')
+                  if name and not name.startswith('/') and '..' not in Path(name).parts:
+                      p=Path('snapshot/modules')/name
+                      p.parent.mkdir(parents=True,exist_ok=True)
+                      p.write_bytes(part.get_payload(decode=True))
+          else:
+              Path('snapshot/modules').mkdir(exist_ok=True)
+              Path('snapshot/modules/worker.js').write_bytes(data)
+          Path('snapshot/content-headers.txt').unlink()
+          Path('snapshot/worker-content.bin').unlink()
+          print('Retrieved deployed source modules.')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: current-worker-access-review
+          path: snapshot/modules
+          retention-days: 1
