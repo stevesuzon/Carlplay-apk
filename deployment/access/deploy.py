@@ -33,7 +33,7 @@ def upload(parts):
     print('Worker content deployed; configuration, bindings, assets and GPS module preserved.')
 upload(modules)
 try:
-    for path,marker in [('/index.html','access-entry-20261021.js'),('/admin.html','SUPPRIMER ET BLOQUER DÉFINITIVEMENT'),('/subscription-web.js','accessSubscriptionEntry')]:
+    for path,marker in [('/index.html','access-entry-20261021-onboarding.js'),('/admin.html','SUPPRIMER ET BLOQUER DÉFINITIVEMENT'),('/subscription-web.js','accessSubscriptionEntry')]:
         text=subprocess.check_output(['curl','--location','--fail','--silent','--show-error','--retry','3','--max-time','45','-H','Cache-Control: no-cache','https://carplay-telephone.appli-suzon.workers.dev'+path]).decode()
         if marker not in text:raise RuntimeError('Missing rollout marker on '+path)
     print('Production entry, administration and subscription markers verified.')

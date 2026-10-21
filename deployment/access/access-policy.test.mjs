@@ -41,9 +41,9 @@ test('blocked API registration, payment and reactivation are denied; status tell
 });
 test('frontend transformations compile and remove the expired trial gate',async()=>{
  for(const name of ['subscription-web.js','app-access-gate-v506.js','sanction-guard-v161.js']){
- const src=readFileSync(new URL('../../public/'+name,import.meta.url),'utf8'),out=patchAsset('/'+name,src);assert.notEqual(out,src,name);new vm.Script(out);
- if(name==='subscription-web.js'){assert.ok(!out.includes('ABONNEMENT REQUIS'));assert.ok(out.includes('accessSubscriptionEntry'));}
- if(name==='app-access-gate-v506.js')assert.ok(out.includes('!onboardingIdentity()'));
+ const src=readFileSync(new URL('../../public/'+name,import.meta.url),'utf8'),out=patchAsset('/'+name,src);if(name!=='app-access-gate-v506.js')assert.notEqual(out,src,name);new vm.Script(out);
+ if(name==='subscription-web.js'){assert.ok(!out.includes('ABONNEMENT REQUIS'));assert.ok(out.includes('accessSubscriptionEntry'));assert.ok(out.includes('Pour profiter de toutes les fonctionnalités'));assert.ok(out.includes('S’ABONNER'));assert.ok(out.includes('href="/payment.html"'));assert.ok(out.includes("e.key==='Escape'"));}
+ if(name==='app-access-gate-v506.js'){assert.equal(out,src);assert.ok(out.includes('st&&st.verified'));}
  }
  new vm.Script(adminScript);new vm.Script(entryScript);
  const html=readFileSync(new URL('../../public/admin.html',import.meta.url),'utf8');

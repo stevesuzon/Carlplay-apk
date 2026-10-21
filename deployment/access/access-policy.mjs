@@ -1,5 +1,5 @@
 // Access policy 2026-10-21. Wraps the live Worker; preserves assets and GPS modules.
-export const VERSION = 'access-20261021-quota';
+export const VERSION = 'access-20261021-onboarding';
 const ADMIN = 'appli.suzon@gmail.com';
 const norm = value => String(value || '').trim().toLowerCase();
 const reply = (value, status = 200) => Response.json(value, {status, headers:{'cache-control':'no-store'}});
@@ -55,14 +55,21 @@ export async function deleteAccount(db, data) {
 }
 export function patchAsset(path, text) {
   if(path==='/subscription-web.js') {
-    text=text.replace(/  function lockModal\(feature\) \{[\s\S]*?\n  function addLock\(target, text\) \{/, "  function lockModal() { location.href='/index.html?subscription=1'; }\n  function addLock(target, text) {");
+    text=text.replace(/  function lockModal\(feature\) \{[\s\S]*?\n  function addLock\(target, text\) \{/, `  function lockModal() {
+    if(document.getElementById('subscriptionGate'))return;
+    var previous=document.activeElement,box=document.createElement('div');box.id='subscriptionGate';
+    box.innerHTML='<div class="sub-card" role="dialog" aria-modal="true" aria-labelledby="subscriptionPromptTitle"><button class="sub-close" type="button" aria-label="Fermer">×</button><h1 id="subscriptionPromptTitle">TOUTES LES FONCTIONNALITÉS</h1><p style="font:700 19px/1.5 Arial;margin:20px 0">Pour profiter de toutes les fonctionnalités de Couteau Suisse, abonnez-vous.</p><a href="/payment.html" style="display:block;padding:18px;border-radius:14px;background:#f39b19;color:#07111f;text-decoration:none;text-align:center;font:900 21px Arial">S’ABONNER</a><button id="closeSubscriptionGate" type="button" style="width:100%;padding:15px;margin-top:12px;border:0;border-radius:14px;background:#293448;color:white;font:bold 17px Arial">PLUS TARD</button></div>';
+    function close(){box.remove();document.removeEventListener('keydown',key);if(previous&&previous.focus)previous.focus()}
+    function key(e){if(e.key==='Escape'){e.preventDefault();close()}if(e.key==='Tab'){var items=box.querySelectorAll('button,a[href]'),first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}
+    box.querySelector('.sub-close').onclick=close;box.querySelector('#closeSubscriptionGate').onclick=close;
+    document.documentElement.appendChild(box);document.addEventListener('keydown',key);box.querySelector('a').focus();
+  }
+  function addLock(target, text) {`);
     // Entry is free; paid features still lead to subscription from inside the app.
     text=text.replace('"#settings,.gear,#directArticle', '"#accessSubscriptionEntry,#settings,.gear,#directArticle');
     text=text.replace('if (blocked.some(function(k){return p.indexOf(k)!==-1;})) lockModal("Cette fonction");','if (blocked.some(function(k){return p.indexOf(k)!==-1;})) location.replace("/index.html?subscription=1");');
   }
-  if(path==='/app-access-gate-v506.js'||path==='/app-access-gate-v240.js') {
-    text=text.replace('  var x=candidate();\n','  var x=candidate();\n  if(!onboardingIdentity() && !(confirmation&&confirmation.error)){removeGate();return}\n');
-  }
+  // Keep the original identity gate: confirmed accounts enter without a paid subscription.
   if(path==='/sanction-guard-v161.js') {
     text=text.replace('if(!r.ok||!j.ok)return;',`if(j.permanent){
       makeOverlay(false);
@@ -94,10 +101,7 @@ function boot(){
  }
  if(new URLSearchParams(location.search).get('subscription')==='1')open();
 }
-function open(){
- const settings=document.getElementById('settings');
- if(settings){settings.classList.add('open');document.body.classList.add('settings-open');const panel=document.getElementById('subscriptionSettings');if(panel){panel.classList.add('open');const body=panel.querySelector('.settingBody');if(body)body.classList.add('open');panel.scrollIntoView({block:'center'});}}
-}
+function open(){location.href='/payment.html'}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();`;
 export function withAccessPolicy(worker, authorized) {
@@ -114,7 +118,7 @@ export function withAccessPolicy(worker, authorized) {
         if(request.method==='POST'&&(request.headers.get('content-type')||'').includes('application/json'))data={...data,...await request.clone().json().catch(()=>({}))};
         if((data.email||data.recoveryEmail||data.newEmail||data.deviceId||data.device_id)&&await blocked(env.DB,data))return reply({ok:path==='/api/sanction/status',error:'COMPTE_SUPPRIME_DEFINITIVEMENT',permanent:true,appBanned:true,verified:false,reactivationRequested:false},path==='/api/sanction/status'?200:403);
       }
-      if(path==='/access-entry-20261021.js')return new Response(entryScript,{headers:{'content-type':'application/javascript;charset=utf-8','cache-control':'no-store'}});
+      if(path==='/access-entry-20261021-onboarding.js')return new Response(entryScript,{headers:{'content-type':'application/javascript;charset=utf-8','cache-control':'no-store'}});
       let response=await worker.fetch(request,env,ctx);
       if(request.method!=='GET'||!response.ok)return response;
       const isAdmin=path==='/admin.html'||path==='/admin';
@@ -129,8 +133,8 @@ export function withAccessPolicy(worker, authorized) {
         text=text.replace('</body>','<script>'+adminScript+'</script></body>');
       }else if(isHtml){
         // Unique URL breaks legacy service-worker caches without disturbing GPS scripts.
-        text=text.replace(/(subscription-web|app-access-gate-v506|app-access-gate-v240|sanction-guard-v161)\.js(?:\?[^"'\s<>]*)?/g,'$1.js?access=20261021');
-        text=text.replace('</body>','<script src="/access-entry-20261021.js"></script></body>');
+        text=text.replace(/(subscription-web|app-access-gate-v506|app-access-gate-v240|sanction-guard-v161)\.js(?:\?[^"'\s<>]*)?/g,'$1.js?access=20261021-onboarding');
+        text=text.replace('</body>','<script src="/access-entry-20261021-onboarding.js"></script></body>');
       }
       const headers=new Headers(response.headers);headers.set('cache-control','no-store');headers.delete('content-length');headers.delete('etag');headers.set('x-access-policy',VERSION);
       return new Response(text,{status:response.status,headers});
