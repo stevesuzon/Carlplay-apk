@@ -15,12 +15,13 @@ function fixture(){
  INSERT INTO app_identity_email_links VALUES('test@example.com','token');`);
  const db={prepare(q){let params=[];return {bind(...p){params=p;return this},async first(){return sql.prepare(q).get(...params)||null},async all(){return {results:sql.prepare(q).all(...params)}},async run(){return sql.prepare(q).run(...params)}}},async batch(items){sql.exec('BEGIN');try{const r=[];for(const s of items)r.push(await s.run());sql.exec('COMMIT');return r}catch(e){sql.exec('ROLLBACK');throw e}}};return {db,sql};
 }
-test('delete removes identity and tokens, revokes codes and blocks normalized email on another device',async()=>{
+test('delete removes identity and tokens, revokes devices and codes, and retains no email hash',async()=>{
  const {db,sql}=fixture();assert.equal((await deleteAccount(db,{email:' TEST@Example.com ',deviceId:'admin-device'})).status,200);
  assert.equal(sql.prepare('SELECT count(*) n FROM app_identities').get().n,1);
  assert.equal(sql.prepare('SELECT count(*) n FROM app_identity_email_links').get().n,0);
  const sub=sql.prepare('SELECT * FROM subscriptions').get();assert.equal(sub.active,0);assert.equal(sub.recovery_email_mask,null);assert.equal(sub.recovery_code_box,null);assert.notEqual(sub.code_hash,'oldcode');
- assert.equal(await blocked(db,{email:'TEST@example.com',deviceId:'new-device'}),true);
+ assert.equal(await blocked(db,{email:'TEST@example.com',deviceId:'new-device'}),false);
+ assert.equal(sql.prepare('SELECT count(*) n FROM app_permanent_blocks').get().n,0);
  assert.equal(await blocked(db,{deviceId:'radio-a'}),true);
  assert.equal(await blocked(db,{deviceId:'admin-device'}),false);
  assert.equal(await blocked(db,{email:'other@example.com',deviceId:'other'}),false);
@@ -35,9 +36,55 @@ test('blocked API registration, payment and reactivation are denied; status tell
  const {db}=fixture();await deleteAccount(db,{email:'test@example.com'});
  const w=withAccessPolicy({fetch(){return Response.json({ok:true})}},async()=>false);
  for(const path of ['/api/app-identity/start','/api/reactivation-request','/api/payment-checkout','/api/activate']){
- const r=await w.fetch(new Request('https://app'+path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'test@example.com',deviceId:'new-device'})}),{DB:db},{});assert.equal(r.status,403,path);
+ const r=await w.fetch(new Request('https://app'+path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'test@example.com',deviceId:'device-a'})}),{DB:db},{});assert.equal(r.status,403,path);
  }
  const r=await w.fetch(new Request('https://app/api/sanction/status',{method:'POST',headers:{'content-type':'application/json'},body:'{"deviceId":"device-a"}'}),{DB:db},{});assert.equal((await r.json()).permanent,true);
+});
+test('erasure removes pending logins, private data, orders and previous deny-list hashes',async()=>{
+ const {db,sql}=fixture(),hash=await digest('test@example.com');await blocked(db,{});
+ sql.prepare('INSERT INTO app_permanent_blocks VALUES (?,1)').run(hash);
+ sql.exec(`CREATE TABLE stripe_access_orders(id TEXT,email TEXT,device_id TEXT,code_hash TEXT);
+ INSERT INTO stripe_access_orders VALUES ('paid','test@example.com','device-a','unclaimed');
+ INSERT INTO subscriptions VALUES(2,1,'unclaimed',NULL,NULL,'box','','',NULL,NULL);
+ CREATE TABLE contest_referrals(email_hash TEXT,referee_subscription_id INTEGER,referee_device_id TEXT);
+ CREATE TABLE app_messages(subscription_id INTEGER,message TEXT);
+ CREATE TABLE app_presence(device_id TEXT);
+ INSERT INTO app_messages VALUES(1,'private'),(2,'unclaimed private'),(99,'keep');
+ INSERT INTO app_presence VALUES('device-a'),('other-device');`);
+ sql.prepare('INSERT INTO contest_referrals VALUES (?,1,?)').run(hash,'device-a');
+ const result=await deleteAccount(db,{email:'test@example.com'});assert.equal(result.status,200);
+ for(const table of ['stripe_access_orders','contest_referrals','app_permanent_blocks','app_identity_email_links'])assert.equal(sql.prepare(`SELECT count(*) n FROM ${table}`).get().n,0,table);
+ assert.equal(sql.prepare('SELECT active FROM subscriptions WHERE id=2').get().active,0);
+ assert.deepEqual(sql.prepare('SELECT message FROM app_messages').all().map(r=>r.message),['keep']);
+ assert.deepEqual(sql.prepare('SELECT device_id FROM app_presence').all().map(r=>r.device_id),['other-device']);
+});
+test('shared devices and unrelated accounts remain usable',async()=>{
+ const {db,sql}=fixture();
+ sql.exec("INSERT INTO app_identities VALUES('other@example.com','device-a','device-a'); CREATE TABLE app_presence(device_id TEXT); INSERT INTO app_presence VALUES('device-a');");
+ await deleteAccount(db,{email:'test@example.com'});
+ assert.equal(await blocked(db,{deviceId:'device-a'}),false);
+ assert.ok(sql.prepare("SELECT * FROM app_identities WHERE email='other@example.com'").get());
+ assert.ok(sql.prepare("SELECT * FROM app_presence WHERE device_id='device-a'").get());
+});
+test('erasure rolls back all personal-data changes if any database operation fails',async()=>{
+ const {db,sql}=fixture();
+ sql.exec("CREATE TRIGGER prevent_test_update BEFORE UPDATE ON subscriptions BEGIN SELECT RAISE(ABORT,'fixture failure'); END;");
+ await assert.rejects(deleteAccount(db,{email:'test@example.com'}),/fixture failure/);
+ assert.ok(sql.prepare("SELECT * FROM app_identities WHERE email='test@example.com'").get());
+ assert.ok(sql.prepare('SELECT * FROM app_identity_email_links').get());
+ assert.equal(sql.prepare('SELECT active FROM subscriptions').get().active,1);
+ assert.equal(await blocked(db,{deviceId:'device-a'}),false);
+});
+test('admin erase runs once without email or popup confirmation and removes row only after success',async()=>{
+ let calls=0,removed=0,reloaded=0;
+ const row={querySelectorAll:()=>[],remove:()=>{removed++}};
+ const context={adminUsers:[{email:'test@example.com'}],allUsersList:{children:[row]},allUsersStatus:{style:{}},secret:{value:'fixture-admin-session'},AbortController,setTimeout,clearTimeout,
+ confirm(){throw Error('unexpected confirmation')},prompt(){throw Error('unexpected prompt')},
+ fetch:async(url,options)=>{calls++;assert.equal(url,'/api/admin/delete-user');assert.equal(options.headers.authorization,'Bearer fixture-admin-session');assert.equal(removed,0);return Response.json({ok:true,deleted:true})},loadAllUsers:async()=>{reloaded++}};
+ vm.createContext(context);vm.runInContext(adminScript,context);
+ await Promise.all([context.deleteUserPermanently(0),context.deleteUserPermanently(0)]);
+ assert.equal(calls,1);assert.equal(removed,1);assert.equal(reloaded,1);
+ assert.equal(context.adminUsers[0].email,'');
 });
 test('frontend transformations compile and remove the expired trial gate',async()=>{
  for(const name of ['subscription-web.js','app-access-gate-v506.js','sanction-guard-v161.js']){
