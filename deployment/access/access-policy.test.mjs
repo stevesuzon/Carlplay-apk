@@ -73,3 +73,23 @@ test('new recovery encryption is authenticated and versioned',async()=>{
  const box=await sealV2('ABC123',env);assert.ok(box.startsWith('v2.'));assert.equal(await openV2(box,env),'ABC123');
  await assert.rejects(openV2(box,{PAYMENT_RECOVERY_SECRET:'other'}));
 });
+
+test('branding preserves legacy storage and globals while new origin links stay public',async()=>{
+ const {brandAsset,PUBLIC_ORIGIN}=await import('./access-policy.mjs');
+ const sample='<h2>CARPLAY TRAVAILLE</h2> window.CarPlayLocation; carplay_device_id; https://carplay-telephone.appli-suzon.workers.dev/installer.html';
+ const result=brandAsset(sample,PUBLIC_ORIGIN);
+ assert.ok(result.includes('COUTEAU SUISSE'));assert.ok(result.includes('window.CarPlayLocation'));assert.ok(result.includes('carplay_device_id'));assert.ok(result.includes(PUBLIC_ORIGIN+'/installer.html'));
+ const worker=withAccessPolicy({fetch(){return new Response(sample,{headers:{'content-type':'application/javascript'}})}},async()=>false);
+ assert.ok((await (await worker.fetch(new Request(PUBLIC_ORIGIN+'/top-ui.js'),{},{})).text()).includes('COUTEAU SUISSE'));
+});
+test('public entry preserves URL, method and signed webhook bytes',async()=>{
+ const {default:proxy}=await import('./public-entry.mjs');
+ const req=new Request('https://couteau-suisse.appli-suzon.workers.dev/api/stripe-webhook',{method:'POST',headers:{'stripe-signature':'fixture'},body:'{"id":"fixture"}'});
+ const response=await proxy.fetch(req,{APPLICATION:{async fetch(r){assert.equal(r,req);assert.equal(await r.text(),'{"id":"fixture"}');assert.equal(r.headers.get('stripe-signature'),'fixture');return new Response('ok')}}});
+ assert.equal(await response.text(),'ok');
+});
+test('referral links from old installation use new public address and keep referral token',async()=>{
+ const worker=withAccessPolicy({fetch(){return Response.json({ok:true,url:'https://carplay-telephone.appli-suzon.workers.dev/installer.html?ref=fixture'})}},async()=>false);
+ const result=await worker.fetch(new Request('https://carplay-telephone.appli-suzon.workers.dev/api/referral/create',{method:'POST'}),{},{});
+ assert.equal((await result.json()).url,'https://couteau-suisse.appli-suzon.workers.dev/installer.html?ref=fixture');
+});

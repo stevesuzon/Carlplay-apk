@@ -1,5 +1,5 @@
 // Access policy 2026-10-21. Wraps the live Worker; preserves assets and GPS modules.
-export const VERSION = 'access-20261022-checkout-timeout';
+export const VERSION = 'access-20261022-couteau-suisse';
 const ADMIN = 'appli.suzon@gmail.com';
 const norm = value => String(value || '').trim().toLowerCase();
 const reply = (value, status = 200) => Response.json(value, {status, headers:{'cache-control':'no-store'}});
@@ -107,6 +107,13 @@ function boot(){
 function open(){location.href='/payment.html'}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();`;
+export const PUBLIC_ORIGIN='https://couteau-suisse.appli-suzon.workers.dev';
+export function brandAsset(text, origin) {
+  // Preserve legacy storage keys, events and globals used by installed apps.
+  text=text.replaceAll('CARPLAY TRAVAILLE','COUTEAU SUISSE').replaceAll('CarPlay Travaille','Couteau Suisse');
+  if(origin===PUBLIC_ORIGIN)text=text.replaceAll('https://carplay-telephone.appli-suzon.workers.dev',PUBLIC_ORIGIN);
+  return text;
+}
 export function withAccessPolicy(worker, authorized) {
   return {...worker, async fetch(request,env,ctx){
     const url=new URL(request.url),path=url.pathname;
@@ -142,13 +149,20 @@ export function withAccessPolicy(worker, authorized) {
       if(path==='/market-admin-20261022.js')return new Response(marketScript,{headers:{'content-type':'application/javascript;charset=utf-8','cache-control':'no-store'}});
       if(path==='/access-entry-20261021-onboarding.js')return new Response(entryScript,{headers:{'content-type':'application/javascript;charset=utf-8','cache-control':'no-store'}});
       let response=await worker.fetch(request,env,ctx);
+      if(path==='/api/referral/create'&&response.ok){
+        const data=await response.json();
+        if(data.url){const shared=new URL(data.url);if(['https://carplay-telephone.appli-suzon.workers.dev',PUBLIC_ORIGIN].includes(shared.origin))data.url=PUBLIC_ORIGIN+shared.pathname+shared.search+shared.hash;}
+        return reply(data);
+      }
       if(request.method!=='GET'||!response.ok)return response;
       const isAdmin=path==='/admin.html'||path==='/admin';
       const isScript=['/stripe-payment-v1.js','/subscription-web.js','/app-access-gate-v506.js','/app-access-gate-v240.js','/sanction-guard-v161.js'].includes(path);
       const isHtml=(response.headers.get('content-type')||'').includes('text/html');
-      if(!isScript&&!isHtml)return response;
+      const isBrandAsset=/\.(?:js|webmanifest)$/.test(path)&&!path.startsWith('/api/');
+      if(!isScript&&!isHtml&&!isBrandAsset)return response;
       let text=await response.text();
       if(isScript)text=patchAsset(path,text);
+      text=brandAsset(text,url.origin);
       if(isAdmin){
         text=text.replace("+action+'</div>'",`+action+(u.isAdmin?'':'<button class="banBtn" style="background:#9c1728" onclick="deleteUserPermanently('+i+')">SUPPRIMER ET BLOQUER DÉFINITIVEMENT</button>')+'</div>'`);
         text=text.replace("new Error(j.error||'Envoi impossible')","new Error(j.message||j.error||'Envoi impossible')");
@@ -156,6 +170,7 @@ export function withAccessPolicy(worker, authorized) {
       }else if(isHtml){
         // Unique URL breaks legacy service-worker caches without disturbing GPS scripts.
         text=text.replace(/(stripe-payment-v1|subscription-web|app-access-gate-v506|app-access-gate-v240|sanction-guard-v161)\.js(?:\?[^"'\s<>]*)?/g,'$1.js?access=20261022-payment2');
+        text=text.replace(/(top-ui|license-ui|referral-v232)\.js(?:\?[^"'\s<>]*)?/g,'$1.js?brand=20261022');
         text=text.replace('</body>','<script src="/access-entry-20261021-onboarding.js"></script><script src="/market-admin-20261022.js"></script></body>');
       }
       const headers=new Headers(response.headers);headers.set('cache-control','no-store');headers.delete('content-length');headers.delete('etag');headers.set('x-access-policy',VERSION);

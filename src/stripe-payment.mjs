@@ -1,6 +1,6 @@
 // Server-only Stripe Checkout. No card details or Stripe secrets enter browser code.
 export function createStripePayments(h){
- const ORIGIN='https://carplay-telephone.appli-suzon.workers.dev',PRODUCT='couteau-suisse-365',PRICE=1499;
+ const PRODUCT='couteau-suisse-365',PRICE=1499;
  const configured=env=>/^(?:sk|rk)_live_/.test(env.STRIPE_SECRET_KEY||'')&&/^whsec_/.test(env.STRIPE_WEBHOOK_SECRET||'')&&!!env.CODE_PEPPER;
  async function schema(env){await h.ensureMarketSchemaOnce(env.DB,'stripe-checkout-v1',async()=>{
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS stripe_access_orders(id TEXT PRIMARY KEY,token_hash TEXT NOT NULL,device_id TEXT NOT NULL,email TEXT NOT NULL,first_name TEXT NOT NULL,last_name TEXT NOT NULL,created_at INTEGER NOT NULL,session_id TEXT UNIQUE,checkout_url TEXT,code_hash TEXT,code_box TEXT,paid_at INTEGER,email_sent_at INTEGER,email_lease INTEGER NOT NULL DEFAULT 0)`).run();
@@ -46,6 +46,8 @@ export function createStripePayments(h){
   return false;
  }
  async function checkout(request,env){
+  const origin=new URL(request.url).origin;
+  const ORIGIN=['https://couteau-suisse.appli-suzon.workers.dev','https://carplay-telephone.appli-suzon.workers.dev'].includes(origin)?origin:'https://couteau-suisse.appli-suzon.workers.dev';
   if(!configured(env))return h.json({ok:false,error:'PAIEMENT_NON_CONFIGURE'},503);
   const data=await h.body(request),device=String(data.deviceId||'');if(!h.validDevice(device))return h.json({ok:false,error:'INSCRIPTION_REQUISE'},403);
   await h.ensureAppIdentityTables(env);
@@ -63,7 +65,7 @@ export function createStripePayments(h){
   }
   if(order.checkout_url)return h.json({ok:true,orderId:order.id,url:order.checkout_url});
   const session=await stripe(env,'checkout/sessions',{
-   mode:'payment',customer_email:email,client_reference_id:order.id,'metadata[order_id]':order.id,'metadata[product]':PRODUCT,
+   'branding_settings[display_name]':'Couteau Suisse',mode:'payment',customer_email:email,client_reference_id:order.id,'metadata[order_id]':order.id,'metadata[product]':PRODUCT,
    'payment_method_types[0]':'card','line_items[0][price_data][currency]':'eur','line_items[0][price_data][unit_amount]':String(PRICE),
    'line_items[0][price_data][product_data][name]':'Couteau Suisse — 1 an (365 jours)','line_items[0][quantity]':'1',
    success_url:ORIGIN+'/payment.html?order='+order.id,cancel_url:ORIGIN+'/payment.html?cancel=1&order='+order.id
