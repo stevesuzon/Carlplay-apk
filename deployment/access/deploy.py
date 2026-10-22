@@ -49,7 +49,7 @@ try:
     for path,marker in [('/index.html','OUVRIR LE NOUVEAU LIEN'),('/admin.html','OUVRIR LE NOUVEAU LIEN'),('/payment.html','OUVRIR LE NOUVEAU LIEN'),('/gps/','OUVRIR LE NOUVEAU LIEN')]:
         text=subprocess.check_output(['curl','--location','--fail','--silent','--show-error','--retry','3','--max-time','45','-H','Cache-Control: no-cache','https://carplay-telephone.appli-suzon.workers.dev'+path]).decode()
         if marker not in text:raise RuntimeError('Missing rollout marker on '+path)
-    for path,marker in [('/index.html','Couteau Suisse'),('/top-ui.js','COUTEAU SUISSE'),('/license-ui.js','COUTEAU SUISSE'),('/manifest.webmanifest','Couteau Suisse'),('/api/payment-config','1499'),('/installer.html?migration=1','AJOUTER À L’ÉCRAN D’ACCUEIL'),('/admin.html','SUPPRIMER ET BLOQUER DÉFINITIVEMENT')]:
+    for path,marker in [('/index.html','Couteau Suisse'),('/top-ui.js','COUTEAU SUISSE'),('/license-ui.js','COUTEAU SUISSE'),('/manifest.webmanifest','Couteau Suisse'),('/api/payment-config','1499'),('/installer.html?migration=1','AJOUTER À L’ÉCRAN D’ACCUEIL'),('/admin.html','EFFACER LE COMPTE')]:
         text=subprocess.check_output(['curl','--location','--fail','--silent','--show-error','--retry','3','--max-time','30','https://couteau-suisse.appli-suzon.workers.dev'+path]).decode()
         if marker not in text:raise RuntimeError('Missing public brand marker on '+path)
     print('Both entry points, brand, manifest, administration and payment configuration verified.')
