@@ -16,17 +16,6 @@ for name,sha in expected.items():
     if hashlib.sha256(modules.get(name,b'')).hexdigest()!=sha:raise SystemExit('Live source changed: '+name+'. Review the newer version before deployment.')
 if set(modules)!=set(expected):raise SystemExit('Live module inventory changed. Review required.')
 original=dict(modules)
-core=modules['index.js'].decode()
-def replace_once(old,new):
-    global core
-    if core.count(old)!=1:raise SystemExit('Brand patch no longer matches reviewed live core: '+old[:80])
-    core=core.replace(old,new)
-replace_once('const ORIGIN = "https://carplay-telephone.appli-suzon.workers.dev", PRODUCT = "couteau-suisse-365", PRICE = 1499;', 'const PRODUCT = "couteau-suisse-365", PRICE = 1499;')
-replace_once('async function checkout(request, env) {', '''async function checkout(request, env) {
-    const requestedOrigin = new URL(request.url).origin;
-    const ORIGIN = ["https://couteau-suisse.appli-suzon.workers.dev", "https://carplay-telephone.appli-suzon.workers.dev"].includes(requestedOrigin) ? requestedOrigin : "https://couteau-suisse.appli-suzon.workers.dev";''')
-replace_once('success_url: ORIGIN + "/payment.html?order=" + order.id,', '"branding_settings[display_name]": "Couteau Suisse",\n      success_url: ORIGIN + "/payment.html?order=" + order.id,')
-modules['index.js']=core.encode()
 modules['access-policy.mjs']=(ROOT/'access-policy.mjs').read_bytes()
 modules['recovery-v2.mjs']=(ROOT/'recovery-v2.mjs').read_bytes()
 # Syntax-check every changed JavaScript module before uploading.
@@ -57,10 +46,10 @@ try:
     upload({'index.js':proxy},PUBLIC_BASE,{'main_module':'index.js','compatibility_date':'2026-08-01','bindings':[{'type':'service','name':'APPLICATION','service':'carplay-telephone'}]})
     result,_=call(PUBLIC_BASE+'/subdomain',json.dumps({'enabled':True,'previews_enabled':False}).encode(),{'Content-Type':'application/json'},'POST')
     if not json.loads(result).get('success'):raise RuntimeError('Could not enable public domain')
-    for path,marker in [('/index.html','access-entry-20261021-onboarding.js'),('/admin.html','SUPPRIMER ET BLOQUER DÉFINITIVEMENT'),('/subscription-web.js','accessSubscriptionEntry')]:
+    for path,marker in [('/index.html','OUVRIR LE NOUVEAU LIEN'),('/admin.html','OUVRIR LE NOUVEAU LIEN'),('/payment.html','OUVRIR LE NOUVEAU LIEN'),('/gps/','OUVRIR LE NOUVEAU LIEN')]:
         text=subprocess.check_output(['curl','--location','--fail','--silent','--show-error','--retry','3','--max-time','45','-H','Cache-Control: no-cache','https://carplay-telephone.appli-suzon.workers.dev'+path]).decode()
         if marker not in text:raise RuntimeError('Missing rollout marker on '+path)
-    for path,marker in [('/index.html','Couteau Suisse'),('/top-ui.js','COUTEAU SUISSE'),('/license-ui.js','COUTEAU SUISSE'),('/manifest.webmanifest','Couteau Suisse'),('/api/payment-config','1499')]:
+    for path,marker in [('/index.html','Couteau Suisse'),('/top-ui.js','COUTEAU SUISSE'),('/license-ui.js','COUTEAU SUISSE'),('/manifest.webmanifest','Couteau Suisse'),('/api/payment-config','1499'),('/installer.html?migration=1','AJOUTER À L’ÉCRAN D’ACCUEIL'),('/admin.html','SUPPRIMER ET BLOQUER DÉFINITIVEMENT')]:
         text=subprocess.check_output(['curl','--location','--fail','--silent','--show-error','--retry','3','--max-time','30','https://couteau-suisse.appli-suzon.workers.dev'+path]).decode()
         if marker not in text:raise RuntimeError('Missing public brand marker on '+path)
     print('Both entry points, brand, manifest, administration and payment configuration verified.')

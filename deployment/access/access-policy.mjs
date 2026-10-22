@@ -1,5 +1,5 @@
 // Access policy 2026-10-21. Wraps the live Worker; preserves assets and GPS modules.
-export const VERSION = 'access-20261022-couteau-suisse';
+export const VERSION = 'access-20261022-move-notice';
 const ADMIN = 'appli.suzon@gmail.com';
 const norm = value => String(value || '').trim().toLowerCase();
 const reply = (value, status = 200) => Response.json(value, {status, headers:{'cache-control':'no-store'}});
@@ -114,10 +114,31 @@ export function brandAsset(text, origin) {
   if(origin===PUBLIC_ORIGIN)text=text.replaceAll('https://carplay-telephone.appli-suzon.workers.dev',PUBLIC_ORIGIN);
   return text;
 }
+export const LEGACY_ORIGIN='https://carplay-telephone.appli-suzon.workers.dev';
+export function addressNotice(url, installation=false) {
+  const ref=url.searchParams.get('ref');
+  const query=ref?'&ref='+encodeURIComponent(ref.slice(0,500)):'';
+  const target=installation?PUBLIC_ORIGIN+'/?installation=1'+query:PUBLIC_ORIGIN+'/installer.html?migration=1'+query;
+  const html=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#07111e"><meta name="referrer" content="no-referrer"><title>Couteau Suisse — ${installation?'Installation':'Nouvelle adresse'}</title>
+  ${installation?'<link rel="manifest" href="/manifest.webmanifest"><meta name="apple-mobile-web-app-title" content="Couteau Suisse"><link rel="apple-touch-icon" href="/couteau-suisse-v283-180.png">':''}
+  <style>*{box-sizing:border-box}body{margin:0;background:#07111e;color:#fff;font-family:system-ui,-apple-system,Arial,sans-serif;padding:24px 16px;padding-top:max(24px,env(safe-area-inset-top));padding-bottom:max(24px,env(safe-area-inset-bottom))}main{max-width:620px;margin:0 auto;border:3px solid #f59e0b;border-radius:28px;padding:clamp(20px,5vw,36px)}header{text-align:center}.logo{width:80px;height:80px;border-radius:19px}h1{font-size:clamp(28px,7vw,40px);line-height:1.15;margin:16px 0;color:#ffb52e}h2{font-size:21px;line-height:1.3;margin:0 0 12px}p,li{font-size:18px;line-height:1.55}.saved{background:#0f3028;border:1px solid #3cbb86;border-radius:18px;padding:18px;margin:24px 0}.saved strong{color:#85efb6}.saved p{margin:8px 0 0}.button{display:flex;align-items:center;justify-content:center;min-height:76px;background:#f59e0b;color:#10151c;border-radius:18px;padding:20px 14px;text-decoration:none;text-align:center;font-size:22px;font-weight:850;line-height:1.25}.button:focus-visible{outline:3px solid #fff;outline-offset:5px}.url{text-align:center;color:#b9c9db;overflow-wrap:anywhere;font-size:15px}.guide{margin-top:28px}.guide section{background:#142438;border-radius:16px;padding:18px;margin:14px 0}.guide ol{padding-left:24px;margin:8px 0}.guide li{margin:8px 0}.note{color:#c2cfdd;font-size:16px}</style></head><body><main>
+  <header><img class="logo" src="${PUBLIC_ORIGIN}/couteau-suisse-v283-180.png" alt=""><h1>${installation?'BIENVENUE SUR COUTEAU SUISSE':'COUTEAU SUISSE A CHANGÉ D’ADRESSE'}</h1><p>${installation?'Vous êtes au bon endroit. Ajoutez le nouveau lien à votre écran d’accueil.':'L’application est maintenant disponible uniquement sur son nouveau lien.'}</p></header>
+  <div class="saved"><strong>VOTRE COMPTE EST CONSERVÉ</strong><p>Votre compte et votre abonnement restent valables. Vous n’avez pas à repayer un abonnement en cours.</p><p>Si une connexion est demandée, utilisez <b>la même adresse e-mail</b> que d’habitude et confirmez l’e-mail reçu.</p></div>
+  <a class="button" href="${target}">${installation?'OUVRIR COUTEAU SUISSE':'OUVRIR LE NOUVEAU LIEN'}</a><p class="url">couteau-suisse.appli-suzon.workers.dev</p>
+  <div class="guide"><h2>AJOUTER À L’ÉCRAN D’ACCUEIL</h2>${installation?'':'<p>Après avoir ouvert le nouveau lien :</p>'}<section><h2>Sur iPhone / iPad</h2><ol><li>Ouvrez le nouveau lien dans <b>Safari</b>.</li><li>Appuyez sur <b>Partager</b> (le carré avec la flèche vers le haut).</li><li>Choisissez <b>Sur l’écran d’accueil</b>, puis <b>Ajouter</b>.</li></ol></section><section><h2>Sur Android</h2><ol><li>Ouvrez le nouveau lien dans <b>Chrome</b>.</li><li>Appuyez sur le menu <b>⋮</b>.</li><li>Choisissez <b>Installer l’application</b> ou <b>Ajouter à l’écran d’accueil</b>, puis confirmez.</li></ol></section><p class="note">Ensuite, utilisez la nouvelle icône Couteau Suisse pour ouvrir l’application.</p></div>
+  </main></body></html>`;
+  return new Response(html,{headers:{'content-type':'text/html;charset=utf-8','cache-control':'no-store','x-access-policy':VERSION}});
+}
 export function withAccessPolicy(worker, authorized) {
   return {...worker, async fetch(request,env,ctx){
     const url=new URL(request.url),path=url.pathname;
     try {
+      // Leave backend callbacks operational; retire every old application page.
+      const legacy=url.origin===LEGACY_ORIGIN;
+      if(request.method==='GET'&&legacy&&!path.startsWith('/api/')&&(request.mode==='navigate'||request.headers.get('accept')?.includes('text/html')||/\.html$/.test(path)||!path.split('/').pop().includes('.')))return addressNotice(url);
+      if(request.method==='GET'&&url.origin===PUBLIC_ORIGIN&&['/installer.html','/installer'].includes(path)&&url.searchParams.get('migration')==='1')return addressNotice(url,true);
+      // Cached old HTML also loads this uncached entry script.
+      if(legacy&&path==='/access-entry-20261021-onboarding.js')return new Response('location.replace("/");',{headers:{'content-type':'application/javascript','cache-control':'no-store'}});
       if(path==='/api/payment-eligibility'&&request.method==='POST'){
         const data=await request.json(),device=String(data.deviceId||'');
         if(!device||device.length>200)return reply({ok:false,error:'INSCRIPTION_REQUISE'},403);
@@ -158,6 +179,7 @@ export function withAccessPolicy(worker, authorized) {
       const isAdmin=path==='/admin.html'||path==='/admin';
       const isScript=['/stripe-payment-v1.js','/subscription-web.js','/app-access-gate-v506.js','/app-access-gate-v240.js','/sanction-guard-v161.js'].includes(path);
       const isHtml=(response.headers.get('content-type')||'').includes('text/html');
+      if(legacy&&isHtml&&!path.startsWith('/api/'))return addressNotice(url);
       const isBrandAsset=/\.(?:js|webmanifest)$/.test(path)&&!path.startsWith('/api/');
       if(!isScript&&!isHtml&&!isBrandAsset)return response;
       let text=await response.text();

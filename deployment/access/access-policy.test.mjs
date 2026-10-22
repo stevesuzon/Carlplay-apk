@@ -93,3 +93,20 @@ test('referral links from old installation use new public address and keep refer
  const result=await worker.fetch(new Request('https://carplay-telephone.appli-suzon.workers.dev/api/referral/create',{method:'POST'}),{},{});
  assert.equal((await result.json()).url,'https://couteau-suisse.appli-suzon.workers.dev/installer.html?ref=fixture');
 });
+test('legacy UI is replaced everywhere while new UI and backend callbacks remain available',async()=>{
+ const old='https://carplay-telephone.appli-suzon.workers.dev',current='https://couteau-suisse.appli-suzon.workers.dev';
+ const w=withAccessPolicy({fetch(){return new Response('application',{headers:{'content-type':'text/plain'}})}},async()=>false);
+ for(const path of ['/','/index.html','/installer.html','/admin.html','/payment.html?order=fixture','/gps/','/gps/navigation']){
+  const r=await w.fetch(new Request(old+path),{},{}),html=await r.text();
+  assert.ok(html.includes('OUVRIR LE NOUVEAU LIEN'));assert.ok(html.includes(current+'/installer.html?migration=1'));assert.ok(!html.includes('rel="manifest"'));assert.equal(r.headers.get('cache-control'),'no-store');
+ }
+ for(const url of [current+'/',current+'/index.html',current+'/payment.html?order=fixture',old+'/api/stripe-webhook',old+'/api/app-identity/confirm?id=fixture'])assert.equal(await (await w.fetch(new Request(url),{},{})).text(),'application');
+ const install=await (await w.fetch(new Request(current+'/installer.html?migration=1'),{},{})).text();
+ assert.ok(install.includes('rel="manifest"'));assert.ok(install.includes('AJOUTER À L’ÉCRAN D’ACCUEIL'));assert.ok(install.includes(current+'/?installation=1'));
+ const cached=await (await w.fetch(new Request(old+'/access-entry-20261021-onboarding.js'),{},{})).text();assert.equal(cached,'location.replace("/");');
+});
+test('notice safely preserves referral without forwarding personal or payment query data',async()=>{
+ const {addressNotice}=await import('./access-policy.mjs');
+ const html=await addressNotice(new URL('https://carplay-telephone.appli-suzon.workers.dev/?ref=%22%3E%3Cscript%3E&token=private&email=private')).text();
+ assert.ok(html.includes('ref=%22%3E%3Cscript%3E'));assert.ok(!html.includes('private'));assert.ok(!html.includes('<script>'));
+});
