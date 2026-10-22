@@ -10,14 +10,27 @@ raw,headers=call(BASE)
 message=email.parser.BytesParser(policy=email.policy.default).parsebytes(('Content-Type: '+headers['Content-Type']+'\r\nMIME-Version: 1.0\r\n\r\n').encode()+raw)
 modules={part.get_filename() or part.get_param('name',header='content-disposition'):part.get_payload(decode=True) for part in message.iter_parts()}
 expected=json.loads((ROOT/'baseline.json').read_text())
+# Cloudflare may omit the optional sourcemap after a secrets update.
+if 'index.js.map' not in modules:expected.pop('index.js.map',None)
 for name,sha in expected.items():
     if hashlib.sha256(modules.get(name,b'')).hexdigest()!=sha:raise SystemExit('Live source changed: '+name+'. Review the newer version before deployment.')
 if set(modules)!=set(expected):raise SystemExit('Live module inventory changed. Review required.')
 original=dict(modules)
 core=modules['index.js'].decode()
 modules['access-policy.mjs']=(ROOT/'access-policy.mjs').read_bytes()
+modules['recovery-v2.mjs']=(ROOT/'recovery-v2.mjs').read_bytes()
+def replace_once(old,new):
+    global core
+    if core.count(old)!=1:raise RuntimeError('Live payment code differs; review required')
+    core=core.replace(old,new)
+core='import {sealV2,openV2} from "./recovery-v2.mjs";\n'+core
+replace_once('async function sealRecoveryCode(code, env) {','async function sealRecoveryCode(code, env) {\n  if(env.PAYMENT_RECOVERY_SECRET)return sealV2(normalizeCode(code),env);')
+replace_once('async function openRecoveryCode(box, env) {','async function openRecoveryCode(box, env) {\n  if(String(box).startsWith("v2."))return openV2(box,env);')
+replace_once('&& !!env.CODE_PEPPER, "configured"','&& !!env.PAYMENT_RECOVERY_SECRET, "configured"')
+modules['index.js']=core.encode()
+
 # Syntax-check every changed JavaScript module before uploading.
-for name in ['index.js','access-policy.mjs']:
+for name in ['index.js','access-policy.mjs','recovery-v2.mjs']:
     target=pathlib.Path('/tmp')/('validate-'+name+'.mjs');target.write_bytes(modules[name]);subprocess.run(['node','--check',str(target)],check=True)
 def upload(parts):
     boundary='----access-'+uuid.uuid4().hex

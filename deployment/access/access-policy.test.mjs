@@ -60,3 +60,16 @@ test('admin login quota failure is explained without weakening authentication',a
  const page=withAccessPolicy({fetch:async()=>new Response(html,{headers:{'content-type':'text/html'}})},async()=>false);
  assert.ok((await(await page.fetch(new Request('https://app/admin'),{},{})).text()).includes("new Error(j.message||j.error||'Envoi impossible')"));
 });
+test('market removal requires admin and persists the shared tombstone',async()=>{
+ const {db,sql}=fixture();let allow=false;
+ const w=withAccessPolicy({fetch:async()=>new Response('ok')},async()=>allow);
+ const req=()=>new Request('https://app/api/admin/market-remove',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({marketKey:'fr|35|Marché|Rennes|Samedi|Place'})});
+ assert.equal((await w.fetch(req(),{DB:db},{})).status,401);allow=true;
+ assert.equal((await w.fetch(req(),{DB:db},{})).status,200);
+ assert.equal(sql.prepare('SELECT action FROM market_duplicate_decisions').get().action,'deleted');
+});
+test('new recovery encryption is authenticated and versioned',async()=>{
+ const {sealV2,openV2}=await import('./recovery-v2.mjs');const env={PAYMENT_RECOVERY_SECRET:'test-secret'};
+ const box=await sealV2('ABC123',env);assert.ok(box.startsWith('v2.'));assert.equal(await openV2(box,env),'ABC123');
+ await assert.rejects(openV2(box,{PAYMENT_RECOVERY_SECRET:'other'}));
+});

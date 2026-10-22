@@ -1,5 +1,5 @@
 // Access policy 2026-10-21. Wraps the live Worker; preserves assets and GPS modules.
-export const VERSION = 'access-20261021-onboarding';
+export const VERSION = 'access-20261022-payments-markets';
 const ADMIN = 'appli.suzon@gmail.com';
 const norm = value => String(value || '').trim().toLowerCase();
 const reply = (value, status = 200) => Response.json(value, {status, headers:{'cache-control':'no-store'}});
@@ -54,7 +54,12 @@ export async function deleteAccount(db, data) {
   return reply({ok:true,permanent:true});
 }
 export function patchAsset(path, text) {
+  if(path==='/stripe-payment-v1.js'){
+    text=text.replace("$('message').textContent='Vos jours payés restants seront conservés.';","$('message').textContent='Activation de votre abonnement…';busy=false;await $('activate').onclick();");
+  }
   if(path==='/subscription-web.js') {
+    text=text.replace(/<a href="https:\/\/www\.snapchat\.com\/add\/steve_suzon"[^>]*>Pour commander un code[\s\S]*?<\/a>/g,'');
+    text=text.replaceAll('PAYER 30 € — 1 AN','PRENDRE / RENOUVELER L’ABONNEMENT');
     text=text.replace(/  function lockModal\(feature\) \{[\s\S]*?\n  function addLock\(target, text\) \{/, `  function lockModal() {
     if(document.getElementById('subscriptionGate'))return;
     var previous=document.activeElement,box=document.createElement('div');box.id='subscriptionGate';
@@ -108,6 +113,16 @@ export function withAccessPolicy(worker, authorized) {
   return {...worker, async fetch(request,env,ctx){
     const url=new URL(request.url),path=url.pathname;
     try {
+      if(path==='/api/admin/market-access')return reply({ok:true,admin:await authorized(request,env)});
+      if(path==='/api/admin/market-remove'){
+        if(request.method!=='POST')return reply({ok:false},405);
+        if(!await authorized(request,env))return reply({ok:false,error:'CONNEXION_ADMINISTRATEUR_REQUISE'},401);
+        const data=await request.json(),key=String(data.marketKey||'');
+        if(!/^(fr|be|special)\|/.test(key)||key.length>480)return reply({ok:false,error:'MARCHE_INVALIDE'},400);
+        await env.DB.prepare('CREATE TABLE IF NOT EXISTS market_duplicate_decisions (market_key TEXT PRIMARY KEY, action TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)').run();
+        await env.DB.prepare("INSERT INTO market_duplicate_decisions(market_key,action,updated_at) VALUES(?,'deleted',CURRENT_TIMESTAMP) ON CONFLICT(market_key) DO UPDATE SET action='deleted',updated_at=CURRENT_TIMESTAMP").bind(key).run();
+        return reply({ok:true});
+      }
       if(path==='/api/admin/delete-user'){
         if(request.method!=='POST')return reply({ok:false,error:'METHODE_INVALIDE'},405);
         if(!await authorized(request,env))return reply({ok:false,error:'NON_AUTORISE'},401);
@@ -118,11 +133,12 @@ export function withAccessPolicy(worker, authorized) {
         if(request.method==='POST'&&(request.headers.get('content-type')||'').includes('application/json'))data={...data,...await request.clone().json().catch(()=>({}))};
         if((data.email||data.recoveryEmail||data.newEmail||data.deviceId||data.device_id)&&await blocked(env.DB,data))return reply({ok:path==='/api/sanction/status',error:'COMPTE_SUPPRIME_DEFINITIVEMENT',permanent:true,appBanned:true,verified:false,reactivationRequested:false},path==='/api/sanction/status'?200:403);
       }
+      if(path==='/market-admin-20261022.js')return new Response(marketScript,{headers:{'content-type':'application/javascript;charset=utf-8','cache-control':'no-store'}});
       if(path==='/access-entry-20261021-onboarding.js')return new Response(entryScript,{headers:{'content-type':'application/javascript;charset=utf-8','cache-control':'no-store'}});
       let response=await worker.fetch(request,env,ctx);
       if(request.method!=='GET'||!response.ok)return response;
       const isAdmin=path==='/admin.html'||path==='/admin';
-      const isScript=['/subscription-web.js','/app-access-gate-v506.js','/app-access-gate-v240.js','/sanction-guard-v161.js'].includes(path);
+      const isScript=['/stripe-payment-v1.js','/subscription-web.js','/app-access-gate-v506.js','/app-access-gate-v240.js','/sanction-guard-v161.js'].includes(path);
       const isHtml=(response.headers.get('content-type')||'').includes('text/html');
       if(!isScript&&!isHtml)return response;
       let text=await response.text();
@@ -133,8 +149,8 @@ export function withAccessPolicy(worker, authorized) {
         text=text.replace('</body>','<script>'+adminScript+'</script></body>');
       }else if(isHtml){
         // Unique URL breaks legacy service-worker caches without disturbing GPS scripts.
-        text=text.replace(/(subscription-web|app-access-gate-v506|app-access-gate-v240|sanction-guard-v161)\.js(?:\?[^"'\s<>]*)?/g,'$1.js?access=20261021-onboarding');
-        text=text.replace('</body>','<script src="/access-entry-20261021-onboarding.js"></script></body>');
+        text=text.replace(/(stripe-payment-v1|subscription-web|app-access-gate-v506|app-access-gate-v240|sanction-guard-v161)\.js(?:\?[^"'\s<>]*)?/g,'$1.js?access=20261022-markets');
+        text=text.replace('</body>','<script src="/access-entry-20261021-onboarding.js"></script><script src="/market-admin-20261022.js"></script></body>');
       }
       const headers=new Headers(response.headers);headers.set('cache-control','no-store');headers.delete('content-length');headers.delete('etag');headers.set('x-access-policy',VERSION);
       return new Response(text,{status:response.status,headers});
@@ -150,3 +166,5 @@ export function withAccessPolicy(worker, authorized) {
     }
   }};
 }
+
+export const marketScript = "(()=>{'use strict';\nlet admin=false,decisions={},started=false,scheduled=false;\nconst token=()=>localStorage.getItem('carplay_admin_token')||localStorage.getItem('carplay_admin_secret')||'';\nasync function init(){if(started)return;started=true;try{const [a,d]=await Promise.all([fetch('/api/admin/market-access',{headers:{authorization:'Bearer '+token()},cache:'no-store'}).then(r=>r.json()),fetch('/api/market-duplicate-decisions',{cache:'no-store'}).then(r=>r.json())]);admin=a.admin===true;decisions=d.decisions||{};decorate();}catch(_){started=false;}}\nfunction decorate(){\nfor(const link of document.querySelectorAll('article a[href*=\"verification-v9\"]')){\nconst card=link.closest('article'),url=new URL(link.href),key=url.searchParams.get('mk');if(!key)continue;\nif(!started){init();return;}\nif(decisions[key]==='deleted'){card.style.setProperty('display','none','important');continue;}\nif(!admin||card.querySelector('.adminMarketRemove'))continue;\nlink.textContent='MODIFIER';\nconst b=document.createElement('button');b.type='button';b.className='adminMarketRemove';b.textContent='EFFACER LE MARCHÉ';b.style.cssText='padding:14px;border:2px solid #ff637a;border-radius:12px;background:#83192c;color:white;font-weight:900;margin-top:8px';\nb.onclick=async()=>{if(!confirm('Effacer ce marché pour tous les utilisateurs ?\\n'+(url.searchParams.get('n')||'')))return;b.disabled=true;try{const r=await fetch('/api/admin/market-remove',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token()},body:JSON.stringify({marketKey:key})}),j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||'Suppression impossible');decisions[key]='deleted';if(window.MarketDedupV511)window.MarketDedupV511.setDecision(key,'deleted');card.style.setProperty('display','none','important');}catch(e){alert(e.message);b.disabled=false;}};\n(link.parentElement.classList.contains('actions')?link.parentElement:card).appendChild(b);\n}}\nfunction scan(){if(scheduled)return;scheduled=true;setTimeout(()=>{scheduled=false;decorate()},80)}\nfunction boot(){new MutationObserver(scan).observe(document.body,{childList:true,subtree:true});decorate();}\nif(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();\n})();\n";
