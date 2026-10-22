@@ -1,5 +1,5 @@
 // Access policy 2026-10-21. Wraps the live Worker; preserves assets and GPS modules.
-export const VERSION = 'access-20261022-move-notice';
+export const VERSION = 'access-20261022-account-erasure';
 const ADMIN = 'appli.suzon@gmail.com';
 const norm = value => String(value || '').trim().toLowerCase();
 const reply = (value, status = 200) => Response.json(value, {status, headers:{'cache-control':'no-store'}});
@@ -27,31 +27,51 @@ export async function deleteAccount(db, data) {
   if(email===ADMIN)return reply({ok:false,error:'ADMIN_NON_SUPPRIMABLE'},403);
   await schema(db);
   const hash=await digest(email), now=Date.now();
+  const tableNames=new Set(((await db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all()).results||[]).map(r=>r.name));
   const identities=(await db.prepare('SELECT * FROM app_identities WHERE lower(trim(email))=?').bind(email).all()).results||[];
   const subs=(await db.prepare("SELECT * FROM subscriptions WHERE lower(trim(COALESCE(recovery_email_mask,'')))=? OR recovery_email_hash=?").bind(email,hash).all()).results||[];
-  if(!identities.length&&!subs.length){
-    const old=await db.prepare('SELECT 1 FROM app_permanent_blocks WHERE email_hash=?').bind(hash).first();
-    return old?reply({ok:true,permanent:true}):reply({ok:false,error:'UTILISATEUR_INTROUVABLE'},404);
+  const links=tableNames.has('app_identity_email_links')?(await db.prepare('SELECT * FROM app_identity_email_links WHERE lower(trim(email))=?').bind(email).all()).results||[]:[];
+  const orders=tableNames.has('stripe_access_orders')?(await db.prepare('SELECT * FROM stripe_access_orders WHERE lower(trim(email))=?').bind(email).all()).results||[]:[];
+  // A paid, unredeemed activation code may have no email on its subscription yet.
+  for(const order of orders)if(order.code_hash){
+    const row=await db.prepare('SELECT * FROM subscriptions WHERE code_hash=?').bind(order.code_hash).first();
+    if(row&&!subs.some(s=>s.id===row.id)&&(!norm(row.recovery_email_mask)||norm(row.recovery_email_mask)===email))subs.push(row);
   }
   // Resolve devices exclusively from server rows, never the submitted device or subscription ID.
-  const devices=[...new Set([...identities.flatMap(r=>[r.device_id,r.email_verified_device_id]),...subs.flatMap(r=>[r.phone_device,r.autoradio_device])].filter(Boolean))];
+  const devices=[...new Set([...identities.flatMap(r=>[r.device_id,r.email_verified_device_id]),...subs.flatMap(r=>[r.phone_device,r.autoradio_device]),...links.map(r=>r.device_id),...orders.map(r=>r.device_id)].filter(Boolean))];
   const adminRows=(await db.prepare('SELECT device_id,email_verified_device_id FROM app_identities WHERE lower(email)=?').bind(ADMIN).all()).results||[];
   const adminSubs=(await db.prepare('SELECT phone_device,autoradio_device FROM subscriptions WHERE lower(recovery_email_mask)=?').bind(ADMIN).all()).results||[];
   const protectedDevices=new Set([...adminRows.flatMap(r=>[r.device_id,r.email_verified_device_id]),...adminSubs.flatMap(r=>[r.phone_device,r.autoradio_device])].filter(Boolean));
-  const statements=[db.prepare('INSERT OR IGNORE INTO app_permanent_blocks(email_hash,created_at) VALUES(?,?)').bind(hash,now)];
-  for(const d of devices)if(!protectedDevices.has(d))statements.push(db.prepare('INSERT OR IGNORE INTO app_revoked_devices(device_hash,created_at) VALUES(?,?)').bind(await digest(d),now));
-  // Delete identity/session/challenge records. Keep accounting subscription IDs, but erase
-  // their personal fields, revoke entitlement and rotate the activation secret.
-  const tables=new Set(((await db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all()).results||[]).map(r=>r.name));
-  for(const table of ['app_identity_email_links','subscription_email_challenges','email_identity_challenges','admin_direct_messages','market_user_sanctions','app_identities']) {
-    if(tables.has(table))statements.push(db.prepare(`DELETE FROM ${table} WHERE lower(trim(email))=?`).bind(email));
+  // Shared devices must not erase or revoke another person's account.
+  for(const d of devices){
+    const otherIdentity=await db.prepare('SELECT 1 FROM app_identities WHERE (device_id=? OR email_verified_device_id=?) AND lower(trim(email))<>? LIMIT 1').bind(d,d,email).first();
+    const otherSubscription=await db.prepare("SELECT 1 FROM subscriptions WHERE (phone_device=? OR autoradio_device=?) AND trim(COALESCE(recovery_email_mask,''))<>'' AND lower(trim(recovery_email_mask))<>? LIMIT 1").bind(d,d,email).first();
+    if(otherIdentity||otherSubscription)protectedDevices.add(d);
   }
+  // Erasure is distinct from the separate BANNIR action: retain no email or email hash.
+  const statements=[db.prepare('DELETE FROM app_permanent_blocks WHERE email_hash=?').bind(hash)];
+  for(const d of devices)if(!protectedDevices.has(d))statements.push(db.prepare('INSERT OR IGNORE INTO app_revoked_devices(device_hash,created_at) VALUES(?,?)').bind(await digest(d),now));
+  const ownedDevices=devices.filter(d=>!protectedDevices.has(d));
+  const subscriptionIds=subs.map(s=>s.id);
+  const hashes=[...new Set([hash,...subs.map(s=>s.recovery_email_hash)].filter(Boolean))];
+  const privateTables=['app_identity_email_links','subscription_email_challenges','email_identity_challenges','admin_direct_messages','market_user_sanctions','app_identities','stripe_access_orders','app_messages','app_presence','app_installations','app_home_installations','contest_participants','contest_results','contest_market_points','contest_market_reviews','contest_mushroom_reviews','contest_reports','contest_commune_requests','contest_travel_alerts','contest_messages','contest_score_events','contest_pending_gifts','contest_bonus_periods','contest_referral_invites','contest_referrals'];
+  for(const table of privateTables){
+    if(!tableNames.has(table))continue;
+    // Names are from the fixed allowlist; all user values remain bound parameters.
+    const columns=new Set(((await db.prepare(`PRAGMA table_info(${table})`).all()).results||[]).map(r=>r.name));
+    const where=[],values=[];
+    if(columns.has('email')){where.push('lower(trim(email))=?');values.push(email)}
+    if(columns.has('email_hash')){where.push('email_hash IN (SELECT value FROM json_each(?))');values.push(JSON.stringify(hashes))}
+    for(const col of ['subscription_id','sponsor_subscription_id','referee_subscription_id','claimed_subscription_id'])if(columns.has(col)&&subscriptionIds.length){where.push(`${col} IN (SELECT value FROM json_each(?))`);values.push(JSON.stringify(subscriptionIds))}
+    for(const col of ['device_id','last_device_id','referee_device_id'])if(columns.has(col)&&ownedDevices.length){where.push(`${col} IN (SELECT value FROM json_each(?))`);values.push(JSON.stringify(ownedDevices))}
+    if(where.length)statements.push(db.prepare(`DELETE FROM ${table} WHERE ${where.join(' OR ')}`).bind(...values));
+  }
+  // Keep anonymous accounting IDs; erase personal fields and invalidate activation codes.
   for(const s of subs){
     statements.push(db.prepare("UPDATE subscriptions SET active=0,code_hash=?,recovery_email_hash=NULL,recovery_email_mask=NULL,recovery_code_box=NULL,account_first_name='',account_last_name='',phone_device=NULL,autoradio_device=NULL WHERE id=?").bind(await digest(crypto.randomUUID()),s.id));
-    for(const table of ['contest_participants','contest_results','app_messages']) if(tables.has(table))statements.push(db.prepare(`DELETE FROM ${table} WHERE subscription_id=?`).bind(s.id));
   }
   await db.batch(statements); // D1 batch is atomic: revocation and erasure succeed together.
-  return reply({ok:true,permanent:true});
+  return reply({ok:true,deleted:true});
 }
 export function patchAsset(path, text) {
   if(path==='/stripe-payment-v1.js')return paymentScript;
@@ -78,8 +98,9 @@ export function patchAsset(path, text) {
       makeOverlay(false);
       var box=document.getElementById('carplayBanOverlay');
       if(!box)box=overlay;
-      if(box)box.innerHTML='<div style="padding:30px;color:white;text-align:center;font:700 22px Arial">COMPTE SUPPRIMÉ<br><br>Cette adresse e-mail est définitivement bloquée.</div>';
-      ['carplay_shared_subscription','carplay_app_identity_v240','carplay_identity_email_verified_v304','carplay_paid_activated'].forEach(function(k){localStorage.removeItem(k)});
+      if(box)box.innerHTML='<div style="padding:30px;color:white;text-align:center;font:700 22px Arial">COMPTE SUPPRIMÉ<br><br>L’accès à ce compte a été retiré.</div>';
+      ['carplay_shared_subscription','carplay_app_identity_v240','carplay_account_profile','carplay_pending_identity_v304','carplay_identity_email_verified_v304','carplay_paid_activated','carplay_recovery_email'].forEach(function(k){localStorage.removeItem(k)});
+      ['carplay_identity_v282','carplay_recovery_email'].forEach(function(k){document.cookie=k+'=; Max-Age=0; Path=/; SameSite=Lax; Secure'});
       return;
     }
     if(!r.ok||!j.ok)return;`);
@@ -89,10 +110,11 @@ export function patchAsset(path, text) {
 export const adminScript = `
 async function deleteUserPermanently(index){
  const u=adminUsers[Number(index)];if(!u||u.isAdmin||!u.email)return;
- if(!confirm('Supprimer le compte de '+u.email+' et bloquer définitivement cette adresse ? Cette action ne peut pas être annulée avec Débannir.'))return;
- const typed=prompt('Pour confirmer, recopiez l’adresse e-mail :');if(!typed||typed.trim().toLowerCase()!==u.email.trim().toLowerCase())return;
+ if(u.deleting)return;u.deleting=true;
+ const row=allUsersList.children[Number(index)];if(row)row.querySelectorAll('button').forEach(function(b){b.disabled=true});
  allUsersStatus.style.display='block';allUsersStatus.textContent='Suppression…';
- try{const r=await fetch('/api/admin/delete-user',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+secret.value},body:JSON.stringify({email:u.email})}),j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||'Suppression impossible');await loadAllUsers();allUsersStatus.textContent='Compte supprimé. Cette adresse ne pourra plus se reconnecter ni se réinscrire.'}catch(e){allUsersStatus.textContent=e.message}
+ const controller=new AbortController(),timer=setTimeout(function(){controller.abort()},20000);
+ try{const r=await fetch('/api/admin/delete-user',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+secret.value},body:JSON.stringify({email:u.email}),signal:controller.signal}),j=await r.json();if(!r.ok||!j.ok)throw Error(j.message||j.error||'Suppression impossible');if(row)row.remove();u.email='';await loadAllUsers();allUsersStatus.textContent='Compte et adresse e-mail effacés de l’application. Accès retiré.'}catch(e){allUsersStatus.textContent=e.name==='AbortError'?'La réponse du serveur prend trop de temps. Rechargez la liste pour vérifier la suppression.':e.message;if(row)row.querySelectorAll('button').forEach(function(b){b.disabled=false})}finally{clearTimeout(timer);u.deleting=false}
 }
 `;
 export const entryScript = `(()=>{
@@ -186,7 +208,7 @@ export function withAccessPolicy(worker, authorized) {
       if(isScript)text=patchAsset(path,text);
       text=brandAsset(text,url.origin);
       if(isAdmin){
-        text=text.replace("+action+'</div>'",`+action+(u.isAdmin?'':'<button class="banBtn" style="background:#9c1728" onclick="deleteUserPermanently('+i+')">SUPPRIMER ET BLOQUER DÉFINITIVEMENT</button>')+'</div>'`);
+        text=text.replace("+action+'</div>'",`+action+(u.isAdmin?'':'<button class="banBtn" style="background:#9c1728" onclick="deleteUserPermanently('+i+')">EFFACER LE COMPTE</button>')+'</div>'`);
         text=text.replace("new Error(j.error||'Envoi impossible')","new Error(j.message||j.error||'Envoi impossible')");
         text=text.replace('</body>','<script>'+adminScript+'</script></body>');
       }else if(isHtml){
