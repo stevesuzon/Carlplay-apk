@@ -19,16 +19,6 @@ original=dict(modules)
 core=modules['index.js'].decode()
 modules['access-policy.mjs']=(ROOT/'access-policy.mjs').read_bytes()
 modules['recovery-v2.mjs']=(ROOT/'recovery-v2.mjs').read_bytes()
-def replace_once(old,new):
-    global core
-    if core.count(old)!=1:raise RuntimeError('Live payment code differs; review required')
-    core=core.replace(old,new)
-core='import {sealV2,openV2} from "./recovery-v2.mjs";\n'+core
-replace_once('async function sealRecoveryCode(code, env) {','async function sealRecoveryCode(code, env) {\n  if(env.PAYMENT_RECOVERY_SECRET)return sealV2(normalizeCode(code),env);')
-replace_once('async function openRecoveryCode(box, env) {','async function openRecoveryCode(box, env) {\n  if(String(box).startsWith("v2."))return openV2(box,env);')
-replace_once('&& !!env.CODE_PEPPER, "configured"','&& !!env.PAYMENT_RECOVERY_SECRET, "configured"')
-modules['index.js']=core.encode()
-
 # Syntax-check every changed JavaScript module before uploading.
 for name in ['index.js','access-policy.mjs','recovery-v2.mjs']:
     target=pathlib.Path('/tmp')/('validate-'+name+'.mjs');target.write_bytes(modules[name]);subprocess.run(['node','--check',str(target)],check=True)
